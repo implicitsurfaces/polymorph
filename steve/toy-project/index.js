@@ -1,61 +1,62 @@
-import { exportSVG } from "pantograph2d";
-import { drawCircle } from "pantograph2d/drawShape";
-import { Loop, CubicBezier } from "pantograph2d/models";
+import { exportSVG } from "pantograph2d"
+import { drawCircle } from "pantograph2d/drawShape"
+import { Loop, CubicBezier } from "pantograph2d/models"
 
-import optimjs from "optimization-js";
+import optimjs from "optimization-js"
 
-import fs from "node:fs";
-import { fileURLToPath } from "node:url";
+import fs from "node:fs"
+import { fileURLToPath } from "node:url"
 
-import { distance, tgt } from "./vectorOperations.js";
-import { splitmix32 } from "./utils.js";
+import { distance, tgt } from "./vectorOperations.js"
+import { splitmix32 } from "./utils.js"
 
-import { integrateSurface, integrateLength } from "./geomIntegrations.js";
+import { integrateSurface, integrateLength } from "./geomIntegrations.js"
+import { mcmc } from './mcmc.js'
 
-const random = splitmix32(12);
+const random = splitmix32(12)
 
 class Shape {
   constructor(points, tangents = null, tangentsMagnitude = null) {
-    this.points = points;
+    this.points = points
     this.tangents = tangents || [
       tgt(this.points[3], this.points[0], this.points[1]),
       tgt(this.points[0], this.points[1], this.points[2]),
       tgt(this.points[1], this.points[2], this.points[3]),
       tgt(this.points[2], this.points[3], this.points[0]),
-    ];
+    ]
     this.tangentsMagnitude = tangentsMagnitude || [
       distance(this.points[0], this.points[1]) / 3,
       distance(this.points[1], this.points[2]) / 3,
       distance(this.points[2], this.points[3]) / 3,
       distance(this.points[3], this.points[0]) / 3,
-    ];
+    ]
 
-    this._figure = null;
+    this._figure = null
   }
 
   startControlPoint(curveIndex) {
-    const cos = Math.cos(this.tangents[curveIndex]);
-    const sin = Math.sin(this.tangents[curveIndex]);
+    const cos = Math.cos(this.tangents[curveIndex])
+    const sin = Math.sin(this.tangents[curveIndex])
 
     return [
       this.points[curveIndex][0] + cos * this.tangentsMagnitude[curveIndex],
       this.points[curveIndex][1] + sin * this.tangentsMagnitude[curveIndex],
-    ];
+    ]
   }
 
   endControlPoint(curveIndex) {
-    const index = (curveIndex + 1) % 4;
-    const cos = Math.cos(this.tangents[index]);
-    const sin = Math.sin(this.tangents[index]);
+    const index = (curveIndex + 1) % 4
+    const cos = Math.cos(this.tangents[index])
+    const sin = Math.sin(this.tangents[index])
 
     return [
       this.points[index][0] - cos * this.tangentsMagnitude[curveIndex],
       this.points[index][1] - sin * this.tangentsMagnitude[curveIndex],
-    ];
+    ]
   }
 
   get figure() {
-    if (this._figure) return this._figure;
+    if (this._figure) return this._figure
 
     const figure = new Loop(
       [
@@ -85,24 +86,24 @@ class Shape {
         ),
       ],
       { ignoreChecks: true },
-    );
+    )
 
-    this._figure = figure;
-    return figure;
+    this._figure = figure
+    return figure
   }
 
   surface(gridSize = 100) {
-    return integrateSurface(this.figure);
+    return integrateSurface(this.figure)
   }
 
   length() {
-    return integrateLength(this.figure);
+    return integrateLength(this.figure)
   }
 }
 
 export const dpnt = (point, radius = 0.05) => {
-  return drawCircle(radius).translateTo(point);
-};
+  return drawCircle(radius).translateTo(point)
+}
 
 function saveShape(shape, name = "shape", dir = ".") {
   const svg = exportSVG(
@@ -112,30 +113,30 @@ function saveShape(shape, name = "shape", dir = ".") {
       ...shape.points.map((point) => dpnt(point)),
     ],
     { margin: 2 },
-  );
-  const dirURL = new URL(dir, import.meta.url);
+  )
+  const dirURL = new URL(dir, import.meta.url)
 
   if (!fs.existsSync(fileURLToPath(dirURL))) {
-    fs.mkdirSync(fileURLToPath(dirURL), { recursive: true });
+    fs.mkdirSync(fileURLToPath(dirURL), { recursive: true })
   }
 
-  const fileURL = new URL(`${dir}/${name}.svg`, import.meta.url);
-  fs.writeFileSync(fileURLToPath(fileURL), svg);
+  const fileURL = new URL(`${dir}/${name}.svg`, import.meta.url)
+  fs.writeFileSync(fileURLToPath(fileURL), svg)
 }
 
 function chooseInitialPoints() {
   const angles = [
-    random() * 2 * Math.PI,
-    random() * 2 * Math.PI,
-    random() * 2 * Math.PI,
-    random() * 2 * Math.PI,
-  ].sort();
+    Math.random() * 2 * Math.PI,
+    Math.random() * 2 * Math.PI,
+    Math.random() * 2 * Math.PI,
+    Math.random() * 2 * Math.PI,
+  ].sort()
 
-  return angles.map((a) => [Math.cos(a), Math.sin(a)]);
+  return angles.map((a) => [Math.cos(a), Math.sin(a)])
 }
 
 function optimise() {
-  const points = chooseInitialPoints();
+  const points = chooseInitialPoints()
 
   const initValues = [
     tgt(points[3], points[0], points[1]),
@@ -146,27 +147,45 @@ function optimise() {
     distance(points[1], points[2]) / 3,
     distance(points[2], points[3]) / 3,
     distance(points[3], points[0]) / 3,
-  ];
+  ]
 
   const vectFcn = (vec) => {
-    const shape = new Shape(points, vec.slice(0, 4), vec.slice(4, 8));
-    return shape.length() - shape.surface();
-  };
+    const tgts = vec.slice(0, 4)
+    for (let i = 0; i < 4; i++) {
+      if (Math.abs(tgts[i]) > Math.PI)
+        return -Infinity
+    }
+    const mags = vec.slice(4, 8)
+    for (let i = 0; i < 4; i++) {
+      if (mags[i] < 0)
+        return -Infinity
+    }
 
-  const result = optimjs.minimize_Powell(vectFcn, initValues);
+    const shape = new Shape(points, tgts, mags)
+    const length = shape.length()
+    const surface = shape.surface()
+
+    const lengthErr = Math.pow(Math.log(length), 2) / 2
+    const surfaceErr = Math.pow(surface - Math.PI, 2) / 0.2
+
+    return lengthErr + surfaceErr
+  }
+
+  //  const result = mcmc(initValues, 100, 5, vectFcn)[0]
+  const result = optimjs.minimize_Powell(vectFcn, initValues).argument
 
   return new Shape(
     points,
-    result.argument.slice(0, 4),
-    result.argument.slice(4, 8),
-  );
+    result.slice(0, 4),
+    result.slice(4, 8),
+  )
 }
 
 function main() {
-  const shape = optimise();
-  console.log("area", shape.surface());
-  console.log("length", shape.length());
-  saveShape(shape);
+  const shape = optimise()
+  console.log("area", shape.surface())
+  console.log("length", shape.length())
+  saveShape(shape)
 }
 
-main();
+main()

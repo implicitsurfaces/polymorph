@@ -1,0 +1,18 @@
+{
+  "name": "toy-project",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "eslint": "^9.1.0",
+    "optimization-js": "^1.5.0",
+    "pantograph2d": "^0.7.0",
+    "prettier": "^3.2.5"
+  }
+}

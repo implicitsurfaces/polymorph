@@ -1,8 +1,12 @@
+use egui::epaint::CubicBezierShape;
 use egui::{ClippedPrimitive, Context, TexturesDelta};
 use egui_wgpu::renderer::{Renderer, ScreenDescriptor};
 use pixels::{wgpu, PixelsContext};
 use winit::event_loop::EventLoopWindowTarget;
 use winit::window::Window;
+
+use kurbo::ParamCurveArclen;
+use kurbo::{BezPath, PathEl, PathSeg, Point, Shape};
 
 /// Manages all state required for rendering egui over `Pixels`.
 pub(crate) struct Framework {
@@ -24,6 +28,7 @@ pub(crate) struct Gui {
     window_open: bool,
 
     pub optimizing: bool,
+    pub path: BezPath,
 }
 
 impl Framework {
@@ -142,9 +147,54 @@ impl Framework {
 impl Gui {
     /// Create a `Gui`.
     fn new() -> Self {
+        let mut path = BezPath::new();
+
+        path.push(PathEl::MoveTo(Point::new(100., 200.)));
+        path.push(PathEl::CurveTo(
+            Point::new(100.0, 120.0),
+            Point::new(120.0, 100.0),
+            // Point::new(100., 200.),
+            // Point::new(200., 100.),
+            Point::new(200.0, 100.0),
+        ));
+        path.push(PathEl::CurveTo(
+            Point::new(220.0, 100.0),
+            Point::new(300.0, 120.0),
+            // Point::new(200.0, 100.0),
+            // Point::new(300.0, 200.0),
+            Point::new(300.0, 200.0),
+        ));
+        path.push(PathEl::CurveTo(
+            Point::new(300.0, 220.0),
+            Point::new(220.0, 300.0),
+            // Point::new(300.0, 200.0),
+            // Point::new(200.0, 300.0),
+            Point::new(200.0, 300.0),
+        ));
+        path.push(PathEl::CurveTo(
+            Point::new(120.0, 300.0),
+            Point::new(100.0, 220.0),
+            // Point::new(200.0, 300.0),
+            // Point::new(100.0, 200.0),
+            Point::new(100.0, 200.0),
+        ));
+        path.close_path();
+
+        let len: f64 = path
+            .segments()
+            .map(|seg| match seg {
+                kurbo::PathSeg::Cubic(bez) => bez.arclen(0.1),
+                _ => panic!("Unsupported segment type"),
+            })
+            .sum();
+        println!("Length: {}", len);
+        println!("Area: {}", path.area());
+        println!("Ratio: {}", len / path.area());
+
         Self {
             window_open: true,
             optimizing: false,
+            path,
         }
     }
 
@@ -164,10 +214,51 @@ impl Gui {
             egui::Window::new("Polymorph")
                 .open(&mut self.window_open)
                 .show(ctx, |ui| {
-                    if ui.button("Start optimizing").clicked() {
+                    if ui.button("Optimize!").clicked() {
                         self.optimizing = true;
                     }
                 });
         }
+        egui::CentralPanel::default().show(ctx, |ui| {
+            for seg in self.path.segments() {
+                if let PathSeg::Cubic(b) = seg {
+                    // Conver the kurbo points to egui points
+                    let points =
+                        [b.p0, b.p1, b.p2, b.p3].map(|p| egui::pos2(p.x as f32, p.y as f32));
+                    let bezier = CubicBezierShape {
+                        points,
+                        closed: false,
+                        fill: egui::Color32::TRANSPARENT,
+                        stroke: egui::Stroke::new(2.0, egui::Color32::LIGHT_BLUE),
+                    };
+                    ui.painter().add(bezier);
+
+                    // Draw lines to the control points
+                    ui.painter().line_segment(
+                        [points[0], points[1]],
+                        egui::Stroke::new(1.0, egui::Color32::LIGHT_GRAY),
+                    );
+                    ui.painter().line_segment(
+                        [points[2], points[3]],
+                        egui::Stroke::new(1.0, egui::Color32::LIGHT_GRAY),
+                    );
+
+                    // Render handles
+                    for (i, p) in points.iter().enumerate() {
+                        let fill_color = if i == 0 || i == 3 {
+                            egui::Color32::LIGHT_GRAY
+                        } else {
+                            egui::Color32::RED
+                        };
+                        ui.painter().rect(
+                            egui::Rect::from_center_size(*p, egui::vec2(8.0, 8.0)),
+                            0.0,
+                            fill_color,
+                            egui::Stroke::new(1.0, egui::Color32::BLACK),
+                        );
+                    }
+                }
+            }
+        });
     }
 }

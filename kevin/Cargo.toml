@@ -1,0 +1,9 @@
+[package]
+name = "polymorph-kevin"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.82"
+cobyla = "0.6.0"
+fidget = { git = "https://github.com/mkeeter/fidget/", hash = "814f095ba4b3e1c929dbdb968a48ad6e10ea4e75" }

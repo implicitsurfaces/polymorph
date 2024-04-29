@@ -4,8 +4,8 @@ use geo::{
 };
 
 pub struct SimulationResults {
-    dy: f64,
-    angular_adjustment: f64,
+    pub dy: f64,
+    pub angular_adjustment: f64,
 }
 
 impl SimulationResults {
@@ -15,12 +15,12 @@ impl SimulationResults {
 }
 
 pub struct Simulation {
-    boat: Polygon<f64>,
-    density_water: f64,
-    density_boat: f64,
-    gravity: f64,
-    tolerance: f64,
-    max_iterations: usize,
+    pub boat: Polygon<f64>,
+    pub density_water: f64,
+    pub density_boat: f64,
+    pub gravity: f64,
+    pub tolerance: f64,
+    pub max_iterations: usize,
 }
 
 impl Simulation {
@@ -54,7 +54,6 @@ impl Simulation {
             },
         )
         .to_polygon();
-
         return water.intersection(boat);
     }
 

@@ -1,20 +1,14 @@
-/// We derive Deserialize/Serialize so we can persist app state on shutdown.
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(default)] // if we add new fields, give them default values when deserializing old state
-pub struct App {
-    // Example stuff:
-    label: String,
+use buoyancy::Simulation;
+use geo::{Centroid, Coord, Polygon, Scale, Translate};
 
-    #[serde(skip)] // This how you opt-out of serialization of a field
-    value: f32,
+pub struct App {
+    simulation: Simulation,
 }
 
 impl Default for App {
     fn default() -> Self {
         Self {
-            // Example stuff:
-            label: "Hello World!".to_owned(),
-            value: 2.7,
+            simulation: Simulation::new(),
         }
     }
 }
@@ -25,22 +19,28 @@ impl App {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 
-        // Load previous app state (if any).
-        // Note that you must enable the `persistence` feature for this to work.
-        if let Some(storage) = cc.storage {
-            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
-        }
-
         Default::default()
+    }
+
+    fn draw_polygon(&self, poly: &Polygon, color: egui::Color32) -> egui::Shape {
+        let points = poly
+            .exterior()
+            .scale_around_point(100., -100., Coord { x: 0., y: 0. })
+            .translate(100., 100.)
+            .points()
+            .map(|p| egui::pos2(p.x() as f32, p.y() as f32))
+            .collect();
+
+        let shape = egui::Shape::convex_polygon(
+            points,
+            color,
+            egui::Stroke::new(1.0, egui::Color32::BLACK),
+        );
+        shape
     }
 }
 
 impl eframe::App for App {
-    /// Called by the frame work to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, self);
-    }
-
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
@@ -66,18 +66,53 @@ impl eframe::App for App {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
-            ui.heading("eframe template");
+            // Render water level
+            let water_level = 0.0;
+            let water_line = egui::Shape::line_segment(
+                [
+                    egui::pos2(0.0, water_level + 100.0),
+                    egui::pos2(1000.0, water_level + 100.0),
+                ],
+                egui::Stroke::new(1.0, egui::Color32::BLUE),
+            );
+            ui.painter().add(water_line);
 
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(&mut self.label);
-            });
+            let boat_shape = self.draw_polygon(&self.simulation.boat, egui::Color32::LIGHT_BLUE);
+            ui.painter().add(boat_shape);
 
-            ui.add(egui::Slider::new(&mut self.value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                self.value += 1.0;
-            }
+            // Show center of gravity and buoyancy.
+            // let displacement = self
+            //     .simulation
+            //     .underwater_volume(&self.simulation.boat, 0.0);
+            let displacement = self
+                .simulation
+                .underwater_volume(&self.simulation.boat, 0.0)
+                .into_iter()
+                .next()
+                .unwrap();
+            let displacment_shape = self.draw_polygon(&displacement, egui::Color32::GREEN);
+            ui.painter().add(displacment_shape);
+
+            let cob = displacement
+                .centroid()
+                .unwrap()
+                .translate(100., -100.)
+                .scale(100.);
+            let cob_pos = egui::pos2(cob.x() as f32, cob.y() as f32);
+            let cob_shape = egui::Shape::circle_filled(cob_pos, 2.0, egui::Color32::GREEN);
+            ui.painter().add(cob_shape);
+
+            let cog = self
+                .simulation
+                .boat
+                .centroid()
+                .unwrap()
+                .translate(100., -100.)
+                .scale(100.);
+
+            let cog_pos = egui::pos2(cog.x() as f32, cog.y() as f32);
+            let cog_shape = egui::Shape::circle_filled(cog_pos, 2.0, egui::Color32::RED);
+            ui.painter().add(cog_shape);
         });
     }
 }

@@ -1,0 +1,14 @@
+[workspace]
+
+resolver = "2"
+members = ["crates/*"]
+
+# Profile stuff from https://github.com/emilk/eframe_template
+# but it has to live in the root Cargo.toml.
+[profile.release]
+opt-level = 2 # fast and small wasm
+
+# Optimize all dependencies even in debug builds:
+[profile.dev.package."*"]
+opt-level = 2
+# End of profile stuff from eframe_template

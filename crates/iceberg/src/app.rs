@@ -1,14 +1,16 @@
-use buoyancy::Simulation;
-use geo::{Centroid, Coord, Polygon, Scale, Translate};
+use buoyancy::{Boat, Simulation};
+use geo::{Centroid, Coord, Point, Polygon, Scale, Translate};
 
 pub struct App {
     simulation: Simulation,
+    current_boat: Boat,
 }
 
 impl Default for App {
     fn default() -> Self {
         Self {
             simulation: Simulation::new(),
+            current_boat: Boat::new_default(),
         }
     }
 }
@@ -26,7 +28,7 @@ impl App {
         let points = poly
             .exterior()
             .scale_around_point(100., -100., Coord { x: 0., y: 0. })
-            .translate(100., 100.)
+            .translate(150., 150.)
             .points()
             .map(|p| egui::pos2(p.x() as f32, p.y() as f32))
             .collect();
@@ -37,6 +39,33 @@ impl App {
             egui::Stroke::new(1.0, egui::Color32::BLACK),
         );
         shape
+    }
+
+    fn draw_point(&self, in_point: &Point, color: egui::Color32) -> egui::Shape {
+        let point = in_point
+            .scale_around_point(100., -100., Coord { x: 0., y: 0. })
+            .translate(150., 150.);
+
+        let point = egui::pos2(point.x() as f32, point.y() as f32);
+        let shape = egui::Shape::circle_filled(point, 2.0, color);
+        shape
+    }
+
+    fn draw_boat(&self, ui: &egui::Ui, boat: &Boat) {
+        let boat_shape = self.draw_polygon(&boat.geometry, egui::Color32::LIGHT_BLUE);
+        ui.painter().add(boat_shape);
+
+        // Show center of gravity and buoyancy.
+        let displacement = boat.underwater_volume(0.0).into_iter().next().unwrap();
+        let displacment_shape = self.draw_polygon(&displacement, egui::Color32::YELLOW);
+        ui.painter().add(displacment_shape);
+
+        let cob_shape = self.draw_point(&boat.center_of_gravity(), egui::Color32::GREEN);
+        ui.painter().add(cob_shape);
+
+        let cog = self.simulation.boat.centroid().unwrap();
+        let cob_shape = self.draw_point(&boat.center_of_buoyancy(0.), egui::Color32::RED);
+        ui.painter().add(cob_shape);
     }
 }
 
@@ -70,49 +99,37 @@ impl eframe::App for App {
             let water_level = 0.0;
             let water_line = egui::Shape::line_segment(
                 [
-                    egui::pos2(0.0, water_level + 100.0),
-                    egui::pos2(1000.0, water_level + 100.0),
+                    egui::pos2(0.0, water_level + 150.0),
+                    egui::pos2(1000.0, water_level + 150.0),
                 ],
                 egui::Stroke::new(1.0, egui::Color32::BLUE),
             );
             ui.painter().add(water_line);
 
-            let boat_shape = self.draw_polygon(&self.simulation.boat, egui::Color32::LIGHT_BLUE);
-            ui.painter().add(boat_shape);
+            self.draw_boat(ui, &self.current_boat);
 
-            // Show center of gravity and buoyancy.
-            // let displacement = self
-            //     .simulation
-            //     .underwater_volume(&self.simulation.boat, 0.0);
-            let displacement = self
-                .simulation
-                .underwater_volume(&self.simulation.boat, 0.0)
-                .into_iter()
-                .next()
-                .unwrap();
-            let displacment_shape = self.draw_polygon(&displacement, egui::Color32::GREEN);
-            ui.painter().add(displacment_shape);
+            // Add a button to run the simulation
+            //
 
-            let cob = displacement
-                .centroid()
-                .unwrap()
-                .translate(100., -100.)
-                .scale(100.);
-            let cob_pos = egui::pos2(cob.x() as f32, cob.y() as f32);
-            let cob_shape = egui::Shape::circle_filled(cob_pos, 2.0, egui::Color32::GREEN);
-            ui.painter().add(cob_shape);
+            if ui.button("Run simulation").clicked() {
+                match self.simulation.run() {
+                    Some(results) => self.current_boat = results,
+                    None => {
+                        println!("Simulation did not converge.");
+                    }
+                }
+            }
 
-            let cog = self
-                .simulation
-                .boat
-                .centroid()
-                .unwrap()
-                .translate(100., -100.)
-                .scale(100.);
+            if ui.button("Reset").clicked() {
+                self.current_boat = Boat::new_default();
+            }
 
-            let cog_pos = egui::pos2(cog.x() as f32, cog.y() as f32);
-            let cog_shape = egui::Shape::circle_filled(cog_pos, 2.0, egui::Color32::RED);
-            ui.painter().add(cog_shape);
+            /*
+            self.draw_boat(
+                ui,
+                &,
+            );
+            */
         });
     }
 }

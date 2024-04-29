@@ -18,9 +18,9 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
     eframe::run_native(
-        "eframe template",
+        "Iceberg!",
         native_options,
-        Box::new(|cc| Box::new(iceberg::TemplateApp::new(cc))),
+        Box::new(|cc| Box::new(iceberg::App::new(cc))),
     )
 }
 
@@ -37,7 +37,7 @@ fn main() {
             .start(
                 "the_canvas_id", // hardcode it
                 web_options,
-                Box::new(|cc| Box::new(iceberg::TemplateApp::new(cc))),
+                Box::new(|cc| Box::new(iceberg::App::new(cc))),
             )
             .await
             .expect("failed to start eframe");

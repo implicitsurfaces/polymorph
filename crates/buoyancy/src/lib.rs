@@ -20,6 +20,7 @@ pub struct Simulation {
     density_boat: f64,
     gravity: f64,
     tolerance: f64,
+    max_iterations: usize,
 }
 
 impl Simulation {
@@ -30,14 +31,16 @@ impl Simulation {
             (x: 0.0, y: length),
             (x: length, y: length),
             (x: length, y: 0.0),
-        ];
+        ]
+        .rotate_around_center(12.);
 
         Self {
             boat,
-            density_water: 1.0,
-            density_boat: 0.6,
-            gravity: 1.0,
+            density_water: 1000.,
+            density_boat: 500.,
+            gravity: 10.0,
             tolerance: 1e-5,
+            max_iterations: 100,
         }
     }
 
@@ -52,11 +55,13 @@ impl Simulation {
         )
         .to_polygon();
 
-        return water.intersection(&self.boat);
+        return water.intersection(boat);
     }
 
     pub fn compute_forces(&self, boat: &Polygon<f64>) -> SimulationResults {
         let displacement = self.underwater_volume(boat, 0.0);
+
+        //println!("displacement: {:?}", displacement);
 
         let center_of_gravity = boat.centroid().unwrap();
 
@@ -74,14 +79,14 @@ impl Simulation {
         let force_buoyancy = self.density_water * displacement.unsigned_area() * self.gravity;
 
         let force_net = force_buoyancy + force_gravity;
+
+        //println!("force_net: {:?}", force_net);
         let dy = force_net / (boat_mass * self.gravity);
 
         // Calculate torque
-        let distance_vector = Coord {
-            x: center_of_buoyancy.x() - center_of_gravity.x(),
-            y: center_of_buoyancy.y() - center_of_gravity.y(),
-        };
-        let torque = distance_vector.x * force_buoyancy; // Simplified 2D torque about z-axis
+        let distance_vector = center_of_buoyancy - center_of_gravity;
+
+        let torque = distance_vector.x() * force_buoyancy; // Simplified 2D torque about z-axis
         let moment_of_inertia = 1.0; // We don't need this since we don't care about making the simulation physical.
         let angular_adjustment = torque / moment_of_inertia;
 
@@ -92,10 +97,14 @@ impl Simulation {
     }
 
     pub fn apply_forces(&self, boat: &mut Polygon<f64>, simulation_results: SimulationResults) {
+        // 10 is a magical number so that the boat moves at a reasonable speed between steps
         let center_of_gravity = boat.centroid().unwrap();
-        boat.rotate_around_point_mut(simulation_results.angular_adjustment, center_of_gravity);
+        boat.rotate_around_point_mut(
+            simulation_results.angular_adjustment / 10.,
+            center_of_gravity,
+        );
 
-        boat.translate_mut(0.0, simulation_results.dy);
+        boat.translate_mut(0.0, simulation_results.dy / 10.);
     }
 
     pub fn run(&self) -> Option<Polygon<f64>> {
@@ -104,7 +113,7 @@ impl Simulation {
 
         let mut boat = self.boat.clone();
 
-        while !converged && iterations < 1000 {
+        while !converged && iterations < self.max_iterations {
             let simulation_results = self.compute_forces(&boat);
 
             if simulation_results.is_not_moving(self.tolerance) {

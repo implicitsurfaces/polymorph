@@ -1,20 +1,41 @@
 use buoyancy::*;
+use egui::*;
 use geo::*;
 
 use crate::ToEguiShape;
 
 pub struct App {
     simulation: Simulation,
-    current_boat: Boat,
+    current_boat: Option<Boat>,
+    points: Vec<Pos2>,
+    convergence_error: bool,
 }
 
 impl Default for App {
     fn default() -> Self {
         Self {
+            points: Default::default(),
             simulation: Simulation::new(),
-            current_boat: Boat::new_catamaran(),
+            current_boat: None,
+            convergence_error: false,
         }
     }
+}
+
+fn to_polygon(points: &[Pos2]) -> Polygon<f64> {
+    Polygon::new(
+        LineString::from(
+            points
+                .iter()
+                .map(|p| Coord {
+                    x: p.x as f64,
+                    y: p.y as f64,
+                })
+                .collect::<Vec<Coord>>(),
+        ),
+        vec![],
+    )
+    .scale_xy(1., -1.)
 }
 
 impl App {
@@ -87,40 +108,118 @@ impl eframe::App for App {
             // Render water level
             let water_level = 0.0;
 
-            let water_line = geo::Line::new(
-                Coord {
-                    x: -10.,
-                    y: water_level,
-                },
-                Coord {
-                    x: 10.,
-                    y: water_level,
-                },
-            )
-            .affine_transform(&xform);
+            match self.current_boat {
+                Some(ref boat) => {
+                    let water_line = geo::Line::new(
+                        Coord {
+                            x: -10.,
+                            y: water_level,
+                        },
+                        Coord {
+                            x: 10.,
+                            y: water_level,
+                        },
+                    )
+                    .affine_transform(&xform);
 
-            ui.painter()
-                .add(water_line.to_egui_shape(egui::Color32::BLUE));
+                    ui.painter()
+                        .add(water_line.to_egui_shape(egui::Color32::BLUE));
 
-            for shape in boat_ui_shapes(&self.current_boat, xform) {
-                ui.painter().add(shape);
-            }
+                    for shape in boat_ui_shapes(&boat, xform) {
+                        ui.painter().add(shape);
+                    }
 
-            // Add a button to run the simulation
-            //
+                    // Add a button to run the simulation
+                    //
 
-            if ui.button("Run simulation").clicked() {
-                match self.simulation.run(&self.current_boat) {
-                    Some(results) => self.current_boat = results,
-                    None => {
-                        println!("Simulation did not converge.");
+                    if ui.button("Run simulation").clicked() {
+                        match self.simulation.run(&boat) {
+                            Some(results) => self.current_boat = Some(results),
+                            None => {
+                                println!("Simulation did not converge.");
+                                self.convergence_error = true;
+                            }
+                        }
+                    }
+
+                    if ui.button("Reset").clicked() {
+                        self.current_boat = None;
+                        self.convergence_error = false;
+                    }
+
+                    if self.convergence_error {
+                        ui.label("Simulation did not converge.");
                     }
                 }
-                println!("Final shape {:?}", self.current_boat.geometry);
-            }
+                None => {
+                    ui.label("Draw a boat by clicking points on the screen.");
 
-            if ui.button("Reset").clicked() {
-                self.current_boat = Boat::new_catamaran();
+                    let (mut response, painter) = ui.allocate_painter(
+                        ui.available_size_before_wrap(),
+                        Sense::union(Sense::click(), Sense::hover()),
+                    );
+
+                    let to_screen = emath::RectTransform::from_to(
+                        egui::Rect::from_min_size(Pos2::ZERO, response.rect.square_proportions()),
+                        response.rect,
+                    );
+                    let from_screen = to_screen.inverse();
+
+                    if response.clicked() {
+                        if let Some(pointer_pos) = response.interact_pointer_pos() {
+                            let canvas_pos = from_screen * pointer_pos;
+
+                            if self.points.len() > 2
+                                && self.points.first().unwrap().distance(canvas_pos) < 0.1
+                            {
+                                self.current_boat = Some(Boat {
+                                    geometry: to_polygon(&self.points),
+                                });
+                                self.points.clear();
+                                response.mark_changed();
+                            } else {
+                                if self.points.last() != Some(&canvas_pos) {
+                                    self.points.push(canvas_pos);
+                                    response.mark_changed();
+                                }
+                            }
+                        }
+                    }
+
+                    let mapped_points = self
+                        .points
+                        .iter()
+                        .map(|p| to_screen * *p)
+                        .collect::<Vec<Pos2>>();
+
+                    painter.add(egui::Shape::line(
+                        mapped_points,
+                        Stroke::new(1.0, Color32::BLACK),
+                    ));
+
+                    if let Some(pointer_pos) = response.hover_pos() {
+                        if !self.points.is_empty() {
+                            let last_point = to_screen * self.points.last().unwrap().clone();
+
+                            let color = if self
+                                .points
+                                .first()
+                                .unwrap()
+                                .distance(from_screen * pointer_pos)
+                                < 0.1
+                            {
+                                Color32::GREEN
+                            } else {
+                                Color32::BLUE
+                            };
+
+                            painter.add(egui::Shape::line(
+                                vec![last_point, pointer_pos],
+                                Stroke::new(1.0, color),
+                            ));
+                        }
+                    }
+                }
             }
         });
     }

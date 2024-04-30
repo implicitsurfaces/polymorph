@@ -1,5 +1,5 @@
 use buoyancy::{Boat, Simulation};
-use geo::{Centroid, Coord, Point, Polygon, Scale, Translate};
+use geo::{Coord, Point, Polygon, Scale, Translate};
 
 pub struct App {
     simulation: Simulation,
@@ -10,14 +10,14 @@ impl Default for App {
     fn default() -> Self {
         Self {
             simulation: Simulation::new(),
-            current_boat: Boat::new_default(),
+            current_boat: Boat::new_catamaran(),
         }
     }
 }
 
 impl App {
     /// Called once before the first frame.
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 
@@ -56,16 +56,15 @@ impl App {
         ui.painter().add(boat_shape);
 
         // Show center of gravity and buoyancy.
-        let displacement = boat.underwater_volume(0.0).into_iter().next().unwrap();
-        let displacment_shape = self.draw_polygon(&displacement, egui::Color32::YELLOW);
-        ui.painter().add(displacment_shape);
+        for poly in boat.underwater_volume(0.0) {
+            let displacement_shape = self.draw_polygon(&poly, egui::Color32::YELLOW);
+            ui.painter().add(displacement_shape);
+        }
 
-        let cob_shape = self.draw_point(&boat.center_of_gravity(), egui::Color32::GREEN);
-        ui.painter().add(cob_shape);
-
-        let cog = self.simulation.boat.centroid().unwrap();
-        let cob_shape = self.draw_point(&boat.center_of_buoyancy(0.), egui::Color32::RED);
-        ui.painter().add(cob_shape);
+        ui.painter()
+            .add(self.draw_point(&boat.center_of_buoyancy(0.), egui::Color32::BLUE));
+        ui.painter()
+            .add(self.draw_point(&boat.center_of_gravity(), egui::Color32::GREEN));
     }
 }
 
@@ -89,8 +88,6 @@ impl eframe::App for App {
                     });
                     ui.add_space(16.0);
                 }
-
-                // egui::widgets::global_dark_light_mode_buttons(ui);
             });
         });
 
@@ -112,24 +109,18 @@ impl eframe::App for App {
             //
 
             if ui.button("Run simulation").clicked() {
-                match self.simulation.run() {
+                match self.simulation.run(&self.current_boat) {
                     Some(results) => self.current_boat = results,
                     None => {
                         println!("Simulation did not converge.");
                     }
                 }
+                println!("Final shape {:?}", self.current_boat.geometry);
             }
 
             if ui.button("Reset").clicked() {
-                self.current_boat = Boat::new_default();
+                self.current_boat = Boat::new_catamaran();
             }
-
-            /*
-            self.draw_boat(
-                ui,
-                &,
-            );
-            */
         });
     }
 }

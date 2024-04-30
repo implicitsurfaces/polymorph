@@ -15,6 +15,7 @@ impl SimulationResults {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Boat {
     pub geometry: Polygon<f64>,
 }
@@ -27,6 +28,22 @@ impl Boat {
             (x: 0.0, y: length),
             (x: length, y: length),
             (x: length, y: 0.0),
+        ]
+        .rotate_around_center(12.);
+
+        Self { geometry }
+    }
+
+    // Catamaran
+    // Useful for testing multiple polygons of displaced water.
+    pub fn new_catamaran() -> Self {
+        let length: f64 = 0.5;
+        let geometry = polygon![
+            (x: 0.0, y: 0.0),
+            (x: 0.0, y: length),
+            (x: length, y: length),
+            (x: length, y: 0.0),
+            (x: length / 2., y: length / 2.)
         ]
         .rotate_around_center(12.);
 
@@ -72,7 +89,6 @@ impl Boat {
 }
 
 pub struct Simulation {
-    pub boat: Polygon<f64>,
     pub density_water: f64,
     pub density_boat: f64,
     pub gravity: f64,
@@ -82,22 +98,12 @@ pub struct Simulation {
 
 impl Simulation {
     pub fn new() -> Self {
-        let length: f64 = 0.5;
-        let boat = polygon![
-            (x: 0.0, y: 0.0),
-            (x: 0.0, y: length),
-            (x: length, y: length),
-            (x: length, y: 0.0),
-        ]
-        .rotate_around_center(12.);
-
         Self {
-            boat,
             density_water: 1000.,
-            density_boat: 500.,
+            density_boat: 200.,
             gravity: 10.0,
             tolerance: 1e-5,
-            max_iterations: 100,
+            max_iterations: 1000,
         }
     }
 
@@ -106,24 +112,27 @@ impl Simulation {
 
         let center_of_gravity = boat.center_of_gravity();
 
-        let center_of_buoyancy = match displacement.centroid() {
-            Some(coord) => coord,
-            None => center_of_gravity,
-        };
-
         // Calculate net vertical force
         let boat_mass = self.density_boat * boat.geometry.unsigned_area();
         let force_gravity = -self.gravity * boat_mass;
-        let force_buoyancy = self.density_water * displacement.unsigned_area() * self.gravity;
+
+        let (force_buoyancy, torque) = {
+            match displacement.centroid() {
+                None => (0.0, 0.0),
+                Some(center_of_buoyancy) => {
+                    let force_buoyancy =
+                        self.density_water * displacement.unsigned_area() * self.gravity;
+                    let distance_vector = center_of_buoyancy - center_of_gravity;
+                    let torque = distance_vector.x() * force_buoyancy;
+                    (force_buoyancy, torque)
+                }
+            }
+        };
 
         let force_net = force_buoyancy + force_gravity;
 
         let dy = force_net / (boat_mass * self.gravity);
 
-        // Calculate torque
-        let distance_vector = center_of_buoyancy - center_of_gravity;
-
-        let torque = distance_vector.x() * force_buoyancy; // Simplified 2D torque about z-axis
         let moment_of_inertia = 1.0; // We don't need this since we don't care about making the simulation physical.
         let angular_adjustment = torque / moment_of_inertia;
 
@@ -133,13 +142,11 @@ impl Simulation {
         };
     }
 
-    pub fn run(&self) -> Option<Boat> {
+    pub fn run(&self, boat: &Boat) -> Option<Boat> {
         let mut converged = false;
         let mut iterations = 0;
 
-        let mut boat = Boat {
-            geometry: self.boat.clone(),
-        };
+        let mut boat = boat.clone();
 
         while !converged && iterations < self.max_iterations {
             let simulation_results = self.compute_forces(&boat);

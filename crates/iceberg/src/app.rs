@@ -1,5 +1,7 @@
-use buoyancy::{Boat, Simulation};
-use geo::{Coord, Point, Polygon, Scale, Translate};
+use buoyancy::*;
+use geo::*;
+
+use crate::EguiShape;
 
 pub struct App {
     simulation: Simulation,
@@ -23,44 +25,33 @@ impl App {
 
         Default::default()
     }
+}
 
-    fn draw_polygon(&self, poly: &Polygon, color: egui::Color32) -> egui::Shape {
-        let points = poly
-            .exterior()
-            .scale_around_point(100., -100., Coord { x: 0., y: 0. })
-            .translate(150., 150.)
-            .points()
-            .map(|p| egui::pos2(p.x() as f32, p.y() as f32))
-            .collect();
+fn boat_ui(ui: &egui::Ui, boat: &Boat, xform: AffineTransform) {
+    ui.painter().add(
+        boat.geometry
+            .affine_transform(&xform)
+            .to_egui_shape(egui::Color32::LIGHT_BLUE),
+    );
 
-        egui::Shape::convex_polygon(points, color, egui::Stroke::new(1.0, egui::Color32::BLACK))
+    // Show center of gravity and buoyancy.
+    for poly in boat.underwater_volume(0.0) {
+        ui.painter().add(
+            poly.affine_transform(&xform)
+                .to_egui_shape(egui::Color32::YELLOW),
+        );
     }
 
-    fn draw_point(&self, in_point: &Point, color: egui::Color32) -> egui::Shape {
-        let point = in_point
-            .scale_around_point(100., -100., Coord { x: 0., y: 0. })
-            .translate(150., 150.);
-
-        let point = egui::pos2(point.x() as f32, point.y() as f32);
-
-        egui::Shape::circle_filled(point, 2.0, color)
-    }
-
-    fn draw_boat(&self, ui: &egui::Ui, boat: &Boat) {
-        let boat_shape = self.draw_polygon(&boat.geometry, egui::Color32::LIGHT_BLUE);
-        ui.painter().add(boat_shape);
-
-        // Show center of gravity and buoyancy.
-        for poly in boat.underwater_volume(0.0) {
-            let displacement_shape = self.draw_polygon(&poly, egui::Color32::YELLOW);
-            ui.painter().add(displacement_shape);
-        }
-
-        ui.painter()
-            .add(self.draw_point(&boat.center_of_buoyancy(0.), egui::Color32::BLUE));
-        ui.painter()
-            .add(self.draw_point(&boat.center_of_gravity(), egui::Color32::GREEN));
-    }
+    ui.painter().add(
+        boat.center_of_buoyancy(0.)
+            .affine_transform(&xform)
+            .to_egui_shape(egui::Color32::BLUE),
+    );
+    ui.painter().add(
+        boat.center_of_gravity()
+            .affine_transform(&xform)
+            .to_egui_shape(egui::Color32::GREEN),
+    );
 }
 
 impl eframe::App for App {
@@ -68,6 +59,10 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
         // For inspiration and more examples, go to https://emilk.github.io/egui
+
+        // Transform from simulation space to a reasonable spot in screen space.
+        let xform =
+            AffineTransform::translate(150., 150.).scaled(100., -100., Coord { x: 0., y: 0. });
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             // The top panel is often a good place for a menu bar:
@@ -89,16 +84,23 @@ impl eframe::App for App {
         egui::CentralPanel::default().show(ctx, |ui| {
             // Render water level
             let water_level = 0.0;
-            let water_line = egui::Shape::line_segment(
-                [
-                    egui::pos2(0.0, water_level + 150.0),
-                    egui::pos2(1000.0, water_level + 150.0),
-                ],
-                egui::Stroke::new(1.0, egui::Color32::BLUE),
-            );
-            ui.painter().add(water_line);
 
-            self.draw_boat(ui, &self.current_boat);
+            let water_line = geo::Line::new(
+                Coord {
+                    x: -10.,
+                    y: water_level,
+                },
+                Coord {
+                    x: 10.,
+                    y: water_level,
+                },
+            )
+            .affine_transform(&xform);
+
+            ui.painter()
+                .add(water_line.to_egui_shape(egui::Color32::BLUE));
+
+            boat_ui(ui, &self.current_boat, xform);
 
             // Add a button to run the simulation
             //

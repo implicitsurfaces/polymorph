@@ -46,32 +46,145 @@ impl App {
 
         Default::default()
     }
+
+    pub fn simulation_ui(&mut self, ui: &mut Ui, xform: &AffineTransform) {
+        let boat = self.current_boat.as_ref().unwrap();
+        let water_level = 0.;
+        let water_line = geo::Line::new(
+            Coord {
+                x: -10.,
+                y: water_level,
+            },
+            Coord {
+                x: 10.,
+                y: water_level,
+            },
+        )
+        .affine_transform(xform);
+
+        ui.painter()
+            .add(water_line.to_egui_shape(egui::Color32::BLUE));
+
+        for shape in boat_ui_shapes(boat, xform) {
+            ui.painter().add(shape);
+        }
+
+        // Add a button to run the simulation
+        //
+
+        if ui.button("Run simulation").clicked() {
+            match self.simulation.run(boat) {
+                Some(results) => self.current_boat = Some(results),
+                None => {
+                    println!("Simulation did not converge.");
+                    self.convergence_error = true;
+                }
+            }
+        }
+
+        if ui.button("Reset").clicked() {
+            self.current_boat = None;
+            self.convergence_error = false;
+        }
+
+        if self.convergence_error {
+            ui.label("Simulation did not converge.");
+        }
+    }
+
+    pub fn boat_drawing_ui(&mut self, ui: &mut Ui) {
+        ui.label("Draw a boat by clicking points on the screen.");
+
+        let (mut response, painter) = ui.allocate_painter(
+            ui.available_size_before_wrap(),
+            Sense::union(Sense::click(), Sense::hover()),
+        );
+
+        let to_screen = emath::RectTransform::from_to(
+            egui::Rect::from_min_size(Pos2::ZERO, response.rect.square_proportions()),
+            response.rect,
+        );
+        let from_screen = to_screen.inverse();
+
+        if response.clicked() {
+            if let Some(pointer_pos) = response.interact_pointer_pos() {
+                let canvas_pos = from_screen * pointer_pos;
+
+                if self.points.len() > 2 && self.points.first().unwrap().distance(canvas_pos) < 0.1
+                {
+                    self.current_boat = Some(Boat {
+                        geometry: to_polygon(&self.points),
+                    });
+                    self.points.clear();
+                    response.mark_changed();
+                } else if self.points.last() != Some(&canvas_pos) {
+                    self.points.push(canvas_pos);
+                    response.mark_changed();
+                }
+            }
+        }
+
+        let mapped_points = self
+            .points
+            .iter()
+            .map(|p| to_screen * *p)
+            .collect::<Vec<Pos2>>();
+
+        painter.add(egui::Shape::line(
+            mapped_points,
+            Stroke::new(1.0, Color32::BLACK),
+        ));
+
+        if let Some(pointer_pos) = response.hover_pos() {
+            if !self.points.is_empty() {
+                let last_point = to_screen * *self.points.last().unwrap();
+
+                let color = if self
+                    .points
+                    .first()
+                    .unwrap()
+                    .distance(from_screen * pointer_pos)
+                    < 0.1
+                {
+                    Color32::GREEN
+                } else {
+                    Color32::BLUE
+                };
+
+                painter.add(egui::Shape::line(
+                    vec![last_point, pointer_pos],
+                    Stroke::new(1.0, color),
+                ));
+            }
+        }
+    }
 }
 
-fn boat_ui_shapes(boat: &Boat, xform: AffineTransform) -> Vec<egui::Shape> {
+/// Given a boat, return a vector of egui shapes to render.
+fn boat_ui_shapes(boat: &Boat, xform: &AffineTransform) -> Vec<egui::Shape> {
     let mut shapes = Vec::new();
     shapes.push(
         boat.geometry
-            .affine_transform(&xform)
+            .affine_transform(xform)
             .to_egui_shape(egui::Color32::LIGHT_BLUE),
     );
 
     // Show center of gravity and buoyancy.
     for poly in boat.underwater_volume(0.0) {
         shapes.push(
-            poly.affine_transform(&xform)
+            poly.affine_transform(xform)
                 .to_egui_shape(egui::Color32::YELLOW),
         );
     }
 
     shapes.push(
         boat.center_of_buoyancy(0.)
-            .affine_transform(&xform)
+            .affine_transform(xform)
             .to_egui_shape(egui::Color32::BLUE),
     );
     shapes.push(
         boat.center_of_gravity()
-            .affine_transform(&xform)
+            .affine_transform(xform)
             .to_egui_shape(egui::Color32::GREEN),
     );
     shapes
@@ -105,121 +218,10 @@ impl eframe::App for App {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // Render water level
-            let water_level = 0.0;
-
-            match self.current_boat {
-                Some(ref boat) => {
-                    let water_line = geo::Line::new(
-                        Coord {
-                            x: -10.,
-                            y: water_level,
-                        },
-                        Coord {
-                            x: 10.,
-                            y: water_level,
-                        },
-                    )
-                    .affine_transform(&xform);
-
-                    ui.painter()
-                        .add(water_line.to_egui_shape(egui::Color32::BLUE));
-
-                    for shape in boat_ui_shapes(&boat, xform) {
-                        ui.painter().add(shape);
-                    }
-
-                    // Add a button to run the simulation
-                    //
-
-                    if ui.button("Run simulation").clicked() {
-                        match self.simulation.run(&boat) {
-                            Some(results) => self.current_boat = Some(results),
-                            None => {
-                                println!("Simulation did not converge.");
-                                self.convergence_error = true;
-                            }
-                        }
-                    }
-
-                    if ui.button("Reset").clicked() {
-                        self.current_boat = None;
-                        self.convergence_error = false;
-                    }
-
-                    if self.convergence_error {
-                        ui.label("Simulation did not converge.");
-                    }
-                }
-                None => {
-                    ui.label("Draw a boat by clicking points on the screen.");
-
-                    let (mut response, painter) = ui.allocate_painter(
-                        ui.available_size_before_wrap(),
-                        Sense::union(Sense::click(), Sense::hover()),
-                    );
-
-                    let to_screen = emath::RectTransform::from_to(
-                        egui::Rect::from_min_size(Pos2::ZERO, response.rect.square_proportions()),
-                        response.rect,
-                    );
-                    let from_screen = to_screen.inverse();
-
-                    if response.clicked() {
-                        if let Some(pointer_pos) = response.interact_pointer_pos() {
-                            let canvas_pos = from_screen * pointer_pos;
-
-                            if self.points.len() > 2
-                                && self.points.first().unwrap().distance(canvas_pos) < 0.1
-                            {
-                                self.current_boat = Some(Boat {
-                                    geometry: to_polygon(&self.points),
-                                });
-                                self.points.clear();
-                                response.mark_changed();
-                            } else {
-                                if self.points.last() != Some(&canvas_pos) {
-                                    self.points.push(canvas_pos);
-                                    response.mark_changed();
-                                }
-                            }
-                        }
-                    }
-
-                    let mapped_points = self
-                        .points
-                        .iter()
-                        .map(|p| to_screen * *p)
-                        .collect::<Vec<Pos2>>();
-
-                    painter.add(egui::Shape::line(
-                        mapped_points,
-                        Stroke::new(1.0, Color32::BLACK),
-                    ));
-
-                    if let Some(pointer_pos) = response.hover_pos() {
-                        if !self.points.is_empty() {
-                            let last_point = to_screen * self.points.last().unwrap().clone();
-
-                            let color = if self
-                                .points
-                                .first()
-                                .unwrap()
-                                .distance(from_screen * pointer_pos)
-                                < 0.1
-                            {
-                                Color32::GREEN
-                            } else {
-                                Color32::BLUE
-                            };
-
-                            painter.add(egui::Shape::line(
-                                vec![last_point, pointer_pos],
-                                Stroke::new(1.0, color),
-                            ));
-                        }
-                    }
-                }
+            if self.current_boat.is_some() {
+                self.simulation_ui(ui, &xform)
+            } else {
+                self.boat_drawing_ui(ui)
             }
         });
     }

@@ -1,7 +1,7 @@
 use buoyancy::*;
 use geo::*;
 
-use crate::EguiShape;
+use crate::ToEguiShape;
 
 pub struct App {
     simulation: Simulation,
@@ -27,8 +27,9 @@ impl App {
     }
 }
 
-fn boat_ui(ui: &egui::Ui, boat: &Boat, xform: AffineTransform) {
-    ui.painter().add(
+fn boat_ui_shapes(boat: &Boat, xform: AffineTransform) -> Vec<egui::Shape> {
+    let mut shapes = Vec::new();
+    shapes.push(
         boat.geometry
             .affine_transform(&xform)
             .to_egui_shape(egui::Color32::LIGHT_BLUE),
@@ -36,22 +37,23 @@ fn boat_ui(ui: &egui::Ui, boat: &Boat, xform: AffineTransform) {
 
     // Show center of gravity and buoyancy.
     for poly in boat.underwater_volume(0.0) {
-        ui.painter().add(
+        shapes.push(
             poly.affine_transform(&xform)
                 .to_egui_shape(egui::Color32::YELLOW),
         );
     }
 
-    ui.painter().add(
+    shapes.push(
         boat.center_of_buoyancy(0.)
             .affine_transform(&xform)
             .to_egui_shape(egui::Color32::BLUE),
     );
-    ui.painter().add(
+    shapes.push(
         boat.center_of_gravity()
             .affine_transform(&xform)
             .to_egui_shape(egui::Color32::GREEN),
     );
+    shapes
 }
 
 impl eframe::App for App {
@@ -100,7 +102,9 @@ impl eframe::App for App {
             ui.painter()
                 .add(water_line.to_egui_shape(egui::Color32::BLUE));
 
-            boat_ui(ui, &self.current_boat, xform);
+            for shape in boat_ui_shapes(&self.current_boat, xform) {
+                ui.painter().add(shape);
+            }
 
             // Add a button to run the simulation
             //

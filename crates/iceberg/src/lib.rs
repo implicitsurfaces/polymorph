@@ -5,11 +5,11 @@ use geo::*;
 mod app;
 pub use app::App;
 
-pub trait EguiShape {
+pub trait ToEguiShape {
     fn to_egui_shape(&self, color: egui::Color32) -> egui::Shape;
 }
 
-impl EguiShape for Polygon {
+impl ToEguiShape for Polygon {
     fn to_egui_shape(&self, color: egui::Color32) -> egui::Shape {
         let points = self
             .exterior()
@@ -21,14 +21,14 @@ impl EguiShape for Polygon {
     }
 }
 
-impl EguiShape for Point {
+impl ToEguiShape for Point {
     fn to_egui_shape(&self, color: egui::Color32) -> egui::Shape {
         let point = egui::pos2(self.x() as f32, self.y() as f32);
         egui::Shape::circle_filled(point, 2.0, color)
     }
 }
 
-impl EguiShape for Line {
+impl ToEguiShape for Line {
     fn to_egui_shape(&self, color: egui::Color32) -> egui::Shape {
         egui::Shape::line_segment(
             [

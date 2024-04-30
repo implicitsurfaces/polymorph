@@ -33,12 +33,7 @@ impl App {
             .map(|p| egui::pos2(p.x() as f32, p.y() as f32))
             .collect();
 
-        let shape = egui::Shape::convex_polygon(
-            points,
-            color,
-            egui::Stroke::new(1.0, egui::Color32::BLACK),
-        );
-        shape
+        egui::Shape::convex_polygon(points, color, egui::Stroke::new(1.0, egui::Color32::BLACK))
     }
 
     fn draw_point(&self, in_point: &Point, color: egui::Color32) -> egui::Shape {
@@ -47,8 +42,8 @@ impl App {
             .translate(150., 150.);
 
         let point = egui::pos2(point.x() as f32, point.y() as f32);
-        let shape = egui::Shape::circle_filled(point, 2.0, color);
-        shape
+
+        egui::Shape::circle_filled(point, 2.0, color)
     }
 
     fn draw_boat(&self, ui: &egui::Ui, boat: &Boat) {

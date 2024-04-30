@@ -11,7 +11,7 @@ pub struct SimulationResults {
 
 impl SimulationResults {
     pub fn is_not_moving(&self, tolerance: f64) -> bool {
-        return self.dy.abs() < tolerance && self.angular_adjustment.abs() < tolerance;
+        self.dy.abs() < tolerance && self.angular_adjustment.abs() < tolerance
     }
 }
 
@@ -60,11 +60,11 @@ impl Boat {
             },
         )
         .to_polygon();
-        return water.intersection(&self.geometry);
+        water.intersection(&self.geometry)
     }
 
     pub fn center_of_gravity(&self) -> Point<f64> {
-        return self.geometry.centroid().unwrap();
+        self.geometry.centroid().unwrap()
     }
 
     pub fn center_of_buoyancy(&self, water_level: f64) -> Point<f64> {
@@ -136,10 +136,10 @@ impl Simulation {
         let moment_of_inertia = 1.0; // We don't need this since we don't care about making the simulation physical.
         let angular_adjustment = torque / moment_of_inertia;
 
-        return SimulationResults {
+        SimulationResults {
             dy,
             angular_adjustment,
-        };
+        }
     }
 
     pub fn run(&self, boat: &Boat) -> Option<Boat> {

@@ -114,6 +114,7 @@ impl App {
                 {
                     self.current_boat = Some(Boat {
                         geometry: to_polygon(&self.points),
+                        density: 0.5,
                     });
                     self.points.clear();
                     response.mark_changed();
@@ -170,18 +171,22 @@ fn boat_ui_shapes(boat: &Boat, xform: &AffineTransform) -> Vec<egui::Shape> {
     );
 
     // Show center of gravity and buoyancy.
-    for poly in boat.underwater_volume(0.0) {
+    let displacement = boat.displacement();
+    for poly in &displacement {
         shapes.push(
             poly.affine_transform(xform)
                 .to_egui_shape(egui::Color32::YELLOW),
         );
     }
 
-    shapes.push(
-        boat.center_of_buoyancy(0.)
-            .affine_transform(xform)
-            .to_egui_shape(egui::Color32::BLUE),
-    );
+    if let Some(center_of_buoyancy) = displacement.centroid() {
+        shapes.push(
+            center_of_buoyancy
+                .affine_transform(xform)
+                .to_egui_shape(egui::Color32::BLUE),
+        );
+    }
+
     shapes.push(
         boat.center_of_gravity()
             .affine_transform(xform)

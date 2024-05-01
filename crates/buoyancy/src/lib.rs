@@ -1,6 +1,6 @@
 use geo::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Accelerations {
     pub vertical_acceleration: f64,
     pub angular_acceleration: f64,
@@ -72,14 +72,21 @@ impl Boat {
         water.intersection(&self.geometry)
     }
 
-    pub fn update(&self, accelerations: Accelerations) -> Boat {
+    pub fn update(
+        &self,
+        accelerations: Accelerations,
+        linear_damping: f64,
+        angular_damping: f64,
+    ) -> Boat {
         let mut boat = self.clone();
 
-        boat.geometry
-            .rotate_around_point_mut(accelerations.angular_acceleration, boat.center_of_gravity());
+        boat.geometry.rotate_around_point_mut(
+            accelerations.angular_acceleration * angular_damping,
+            boat.center_of_gravity(),
+        );
 
         boat.geometry
-            .translate_mut(0.0, accelerations.vertical_acceleration);
+            .translate_mut(0.0, accelerations.vertical_acceleration * linear_damping);
 
         boat
     }
@@ -135,21 +142,22 @@ impl Simulation {
         }
     }
 
-    pub fn run(&self, boat: &Boat) -> Option<Boat> {
+    pub fn step(&self, boat: &Boat) -> (Boat, bool) {
+        let accelerations = self.compute_accelerations(boat);
+        let boat = boat.update(accelerations, 0.01, 0.5);
+        let converged = accelerations.negligible(self.tolerance);
+        (boat, converged)
+    }
+
+    pub fn run(&self, boat: &Boat) -> (Boat, bool) {
         let mut iterations = 0;
         let mut boat = boat.clone();
-
-        while iterations < self.max_iterations {
-            let accelerations = self.compute_accelerations(&boat);
-
-            if accelerations.negligible(self.tolerance) {
-                return Some(boat);
-            }
-
-            boat = boat.update(accelerations);
+        let mut converged = false;
+        while !converged && iterations < self.max_iterations {
+            (boat, converged) = self.step(&boat);
             iterations += 1;
+            dbg!(iterations);
         }
-
-        None
+        (boat, converged)
     }
 }

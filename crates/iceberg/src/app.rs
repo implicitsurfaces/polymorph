@@ -6,7 +6,7 @@ use crate::ToEguiShape;
 
 pub struct App {
     simulation: Simulation,
-    current_boat: Option<Boat>,
+    boat: Option<Boat>,
     points: Vec<Pos2>,
     convergence_error: bool,
 }
@@ -16,7 +16,7 @@ impl Default for App {
         Self {
             points: Default::default(),
             simulation: Simulation::new(),
-            current_boat: None,
+            boat: Some(Boat::new_default()),
             convergence_error: false,
         }
     }
@@ -48,7 +48,7 @@ impl App {
     }
 
     pub fn simulation_ui(&mut self, ui: &mut Ui, xform: &AffineTransform) {
-        let boat = self.current_boat.as_ref().unwrap();
+        let boat = self.boat.as_ref().unwrap();
         let water_level = 0.;
         let water_line = geo::Line::new(
             Coord {
@@ -73,17 +73,24 @@ impl App {
         //
 
         if ui.button("Run simulation").clicked() {
-            match self.simulation.run(boat) {
-                Some(results) => self.current_boat = Some(results),
-                None => {
-                    println!("Simulation did not converge.");
-                    self.convergence_error = true;
-                }
+            let initial_boat = self.boat.clone().unwrap();
+            let (boat, converged) = self.simulation.run(&initial_boat);
+            self.boat = Some(boat);
+            if !converged {
+                println!("Simulation did not converge.");
+                self.convergence_error = true;
             }
         }
 
+        if ui.button("Step").clicked() {
+            let initial_boat = self.boat.clone().unwrap();
+            let (boat, _) = self.simulation.step(&initial_boat);
+            println!("Boat: {:?}", boat.center_of_gravity());
+            self.boat = Some(boat);
+        }
+
         if ui.button("Reset").clicked() {
-            self.current_boat = None;
+            self.boat = None;
             self.convergence_error = false;
         }
 
@@ -112,7 +119,7 @@ impl App {
 
                 if self.points.len() > 2 && self.points.first().unwrap().distance(canvas_pos) < 0.1
                 {
-                    self.current_boat = Some(Boat {
+                    self.boat = Some(Boat {
                         geometry: to_polygon(&self.points),
                         density: 0.5,
                     });
@@ -198,16 +205,11 @@ fn boat_ui_shapes(boat: &Boat, xform: &AffineTransform) -> Vec<egui::Shape> {
 impl eframe::App for App {
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
-        // For inspiration and more examples, go to https://emilk.github.io/egui
-
         // Transform from simulation space to a reasonable spot in screen space.
         let xform =
             AffineTransform::translate(150., 150.).scaled(100., -100., Coord { x: 0., y: 0. });
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
-
             egui::menu::bar(ui, |ui| {
                 // NOTE: no File->Quit on web pages!
                 let is_web = cfg!(target_arch = "wasm32");
@@ -223,7 +225,7 @@ impl eframe::App for App {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            if self.current_boat.is_some() {
+            if self.boat.is_some() {
                 self.simulation_ui(ui, &xform)
             } else {
                 self.boat_drawing_ui(ui)

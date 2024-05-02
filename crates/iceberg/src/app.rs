@@ -76,10 +76,7 @@ impl App {
             let initial_boat = self.boat.clone().unwrap();
             let (boat, converged) = self.simulation.run(&initial_boat);
             self.boat = Some(boat);
-            if !converged {
-                println!("Simulation did not converge.");
-                self.convergence_error = true;
-            }
+            self.convergence_error = !converged;
         }
 
         if ui.button("Step").clicked() {

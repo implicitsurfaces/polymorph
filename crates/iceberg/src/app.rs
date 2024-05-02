@@ -61,7 +61,7 @@ impl App {
         )
         .affine_transform(xform);
 
-        ui.painter().add(water_line.to_egui_shape(Color32::BLUE));
+        ui.painter().add(water_line.to_egui_shapes(Color32::BLUE));
 
         for shape in boat_ui_shapes(boat, xform) {
             ui.painter().add(shape);
@@ -196,32 +196,32 @@ impl App {
 
 /// Given a boat, return a vector of egui shapes to render.
 fn boat_ui_shapes(boat: &Boat, xform: &AffineTransform) -> Vec<Shape> {
-    let mut shapes = Vec::new();
+    let mut shapes: Vec<Shape> = Vec::new();
 
-    let poly = boat.geometry.affine_transform(xform);
-    for tri in poly.earcut_triangles() {
-        shapes.push(tri.to_egui_shape(Color32::LIGHT_BLUE));
-    }
-    shapes.push(poly.to_egui_shape(Color32::TRANSPARENT));
+    shapes.extend(
+        boat.geometry
+            .affine_transform(xform)
+            .to_egui_shapes(Color32::LIGHT_BLUE),
+    );
 
     // Show center of gravity and buoyancy.
     let displacement = boat.displacement();
     for poly in &displacement {
-        shapes.push(poly.affine_transform(xform).to_egui_shape(Color32::YELLOW));
+        shapes.extend(poly.affine_transform(xform).to_egui_shapes(Color32::YELLOW));
     }
 
     if let Some(center_of_buoyancy) = displacement.centroid() {
-        shapes.push(
+        shapes.extend(
             center_of_buoyancy
                 .affine_transform(xform)
-                .to_egui_shape(Color32::BLUE),
+                .to_egui_shapes(Color32::BLUE),
         );
     }
 
-    shapes.push(
+    shapes.extend(
         boat.center_of_gravity()
             .affine_transform(xform)
-            .to_egui_shape(Color32::GREEN),
+            .to_egui_shapes(Color32::GREEN),
     );
     shapes
 }

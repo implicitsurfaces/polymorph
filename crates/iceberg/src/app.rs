@@ -40,10 +40,9 @@ fn to_polygon(points: &[Pos2]) -> Polygon<f64> {
 
 impl App {
     /// Called once before the first frame.
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(_: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
-
         Default::default()
     }
 
@@ -76,6 +75,7 @@ impl App {
     }
 
     pub fn controls_ui(&mut self, ctx: &Context) {
+        let mut draw_clicked = false;
         Window::new("Simulation")
             .anchor(Align2::RIGHT_BOTTOM, Vec2::new(-10.0, -10.0))
             .show(ctx, |ui| {
@@ -110,10 +110,7 @@ impl App {
                         self.convergence_error = false;
                     }
 
-                    if ui.button("Draw").clicked() {
-                        self.boat = None;
-                        self.convergence_error = false;
-                    }
+                    draw_clicked = ui.button("Draw").clicked();
                 });
 
                 ui.with_layout(Layout::left_to_right(Align::TOP), |ui| {
@@ -124,6 +121,11 @@ impl App {
                     ))
                 });
             });
+
+        if draw_clicked {
+            self.boat = None;
+            self.convergence_error = false;
+        }
     }
 
     pub fn boat_drawing_ui(&mut self, ui: &mut Ui) {
@@ -195,11 +197,12 @@ impl App {
 /// Given a boat, return a vector of egui shapes to render.
 fn boat_ui_shapes(boat: &Boat, xform: &AffineTransform) -> Vec<Shape> {
     let mut shapes = Vec::new();
-    shapes.push(
-        boat.geometry
-            .affine_transform(xform)
-            .to_egui_shape(Color32::LIGHT_BLUE),
-    );
+
+    let poly = boat.geometry.affine_transform(xform);
+    for tri in poly.earcut_triangles() {
+        shapes.push(tri.to_egui_shape(Color32::LIGHT_BLUE));
+    }
+    shapes.push(poly.to_egui_shape(Color32::TRANSPARENT));
 
     // Show center of gravity and buoyancy.
     let displacement = boat.displacement();

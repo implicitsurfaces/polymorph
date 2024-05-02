@@ -79,16 +79,42 @@ impl App {
             self.convergence_error = !converged;
         }
 
-        if ui.button("Step").clicked() {
-            let initial_boat = self.boat.clone().unwrap();
-            let (boat, _) = self.simulation.step(&initial_boat);
-            println!("Boat: {:?}", boat.center_of_gravity());
-            self.boat = Some(boat);
-        }
+        ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
+            if ui.button("Step").clicked() {
+                let initial_boat = self.boat.clone().unwrap();
+                let (boat, _) = self.simulation.step(&initial_boat);
+                println!("Boat: {:?}", boat.center_of_gravity());
+                self.boat = Some(boat);
+            }
 
-        if ui.button("Reset").clicked() {
-            self.boat = None;
-            self.convergence_error = false;
+            if ui.button("⏩").clicked() {
+                let mut boat = self.boat.clone().unwrap();
+                for _ in 0..10 {
+                    (boat, _) = self.simulation.step(&boat);
+                }
+                println!("Boat: {:?}", boat.center_of_gravity());
+                self.boat = Some(boat);
+            }
+        });
+
+        ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
+            if ui.button("Reset").clicked() {
+                self.boat = Some(Boat::new_default());
+                self.convergence_error = false;
+            }
+
+            if ui.button("Draw").clicked() {
+                self.boat = None;
+                self.convergence_error = false;
+            }
+        });
+
+        let mut density = self.boat.as_ref().unwrap().density;
+        if ui
+            .add(egui::Slider::new(&mut density, 0.01..=1.0).text("My value"))
+            .changed()
+        {
+            self.boat.as_mut().unwrap().density = density;
         }
 
         if self.convergence_error {

@@ -144,7 +144,7 @@ impl Simulation {
 
     pub fn step(&self, boat: &Boat) -> (Boat, bool) {
         let accelerations = self.compute_accelerations(boat);
-        let boat = boat.update(accelerations, 0.005, 10.);
+        let boat = boat.update(accelerations, 0.005, 7.);
         let converged = accelerations.negligible(self.tolerance);
         (boat, converged)
     }

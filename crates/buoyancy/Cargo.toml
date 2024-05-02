@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 geo = "0.28.0"
+cobyla = "0.6.0"

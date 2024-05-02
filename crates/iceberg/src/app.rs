@@ -90,6 +90,18 @@ impl App {
                     self.convergence_error = !converged;
                 }
 
+                if ui.button("Orient!").clicked() {
+                    match find_equilibrium_position(boat) {
+                        Ok(position) => {
+                            self.boat_position = position;
+                            self.convergence_error = false;
+                        }
+                        Err(_) => {
+                            self.convergence_error = true;
+                        }
+                    }
+                }
+
                 ui.with_layout(Layout::left_to_right(Align::TOP), |ui| {
                     if ui.button("Step").clicked() {
                         let (new_position, _) = self.simulation.step(boat, self.boat_position);

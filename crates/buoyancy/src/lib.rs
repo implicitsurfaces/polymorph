@@ -1,3 +1,4 @@
+use cobyla::{minimize, FailStatus, Func, RhoBeg, StopTols};
 use geo::*;
 
 #[derive(Debug, Clone, Copy)]
@@ -198,5 +199,63 @@ impl Simulation {
             iterations += 1;
         }
         (pos, converged)
+    }
+}
+
+fn position_cost(boat: &Boat, position: BoatPosition) -> f64 {
+    let density_water = 1.;
+
+    // We need to be in the water
+    let displacement = water_displacement(boat, position);
+    let water_volume = displacement.unsigned_area();
+
+    if water_volume == 0.0 {
+        return 1e6;
+    }
+
+    let gravity_cost = ((water_volume * density_water).powi(2) - boat.mass().powi(2)).abs();
+
+    let center_of_buoyancy = displacement.centroid().unwrap();
+    let distance_vector = center_of_buoyancy - boat.geometry_in_space(position).centroid().unwrap();
+    let torque_cost = distance_vector.x().powi(2);
+
+    dbg!(gravity_cost) + dbg!(torque_cost)
+}
+
+pub fn find_equilibrium_position(boat: &Boat) -> Result<BoatPosition, FailStatus> {
+    let bounds = vec![(-180., 180.), (-100.0, 100.0)];
+
+    let cons: Vec<&dyn Func<()>> = vec![];
+
+    let stop_tol = StopTols {
+        ftol_rel: 1e-6,
+        ..StopTols::default()
+    };
+
+    let results = minimize(
+        |x: &[f64], _: &mut ()| {
+            position_cost(
+                boat,
+                dbg!(BoatPosition {
+                    y_position: x[0],
+                    rotation_angle: x[1],
+                }),
+            )
+        },
+        &[-boat.center_of_gravity().y(), 0.0],
+        &bounds,
+        &cons,
+        (),
+        200,
+        RhoBeg::All(0.5),
+        Some(stop_tol),
+    );
+
+    match results {
+        Ok((_, x_opt, _)) => Ok(BoatPosition {
+            y_position: x_opt[0],
+            rotation_angle: x_opt[1],
+        }),
+        Err((e, _, _)) => Err(e),
     }
 }

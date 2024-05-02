@@ -47,7 +47,7 @@ impl App {
         Default::default()
     }
 
-    pub fn simulation_ui(&mut self, ui: &mut Ui, xform: &AffineTransform) {
+    pub fn simulation_ui(&mut self, ctx: &Context, ui: &mut Ui, xform: &AffineTransform) {
         let boat = self.boat.as_ref().unwrap();
         let water_level = 0.;
         let water_line = geo::Line::new(
@@ -62,64 +62,68 @@ impl App {
         )
         .affine_transform(xform);
 
-        ui.painter()
-            .add(water_line.to_egui_shape(egui::Color32::BLUE));
+        ui.painter().add(water_line.to_egui_shape(Color32::BLUE));
 
         for shape in boat_ui_shapes(boat, xform) {
             ui.painter().add(shape);
         }
 
-        // Add a button to run the simulation
-        //
-
-        if ui.button("Run simulation").clicked() {
-            let initial_boat = self.boat.clone().unwrap();
-            let (boat, converged) = self.simulation.run(&initial_boat);
-            self.boat = Some(boat);
-            self.convergence_error = !converged;
-        }
-
-        ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
-            if ui.button("Step").clicked() {
-                let initial_boat = self.boat.clone().unwrap();
-                let (boat, _) = self.simulation.step(&initial_boat);
-                println!("Boat: {:?}", boat.center_of_gravity());
-                self.boat = Some(boat);
-            }
-
-            if ui.button("⏩").clicked() {
-                let mut boat = self.boat.clone().unwrap();
-                for _ in 0..10 {
-                    (boat, _) = self.simulation.step(&boat);
-                }
-                println!("Boat: {:?}", boat.center_of_gravity());
-                self.boat = Some(boat);
-            }
-        });
-
-        ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
-            if ui.button("Reset").clicked() {
-                self.boat = Some(Boat::new_default());
-                self.convergence_error = false;
-            }
-
-            if ui.button("Draw").clicked() {
-                self.boat = None;
-                self.convergence_error = false;
-            }
-        });
-
-        let mut density = self.boat.as_ref().unwrap().density;
-        if ui
-            .add(egui::Slider::new(&mut density, 0.01..=1.0).text("My value"))
-            .changed()
-        {
-            self.boat.as_mut().unwrap().density = density;
-        }
+        self.controls_ui(ctx);
 
         if self.convergence_error {
             ui.label("Simulation did not converge.");
         }
+    }
+
+    pub fn controls_ui(&mut self, ctx: &Context) {
+        Window::new("Simulation")
+            .anchor(Align2::RIGHT_BOTTOM, Vec2::new(-10.0, -10.0))
+            .show(ctx, |ui| {
+                if ui.button("Run simulation").clicked() {
+                    let initial_boat = self.boat.clone().unwrap();
+                    let (boat, converged) = self.simulation.run(&initial_boat);
+                    self.boat = Some(boat);
+                    self.convergence_error = !converged;
+                }
+
+                ui.with_layout(Layout::left_to_right(Align::TOP), |ui| {
+                    if ui.button("Step").clicked() {
+                        let initial_boat = self.boat.clone().unwrap();
+                        let (boat, _) = self.simulation.step(&initial_boat);
+                        println!("Boat: {:?}", boat.center_of_gravity());
+                        self.boat = Some(boat);
+                    }
+
+                    if ui.button("⏩").clicked() {
+                        let mut boat = self.boat.clone().unwrap();
+                        for _ in 0..10 {
+                            (boat, _) = self.simulation.step(&boat);
+                        }
+                        println!("Boat: {:?}", boat.center_of_gravity());
+                        self.boat = Some(boat);
+                    }
+                });
+
+                ui.with_layout(Layout::left_to_right(Align::TOP), |ui| {
+                    if ui.button("Reset").clicked() {
+                        self.boat = Some(Boat::new_default());
+                        self.convergence_error = false;
+                    }
+
+                    if ui.button("Draw").clicked() {
+                        self.boat = None;
+                        self.convergence_error = false;
+                    }
+                });
+
+                ui.with_layout(Layout::left_to_right(Align::TOP), |ui| {
+                    ui.label("Boat density");
+                    ui.add(Slider::new(
+                        &mut self.boat.as_mut().unwrap().density,
+                        0.01..=1.0,
+                    ))
+                });
+            });
     }
 
     pub fn boat_drawing_ui(&mut self, ui: &mut Ui) {
@@ -161,10 +165,7 @@ impl App {
             .map(|p| to_screen * *p)
             .collect::<Vec<Pos2>>();
 
-        painter.add(egui::Shape::line(
-            mapped_points,
-            Stroke::new(1.0, Color32::BLACK),
-        ));
+        painter.add(Shape::line(mapped_points, Stroke::new(1.0, Color32::BLACK)));
 
         if let Some(pointer_pos) = response.hover_pos() {
             if !self.points.is_empty() {
@@ -182,7 +183,7 @@ impl App {
                     Color32::BLUE
                 };
 
-                painter.add(egui::Shape::line(
+                painter.add(Shape::line(
                     vec![last_point, pointer_pos],
                     Stroke::new(1.0, color),
                 ));
@@ -192,54 +193,51 @@ impl App {
 }
 
 /// Given a boat, return a vector of egui shapes to render.
-fn boat_ui_shapes(boat: &Boat, xform: &AffineTransform) -> Vec<egui::Shape> {
+fn boat_ui_shapes(boat: &Boat, xform: &AffineTransform) -> Vec<Shape> {
     let mut shapes = Vec::new();
     shapes.push(
         boat.geometry
             .affine_transform(xform)
-            .to_egui_shape(egui::Color32::LIGHT_BLUE),
+            .to_egui_shape(Color32::LIGHT_BLUE),
     );
 
     // Show center of gravity and buoyancy.
     let displacement = boat.displacement();
     for poly in &displacement {
-        shapes.push(
-            poly.affine_transform(xform)
-                .to_egui_shape(egui::Color32::YELLOW),
-        );
+        shapes.push(poly.affine_transform(xform).to_egui_shape(Color32::YELLOW));
     }
 
     if let Some(center_of_buoyancy) = displacement.centroid() {
         shapes.push(
             center_of_buoyancy
                 .affine_transform(xform)
-                .to_egui_shape(egui::Color32::BLUE),
+                .to_egui_shape(Color32::BLUE),
         );
     }
 
     shapes.push(
         boat.center_of_gravity()
             .affine_transform(xform)
-            .to_egui_shape(egui::Color32::GREEN),
+            .to_egui_shape(Color32::GREEN),
     );
     shapes
 }
 
 impl eframe::App for App {
     /// Called each time the UI needs repainting, which may be many times per second.
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         // Transform from simulation space to a reasonable spot in screen space.
         let xform =
             AffineTransform::translate(150., 150.).scaled(100., -100., Coord { x: 0., y: 0. });
 
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
+        TopBottomPanel::top("top_panel").show(ctx, |ui| {
+            menu::bar(ui, |ui| {
                 // NOTE: no File->Quit on web pages!
                 let is_web = cfg!(target_arch = "wasm32");
                 if !is_web {
                     ui.menu_button("File", |ui| {
                         if ui.button("Quit").clicked() {
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                            ctx.send_viewport_cmd(ViewportCommand::Close);
                         }
                     });
                     ui.add_space(16.0);
@@ -247,9 +245,9 @@ impl eframe::App for App {
             });
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        CentralPanel::default().show(ctx, |ui| {
             if self.boat.is_some() {
-                self.simulation_ui(ui, &xform)
+                self.simulation_ui(ctx, ui, &xform)
             } else {
                 self.boat_drawing_ui(ui)
             }

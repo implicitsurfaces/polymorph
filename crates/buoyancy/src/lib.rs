@@ -12,6 +12,43 @@ impl Accelerations {
     }
 }
 
+pub fn compute_accelerations(boat: &Boat, position: BoatPosition) -> Accelerations {
+    const DENSITY_WATER: f64 = 1.0; // kg / L
+    const GRAVITY: f64 = 9.8; // m / s^2
+
+    let center_of_gravity = boat.center_of_gravity();
+
+    // Calculate net vertical force
+
+    let force_gravity = -GRAVITY * boat.mass();
+
+    let displacement = water_displacement(boat, position);
+    let center_of_buoyancy = displacement.centroid();
+    let (force_buoyancy, torque) = {
+        match center_of_buoyancy {
+            None => (0.0, 0.0),
+            Some(center_of_buoyancy) => {
+                let water_volume = displacement.unsigned_area();
+                let force_buoyancy = DENSITY_WATER * water_volume * GRAVITY;
+                let distance_vector = center_of_buoyancy - center_of_gravity;
+                let torque = distance_vector.x() * force_buoyancy;
+                (force_buoyancy, torque)
+            }
+        }
+    };
+
+    let force_net = force_buoyancy + force_gravity;
+    let vertical_acceleration = force_net / boat.mass();
+
+    let moment_of_inertia = 1.0;
+    let angular_acceleration = torque / moment_of_inertia;
+
+    Accelerations {
+        vertical_acceleration,
+        angular_acceleration,
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Boat {
     pub geometry: Polygon<f64>,
@@ -58,105 +95,108 @@ impl Boat {
         self.geometry.centroid().unwrap()
     }
 
-    pub fn displacement(&self) -> MultiPolygon {
-        let boat_bounding_box = self.geometry.bounding_rect().unwrap();
-        let water = Rect::new(
-            boat_bounding_box.min(),
-            Coord {
-                x: boat_bounding_box.max().x,
-                y: 0.0,
-            },
-        )
-        .to_polygon();
-
-        water.intersection(&self.geometry)
+    pub fn volume(&self) -> f64 {
+        self.geometry.unsigned_area()
     }
 
-    pub fn update(
-        &self,
-        accelerations: Accelerations,
-        linear_damping: f64,
-        angular_damping: f64,
-    ) -> Boat {
-        let mut boat = self.clone();
+    pub fn mass(&self) -> f64 {
+        self.density * self.volume()
+    }
 
-        boat.geometry.rotate_around_point_mut(
-            accelerations.angular_acceleration * angular_damping,
-            boat.center_of_gravity(),
-        );
+    pub fn geometry_in_space(&self, position: BoatPosition) -> Polygon<f64> {
+        self.geometry
+            .translate(0.0, position.y_position)
+            .rotate_around_centroid(position.rotation_angle)
+    }
+}
 
-        boat.geometry
-            .translate_mut(0.0, accelerations.vertical_acceleration * linear_damping);
+#[derive(Debug, Clone, Copy)]
+pub struct BoatPosition {
+    pub rotation_angle: f64,
+    pub y_position: f64,
+}
 
-        boat
+impl Default for BoatPosition {
+    fn default() -> Self {
+        Self {
+            rotation_angle: 0.0,
+            y_position: 0.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct BuoyancyParams {
+    pub water_volume: f64,
+    pub center_of_buoyancy: Option<Point<f64>>,
+}
+
+pub fn water_displacement(boat: &Boat, position: BoatPosition) -> MultiPolygon<f64> {
+    let geom = boat.geometry_in_space(position);
+    let boat_bounding_box = geom.bounding_rect().unwrap();
+
+    let water = Rect::new(
+        boat_bounding_box.min(),
+        Coord {
+            x: boat_bounding_box.max().x,
+            y: 0.0,
+        },
+    )
+    .to_polygon();
+
+    water.intersection(&geom)
+}
+
+fn update_position(
+    position: BoatPosition,
+    accelerations: Accelerations,
+    linear_damping: f64,
+    angular_damping: f64,
+) -> BoatPosition {
+    let new_rotation_angle =
+        position.rotation_angle + accelerations.angular_acceleration * angular_damping;
+    let new_y_position = position.y_position + accelerations.vertical_acceleration * linear_damping;
+
+    BoatPosition {
+        rotation_angle: new_rotation_angle,
+        y_position: new_y_position,
     }
 }
 
 pub struct Simulation {
-    pub density_water: f64,
-    pub gravity: f64,
     pub tolerance: f64,
     pub max_iterations: usize,
+}
+
+impl Default for Simulation {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Simulation {
     pub fn new() -> Self {
         Self {
-            density_water: 1., // kg / L
-            gravity: 9.8,      // m / s^2
-            tolerance: 1e-4,   // (kg m) / s^2
+            tolerance: 1e-4, // (kg m) / s^2
             max_iterations: 1000,
         }
     }
 
-    pub fn compute_accelerations(&self, boat: &Boat) -> Accelerations {
-        let center_of_gravity = boat.center_of_gravity();
-
-        // Calculate net vertical force
-        let displacement = boat.displacement();
-        let boat_mass = boat.density * boat.geometry.unsigned_area();
-        let force_gravity = -self.gravity * boat_mass;
-
-        let (force_buoyancy, torque) = {
-            match displacement.centroid() {
-                None => (0.0, 0.0),
-                Some(center_of_buoyancy) => {
-                    let force_buoyancy =
-                        self.density_water * displacement.unsigned_area() * self.gravity;
-                    let distance_vector = center_of_buoyancy - center_of_gravity;
-                    let torque = distance_vector.x() * force_buoyancy;
-                    (force_buoyancy, torque)
-                }
-            }
-        };
-
-        let force_net = force_buoyancy + force_gravity;
-        let vertical_acceleration = force_net / boat_mass;
-
-        let moment_of_inertia = 1.0; // We don't need this since we don't care about making the simulation physical.
-        let angular_acceleration = torque / moment_of_inertia;
-
-        Accelerations {
-            vertical_acceleration,
-            angular_acceleration,
-        }
-    }
-
-    pub fn step(&self, boat: &Boat) -> (Boat, bool) {
-        let accelerations = self.compute_accelerations(boat);
-        let boat = boat.update(accelerations, 0.005, 7.);
+    pub fn step(&self, boat: &Boat, position: BoatPosition) -> (BoatPosition, bool) {
+        let accelerations = compute_accelerations(boat, position);
+        let boat = update_position(position, accelerations, 0.005, 7.);
         let converged = accelerations.negligible(self.tolerance);
         (boat, converged)
     }
 
-    pub fn run(&self, boat: &Boat) -> (Boat, bool) {
+    pub fn run(&self, boat: &Boat, position: BoatPosition) -> (BoatPosition, bool) {
         let mut iterations = 0;
-        let mut boat = boat.clone();
+        let mut pos = position;
         let mut converged = false;
         while !converged && iterations < self.max_iterations {
-            (boat, converged) = self.step(&boat);
+            (pos, converged) = self.step(boat, pos);
             iterations += 1;
         }
-        (boat, converged)
+        (pos, converged)
     }
 }

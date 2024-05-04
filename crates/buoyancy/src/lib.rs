@@ -1,6 +1,8 @@
 use cobyla::{minimize, FailStatus, Func, RhoBeg, StopTols};
 use geo::*;
 
+pub const WATER_LEVEL: f64 = 0.0;
+
 #[derive(Debug, Clone, Copy)]
 pub struct Accelerations {
     pub vertical_acceleration: f64,
@@ -134,7 +136,7 @@ pub fn water_displacement(boat: &Boat, position: BoatPosition) -> MultiPolygon<f
         boat_bounding_box.min(),
         Coord {
             x: boat_bounding_box.max().x,
-            y: 0.0,
+            y: WATER_LEVEL,
         },
     )
     .to_polygon();

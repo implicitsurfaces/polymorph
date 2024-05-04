@@ -50,15 +50,14 @@ impl App {
 
     pub fn simulation_ui(&mut self, ctx: &Context, ui: &mut Ui, xform: &AffineTransform) {
         let boat = self.boat.as_ref().unwrap();
-        let water_level = 0.;
         let water_line = geo::Line::new(
             Coord {
                 x: -10.,
-                y: water_level,
+                y: WATER_LEVEL,
             },
             Coord {
                 x: 10.,
-                y: water_level,
+                y: WATER_LEVEL,
             },
         )
         .affine_transform(xform);

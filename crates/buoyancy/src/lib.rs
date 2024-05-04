@@ -2,6 +2,8 @@ use cobyla::{minimize, FailStatus, Func, RhoBeg, StopTols};
 use geo::*;
 
 pub const WATER_LEVEL: f64 = 0.0;
+pub const DENSITY_WATER: f64 = 1.0; // kg / L
+pub const GRAVITY: f64 = 9.8; // m / s^2
 
 #[derive(Debug, Clone, Copy)]
 pub struct Accelerations {
@@ -42,6 +44,14 @@ impl BoatPosition {
                 + accelerations.angular_acceleration * angular_damping,
             y_position: self.y_position + accelerations.vertical_acceleration * linear_damping,
         }
+    }
+
+    fn bounds_rotation_angle() -> (f64, f64) {
+        (-180., 180.)
+    }
+
+    fn bounds_y_position() -> (f64, f64) {
+        (-100.0, 100.0)
     }
 }
 
@@ -131,9 +141,6 @@ impl Boat {
     }
 
     pub fn accelerations(&self) -> Accelerations {
-        const DENSITY_WATER: f64 = 1.0; // kg / L
-        const GRAVITY: f64 = 9.8; // m / s^2
-
         let center_of_gravity = self.center_of_gravity();
 
         // Calculate net vertical force
@@ -205,28 +212,24 @@ impl Simulation {
     }
 }
 
-fn position_cost(boat: &Boat) -> f64 {
-    let density_water = 1.;
-
-    // We need to be in the water
-    let displacement = boat.displacement();
-    let water_volume = displacement.unsigned_area();
-
-    if water_volume == 0.0 {
-        return 1e6;
-    }
-
-    let gravity_cost = ((water_volume * density_water).powi(2) - boat.mass().powi(2)).abs();
-
-    let center_of_buoyancy = displacement.centroid().unwrap();
-    let distance_vector = center_of_buoyancy - boat.geometry_in_space().centroid().unwrap();
-    let torque_cost = distance_vector.x().powi(2);
-
-    gravity_cost + torque_cost
-}
-
 pub fn find_equilibrium_position(boat: &Boat) -> Result<BoatPosition, FailStatus> {
-    let bounds = vec![(-180., 180.), (-100.0, 100.0)];
+    fn position_cost(boat: &Boat) -> f64 {
+        // We need to be in the water
+        let displacement = boat.displacement();
+        let water_volume = displacement.unsigned_area();
+
+        if water_volume == 0.0 {
+            return 1e6;
+        }
+
+        let gravity_cost = ((water_volume * DENSITY_WATER).powi(2) - boat.mass().powi(2)).abs();
+
+        let center_of_buoyancy = displacement.centroid().unwrap();
+        let distance_vector = center_of_buoyancy - boat.geometry_in_space().centroid().unwrap();
+        let torque_cost = distance_vector.x().powi(2);
+
+        gravity_cost + torque_cost
+    }
 
     let cons: Vec<&dyn Func<()>> = vec![];
 
@@ -243,7 +246,10 @@ pub fn find_equilibrium_position(boat: &Boat) -> Result<BoatPosition, FailStatus
             }))
         },
         &[-boat.center_of_gravity().y(), 0.0],
-        &bounds,
+        &[
+            BoatPosition::bounds_y_position(),
+            BoatPosition::bounds_rotation_angle(),
+        ],
         &cons,
         (),
         200,

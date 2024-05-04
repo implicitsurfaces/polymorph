@@ -126,12 +126,6 @@ impl Default for BoatPosition {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct BuoyancyParams {
-    pub water_volume: f64,
-    pub center_of_buoyancy: Option<Point<f64>>,
-}
-
 pub fn water_displacement(boat: &Boat, position: BoatPosition) -> MultiPolygon<f64> {
     let geom = boat.geometry_in_space(position);
     let boat_bounding_box = geom.bounding_rect().unwrap();
@@ -219,7 +213,7 @@ fn position_cost(boat: &Boat, position: BoatPosition) -> f64 {
     let distance_vector = center_of_buoyancy - boat.geometry_in_space(position).centroid().unwrap();
     let torque_cost = distance_vector.x().powi(2);
 
-    dbg!(gravity_cost) + dbg!(torque_cost)
+    gravity_cost + torque_cost
 }
 
 pub fn find_equilibrium_position(boat: &Boat) -> Result<BoatPosition, FailStatus> {
@@ -236,10 +230,10 @@ pub fn find_equilibrium_position(boat: &Boat) -> Result<BoatPosition, FailStatus
         |x: &[f64], _: &mut ()| {
             position_cost(
                 boat,
-                dbg!(BoatPosition {
+                BoatPosition {
                     y_position: x[0],
                     rotation_angle: x[1],
-                }),
+                },
             )
         },
         &[-boat.center_of_gravity().y(), 0.0],

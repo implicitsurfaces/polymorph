@@ -7,7 +7,6 @@ use crate::ToEguiShape;
 pub struct App {
     simulation: Simulation,
     boat: Option<Boat>,
-    boat_position: BoatPosition,
     points: Vec<Pos2>,
     convergence_error: bool,
 }
@@ -16,7 +15,6 @@ impl Default for App {
     fn default() -> Self {
         Self {
             points: Default::default(),
-            boat_position: BoatPosition::default(),
             simulation: Simulation::new(),
             boat: Some(Boat::new_default()),
             convergence_error: false,
@@ -64,7 +62,7 @@ impl App {
 
         ui.painter().add(water_line.to_egui_shapes(Color32::BLUE));
 
-        for shape in boat_ui_shapes(boat, self.boat_position, xform) {
+        for shape in boat_ui_shapes(boat, xform) {
             ui.painter().add(shape);
         }
 
@@ -81,18 +79,17 @@ impl App {
         Window::new("Simulation")
             .anchor(Align2::RIGHT_BOTTOM, Vec2::new(-10.0, -10.0))
             .show(ctx, |ui| {
-                let boat = self.boat.as_ref().unwrap();
-
                 if ui.button("Run simulation").clicked() {
-                    let (new_position, converged) = self.simulation.run(boat, self.boat_position);
-                    self.boat_position = new_position;
+                    let (boat, converged) = self.simulation.run(self.boat.as_ref().unwrap());
+                    self.boat.replace(boat);
                     self.convergence_error = !converged;
                 }
 
                 if ui.button("Orient!").clicked() {
-                    match find_equilibrium_position(boat) {
+                    match find_equilibrium_position(self.boat.as_ref().unwrap()) {
                         Ok(position) => {
-                            self.boat_position = position;
+                            self.boat
+                                .replace(self.boat.as_ref().unwrap().with_position(&position));
                             self.convergence_error = false;
                         }
                         Err(_) => {
@@ -103,23 +100,21 @@ impl App {
 
                 ui.with_layout(Layout::left_to_right(Align::TOP), |ui| {
                     if ui.button("Step").clicked() {
-                        let (new_position, _) = self.simulation.step(boat, self.boat_position);
-                        self.boat_position = new_position;
+                        let (boat, _) = self.simulation.step(self.boat.as_ref().unwrap());
+                        self.boat.replace(boat);
                     }
 
                     if ui.button("⏩").clicked() {
-                        let mut new_position = self.boat_position;
                         for _ in 0..10 {
-                            (new_position, _) = self.simulation.step(boat, new_position);
+                            let (boat, _) = self.simulation.step(self.boat.as_ref().unwrap());
+                            self.boat.replace(boat);
                         }
-                        self.boat_position = new_position;
                     }
                 });
 
                 ui.with_layout(Layout::left_to_right(Align::TOP), |ui| {
                     if ui.button("Reset").clicked() {
                         self.boat = Some(Boat::new_default());
-                        self.boat_position = BoatPosition::default();
                         self.convergence_error = false;
                     }
 
@@ -137,7 +132,6 @@ impl App {
 
         if draw_clicked {
             self.boat = None;
-            self.boat_position = BoatPosition::default();
             self.convergence_error = false;
         }
     }
@@ -165,6 +159,7 @@ impl App {
                     self.boat = Some(Boat {
                         geometry: to_polygon(&self.points),
                         density: 0.5,
+                        position: Default::default(),
                     });
                     self.points.clear();
                     response.mark_changed();
@@ -209,10 +204,10 @@ impl App {
 }
 
 /// Given a boat, return a vector of egui shapes to render.
-fn boat_ui_shapes(boat: &Boat, position: BoatPosition, xform: &AffineTransform) -> Vec<Shape> {
+fn boat_ui_shapes(boat: &Boat, xform: &AffineTransform) -> Vec<Shape> {
     let mut shapes: Vec<Shape> = Vec::new();
 
-    let geometry = boat.geometry_in_space(position);
+    let geometry = boat.geometry_in_space();
 
     shapes.extend(
         geometry
@@ -220,7 +215,7 @@ fn boat_ui_shapes(boat: &Boat, position: BoatPosition, xform: &AffineTransform) 
             .to_egui_shapes(Color32::LIGHT_BLUE),
     );
 
-    let displacement = water_displacement(boat, position);
+    let displacement = boat.displacement();
 
     // Show center of gravity and buoyancy.
     for poly in &displacement {

@@ -15,40 +15,33 @@ impl Accelerations {
     }
 }
 
-pub fn compute_accelerations(boat: &Boat, position: BoatPosition) -> Accelerations {
-    const DENSITY_WATER: f64 = 1.0; // kg / L
-    const GRAVITY: f64 = 9.8; // m / s^2
+#[derive(Debug, Clone, Copy)]
+pub struct BoatPosition {
+    pub rotation_angle: f64, // Degrees
+    pub y_position: f64,
+}
 
-    let center_of_gravity = boat.center_of_gravity();
-
-    // Calculate net vertical force
-
-    let force_gravity = -GRAVITY * boat.mass();
-
-    let displacement = water_displacement(boat, position);
-    let center_of_buoyancy = displacement.centroid();
-    let (force_buoyancy, torque) = {
-        match center_of_buoyancy {
-            None => (0.0, 0.0),
-            Some(center_of_buoyancy) => {
-                let water_volume = displacement.unsigned_area();
-                let force_buoyancy = DENSITY_WATER * water_volume * GRAVITY;
-                let distance_vector = center_of_buoyancy - center_of_gravity;
-                let torque = distance_vector.x() * force_buoyancy;
-                (force_buoyancy, torque)
-            }
+impl Default for BoatPosition {
+    fn default() -> Self {
+        Self {
+            rotation_angle: 0.0,
+            y_position: 0.0,
         }
-    };
+    }
+}
 
-    let force_net = force_buoyancy + force_gravity;
-    let vertical_acceleration = force_net / boat.mass();
-
-    let moment_of_inertia = 1.0;
-    let angular_acceleration = torque / moment_of_inertia;
-
-    Accelerations {
-        vertical_acceleration,
-        angular_acceleration,
+impl BoatPosition {
+    fn update(
+        &self,
+        accelerations: Accelerations,
+        linear_damping: f64,
+        angular_damping: f64,
+    ) -> Self {
+        BoatPosition {
+            rotation_angle: self.rotation_angle
+                + accelerations.angular_acceleration * angular_damping,
+            y_position: self.y_position + accelerations.vertical_acceleration * linear_damping,
+        }
     }
 }
 
@@ -56,6 +49,7 @@ pub fn compute_accelerations(boat: &Boat, position: BoatPosition) -> Acceleratio
 pub struct Boat {
     pub geometry: Polygon<f64>,
     pub density: f64,
+    pub position: BoatPosition,
 }
 
 impl Boat {
@@ -72,6 +66,7 @@ impl Boat {
         Self {
             geometry,
             density: 0.5,
+            position: Default::default(),
         }
     }
 
@@ -91,11 +86,24 @@ impl Boat {
         Self {
             geometry,
             density: 0.5,
+            position: Default::default(),
         }
     }
 
+    pub fn with_position(&self, position: &BoatPosition) -> Boat {
+        let mut boat = self.clone();
+        boat.position = *position;
+        boat
+    }
+
+    pub fn geometry_in_space(&self) -> Polygon<f64> {
+        self.geometry
+            .translate(0.0, self.position.y_position)
+            .rotate_around_centroid(self.position.rotation_angle)
+    }
+
     pub fn center_of_gravity(&self) -> Point<f64> {
-        self.geometry.centroid().unwrap()
+        self.geometry_in_space().centroid().unwrap()
     }
 
     pub fn volume(&self) -> f64 {
@@ -106,57 +114,56 @@ impl Boat {
         self.density * self.volume()
     }
 
-    pub fn geometry_in_space(&self, position: BoatPosition) -> Polygon<f64> {
-        self.geometry
-            .translate(0.0, position.y_position)
-            .rotate_around_centroid(position.rotation_angle)
+    pub fn displacement(&self) -> MultiPolygon<f64> {
+        let geom = self.geometry_in_space();
+        let boat_bounding_box = geom.bounding_rect().unwrap();
+
+        let water = Rect::new(
+            boat_bounding_box.min(),
+            Coord {
+                x: boat_bounding_box.max().x,
+                y: WATER_LEVEL,
+            },
+        )
+        .to_polygon();
+
+        water.intersection(&geom)
     }
-}
 
-#[derive(Debug, Clone, Copy)]
-pub struct BoatPosition {
-    pub rotation_angle: f64,
-    pub y_position: f64,
-}
+    pub fn accelerations(&self) -> Accelerations {
+        const DENSITY_WATER: f64 = 1.0; // kg / L
+        const GRAVITY: f64 = 9.8; // m / s^2
 
-impl Default for BoatPosition {
-    fn default() -> Self {
-        Self {
-            rotation_angle: 0.0,
-            y_position: 0.0,
+        let center_of_gravity = self.center_of_gravity();
+
+        // Calculate net vertical force
+        let force_gravity = -GRAVITY * self.mass();
+
+        let displacement = self.displacement();
+        let center_of_buoyancy = displacement.centroid();
+        let (force_buoyancy, torque) = {
+            match center_of_buoyancy {
+                None => (0.0, 0.0),
+                Some(center_of_buoyancy) => {
+                    let water_volume = displacement.unsigned_area();
+                    let force_buoyancy = DENSITY_WATER * water_volume * GRAVITY;
+                    let distance_vector = center_of_buoyancy - center_of_gravity;
+                    let torque = distance_vector.x() * force_buoyancy;
+                    (force_buoyancy, torque)
+                }
+            }
+        };
+
+        let force_net = force_buoyancy + force_gravity;
+        let vertical_acceleration = force_net / self.mass();
+
+        let moment_of_inertia = 1.0; // TODO: make simulation more physically accurate by actually calculating moment of inertia from boat geometry and axis of rotation.
+        let angular_acceleration = torque / moment_of_inertia;
+
+        Accelerations {
+            vertical_acceleration,
+            angular_acceleration,
         }
-    }
-}
-
-pub fn water_displacement(boat: &Boat, position: BoatPosition) -> MultiPolygon<f64> {
-    let geom = boat.geometry_in_space(position);
-    let boat_bounding_box = geom.bounding_rect().unwrap();
-
-    let water = Rect::new(
-        boat_bounding_box.min(),
-        Coord {
-            x: boat_bounding_box.max().x,
-            y: WATER_LEVEL,
-        },
-    )
-    .to_polygon();
-
-    water.intersection(&geom)
-}
-
-fn update_position(
-    position: BoatPosition,
-    accelerations: Accelerations,
-    linear_damping: f64,
-    angular_damping: f64,
-) -> BoatPosition {
-    let new_rotation_angle =
-        position.rotation_angle + accelerations.angular_acceleration * angular_damping;
-    let new_y_position = position.y_position + accelerations.vertical_acceleration * linear_damping;
-
-    BoatPosition {
-        rotation_angle: new_rotation_angle,
-        y_position: new_y_position,
     }
 }
 
@@ -179,30 +186,30 @@ impl Simulation {
         }
     }
 
-    pub fn step(&self, boat: &Boat, position: BoatPosition) -> (BoatPosition, bool) {
-        let accelerations = compute_accelerations(boat, position);
-        let boat = update_position(position, accelerations, 0.005, 7.);
+    pub fn step(&self, boat: &Boat) -> (Boat, bool) {
+        let accelerations = boat.accelerations();
+        let position = boat.position.update(accelerations, 0.005, 7.);
         let converged = accelerations.negligible(self.tolerance);
-        (boat, converged)
+        (boat.with_position(&position), converged)
     }
 
-    pub fn run(&self, boat: &Boat, position: BoatPosition) -> (BoatPosition, bool) {
+    pub fn run(&self, boat: &Boat) -> (Boat, bool) {
         let mut iterations = 0;
-        let mut pos = position;
         let mut converged = false;
+        let mut boat = boat.clone();
         while !converged && iterations < self.max_iterations {
-            (pos, converged) = self.step(boat, pos);
+            (boat, converged) = self.step(&boat);
             iterations += 1;
         }
-        (pos, converged)
+        (boat, converged)
     }
 }
 
-fn position_cost(boat: &Boat, position: BoatPosition) -> f64 {
+fn position_cost(boat: &Boat) -> f64 {
     let density_water = 1.;
 
     // We need to be in the water
-    let displacement = water_displacement(boat, position);
+    let displacement = boat.displacement();
     let water_volume = displacement.unsigned_area();
 
     if water_volume == 0.0 {
@@ -212,7 +219,7 @@ fn position_cost(boat: &Boat, position: BoatPosition) -> f64 {
     let gravity_cost = ((water_volume * density_water).powi(2) - boat.mass().powi(2)).abs();
 
     let center_of_buoyancy = displacement.centroid().unwrap();
-    let distance_vector = center_of_buoyancy - boat.geometry_in_space(position).centroid().unwrap();
+    let distance_vector = center_of_buoyancy - boat.geometry_in_space().centroid().unwrap();
     let torque_cost = distance_vector.x().powi(2);
 
     gravity_cost + torque_cost
@@ -230,13 +237,10 @@ pub fn find_equilibrium_position(boat: &Boat) -> Result<BoatPosition, FailStatus
 
     let results = minimize(
         |x: &[f64], _: &mut ()| {
-            position_cost(
-                boat,
-                BoatPosition {
-                    y_position: x[0],
-                    rotation_angle: x[1],
-                },
-            )
+            position_cost(&boat.with_position(&BoatPosition {
+                y_position: x[0],
+                rotation_angle: x[1],
+            }))
         },
         &[-boat.center_of_gravity().y(), 0.0],
         &bounds,

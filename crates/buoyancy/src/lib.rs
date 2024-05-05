@@ -4,6 +4,7 @@ use geo::*;
 pub const WATER_LEVEL: f64 = 0.0;
 pub const DENSITY_WATER: f64 = 1.0; // kg / L
 pub const GRAVITY: f64 = 9.8; // m / s^2
+pub type Degrees = f64;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Accelerations {
@@ -19,7 +20,7 @@ impl Accelerations {
 
 #[derive(Debug, Clone, Copy)]
 pub struct BoatPosition {
-    pub rotation_angle: f64, // Degrees
+    pub rotation_angle: Degrees,
     pub y_position: f64,
 }
 
@@ -210,6 +211,40 @@ impl Simulation {
         }
         (boat, converged)
     }
+}
+
+pub fn centers_of_buoyancy(boat: &Boat, num_samples: usize) -> Vec<(Degrees, Point)> {
+    (0..num_samples)
+        .map(|i| i as f64 * 360.0 / num_samples as f64)
+        // rotate boat to angle and find equilibrium y-position
+        .flat_map(|angle| {
+            let mut boat = boat.clone();
+            boat.position.rotation_angle = angle;
+
+            let num_iterations = 1000;
+            let f = move || {
+                for _ in 0..num_iterations {
+                    let old = boat.position;
+                    let new = boat.position.update(boat.accelerations(), 0.005, 0.0);
+                    boat.position = new;
+                    if f64::abs(old.y_position - new.y_position) < 1e-6 {
+                        return Some(boat);
+                    }
+                }
+                None
+            };
+            f()
+        })
+        // find center of buoyancy and transform back into original boat's reference frame
+        .map(|boat| {
+            let cob = boat.displacement().centroid().unwrap();
+            let cob_in_geometry_frame = cob
+                .rotate_around_point(-boat.position.rotation_angle, boat.center_of_gravity())
+                .translate(0., -boat.position.y_position);
+
+            (boat.position.rotation_angle, cob_in_geometry_frame)
+        })
+        .collect()
 }
 
 pub fn find_equilibrium_position(boat: &Boat) -> Result<BoatPosition, FailStatus> {

@@ -6,7 +6,12 @@
 To run the iceberg simulation:
 
     cargo run -p iceberg
+    
+    
+To see the buoyancy curve (centers of buoyancy at various heel angles):
 
+    cargo run --release --bin visualize_buoyancy_curve
+    
 
 ## Architecture + overview
 

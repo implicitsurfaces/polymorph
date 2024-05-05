@@ -1,5 +1,7 @@
 #![warn(clippy::all, rust_2018_idioms)]
 
+use buoyancy::*;
+use egui::*;
 use geo::*;
 
 mod app;
@@ -69,4 +71,41 @@ impl ToEguiShape for Line {
             egui::Stroke::new(1.0, fill_color),
         )]
     }
+}
+
+/// Given a boat, return a vector of egui shapes to render.
+pub fn boat_ui_shapes(boat: &Boat, xform: &AffineTransform) -> Vec<Shape> {
+    let mut shapes: Vec<Shape> = Vec::new();
+
+    let geometry = boat.geometry_in_space();
+
+    shapes.extend(
+        geometry
+            .affine_transform(xform)
+            .to_egui_shapes(Color32::LIGHT_BLUE),
+    );
+
+    let displacement = boat.displacement();
+
+    // Show center of gravity and buoyancy.
+    for poly in &displacement {
+        shapes.extend(poly.affine_transform(xform).to_egui_shapes(Color32::YELLOW));
+    }
+
+    if let Some(center_of_buoyancy) = displacement.centroid() {
+        shapes.extend(
+            center_of_buoyancy
+                .affine_transform(xform)
+                .to_egui_shapes(Color32::BLUE),
+        );
+    }
+
+    shapes.extend(
+        geometry
+            .centroid()
+            .unwrap()
+            .affine_transform(xform)
+            .to_egui_shapes(Color32::GREEN),
+    );
+    shapes
 }

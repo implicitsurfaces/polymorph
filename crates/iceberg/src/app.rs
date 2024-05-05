@@ -1,8 +1,4 @@
-use buoyancy::*;
-use egui::*;
-use geo::*;
-
-use crate::ToEguiShape;
+use crate::*;
 
 pub struct App {
     simulation: Simulation,
@@ -201,43 +197,6 @@ impl App {
             }
         }
     }
-}
-
-/// Given a boat, return a vector of egui shapes to render.
-fn boat_ui_shapes(boat: &Boat, xform: &AffineTransform) -> Vec<Shape> {
-    let mut shapes: Vec<Shape> = Vec::new();
-
-    let geometry = boat.geometry_in_space();
-
-    shapes.extend(
-        geometry
-            .affine_transform(xform)
-            .to_egui_shapes(Color32::LIGHT_BLUE),
-    );
-
-    let displacement = boat.displacement();
-
-    // Show center of gravity and buoyancy.
-    for poly in &displacement {
-        shapes.extend(poly.affine_transform(xform).to_egui_shapes(Color32::YELLOW));
-    }
-
-    if let Some(center_of_buoyancy) = displacement.centroid() {
-        shapes.extend(
-            center_of_buoyancy
-                .affine_transform(xform)
-                .to_egui_shapes(Color32::BLUE),
-        );
-    }
-
-    shapes.extend(
-        geometry
-            .centroid()
-            .unwrap()
-            .affine_transform(xform)
-            .to_egui_shapes(Color32::GREEN),
-    );
-    shapes
 }
 
 impl eframe::App for App {

@@ -1,0 +1,11 @@
+[package]
+name = "play-with-ad"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+float_next_after = "1.0.0"
+geo = "0.28.0"
+num-traits = "0.2.19"

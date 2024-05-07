@@ -8,3 +8,7 @@ edition = "2021"
 [dependencies]
 geo = "0.28.0"
 cobyla = "0.6.0"
+argmin = "0.10.0"
+ndarray = "0.15.6"
+argmin-math = { version = "0.4", features = ["ndarray_latest", "nalgebra_latest"] }
+argmin-observer-slog = "0.1.0"

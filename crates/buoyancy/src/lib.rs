@@ -1,6 +1,13 @@
 use cobyla::{minimize, FailStatus, Func, RhoBeg, StopTols};
 use geo::*;
 
+use argmin::{
+    core::{observers::ObserverMode, CostFunction, Error, Executor},
+    solver::neldermead::NelderMead,
+};
+use argmin_observer_slog::SlogLogger;
+use ndarray::{array, Array1};
+
 pub const WATER_LEVEL: f64 = 0.0;
 pub const DENSITY_WATER: f64 = 1.0; // kg / L
 pub const GRAVITY: f64 = 9.8; // m / s^2
@@ -247,20 +254,29 @@ pub fn centers_of_buoyancy(boat: &Boat, num_samples: usize) -> Vec<(Degrees, Poi
         .collect()
 }
 
-pub fn find_equilibrium_position(boat: &Boat) -> Result<BoatPosition, FailStatus> {
+pub fn find_equilibrium_position_cobyla(boat: &Boat) -> Result<BoatPosition, FailStatus> {
     fn position_cost(boat: &Boat) -> f64 {
-        // We need to be in the water
+        // Feel free to play with this function - I have move stuff around, but
+        // couldn't find a good way to make it work.
+        //
+        // I have tried using the tangent of the angle - it did not improve the
+        // results. Try again, maybe you can find a better way to make it work.
+
         let displacement = boat.displacement();
         let water_volume = displacement.unsigned_area();
 
-        if water_volume == 0.0 {
-            return 1e6;
+        let center_of_gravity = boat.geometry_in_space().centroid().unwrap();
+
+        if water_volume == 0.0 || (water_volume - boat.volume()).abs() < 1e-10 {
+            // This function makes the solver move the center of gravity towards
+            // the surface when totally within or outside the water.
+            return (1. + center_of_gravity.y().abs()).powi(2);
         }
 
-        let gravity_cost = ((water_volume * DENSITY_WATER).powi(2) - boat.mass().powi(2)).abs();
+        let gravity_cost = ((water_volume * DENSITY_WATER).powi(2) - boat.mass().powi(2)).powi(2);
 
         let center_of_buoyancy = displacement.centroid().unwrap();
-        let distance_vector = center_of_buoyancy - boat.geometry_in_space().centroid().unwrap();
+        let distance_vector = center_of_buoyancy - center_of_gravity;
         let torque_cost = distance_vector.x().powi(2);
 
         gravity_cost + torque_cost
@@ -269,12 +285,13 @@ pub fn find_equilibrium_position(boat: &Boat) -> Result<BoatPosition, FailStatus
     let cons: Vec<&dyn Func<()>> = vec![];
 
     let stop_tol = StopTols {
-        ftol_rel: 1e-6,
+        xtol_abs: vec![1e-6, 1e-2],
         ..StopTols::default()
     };
 
     let results = minimize(
         |x: &[f64], _: &mut ()| {
+            println!("x: {:?}", x);
             position_cost(&boat.with_position(&BoatPosition {
                 y_position: x[0],
                 rotation_angle: x[1],
@@ -287,8 +304,10 @@ pub fn find_equilibrium_position(boat: &Boat) -> Result<BoatPosition, FailStatus
         ],
         &cons,
         (),
-        200,
-        RhoBeg::All(0.5),
+        500,
+        // These correspond to the first step sizes. Playing with this has somehow improved
+        // a little bit the results.
+        RhoBeg::Set(vec![0.5, 90.]),
         Some(stop_tol),
     );
 
@@ -299,4 +318,88 @@ pub fn find_equilibrium_position(boat: &Boat) -> Result<BoatPosition, FailStatus
         }),
         Err((e, _, _)) => Err(e),
     }
+}
+
+pub fn find_equilibrium_position_neldermead(boat: &Boat) -> Result<BoatPosition, FailStatus> {
+    struct BoatCost {
+        boat: Boat,
+    }
+
+    impl CostFunction for BoatCost {
+        type Param = Array1<f64>;
+        type Output = f64;
+
+        fn cost(&self, x: &Self::Param) -> Result<Self::Output, Error> {
+            let boat = self.boat.with_position(&BoatPosition {
+                y_position: x[0],
+                rotation_angle: x[1],
+            });
+
+            let displacement = boat.displacement();
+            let water_volume = displacement.unsigned_area();
+
+            let center_of_gravity = boat.geometry_in_space().centroid().unwrap();
+
+            if water_volume == 0.0 || (water_volume - boat.volume()).abs() < 1e-10 {
+                // This function makes the solver move the center of gravity towards
+                // the surface when totally within or outside the water.
+                return Ok((1. + center_of_gravity.y().abs()).powi(2));
+            }
+
+            // The equilibrium should be at a point where gravity and buoyancy are equal
+            let gravity_cost = ((water_volume * DENSITY_WATER) - boat.mass()).abs();
+
+            let center_of_buoyancy = displacement.centroid().unwrap();
+            let distance_vector = center_of_gravity - center_of_buoyancy;
+
+            // This is an attempt to have a torque that is standardized - it should always be
+            // between 0 and 1
+            let centers_distance = center_of_gravity.euclidean_distance(&center_of_buoyancy);
+            let torque_cost = if centers_distance > 0. {
+                distance_vector.x().abs() / centers_distance
+            } else {
+                0.
+            };
+
+            // 0.6 is a magic number that seems to work not so well
+            let cost = gravity_cost + torque_cost * 0.6;
+
+            Ok(cost)
+        }
+    }
+
+    let cost = BoatCost { boat: boat.clone() };
+
+    let y_center = -boat.center_of_gravity().y();
+    let initial = vec![
+        array![y_center, 0.0],
+        array![y_center + 10., 90.],
+        array![y_center - 10., -90.],
+    ];
+    let solver = NelderMead::new(initial)
+        .with_sd_tolerance(1e-8)
+        .expect("Failed to create solver");
+
+    // Run solver
+    let res = Executor::new(cost, solver)
+        .configure(|state| state.max_iters(100))
+        .add_observer(SlogLogger::term(), ObserverMode::Always)
+        .run();
+
+    match res {
+        Ok(result) => {
+            let best_params = result.state.best_param.unwrap();
+            println!("best params: {:?}", best_params);
+            println!("y_center: {}", y_center);
+            Ok(BoatPosition {
+                y_position: best_params[0],
+                rotation_angle: best_params[1],
+            })
+        }
+        Err(_) => Err(FailStatus::Failure),
+    }
+}
+
+pub fn find_equilibrium_position(boat: &Boat) -> Result<BoatPosition, FailStatus> {
+    find_equilibrium_position_cobyla(boat)
 }

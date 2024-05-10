@@ -1,17 +1,32 @@
 # polymorph
 
+## Prerequisites
+
+-   [Rye](https://rye-up.com/guide/installation/)
 
 ## Things that work
 
 To run the iceberg simulation:
 
-    cargo run -p iceberg
-    
-    
+    cargo run --bin iceberg
+
 To see the buoyancy curve (centers of buoyancy at various heel angles):
 
     cargo run --release --bin visualize_buoyancy_curve
-    
+
+To sample the cost function for visualization:
+
+    cargo run --release --bin sample_cost_fn > cost_function_data.csv
+
+This will write `cost_function_data.csv` to the project root.
+
+To visualize the cost function data:
+
+    script/equilibrium_viz3.py
+
+or, for the 2D visualization:
+
+    script/equilibrium_viz.py
 
 ## Architecture + overview
 
@@ -22,5 +37,3 @@ Code in `crates/` should be kept running and can be checked via the `script/chec
     git config core.hooksPath script/git-hooks
 
 Our named folders (`kevin/`, etc.) are for scratch work and aren't automatically checked or assumed to be working.
-
-

@@ -254,34 +254,34 @@ pub fn centers_of_buoyancy(boat: &Boat, num_samples: usize) -> Vec<(Degrees, Poi
         .collect()
 }
 
-pub fn find_equilibrium_position_cobyla(boat: &Boat) -> Result<BoatPosition, FailStatus> {
-    fn position_cost(boat: &Boat) -> f64 {
-        // Feel free to play with this function - I have move stuff around, but
-        // couldn't find a good way to make it work.
-        //
-        // I have tried using the tangent of the angle - it did not improve the
-        // results. Try again, maybe you can find a better way to make it work.
+pub fn position_cost(boat: &Boat) -> f64 {
+    // Feel free to play with this function - I have move stuff around, but
+    // couldn't find a good way to make it work.
+    //
+    // I have tried using the tangent of the angle - it did not improve the
+    // results. Try again, maybe you can find a better way to make it work.
 
-        let displacement = boat.displacement();
-        let water_volume = displacement.unsigned_area();
+    let displacement = boat.displacement();
+    let water_volume = displacement.unsigned_area();
 
-        let center_of_gravity = boat.geometry_in_space().centroid().unwrap();
+    let center_of_gravity = boat.geometry_in_space().centroid().unwrap();
 
-        if water_volume == 0.0 || (water_volume - boat.volume()).abs() < 1e-10 {
-            // This function makes the solver move the center of gravity towards
-            // the surface when totally within or outside the water.
-            return (1. + center_of_gravity.y().abs()).powi(2);
-        }
-
-        let gravity_cost = ((water_volume * DENSITY_WATER).powi(2) - boat.mass().powi(2)).powi(2);
-
-        let center_of_buoyancy = displacement.centroid().unwrap();
-        let distance_vector = center_of_buoyancy - center_of_gravity;
-        let torque_cost = distance_vector.x().powi(2);
-
-        gravity_cost + torque_cost
+    if water_volume == 0.0 || (water_volume - boat.volume()).abs() < 1e-10 {
+        // This function makes the solver move the center of gravity towards
+        // the surface when totally within or outside the water.
+        return (1. + center_of_gravity.y().abs()).powi(2);
     }
 
+    let gravity_cost = ((water_volume * DENSITY_WATER).powi(2) - boat.mass().powi(2)).powi(2);
+
+    let center_of_buoyancy = displacement.centroid().unwrap();
+    let distance_vector = center_of_buoyancy - center_of_gravity;
+    let torque_cost = distance_vector.x().powi(2);
+
+    gravity_cost + torque_cost
+}
+
+pub fn find_equilibrium_position_cobyla(boat: &Boat) -> Result<BoatPosition, FailStatus> {
     let cons: Vec<&dyn Func<()>> = vec![];
 
     let stop_tol = StopTols {

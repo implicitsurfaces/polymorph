@@ -2,7 +2,9 @@
 
 ## Prerequisites
 
--   [Rye](https://rye-up.com/guide/installation/)
+Install [Rye](https://rye-up.com/guide/installation/). Then run:
+
+    rye sync
 
 ## Things that work
 

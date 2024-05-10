@@ -2,9 +2,8 @@ use buoyancy::*;
 
 fn main() {
     let simulation = Simulation::new();
-    let boat = Boat::new_default();
-    let (position, converged) = simulation.run(&boat);
-    println!("Final position: {:?}", position);
+    let (boat, converged) = simulation.run(&Boat::new_default());
+    println!("Final position: {:?}", boat.position);
     if !converged {
         println!("Simulation did not converge.");
     }

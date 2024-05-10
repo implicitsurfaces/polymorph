@@ -1,5 +1,8 @@
 use buoyancy::*;
 
+/// Performs a grid search over the y_position and rotation_angle of the boat
+/// and evaluates the cost function at each point. Prints the parameters and
+/// cost to stdout in CSV.
 fn main() {
     let boat = Boat::new_default();
 

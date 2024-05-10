@@ -24,11 +24,11 @@ This will write `cost_function_data.csv` to the project root.
 
 To visualize the cost function data:
 
-    script/equilibrium_viz.py cost_function_data.csv
+    python script/equilibrium_viz.py cost_function_data.csv
 
 or, for the 3D visualization:
 
-    script/equilibrium_viz.py --3d cost_function_data.csv
+    python script/equilibrium_viz.py --3d cost_function_data.csv
 
 ## Architecture + overview
 

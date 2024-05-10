@@ -41,7 +41,7 @@ impl Default for BoatPosition {
 }
 
 impl BoatPosition {
-    fn update(
+    pub fn update(
         &self,
         accelerations: Accelerations,
         linear_damping: f64,
@@ -54,11 +54,11 @@ impl BoatPosition {
         }
     }
 
-    fn bounds_rotation_angle() -> (f64, f64) {
+    pub fn bounds_rotation_angle() -> (f64, f64) {
         (-180., 180.)
     }
 
-    fn bounds_y_position() -> (f64, f64) {
+    pub fn bounds_y_position() -> (f64, f64) {
         (-100.0, 100.0)
     }
 }

@@ -30,6 +30,15 @@ or, for the 3D visualization:
 
     python script/equilibrium_viz.py --3d cost_function_data.csv
 
+To run the jupyter notebook, you need to have the python env installed. You
+need to [install rye](https://rye-up.com/) and then run:
+
+    rye sync
+
+Then run:
+
+    rye run jupyter lab
+
 ## Architecture + overview
 
 Most of the codebase is written in Rust and setup within a [Cargo Workspace](https://doc.rust-lang.org/cargo/reference/workspaces.html) so it can be checked easily in development via `cargo check` and `cargo clippy` at the root directory.

@@ -10,6 +10,7 @@ dependencies = [
     "jax>=0.4.28",
     "numpy>=1.26.4",
     "jaxlib>=0.4.28",
+    "optax>=0.2.2"
 ]
 readme = "README.md"
 requires-python = ">= 3.8"

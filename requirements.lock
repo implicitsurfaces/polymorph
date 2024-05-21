@@ -196,6 +196,7 @@ numpy==1.26.4
     # via ml-dtypes
     # via opt-einsum
     # via optax
+    # via pandas
     # via polymorph
     # via scipy
 opt-einsum==3.3.0
@@ -211,8 +212,11 @@ packaging==24.0
     # via jupyterlab-server
     # via matplotlib
     # via nbconvert
+    # via plotly
     # via qtconsole
     # via qtpy
+pandas==2.2.2
+    # via polymorph
 pandocfilters==1.5.1
     # via nbconvert
 parso==0.8.4
@@ -223,6 +227,8 @@ pillow==10.3.0
     # via matplotlib
 platformdirs==4.2.1
     # via jupyter-core
+plotly==5.22.0
+    # via polymorph
 prometheus-client==0.20.0
     # via jupyter-server
 prompt-toolkit==3.0.43
@@ -248,8 +254,11 @@ python-dateutil==2.9.0.post0
     # via arrow
     # via jupyter-client
     # via matplotlib
+    # via pandas
 python-json-logger==2.0.7
     # via jupyter-events
+pytz==2024.1
+    # via pandas
 pyyaml==6.0.1
     # via jupyter-events
 pyzmq==26.0.3
@@ -298,6 +307,8 @@ soupsieve==2.5
     # via beautifulsoup4
 stack-data==0.6.3
     # via ipython
+tenacity==8.3.0
+    # via plotly
 terminado==0.18.1
     # via jupyter-server
     # via jupyter-server-terminals
@@ -332,6 +343,8 @@ types-python-dateutil==2.9.0.20240316
     # via arrow
 typing-extensions==4.11.0
     # via chex
+tzdata==2024.1
+    # via pandas
 uri-template==1.3.0
     # via jsonschema
 urllib3==2.2.1

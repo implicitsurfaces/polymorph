@@ -14,8 +14,6 @@ absl-py==2.1.0
 anyio==4.3.0
     # via httpx
     # via jupyter-server
-appnope==0.1.4
-    # via ipykernel
 argon2-cffi==23.1.0
     # via jupyter-server
 argon2-cffi-bindings==21.2.0
@@ -45,6 +43,8 @@ charset-normalizer==3.3.2
     # via requests
 chex==0.1.86
     # via optax
+colorama==0.4.6
+    # via ipython
 comm==0.2.2
     # via ipykernel
     # via ipywidgets
@@ -58,6 +58,9 @@ decorator==5.1.1
     # via ipython
 defusedxml==0.7.1
     # via nbconvert
+equinox==0.11.4
+    # via lineax
+    # via optimistix
 executing==2.0.1
     # via stack-data
 fastjsonschema==2.19.1
@@ -92,12 +95,19 @@ isoduration==20.11.0
     # via jsonschema
 jax==0.4.28
     # via chex
+    # via equinox
+    # via lineax
     # via optax
+    # via optimistix
     # via polymorph
 jaxlib==0.4.28
     # via chex
     # via optax
     # via polymorph
+jaxtyping==0.2.28
+    # via equinox
+    # via lineax
+    # via optimistix
 jedi==0.19.1
     # via ipython
 jinja2==3.1.4
@@ -158,6 +168,8 @@ jupyterlab-widgets==3.0.10
     # via ipywidgets
 kiwisolver==1.4.5
     # via matplotlib
+lineax==0.0.5
+    # via optimistix
 markupsafe==2.1.5
     # via jinja2
     # via nbconvert
@@ -192,6 +204,7 @@ numpy==1.26.4
     # via contourpy
     # via jax
     # via jaxlib
+    # via jaxtyping
     # via matplotlib
     # via ml-dtypes
     # via opt-einsum
@@ -202,6 +215,8 @@ numpy==1.26.4
 opt-einsum==3.3.0
     # via jax
 optax==0.2.2
+    # via polymorph
+optimistix==0.0.7
     # via polymorph
 overrides==7.7.0
     # via jupyter-server
@@ -221,8 +236,6 @@ pandocfilters==1.5.1
     # via nbconvert
 parso==0.8.4
     # via jedi
-pexpect==4.9.0
-    # via ipython
 pillow==10.3.0
     # via matplotlib
 platformdirs==4.2.1
@@ -236,9 +249,6 @@ prompt-toolkit==3.0.43
     # via jupyter-console
 psutil==5.9.8
     # via ipykernel
-ptyprocess==0.7.0
-    # via pexpect
-    # via terminado
 pure-eval==0.2.2
     # via stack-data
 pycparser==2.22
@@ -259,6 +269,12 @@ python-json-logger==2.0.7
     # via jupyter-events
 pytz==2024.1
     # via pandas
+pywin32==306
+    # via jupyter-core
+pywinpty==2.0.13
+    # via jupyter-server
+    # via jupyter-server-terminals
+    # via terminado
 pyyaml==6.0.1
     # via jupyter-events
 pyzmq==26.0.3
@@ -339,10 +355,15 @@ traitlets==5.14.3
     # via nbconvert
     # via nbformat
     # via qtconsole
+typeguard==2.13.3
+    # via jaxtyping
 types-python-dateutil==2.9.0.20240316
     # via arrow
 typing-extensions==4.11.0
     # via chex
+    # via equinox
+    # via lineax
+    # via optimistix
 tzdata==2024.1
     # via pandas
 uri-template==1.3.0

@@ -37,13 +37,12 @@ ADouble find_area(int range, int steps, ADouble r) {
 
 int main() {
     ADouble r = ADouble::make_active({1.0})[0];
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 1000; i++) {
         ADouble area = find_area(20.0, 100, r);
         ADouble diff = area - 100.0;
         ADouble cost = diff * diff;
-        printf("%f %f\n", r.val, area.val);
         double new_r = r.val - (cost.grad[0] * 0.0001);
         r = ADouble::make_active({new_r})[0];
     }
-    printf("r: %f", r.val);
+    printf("%f\n", r.val);
 }

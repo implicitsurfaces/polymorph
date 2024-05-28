@@ -8,6 +8,7 @@
 #   with-sources: false
 
 -e file:.
+-e file:polymorph-s2df
 absl-py==2.1.0
     # via chex
     # via optax
@@ -100,6 +101,7 @@ jax==0.4.28
     # via optax
     # via optimistix
     # via polymorph
+    # via polymorph-s2df
 jaxlib==0.4.28
     # via chex
     # via optax

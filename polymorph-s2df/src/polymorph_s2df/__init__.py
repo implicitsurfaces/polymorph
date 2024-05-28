@@ -14,6 +14,9 @@ def _soft_minus(value):
 def _indent_shape(shape):
     return textwrap.indent(repr(shape), "  ")
 
+def p(x,y):
+    return jnp.array([x,y])
+
 
 class Transformable:
     def translate(self, offset):

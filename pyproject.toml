@@ -23,6 +23,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.rye]
+virtural = true
 managed = true
 dev-dependencies = []
 
@@ -31,3 +32,6 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["script"]
+
+[tool.rye.workspace]
+members = ["polymorph-*"]

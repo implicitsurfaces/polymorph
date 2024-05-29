@@ -14,3 +14,6 @@ def soft_minus(value):
 
 def indent_shape(shape):
     return textwrap.indent(repr(shape), "  ")
+
+def length(coordinates):
+    return jnp.linalg.norm(coordinates, axis=1)

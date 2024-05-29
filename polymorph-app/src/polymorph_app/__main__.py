@@ -15,24 +15,20 @@ BACKGROUND_COLOR = (255, 255, 255)  # White background
 
 
 def gen_pixel_grid():
-    xx, yy = jnp.meshgrid(jnp.arange(HEIGHT), jnp.arange(WIDTH))
-    return jnp.stack((xx, yy), axis=-1)
-
+    xx, yy = jnp.mgrid[0:WIDTH, 0:HEIGHT]
+    return jnp.column_stack((xx.ravel(), yy.ravel()))
 
 pixel_grid = gen_pixel_grid()
 
 
 def render_scene(sdf):
-    color = (255, 0, 0)
-
-    start = time.time()
-    ans = jax.vmap(jax.vmap(sdf.is_inside, in_axes=0), in_axes=0)(pixel_grid)
-    # ans = sdf.is_inside(pixel_grid)
-    # print(f"rendered in {time.time() - start}s")
+    #start = time.time()
+    ans = sdf.is_inside(pixel_grid)
 
     # Convert the float entries for each pixel into a (3,) of uint8.
-    ans_3d = jnp.repeat(ans[:, :, jnp.newaxis], 3, axis=2)
-    return (ans_3d * 255).astype(jnp.uint8)
+    ans_3d = jnp.repeat(255 * ans.reshape((WIDTH, HEIGHT, 1)).astype(jnp.uint8), 3, axis=2)
+    #print(f"rendered in {time.time() - start}s")
+    return ans_3d
 
 
 if __name__ == "__main__":

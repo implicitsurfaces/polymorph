@@ -2,7 +2,7 @@ import jax.numpy as jnp
 import jax
 
 from .operations import Shape
-from .utils import soft_plus, soft_minus
+from .utils import *
 
 
 class BottomHalfPlane(Shape):
@@ -13,7 +13,7 @@ class BottomHalfPlane(Shape):
         return "BottomHalfPlane()"
 
     def distance(self, p):
-        return p[1]
+        return p[:, 1]
 
 
 class TopHalfPlane(Shape):
@@ -24,7 +24,7 @@ class TopHalfPlane(Shape):
         return "TopHalfPlane()"
 
     def distance(self, p):
-        return -p[1]
+        return -p[:, 1]
 
 
 class LeftHalfPlane(Shape):
@@ -35,7 +35,7 @@ class LeftHalfPlane(Shape):
         return "LeftHalfPlane()"
 
     def distance(self, p):
-        return p[0]
+        return p[:, 0]
 
 
 class RightHalfPlane(Shape):
@@ -46,7 +46,7 @@ class RightHalfPlane(Shape):
         return "RightHalfPlane()"
 
     def distance(self, p):
-        return -p[0]
+        return -p[:, 0]
 
 
 class Circle(Shape):
@@ -57,7 +57,7 @@ class Circle(Shape):
         return f"Circle({self.radius})"
 
     def distance(self, p):
-        return jnp.linalg.norm(p) - self.radius
+        return length(p) - self.radius
 
 
 class Box(Shape):
@@ -71,7 +71,7 @@ class Box(Shape):
 
     def distance(self, p):
         q = jnp.abs(p) - self.center
-        return jnp.linalg.norm(soft_plus(q)) + soft_minus(jnp.amax(q))
+        return length(soft_plus(q)) + soft_minus(jnp.amax(q, axis=1))
 
 
 class Triangle(Shape):
@@ -91,6 +91,10 @@ class Triangle(Shape):
         return f"Triangle({self.p1}, {self.p2}, {self.p3})"
 
     def distance(self, p):
+        # TODO: sorry Steve, I couldn't figure out how to vectorize your distance code. IIRC it's still WIP.
+        return jnp.array([self.distance_unvectorized(point) for point in p])
+
+    def distance_unvectorized(self, p):
         v0 = p - self.p1
         v1 = p - self.p2
         v2 = p - self.p3

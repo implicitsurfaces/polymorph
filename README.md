@@ -6,7 +6,23 @@ Install [Rye](https://rye-up.com/guide/installation/). Then run:
 
     rye sync
 
+
 ## Things that work
+
+Run
+
+    rye run jupyter lab
+
+to open various experiments/explorations in `notebooks/`.
+You can also use VS Code's Jupyter extension, which will detect the rye-managed Python kernel in `.venv`.
+
+
+To run the Python app UI:
+
+    rye run polymorph
+
+
+## Rust experiments (Apr/May)
 
 To run the iceberg simulation:
 
@@ -30,14 +46,6 @@ or, for the 3D visualization:
 
     python script/equilibrium_viz.py --3d cost_function_data.csv
 
-To run the jupyter notebook, you need to have the python env installed. You
-need to [install rye](https://rye-up.com/) and then run:
-
-    rye sync
-
-Then run:
-
-    rye run jupyter lab
 
 ## Architecture + overview
 

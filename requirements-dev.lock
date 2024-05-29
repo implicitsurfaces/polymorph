@@ -8,6 +8,7 @@
 #   with-sources: false
 
 -e file:.
+-e file:polymorph-app
 -e file:polymorph-s2df
 absl-py==2.1.0
     # via chex
@@ -260,6 +261,12 @@ pure-eval==0.2.2
     # via stack-data
 pycparser==2.22
     # via cffi
+pygame-ce==2.4.1
+    # via polymorph
+    # via pygame-gui
+pygame-gui==0.6.10
+    # via polymorph
+    # via polymorph-app
 pygments==2.18.0
     # via ipython
     # via jupyter-console
@@ -272,6 +279,8 @@ python-dateutil==2.9.0.post0
     # via jupyter-client
     # via matplotlib
     # via pandas
+python-i18n==0.3.9
+    # via pygame-gui
 python-json-logger==2.0.7
     # via jupyter-events
 pytz==2024.1

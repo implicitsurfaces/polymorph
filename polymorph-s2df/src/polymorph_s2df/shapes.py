@@ -64,12 +64,13 @@ class Box(Shape):
     def __init__(self, width, height):
         self.width = width
         self.height = height
+        self.center = jnp.array([self.width, self.height]) / 2
 
     def __repr__(self):
         return f"Box({self.width}, {self.height})"
 
     def distance(self, p):
-        q = jnp.abs(p) - jnp.array([self.width, self.height]) / 2
+        q = jnp.abs(p) - self.center
         return jnp.linalg.norm(soft_plus(q)) + soft_minus(jnp.amax(q))
 
 

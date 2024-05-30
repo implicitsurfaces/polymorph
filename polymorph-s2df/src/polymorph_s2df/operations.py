@@ -60,18 +60,19 @@ class Rotation(Shape):
         self.angle = angle
         self.shape = shape
 
-        self.cos = jnp.cos(angle)
-        self.sin = jnp.sin(angle)
+        c = jnp.cos(angle)
+        s = jnp.sin(angle)
+        self.R = jnp.array([
+            [c, -s],
+            [s, c],
+        ]
+    )
 
     def __repr__(self):
         return f"Rotation(\n  {self.angle}, \n{indent_shape(self.shape)}\n)"
 
     def distance(self, p):
-        new_point = jnp.asarray(
-            [p[0] * self.cos - p[1] * self.sin, p[0] * self.sin + p[1] * self.cos]
-        )
-
-        return self.shape.distance(new_point)
+        return self.shape.distance((self.R @ p.T).T)
 
 
 class Intersection(Shape):

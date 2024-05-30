@@ -1,11 +1,9 @@
 from collections import namedtuple
 from functools import reduce
-import jax
 import jax.numpy as jnp
 import pygame
-import time
 
-from pygame_gui import UIManager, UI_BUTTON_PRESSED
+from pygame_gui import UIManager
 from pygame_gui.elements import *
 from pygame import surfarray
 from polymorph_s2df import *
@@ -17,7 +15,7 @@ BACKGROUND_COLOR = (255, 255, 255)  # White background
 
 # Maps from a pygame key constant (https://www.pygame.org/docs/ref/key.html#key-constants-label)
 # to a s2df constructor.
-TOOL_HOTKEYS = {pygame.K_c: Circle, pygame.K_b: Box, pygame.K_t: Triangle}
+TOOL_HOTKEYS = {pygame.K_c: Circle, pygame.K_b: Box }
 
 
 Gesture = namedtuple("Gesture", ["start_pos", "shapes"])

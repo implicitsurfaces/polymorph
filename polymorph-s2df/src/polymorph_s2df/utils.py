@@ -18,3 +18,10 @@ def indent_shape(shape):
 
 def length(coordinates):
     return jnp.linalg.norm(coordinates, axis=1)
+
+
+def clamp_mask(x, low=0.0, high=1.0, softness=1e-6):
+    """A smooth implementation of a mask between the boundary values"""
+    lower_transition = 0.5 * (1 + jnp.tanh((x - low) / softness))
+    upper_transition = 0.5 * (1 - jnp.tanh((x - high) / softness))
+    return lower_transition * upper_transition

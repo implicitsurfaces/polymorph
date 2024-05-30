@@ -62,11 +62,12 @@ class Rotation(Shape):
 
         c = jnp.cos(angle)
         s = jnp.sin(angle)
-        self.R = jnp.array([
-            [c, -s],
-            [s, c],
-        ]
-    )
+        self.R = jnp.array(
+            [
+                [c, -s],
+                [s, c],
+            ]
+        )
 
     def __repr__(self):
         return f"Rotation(\n  {self.angle}, \n{indent_shape(self.shape)}\n)"

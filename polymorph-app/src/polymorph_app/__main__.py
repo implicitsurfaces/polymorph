@@ -18,16 +18,19 @@ def gen_pixel_grid():
     xx, yy = jnp.mgrid[0:WIDTH, 0:HEIGHT]
     return jnp.column_stack((xx.ravel(), yy.ravel()))
 
+
 pixel_grid = gen_pixel_grid()
 
 
 def render_scene(sdf):
-    #start = time.time()
+    # start = time.time()
     ans = sdf.is_inside(pixel_grid)
 
     # Convert the float entries for each pixel into a (3,) of uint8.
-    ans_3d = jnp.repeat(255 * ans.reshape((WIDTH, HEIGHT, 1)).astype(jnp.uint8), 3, axis=2)
-    #print(f"rendered in {time.time() - start}s")
+    ans_3d = jnp.repeat(
+        255 * ans.reshape((WIDTH, HEIGHT, 1)).astype(jnp.uint8), 3, axis=2
+    )
+    # print(f"rendered in {time.time() - start}s")
     return ans_3d
 
 
@@ -44,13 +47,6 @@ if __name__ == "__main__":
     clock = pygame.time.Clock()
     is_running = True
 
-    scene = (
-        Circle(200)
-        .substract(Circle(50))
-        .substract(Box(230, 20).translate(p(100, 0)))
-        .translate(p(200, 200))
-    )
-
     while is_running:
         time_delta = clock.tick(FPS) / 1000.0
         for event in pygame.event.get():
@@ -61,6 +57,15 @@ if __name__ == "__main__":
                     print("Hello World!")
             ui_manager.process_events(event)
         ui_manager.update(time_delta)
+
+        mouse_pos = pygame.mouse.get_pos()
+
+        scene = (
+            Circle(200)
+            .substract(Circle(50))
+            .substract(Box(230, 20).translate(p(100, 0)))
+            .translate(p(*mouse_pos))
+        )
 
         surfarray.blit_array(display_surface, render_scene(scene))
         ui_manager.draw_ui(display_surface)

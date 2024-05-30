@@ -39,8 +39,8 @@ class Shape(Transformable, Modifiable):
     def distance(self, p):
         raise NotImplementedError
 
-    def is_inside(self, p):
-        return 1 - jax.nn.sigmoid(100 * self.distance(p))
+    def is_inside(self, p, scale=100):
+        return 1 - jax.nn.sigmoid(scale * self.distance(p))
 
 
 class Translation(Shape):

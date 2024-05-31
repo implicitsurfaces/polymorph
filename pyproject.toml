@@ -14,8 +14,10 @@ dependencies = [
     "plotly>=5.22.0",
     "pandas>=2.2.2",
     "optimistix>=0.0.7",
-    "pygame-gui>=0.6.10",
-    "pygame-ce>=2.4.1",
+    "imgui>=2.0.0",
+    "moderngl>=5.10.0",
+    "glfw>=2.7.0",
+    "pyopengl>=3.1.7",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"

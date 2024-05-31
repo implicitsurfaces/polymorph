@@ -71,6 +71,10 @@ fonttools==4.51.0
     # via matplotlib
 fqdn==1.5.1
     # via jsonschema
+glcontext==2.5.0
+    # via moderngl
+glfw==2.7.0
+    # via polymorph
 h11==0.14.0
     # via httpcore
 httpcore==1.0.5
@@ -82,6 +86,8 @@ idna==3.7
     # via httpx
     # via jsonschema
     # via requests
+imgui==2.0.0
+    # via polymorph
 ipykernel==6.29.4
     # via jupyter
     # via jupyter-console
@@ -186,6 +192,8 @@ mistune==3.0.2
 ml-dtypes==0.4.0
     # via jax
     # via jaxlib
+moderngl==5.10.0
+    # via polymorph
 nbclient==0.10.0
     # via nbconvert
 nbconvert==7.16.4
@@ -262,16 +270,16 @@ pure-eval==0.2.2
 pycparser==2.22
     # via cffi
 pygame-ce==2.4.1
-    # via polymorph
     # via pygame-gui
 pygame-gui==0.6.10
-    # via polymorph
     # via polymorph-app
 pygments==2.18.0
     # via ipython
     # via jupyter-console
     # via nbconvert
     # via qtconsole
+pyopengl==3.1.7
+    # via polymorph
 pyparsing==3.1.2
     # via matplotlib
 python-dateutil==2.9.0.post0

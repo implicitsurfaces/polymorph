@@ -1,28 +1,33 @@
-from collections import namedtuple
-from functools import reduce
-import jax.numpy as jnp
-import pygame
+import moderngl
 
-from pygame_gui import UIManager
-from pygame_gui.elements import *
-from pygame import surfarray
+import numpy as np
+import jax
+import jax.numpy as jnp
+
 from polymorph_s2df import *
 
-# Constants
-FPS = 60
-WIDTH, HEIGHT = 800, 600
-BACKGROUND_COLOR = (255, 255, 255)  # White background
+from collections import namedtuple
+import glfw
+import imgui
+from functools import reduce
+from imgui.integrations.glfw import GlfwRenderer
+import sys
 
-# Maps from a pygame key constant (https://www.pygame.org/docs/ref/key.html#key-constants-label)
+WIDTH = 800
+HEIGHT = 600
+
+
+# Maps from a glfw key constant (https://www.glfw.org/docs/3.3/group__keys.html)
 # to a s2df constructor.
-TOOL_HOTKEYS = {pygame.K_c: Circle, pygame.K_b: Box }
+TOOL_HOTKEYS = {glfw.KEY_C: Circle, glfw.KEY_B: Box}
 
 
 Gesture = namedtuple("Gesture", ["start_pos", "shapes"])
+Shape = namedtuple("Shape", ["name", "sdf"])
 
 
 def gen_pixel_grid():
-    xx, yy = jnp.mgrid[0:WIDTH, 0:HEIGHT]
+    yy, xx = jnp.mgrid[0:HEIGHT, 0:WIDTH]
     return jnp.column_stack((xx.ravel(), yy.ravel()))
 
 
@@ -33,79 +38,192 @@ def render_scene(sdf):
     # start = time.time()
     ans = sdf.is_inside(pixel_grid)
 
-    # Convert the float entries for each pixel into a (3,) of uint8.
+    # Convert the float entries for each pixel into a (4,) of uint8.
     ans_3d = jnp.repeat(
-        255 * ans.reshape((WIDTH, HEIGHT, 1)).astype(jnp.uint8), 3, axis=2
+        255 * ans.reshape((HEIGHT, WIDTH, 1)).astype(jnp.uint8), 4, axis=2
     )
     # print(f"rendered in {time.time() - start}s")
     return ans_3d
 
 
-if __name__ == "__main__":
-    window_dims = (WIDTH, HEIGHT)
-    pygame.init()
+vertex_shader = """
+#version 330 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec2 aTexCoord;
 
-    pygame.display.set_caption("Quick Start")
-    display_surface = pygame.display.set_mode(window_dims)
-    ui_manager = UIManager(window_dims)
+out vec2 TexCoord;
 
-    button_layout_rect = pygame.Rect(0, 0, 100, 20)
-    button_layout_rect.bottomright = (-30, -20)
+void main()
+{
+    gl_Position = vec4(aPos, 1.0);
+    TexCoord = aTexCoord;
+}
+"""
 
-    tool_label = UILabel(
-        relative_rect=button_layout_rect,
-        text="",
-        manager=ui_manager,
-        container=ui_manager.root_container,
-        anchors={"right": "right", "bottom": "bottom"},
+fragment_shader = """
+#version 330 core
+out vec4 FragColor;
+
+in vec2 TexCoord;
+
+uniform sampler2D tex;
+
+void main()
+{
+    FragColor = texture(tex, TexCoord);
+}
+"""
+
+
+def create_window():
+    width, height = 800, 600
+    window_name = "Polymorph"
+
+    if not glfw.init():
+        print("Could not initialize OpenGL context")
+        sys.exit(1)
+
+    glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
+    glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
+    glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+    glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, 1)
+
+    # Create a windowed mode window and its OpenGL context
+    window = glfw.create_window(int(width), int(height), window_name, None, None)
+    glfw.make_context_current(window)
+
+    if not window:
+        glfw.terminate()
+        print("Could not initialize Window")
+        sys.exit(1)
+
+    return window
+
+
+def init_quad(ctx):
+    prog = ctx.program(vertex_shader=vertex_shader, fragment_shader=fragment_shader)
+
+    # fmt: off
+    vbo = ctx.buffer(np.array([
+        -1.0, -1.0, 0.0, 0.0, 1.0,
+         1.0, -1.0, 0.0, 1.0, 1.0,
+         1.0,  1.0, 0.0, 1.0, 0.0,
+        -1.0,  1.0, 0.0, 0.0, 0.0
+    ], dtype=np.float32))
+    # fmt: on
+    vao = ctx.vertex_array(prog, [(vbo, "3f 2f", "aPos", "aTexCoord")])
+
+    # Return a render() function.
+    return lambda: vao.render(moderngl.TRIANGLE_FAN)
+
+
+def render_shapes_tree(shapes):
+    for s in shapes:
+        if imgui.tree_node(s.name, imgui.TREE_NODE_LEAF):
+            imgui.tree_pop()
+
+
+def render_ui(vm):
+    imgui.new_frame()
+
+    imgui.set_next_window_size(200, HEIGHT)
+    imgui.set_next_window_position(0, 0)
+    imgui.begin(
+        "Shapes", closable=False, flags=imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE
+    )
+    render_shapes_tree(vm.shapes)
+    imgui.end()
+    imgui.render()
+
+
+class ViewModel:
+    def __init__(self, window):
+        glfw.set_key_callback(window, self.handle_key)
+        glfw.set_mouse_button_callback(window, self.handle_mouse_button)
+
+        self.gesture = None
+        self.shapes = []
+        self.tool = None
+
+    def handle_key(self, window, key, scancode, action, mods):
+        if action == glfw.PRESS and key in TOOL_HOTKEYS:
+            self.tool = TOOL_HOTKEYS[key]
+
+    def handle_mouse_button(self, window, button, action, mods):
+        if imgui.get_io().want_capture_mouse or button != glfw.MOUSE_BUTTON_LEFT:
+            return
+
+        if action == glfw.PRESS:
+            pos = glfw.get_cursor_pos(window)
+            self.gesture = Gesture(p(*pos), [])
+        elif action == glfw.RELEASE:
+            self.shapes = self.shapes + self.gesture.shapes
+            self.gesture = None
+
+    def handle_frame(self, window):
+        gesture, tool = (self.gesture, self.tool)
+        if gesture and tool:
+            current_pos = p(*glfw.get_cursor_pos(window))
+            start_pos = gesture.start_pos
+            if tool == Circle:
+                r = jnp.linalg.norm(current_pos - start_pos, axis=-1)
+                self.gesture = Gesture(
+                    start_pos, [Shape("Circle", Circle(r).translate(start_pos))]
+                )
+            elif self.tool == Box:
+                w, h = (jnp.abs(current_pos - start_pos)) * 2
+                self.gesture = Gesture(
+                    start_pos, [Shape("Box", Box(w, h).translate(start_pos))]
+                )
+
+    @property
+    def scene(self):
+        """Returns an SDF representing the current scene to be rendered."""
+        all_shapes = self.shapes + (self.gesture.shapes if self.gesture else [])
+        return reduce(
+            lambda a, b: Union(a, b), map(lambda s: s.sdf, all_shapes), Circle(0)
+        )
+
+
+def main():
+    imgui.create_context()
+    window = create_window()
+    impl = GlfwRenderer(window)
+
+    model = ViewModel(window)
+
+    ctx = moderngl.create_context()
+    ctx.gc_mode = (
+        "context_gc"  # https://moderngl.readthedocs.io/en/latest/topics/gc.html
     )
 
-    clock = pygame.time.Clock()
-    is_running = True
+    texture = ctx.texture((WIDTH, HEIGHT), components=4)
+    texture.use(0)
+    render_quad = init_quad(ctx)
 
-    gesture = None
-    shapes = []
-    tool = None
+    imgui.create_context()
 
-    while is_running:
-        time_delta = clock.tick(FPS) / 1000.0
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                is_running = False
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                gesture = Gesture(p(*event.pos), [])
-            elif event.type == pygame.MOUSEBUTTONUP:
-                shapes = shapes + gesture.shapes
-                gesture = None
-            elif event.type == pygame.KEYDOWN:
-                if event.key in TOOL_HOTKEYS:
-                    tool = TOOL_HOTKEYS[event.key]
-            ui_manager.process_events(event)
-        ui_manager.update(time_delta)
-        tool_label.set_text(tool.__name__ if tool else "None")
+    while not glfw.window_should_close(window):
+        glfw.poll_events()
+        impl.process_inputs()
 
-        keys = pygame.key.get_pressed()
+        model.handle_frame(window)
 
-        if gesture and tool:
-            current_pos = p(*pygame.mouse.get_pos())
-            if tool == Circle:
-                r = jnp.linalg.norm(current_pos - gesture.start_pos, axis=-1)
-                gesture = Gesture(
-                    gesture.start_pos, [tool(r).translate(gesture.start_pos)]
-                )
-            elif tool == Box:
-                w, h = (jnp.abs(current_pos - gesture.start_pos)) * 2
-                gesture = Gesture(
-                    gesture.start_pos, [tool(w, h).translate(gesture.start_pos)]
-                )
+        ctx.clear()
 
-        if keys[pygame.K_c]:
-            pass
+        buf = render_scene(model.scene)
+        texture.write(jax.device_get(buf))
+        render_quad()
 
-        gesture_shapes = gesture.shapes if gesture else []
-        scene = reduce(lambda a, b: Union(a, b), shapes + gesture_shapes, Circle(0))
+        render_ui(model)
+        impl.render(imgui.get_draw_data())
 
-        surfarray.blit_array(display_surface, render_scene(scene))
-        ui_manager.draw_ui(display_surface)
+        glfw.swap_buffers(window)
 
-        pygame.display.update()
+    ctx.gc()
+    impl.shutdown()
+    glfw.terminate()
+
+
+if __name__ == "__main__":
+    main()

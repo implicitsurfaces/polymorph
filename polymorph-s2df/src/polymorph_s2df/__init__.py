@@ -15,7 +15,13 @@ from .operations import (
     SmoothIntersection,
 )
 
-from .paths import LineSegment, ClosedPath
+from .paths import (
+    ArcSegment,
+    InversedSegment,
+    LineSegment,
+    ClosedPath,
+    TranslatedSegment,
+)
 
 
 def p(x, y):
@@ -38,4 +44,56 @@ def polygon(vertices):
         LineSegment(vertices[i], vertices[(i + 1) % len(vertices)])
         for i in range(len(vertices))
     ]
+    return ClosedPath(segments)
+
+
+def bulge_arc(point1, point2, bulge):
+    point1 = jnp.array(point1)
+    point2 = jnp.array(point2)
+
+    chord_length = jnp.linalg.norm(point2 - point1)
+
+    # the sagitta is the perpendicular distance from the midpoint of the chord to the arc
+    sagitta = (jnp.abs(bulge) * chord_length) / 2
+
+    midpoint = (point1 + point2) / 2
+
+    radius = ((chord_length / 2) ** 2 + sagitta**2) / (2 * sagitta)
+
+    # Calculate the direction vector perpendicular to the chord
+    direction = jnp.array([point2[1] - point1[1], point1[0] - point2[0]])
+    direction = direction / jnp.linalg.norm(direction)
+
+    if bulge > 0:
+        center = midpoint + direction * (radius - sagitta)
+    else:
+        center = midpoint - direction * (radius - sagitta)
+
+    # Calculate the angles
+    angle1 = jnp.arctan2(point1[1] - center[1], point1[0] - center[0])
+    angle2 = jnp.arctan2(point2[1] - center[1], point2[0] - center[0])
+
+    segment = TranslatedSegment(ArcSegment(angle1, angle2, radius), center)
+    return segment if bulge < 0 else InversedSegment(segment)
+
+
+def bulging_polygon(points):
+    previous_point = points[0]
+    previous_bulge = 0
+
+    segments = []
+
+    for point_or_bulge in points[1:] + [points[0]]:
+        if jnp.isscalar(point_or_bulge):
+            previous_bulge = point_or_bulge
+        else:
+            segment = (
+                bulge_arc(previous_point, point_or_bulge, previous_bulge)
+                if previous_bulge != 0
+                else LineSegment(previous_point, point_or_bulge)
+            )
+            segments.append(segment)
+            previous_point = point_or_bulge
+            previous_bulge = 0
+
     return ClosedPath(segments)

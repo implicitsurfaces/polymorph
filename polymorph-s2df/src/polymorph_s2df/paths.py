@@ -35,6 +35,100 @@ class LineSegment:
         ) * mask, mask
 
 
+def normalize_angle(q):
+    return jnp.mod(q + 2 * jnp.pi, 2 * jnp.pi)
+
+
+class ArcSegment:
+    def __init__(self, start_angle, end_angle, radius):
+        self.start_angle = normalize_angle(start_angle)
+        self.end_angle = normalize_angle(end_angle)
+        self.radius = radius
+
+        self.start = jnp.array(
+            [radius * jnp.cos(start_angle), radius * jnp.sin(start_angle)]
+        )
+        self.end = jnp.array([radius * jnp.cos(end_angle), radius * jnp.sin(end_angle)])
+
+        self.angular_length = end_angle - start_angle
+
+        self.start_tangent = jnp.sign(self.angular_length) * jnp.array(
+            [-jnp.sin(start_angle), jnp.cos(start_angle)]
+        )
+        self.end_tangent = jnp.sign(self.angular_length) * jnp.array(
+            [jnp.sin(end_angle), -jnp.cos(end_angle)]
+        )
+
+    def __repr__(self):
+        return f"ArcSegment({self.start_angle}, {self.end_angle}, {self.radius})"
+
+    def distance_and_mask(self, p):
+        angle_position = normalize_angle(jnp.atan2(p[1], p[0]))
+
+        parametric_position = (angle_position - self.start_angle) / self.angular_length
+        mask = clamp_mask(parametric_position, 0, 1)
+
+        parametric_distance = (jnp.linalg.norm(p) - self.radius) * mask
+
+        return parametric_distance, mask
+
+
+class TranslatedSegment:
+    def __init__(self, segment, translation):
+        self.segment = segment
+        self.translation = translation
+
+    @property
+    def start(self):
+        return self.segment.start + self.translation
+
+    @property
+    def end(self):
+        return self.segment.end + self.translation
+
+    @property
+    def start_tangent(self):
+        return self.segment.start_tangent
+
+    @property
+    def end_tangent(self):
+        return self.segment.end_tangent
+
+    def __repr__(self):
+        return f"TranslatedSegment({self.segment}, {self.translation})"
+
+    def distance_and_mask(self, p):
+        return self.segment.distance_and_mask(p - self.translation)
+
+
+class InversedSegment:
+    def __init__(self, segment):
+        self.segment = segment
+
+    @property
+    def start(self):
+        return self.segment.start
+
+    @property
+    def end(self):
+        return self.segment.end
+
+    @property
+    def start_tangent(self):
+        return self.segment.start_tangent
+
+    @property
+    def end_tangent(self):
+        return self.segment.end_tangent
+
+    def __repr__(self):
+        return f"InversedSegment({self.segment})"
+
+    def distance_and_mask(self, p):
+        distance, mask = self.segment.distance_and_mask(p)
+        return -distance, mask
+
+
 class ClosedPath(Shape):
     def __init__(self, segments):
         self.segments = segments

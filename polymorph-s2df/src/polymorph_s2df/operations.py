@@ -4,18 +4,13 @@ import jax.numpy as jnp
 import jax
 
 
-class Transformable:
-    def translate(self, offset):
-        return Translation(offset, self)
+class Shape:
+    def distance(self, p):
+        raise NotImplementedError
 
-    def rotate(self, angle):
-        return Rotation(angle, self)
+    def is_inside(self, p, scale=100):
+        return 1 - jax.nn.sigmoid(scale * self.distance(p))
 
-    def rotate_around(self, angle, center):
-        return Translation(center, Rotation(angle, Translation(-center, self)))
-
-
-class Modifiable:
     def union(self, other):
         return Union(self, other)
 
@@ -25,22 +20,35 @@ class Modifiable:
     def substract(self, other):
         return Substraction(self, other)
 
-    def smooth_substract(self, k, other):
-        return SmoothSubstraction(k, self, other)
+    def smooth_union(self, k, other):
+        return SmoothUnion(k, self, other)
 
     def smooth_intersect(self, k, other):
         return SmoothIntersection(k, self, other)
 
-    def smooth_union(self, k, other):
-        return SmoothUnion(k, self, other)
+    def smooth_substract(self, k, other):
+        return SmoothSubstraction(k, self, other)
 
+    def shell(self, thickness):
+        return Shell(self, thickness)
 
-class Shape(Transformable, Modifiable):
-    def distance(self, p):
-        raise NotImplementedError
+    def translate(self, offset):
+        return Translation(offset, self)
 
-    def is_inside(self, p, scale=100):
-        return 1 - jax.nn.sigmoid(scale * self.distance(p))
+    def rotate(self, angle):
+        return Rotation(angle, self)
+
+    def rotate_around(self, angle, center):
+        return Translation(center, Rotation(angle, Translation(-center, self)))
+
+    def scale(self, scale):
+        return Scale(scale, self)
+
+    def invert(self):
+        return Inversion(self)
+
+    def dilate(self, offset):
+        return Dilate(offset, self)
 
 
 class Translation(Shape):
@@ -165,3 +173,50 @@ class SmoothSubstraction(Shape):
 
         h = jnp.maximum(self.k - jnp.abs(val1 + val2), 0.0) / self.k
         return jnp.maximum(val1, -val2) + h * h * self.k * (1.0 / 4.0)
+
+
+class Scale(Shape):
+    def __init__(self, scale, shape):
+        self.scale = scale
+        self.shape = shape
+
+    def __repr__(self):
+        return f"Scale(\n  {self.scale},\n{indent_shape(self.shape)}\n)"
+
+    def distance(self, p):
+        return self.shape.distance(p / self.scale) * self.scale
+
+
+class Inversion(Shape):
+    def __init__(self, shape):
+        self.shape = shape
+
+    def __repr__(self):
+        return f"Inversion(\n{indent_shape(self.shape)}\n)"
+
+    def distance(self, p):
+        return -self.shape.distance(p)
+
+
+class Dilate(Shape):
+    def __init__(self, offset, shape):
+        self.offset = offset
+        self.shape = shape
+
+    def __repr__(self):
+        return f"Dilate(\n  {self.offset},\n{indent_shape(self.shape)}\n)"
+
+    def distance(self, p):
+        return self.shape.distance(p) - self.offset
+
+
+class Shell(Shape):
+    def __init__(self, shape, thickness):
+        self.shape = shape
+        self.thickness = thickness
+
+    def __repr__(self):
+        return f"Shell(\n  {self.thickness},\n{indent_shape(self.shape)}\n)"
+
+    def distance(self, p):
+        return jnp.abs(self.shape.distance(p)) - self.thickness

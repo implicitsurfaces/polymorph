@@ -7,7 +7,13 @@ from .shapes import (
     LeftHalfPlane,
     RightHalfPlane,
 )
-from .operations import Shape, Intersection, Union, SmoothUnion, SmoothIntersection
+from .operations import (
+    Shape,
+    Intersection,
+    Union,
+    SmoothUnion,
+    SmoothIntersection,
+)
 
 from .paths import LineSegment, ClosedPath
 

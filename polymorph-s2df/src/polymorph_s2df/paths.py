@@ -2,7 +2,7 @@ import jax.numpy as jnp
 import jax.lax
 
 from .operations import Shape
-from .utils import clamp_mask, indent_shape
+from .utils import clamp_mask, indent_shape, repr_point
 
 
 class LineSegment:
@@ -18,7 +18,7 @@ class LineSegment:
         self.end_tangent = -self.segment / length
 
     def __repr__(self):
-        return f"LineSegment({self.start}, {self.end})"
+        return f"LineSegment({repr_point(self.start)}, {repr_point(self.end)})"
 
     def distance_and_mask(self, p):
         start_to_p = p - self.start
@@ -30,9 +30,12 @@ class LineSegment:
         mask = clamp_mask(parametric_position, 0, 1)
 
         projected_point = self.start + self.segment * parametric_position
-        return jnp.sign(jnp.cross(start_to_p, self.segment)) * jnp.linalg.norm(
-            p - projected_point
-        ) * mask, mask
+        return (
+            jnp.sign(jnp.cross(start_to_p, self.segment))
+            * jnp.linalg.norm(p - projected_point)
+            * mask,
+            mask,
+        )
 
 
 def normalize_angle(q):
@@ -46,17 +49,17 @@ class ArcSegment:
         self.radius = radius
 
         self.start = jnp.array(
-            [radius * jnp.cos(start_angle), radius * jnp.sin(start_angle)]
+            [radius * jnp.cos(self.start_angle), radius * jnp.sin(self.start_angle)]
         )
         self.end = jnp.array([radius * jnp.cos(end_angle), radius * jnp.sin(end_angle)])
 
-        self.angular_length = end_angle - start_angle
+        self.angular_length = self.end_angle - self.start_angle
 
         self.start_tangent = jnp.sign(self.angular_length) * jnp.array(
-            [-jnp.sin(start_angle), jnp.cos(start_angle)]
+            [-jnp.sin(self.start_angle), jnp.cos(self.start_angle)]
         )
         self.end_tangent = jnp.sign(self.angular_length) * jnp.array(
-            [jnp.sin(end_angle), -jnp.cos(end_angle)]
+            [jnp.sin(self.end_angle), -jnp.cos(self.end_angle)]
         )
 
     def __repr__(self):
@@ -95,7 +98,7 @@ class TranslatedSegment:
         return self.segment.end_tangent
 
     def __repr__(self):
-        return f"TranslatedSegment({self.segment}, {self.translation})"
+        return f"TranslatedSegment({self.segment}, {repr_point(self.translation)})"
 
     def distance_and_mask(self, p):
         return self.segment.distance_and_mask(p - self.translation)
@@ -134,15 +137,17 @@ class ClosedPath(Shape):
         self.segments = segments
         self.starts = [segment.start for segment in segments]
 
-        tangents = zip(
-            [segment.start_tangent for segment in [segments[-1]] + segments[:-1]],
-            [segment.end_tangent for segment in segments],
+        tangents = list(
+            zip(
+                [segment.start_tangent for segment in segments],
+                [segment.end_tangent for segment in segments[-1:] + segments[:-1]],
+            )
         )
 
         self.concave_points = [
             point
             for (tg1, tg2), point in zip(tangents, self.starts)
-            if jnp.cross(tg1, tg2) > 0
+            if jnp.cross(tg1, tg2) < 0
         ]
 
         # TODO: Improve this code - some of it should be in the Segment class
@@ -155,9 +160,7 @@ class ClosedPath(Shape):
         )
 
     def __repr__(self):
-        return (
-            f"ClosedPath(\n{"\n".join(indent_shape(seg) for seg in self.segments)}\n)"
-        )
+        return f"ClosedPath([\n{',\n'.join(indent_shape(seg) for seg in self.segments)}\n])"
 
     def _min_distance_to_points(self, p):
         dist = jnp.linalg.norm(p - self.starts[0])

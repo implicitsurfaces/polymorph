@@ -16,6 +16,10 @@ def indent_shape(shape):
     return textwrap.indent(repr(shape), "  ")
 
 
+def repr_point(p):
+    return f"p({p[0]}, {p[1]})"
+
+
 def length(coordinates):
     return jnp.linalg.norm(coordinates, axis=1)
 

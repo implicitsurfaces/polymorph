@@ -48,9 +48,6 @@ def polygon(vertices):
 
 
 def bulge_arc(point1, point2, bulge):
-    point1 = jnp.array(point1)
-    point2 = jnp.array(point2)
-
     chord_length = jnp.linalg.norm(point2 - point1)
 
     # the sagitta is the perpendicular distance from the midpoint of the chord to the arc

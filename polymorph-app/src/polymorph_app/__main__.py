@@ -9,15 +9,14 @@ from polymorph_s2df import *
 from collections import namedtuple
 import glfw
 import imgui
-from functools import reduce
+from functools import lru_cache, reduce
 from imgui.integrations.glfw import GlfwRenderer
 import sys
 
 import optimistix
 from timeit import default_timer as timer
 
-WIDTH = 800
-HEIGHT = 600
+INITIAL_WINDOW_SIZE = (800, 600)
 
 
 # Maps from a glfw key constant (https://www.glfw.org/docs/3.3/group__keys.html)
@@ -29,21 +28,27 @@ Gesture = namedtuple("Gesture", ["start_pos", "shapes"])
 Shape = namedtuple("Shape", ["name", "sdf"])
 
 
-def gen_pixel_grid():
-    yy, xx = jnp.mgrid[0:HEIGHT, 0:WIDTH]
+def memoize(fn):
+    return lru_cache(maxsize=1)(fn)
+
+
+@memoize
+def pixel_grid(size):
+    """
+    Allocates a uniform grid of points for sampling the SDFs.
+    Memoized to handle changes to the viewport size.
+    """
+    yy, xx = jnp.mgrid[0 : size[1], 0 : size[0]]
     return jnp.column_stack((xx.ravel(), yy.ravel()))
 
 
-pixel_grid = gen_pixel_grid()
-
-
-def render_scene(sdf):
+def render_scene(sdf, size):
     # start = time.time()
-    ans = sdf.is_inside(pixel_grid)
+    ans = sdf.is_inside(pixel_grid(size))
 
     # Convert the float entries for each pixel into a (4,) of uint8.
     ans_3d = jnp.repeat(
-        255 * ans.reshape((HEIGHT, WIDTH, 1)).astype(jnp.uint8), 4, axis=2
+        255 * ans.reshape((size[1], size[0], 1)).astype(jnp.uint8), 4, axis=2
     )
     # print(f"rendered in {time.time() - start}s")
     return ans_3d
@@ -79,7 +84,7 @@ void main()
 
 
 def create_window():
-    width, height = 800, 600
+    width, height = INITIAL_WINDOW_SIZE
     window_name = "Polymorph"
 
     if not glfw.init():
@@ -92,7 +97,7 @@ def create_window():
     glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, 1)
 
     # Create a windowed mode window and its OpenGL context
-    window = glfw.create_window(int(width), int(height), window_name, None, None)
+    window = glfw.create_window(width, height, window_name, None, None)
     glfw.make_context_current(window)
 
     if not window:
@@ -107,6 +112,7 @@ def init_quad(ctx):
     prog = ctx.program(vertex_shader=vertex_shader, fragment_shader=fragment_shader)
 
     # fmt: off
+    # Four vertices (x, y, z, u, v) for a quad that will display a texture.
     vbo = ctx.buffer(np.array([
         -1.0, -1.0, 0.0, 0.0, 1.0,
          1.0, -1.0, 0.0, 1.0, 1.0,
@@ -122,7 +128,8 @@ def init_quad(ctx):
 
 def render_devtools(vm):
     w = 100
-    imgui.set_next_window_position(WIDTH - w - 10, 10)  # Top right
+    window_width, _ = vm.window_size
+    imgui.set_next_window_position(window_width - w - 10, 10)  # Top right
     imgui.push_style_var(imgui.STYLE_ALPHA, 0.5)
     imgui.begin(
         "FPS Meter",
@@ -144,13 +151,14 @@ def render_devtools(vm):
     imgui.pop_style_var()
 
 
-def render_shapes_tree(shapes):
-    imgui.set_next_window_size(200, HEIGHT)
+def render_shapes_tree(vm):
+    _, window_height = vm.window_size
+    imgui.set_next_window_size(200, window_height)
     imgui.set_next_window_position(0, 0)
     imgui.begin(
         "Shapes", closable=False, flags=imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE
     )
-    for s in shapes:
+    for s in vm.shapes:
         if imgui.tree_node(s.name, imgui.TREE_NODE_LEAF):
             imgui.tree_pop()
     imgui.end()
@@ -186,7 +194,7 @@ def render_ui(renderer, vm, params):
     imgui.new_frame()
 
     render_overlay(vm, params)
-    render_shapes_tree(vm.shapes)
+    render_shapes_tree(vm)
     render_devtools(vm)
 
     imgui.render()
@@ -195,21 +203,24 @@ def render_ui(renderer, vm, params):
 
 class ViewModel:
     def __init__(self, window):
-        glfw.set_key_callback(window, self.handle_key)
-        glfw.set_mouse_button_callback(window, self.handle_mouse_button)
+        glfw.set_key_callback(window, self.on_key)
+        glfw.set_mouse_button_callback(window, self.on_mouse_button)
 
+        # User-level state
         self.gesture = None
         self.shapes = []
         self.tool = None
         self.cursor_world = p(*glfw.get_cursor_pos(window))
 
+        # Window stuff
+        self.window_size = glfw.get_window_size(window)
         self.vsync_enabled = True
 
-    def handle_key(self, window, key, scancode, action, mods):
+    def on_key(self, window, key, scancode, action, mods):
         if action == glfw.PRESS and key in TOOL_HOTKEYS:
             self.tool = TOOL_HOTKEYS[key]
 
-    def handle_mouse_button(self, window, button, action, mods):
+    def on_mouse_button(self, window, button, action, mods):
         if imgui.get_io().want_capture_mouse or button != glfw.MOUSE_BUTTON_LEFT:
             return
 
@@ -220,7 +231,8 @@ class ViewModel:
             self.shapes = self.shapes + self.gesture.shapes
             self.gesture = None
 
-    def handle_frame(self, window):
+    def on_frame(self, window):
+        self.window_size = glfw.get_window_size(window)
         self.cursor_world = p(*glfw.get_cursor_pos(window))
         gesture, tool = (self.gesture, self.tool)
         if gesture and tool:
@@ -286,9 +298,16 @@ def main():
 
     view_model = ViewModel(window)
 
-    texture = gl_context.texture((WIDTH, HEIGHT), components=4)
-    texture.use(0)
     render_quad = init_quad(gl_context)
+
+    @memoize
+    def get_sdf_texture(framebuffer_size):
+        """
+        Allocate the texture into which we render the SDF.
+        Memoized to account for changes to the framebuffer size.
+        """
+        gl_context.gc()  # Ensure the previous texture is released.
+        return gl_context.texture(framebuffer_size, components=4)
 
     while not glfw.window_should_close(window):
         ###############
@@ -297,7 +316,7 @@ def main():
         glfw.poll_events()  # Process event queue & run GLFW callbacks
         imgui_glfw_renderer.process_inputs()  # Update ImGui IO state
 
-        view_model.handle_frame(window)
+        view_model.on_frame(window)
 
         initial_params = get_params(view_model.cursor_world, view_model.scene)
         params = solve(initial_params, view_model.scene)
@@ -308,8 +327,11 @@ def main():
         gl_context.clear()
 
         # Render SDFs
-        buf = render_scene(view_model.scene)
+        fb_size = glfw.get_framebuffer_size(window)
+        texture = get_sdf_texture(fb_size)
+        buf = render_scene(view_model.scene, fb_size)
         texture.write(jax.device_get(buf))
+        texture.use(0)
         render_quad()
 
         # Render ImGui

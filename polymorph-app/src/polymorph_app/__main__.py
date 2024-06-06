@@ -290,7 +290,7 @@ def main():
 
     gl_context = moderngl.create_context(require=330)
     gl_context.gc_mode = (
-        "context_gc"  # https://moderngl.readthedocs.io/en/latest/topics/gc.html
+        "auto"  # https://moderngl.readthedocs.io/en/latest/topics/gc.html
     )
 
     imgui.create_context()
@@ -306,7 +306,6 @@ def main():
         Allocate the texture into which we render the SDF.
         Memoized to account for changes to the framebuffer size.
         """
-        gl_context.gc()  # Ensure the previous texture is released.
         return gl_context.texture(framebuffer_size, components=4)
 
     while not glfw.window_should_close(window):
@@ -339,7 +338,6 @@ def main():
 
         glfw.swap_buffers(window)
 
-    gl_context.gc()
     imgui_glfw_renderer.shutdown()
     glfw.terminate()
 

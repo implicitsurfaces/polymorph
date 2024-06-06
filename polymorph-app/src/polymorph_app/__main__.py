@@ -13,6 +13,9 @@ from functools import reduce
 from imgui.integrations.glfw import GlfwRenderer
 import sys
 
+import optimistix
+from timeit import default_timer as timer
+
 WIDTH = 800
 HEIGHT = 600
 
@@ -153,7 +156,7 @@ def render_shapes_tree(shapes):
     imgui.end()
 
 
-def render_overlay(vm, window):
+def render_overlay(vm, params):
     # Set the window position and size to cover the entire viewport
     viewport = imgui.get_main_viewport()
     imgui.set_next_window_position(*viewport.pos)
@@ -172,16 +175,17 @@ def render_overlay(vm, window):
     )
 
     draw_list = imgui.get_window_draw_list()
-    pos = glfw.get_cursor_pos(window)
-    draw_list.add_circle_filled(pos[0], pos[1], 4, imgui.get_color_u32_rgba(1, 0, 0, 1))
+    draw_list.add_circle_filled(
+        params[0], params[1], 4, imgui.get_color_u32_rgba(1, 0, 0, 1)
+    )
 
     imgui.end()
 
 
-def render_ui(vm, window):
+def render_ui(vm, params):
     imgui.new_frame()
 
-    render_overlay(vm, window)
+    render_overlay(vm, params)
     render_shapes_tree(vm.shapes)
     render_devtools(vm)
 
@@ -196,6 +200,7 @@ class ViewModel:
         self.gesture = None
         self.shapes = []
         self.tool = None
+        self.cursor_world = p(*glfw.get_cursor_pos(window))
 
         self.vsync_enabled = True
 
@@ -215,9 +220,10 @@ class ViewModel:
             self.gesture = None
 
     def handle_frame(self, window):
+        self.cursor_world = p(*glfw.get_cursor_pos(window))
         gesture, tool = (self.gesture, self.tool)
         if gesture and tool:
-            current_pos = p(*glfw.get_cursor_pos(window))
+            current_pos = self.cursor_world
             start_pos = gesture.start_pos
             if tool == Circle:
                 r = jnp.linalg.norm(current_pos - start_pos, axis=-1)
@@ -239,12 +245,39 @@ class ViewModel:
         )
 
 
+def optimize_params(cost, params, scene):
+    solver = optimistix.BFGS(rtol=1e-5, atol=1e-6)
+    start = timer()
+    solution = optimistix.minimise(cost, solver, params, scene, throw=False)
+    elapsed = timer() - start
+    print(
+        "{0} steps in {1:.3f} seconds".format(solution.stats.get("num_steps"), elapsed)
+    )
+    return solution.value
+
+
+def get_params(cursor, scene):
+    return cursor
+
+
+def solve(params, scene):
+    def cost(params, scene):
+        shape = scene
+        target_distance = 0.5
+        cost_distance = (
+            shape.distance(params[jnp.newaxis, 0:2]) - target_distance
+        ) ** 2
+        return cost_distance[0]
+
+    return optimize_params(cost, params, scene)
+
+
 def main():
     imgui.create_context()
     window = create_window()
     impl = GlfwRenderer(window)
 
-    model = ViewModel(window)
+    view_model = ViewModel(window)
 
     ctx = moderngl.create_context()
     ctx.gc_mode = (
@@ -258,18 +291,28 @@ def main():
     imgui.create_context()
 
     while not glfw.window_should_close(window):
+        ###############
+        ## Model update
+
         glfw.poll_events()
         impl.process_inputs()
 
-        model.handle_frame(window)
+        view_model.handle_frame(window)
+
+        initial_params = get_params(view_model.cursor_world, view_model.scene)
+        params = solve(initial_params, view_model.scene)
+        print(params)
+
+        ###########
+        ## Render
 
         ctx.clear()
 
-        buf = render_scene(model.scene)
+        buf = render_scene(view_model.scene)
         texture.write(jax.device_get(buf))
         render_quad()
 
-        render_ui(model, window)
+        render_ui(view_model, params)
         impl.render(imgui.get_draw_data())
 
         glfw.swap_buffers(window)

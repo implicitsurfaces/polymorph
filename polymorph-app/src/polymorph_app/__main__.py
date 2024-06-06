@@ -117,6 +117,30 @@ def init_quad(ctx):
     return lambda: vao.render(moderngl.TRIANGLE_FAN)
 
 
+def render_hud(vm):
+    w = 100
+    imgui.set_next_window_position(WIDTH - w - 10, 10)  # Top right
+    imgui.push_style_var(imgui.STYLE_ALPHA, 0.5)
+    imgui.begin(
+        "FPS Meter",
+        None,
+        imgui.WINDOW_NO_TITLE_BAR
+        | imgui.WINDOW_NO_RESIZE
+        | imgui.WINDOW_NO_MOVE
+        | imgui.WINDOW_ALWAYS_AUTO_RESIZE,
+    )
+
+    imgui.text(
+        f"FPS: {imgui.get_io().framerate:.2f}",
+    )
+    changed, vm.vsync_enabled = imgui.checkbox("VSync", vm.vsync_enabled)
+    if changed:
+        glfw.swap_interval(vm.vsync_enabled)
+
+    imgui.end()
+    imgui.pop_style_var()
+
+
 def render_shapes_tree(shapes):
     for s in shapes:
         if imgui.tree_node(s.name, imgui.TREE_NODE_LEAF):
@@ -131,6 +155,7 @@ def render_ui(vm):
     imgui.begin(
         "Shapes", closable=False, flags=imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE
     )
+    render_hud(vm)
     render_shapes_tree(vm.shapes)
     imgui.end()
     imgui.render()
@@ -144,6 +169,8 @@ class ViewModel:
         self.gesture = None
         self.shapes = []
         self.tool = None
+
+        self.vsync_enabled = True
 
     def handle_key(self, window, key, scancode, action, mods):
         if action == glfw.PRESS and key in TOOL_HOTKEYS:

@@ -38,7 +38,10 @@ def pixel_grid(size):
     Allocates a uniform grid of points for sampling the SDFs.
     Memoized to handle changes to the viewport size.
     """
-    yy, xx = jnp.mgrid[0 : size[1], 0 : size[0]]
+    half_width = size[0] / 2
+    half_height = size[1] / 2
+
+    yy, xx = jnp.mgrid[-half_height:half_height, -half_width:half_width]
     return jnp.column_stack((xx.ravel(), yy.ravel()))
 
 
@@ -113,11 +116,13 @@ def init_quad(ctx):
 
     # fmt: off
     # Four vertices (x, y, z, u, v) for a quad that will display a texture.
+    # Note that the v coordinate is flipped to account for the difference b/w
+    # world space (y+ up) and screen space (y+ down).
     vbo = ctx.buffer(np.array([
-        -1.0, -1.0, 0.0, 0.0, 1.0,
-         1.0, -1.0, 0.0, 1.0, 1.0,
-         1.0,  1.0, 0.0, 1.0, 0.0,
-        -1.0,  1.0, 0.0, 0.0, 0.0
+        -1.0, -1.0, 0.0, 0.0, 0.0,
+         1.0, -1.0, 0.0, 1.0, 0.0,
+         1.0,  1.0, 0.0, 1.0, 1.0,
+        -1.0,  1.0, 0.0, 0.0, 1.0
     ], dtype=np.float32))
     # fmt: on
     vao = ctx.vertex_array(prog, [(vbo, "3f 2f", "aPos", "aTexCoord")])
@@ -183,8 +188,9 @@ def render_overlay(vm, params):
     )
 
     draw_list = imgui.get_window_draw_list()
+    x_screen, y_screen = vm.world_to_screen((params[0], params[1]))
     draw_list.add_circle_filled(
-        params[0], params[1], 4, imgui.get_color_u32_rgba(1, 0, 0, 1)
+        x_screen, y_screen, 4, imgui.get_color_u32_rgba(1, 0, 0, 1)
     )
 
     imgui.end()
@@ -206,15 +212,15 @@ class ViewModel:
         glfw.set_key_callback(window, self.on_key)
         glfw.set_mouse_button_callback(window, self.on_mouse_button)
 
+        # Window stuff
+        self.window_size = glfw.get_window_size(window)
+        self.vsync_enabled = True
+
         # User-level state
         self.gesture = None
         self.shapes = []
         self.tool = None
-        self.cursor_world = p(*glfw.get_cursor_pos(window))
-
-        # Window stuff
-        self.window_size = glfw.get_window_size(window)
-        self.vsync_enabled = True
+        self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
 
     def on_key(self, window, key, scancode, action, mods):
         if action == glfw.PRESS and key in TOOL_HOTKEYS:
@@ -225,7 +231,7 @@ class ViewModel:
             return
 
         if action == glfw.PRESS:
-            pos = glfw.get_cursor_pos(window)
+            pos = self.screen_to_world(glfw.get_cursor_pos(window))
             self.gesture = Gesture(p(*pos), [])
         elif action == glfw.RELEASE:
             self.shapes = self.shapes + self.gesture.shapes
@@ -233,7 +239,7 @@ class ViewModel:
 
     def on_frame(self, window):
         self.window_size = glfw.get_window_size(window)
-        self.cursor_world = p(*glfw.get_cursor_pos(window))
+        self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
         gesture, tool = (self.gesture, self.tool)
         if gesture and tool:
             current_pos = self.cursor_world
@@ -248,6 +254,14 @@ class ViewModel:
                 self.gesture = Gesture(
                     start_pos, [Shape("Box", Box(w, h).translate(start_pos))]
                 )
+
+    def world_to_screen(self, pt):
+        w, h = self.window_size
+        return p(pt[0] + w / 2, h / 2 - pt[1])
+
+    def screen_to_world(self, pt):
+        w, h = self.window_size
+        return p(pt[0] - w / 2, h / 2 - pt[1])
 
     @property
     def scene(self):

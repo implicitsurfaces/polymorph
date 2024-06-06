@@ -182,7 +182,7 @@ def render_overlay(vm, params):
     imgui.end()
 
 
-def render_ui(vm, params):
+def render_ui(renderer, vm, params):
     imgui.new_frame()
 
     render_overlay(vm, params)
@@ -190,6 +190,7 @@ def render_ui(vm, params):
     render_devtools(vm)
 
     imgui.render()
+    renderer.render(imgui.get_draw_data())
 
 
 class ViewModel:
@@ -273,52 +274,51 @@ def solve(params, scene):
 
 
 def main():
-    imgui.create_context()
     window = create_window()
-    impl = GlfwRenderer(window)
 
-    view_model = ViewModel(window)
-
-    ctx = moderngl.create_context()
-    ctx.gc_mode = (
+    gl_context = moderngl.create_context(require=330)
+    gl_context.gc_mode = (
         "context_gc"  # https://moderngl.readthedocs.io/en/latest/topics/gc.html
     )
 
-    texture = ctx.texture((WIDTH, HEIGHT), components=4)
-    texture.use(0)
-    render_quad = init_quad(ctx)
-
     imgui.create_context()
+    imgui_glfw_renderer = GlfwRenderer(window)
+
+    view_model = ViewModel(window)
+
+    texture = gl_context.texture((WIDTH, HEIGHT), components=4)
+    texture.use(0)
+    render_quad = init_quad(gl_context)
 
     while not glfw.window_should_close(window):
         ###############
         ## Model update
 
-        glfw.poll_events()
-        impl.process_inputs()
+        glfw.poll_events()  # Process event queue & run GLFW callbacks
+        imgui_glfw_renderer.process_inputs()  # Update ImGui IO state
 
         view_model.handle_frame(window)
 
         initial_params = get_params(view_model.cursor_world, view_model.scene)
         params = solve(initial_params, view_model.scene)
-        print(params)
 
         ###########
         ## Render
 
-        ctx.clear()
+        gl_context.clear()
 
+        # Render SDFs
         buf = render_scene(view_model.scene)
         texture.write(jax.device_get(buf))
         render_quad()
 
-        render_ui(view_model, params)
-        impl.render(imgui.get_draw_data())
+        # Render ImGui
+        render_ui(imgui_glfw_renderer, view_model, params)
 
         glfw.swap_buffers(window)
 
-    ctx.gc()
-    impl.shutdown()
+    gl_context.gc()
+    imgui_glfw_renderer.shutdown()
     glfw.terminate()
 
 

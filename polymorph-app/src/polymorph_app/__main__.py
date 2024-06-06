@@ -117,7 +117,7 @@ def init_quad(ctx):
     return lambda: vao.render(moderngl.TRIANGLE_FAN)
 
 
-def render_hud(vm):
+def render_devtools(vm):
     w = 100
     imgui.set_next_window_position(WIDTH - w - 10, 10)  # Top right
     imgui.push_style_var(imgui.STYLE_ALPHA, 0.5)
@@ -142,22 +142,49 @@ def render_hud(vm):
 
 
 def render_shapes_tree(shapes):
-    for s in shapes:
-        if imgui.tree_node(s.name, imgui.TREE_NODE_LEAF):
-            imgui.tree_pop()
-
-
-def render_ui(vm):
-    imgui.new_frame()
-
     imgui.set_next_window_size(200, HEIGHT)
     imgui.set_next_window_position(0, 0)
     imgui.begin(
         "Shapes", closable=False, flags=imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE
     )
-    render_hud(vm)
-    render_shapes_tree(vm.shapes)
+    for s in shapes:
+        if imgui.tree_node(s.name, imgui.TREE_NODE_LEAF):
+            imgui.tree_pop()
     imgui.end()
+
+
+def render_overlay(vm, window):
+    # Set the window position and size to cover the entire viewport
+    viewport = imgui.get_main_viewport()
+    imgui.set_next_window_position(*viewport.pos)
+    imgui.set_next_window_size(*viewport.size)
+
+    imgui.begin(
+        "Overlay",
+        None,
+        imgui.WINDOW_NO_TITLE_BAR
+        | imgui.WINDOW_NO_BACKGROUND
+        | imgui.WINDOW_NO_MOVE
+        | imgui.WINDOW_NO_RESIZE
+        | imgui.WINDOW_NO_SAVED_SETTINGS
+        | imgui.WINDOW_NO_BRING_TO_FRONT_ON_FOCUS
+        | imgui.WINDOW_NO_MOUSE_INPUTS,
+    )
+
+    draw_list = imgui.get_window_draw_list()
+    pos = glfw.get_cursor_pos(window)
+    draw_list.add_circle_filled(pos[0], pos[1], 4, imgui.get_color_u32_rgba(1, 0, 0, 1))
+
+    imgui.end()
+
+
+def render_ui(vm, window):
+    imgui.new_frame()
+
+    render_overlay(vm, window)
+    render_shapes_tree(vm.shapes)
+    render_devtools(vm)
+
     imgui.render()
 
 
@@ -242,7 +269,7 @@ def main():
         texture.write(jax.device_get(buf))
         render_quad()
 
-        render_ui(model)
+        render_ui(model, window)
         impl.render(imgui.get_draw_data())
 
         glfw.swap_buffers(window)

@@ -13,8 +13,5 @@ cd "$DIR/../"
 #       -D warnings                          \
 #       -A clippy::new-without-default
 
-if type rye >/dev/null 2>&1; then
-    rye run ruff check --fix script/*.py
-else
-    echo "rye not found, skipping python linting"
-fi
+# Keep people from accidentally pushing unformatted Python code.
+rye fmt --check polymorph-app

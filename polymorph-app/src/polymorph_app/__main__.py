@@ -3,6 +3,7 @@ import moderngl
 import numpy as np
 import jax
 import jax.numpy as jnp
+import multiprocessing
 
 from polymorph_s2df import *
 
@@ -13,8 +14,7 @@ from functools import lru_cache, reduce
 from imgui.integrations.glfw import GlfwRenderer
 import sys
 
-import optimistix
-from timeit import default_timer as timer
+from .solve import async_solver
 
 INITIAL_WINDOW_SIZE = (800, 600)
 
@@ -43,6 +43,10 @@ def pixel_grid(size):
 
     yy, xx = jnp.mgrid[-half_height:half_height, -half_width:half_width]
     return jnp.column_stack((xx.ravel(), yy.ravel()))
+
+
+def get_params(cursor, scene):
+    return cursor
 
 
 def render_scene(sdf, size):
@@ -272,34 +276,7 @@ class ViewModel:
         )
 
 
-def optimize_params(cost, params, scene):
-    solver = optimistix.BFGS(rtol=1e-5, atol=1e-6)
-    start = timer()
-    solution = optimistix.minimise(cost, solver, params, scene, throw=False)
-    elapsed = timer() - start
-    print(
-        "{0} steps in {1:.3f} seconds".format(solution.stats.get("num_steps"), elapsed)
-    )
-    return solution.value
-
-
-def get_params(cursor, scene):
-    return cursor
-
-
-def solve(params, scene):
-    def cost(params, scene):
-        shape = scene
-        target_distance = 0.5
-        cost_distance = (
-            shape.distance(params[jnp.newaxis, 0:2]) - target_distance
-        ) ** 2
-        return cost_distance[0]
-
-    return optimize_params(cost, params, scene)
-
-
-def main():
+def main(solver):
     window = create_window()
 
     gl_context = moderngl.create_context(require=330)
@@ -332,7 +309,7 @@ def main():
         view_model.on_frame(window)
 
         initial_params = get_params(view_model.cursor_world, view_model.scene)
-        params = solve(initial_params, view_model.scene)
+        params = solver(initial_params, view_model.scene)
 
         ###########
         ## Render
@@ -357,4 +334,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    with multiprocessing.Pool(1) as pool:
+        main(async_solver(pool))

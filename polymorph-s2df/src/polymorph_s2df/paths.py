@@ -76,6 +76,94 @@ class ArcSegment:
         return parametric_distance, mask
 
 
+class QuadraticBezierSegment:
+    def __init__(self, start, control, end):
+        self.start = start
+        self.control = control
+        self.end = end
+
+    @property
+    def start_tangent(self):
+        vector = self.control - self.start
+        return vector / jnp.linalg.norm(vector)
+
+    @property
+    def end_tangent(self):
+        vector = self.control - self.end
+        return vector / jnp.linalg.norm(vector)
+
+    def __repr__(self):
+        return f"QuadraticBezierSegment({repr_point(self.start)}, {repr_point(self.control)}, {repr_point(self.end)})"
+
+    def distance_and_mask(self, pos):
+        a = self.control - self.start
+        b = self.start - 2.0 * self.control + self.end
+        c = a * 2.0
+
+        d = self.start - pos
+        kk = 1.0 / jnp.dot(b, b)
+        kx = kk * jnp.dot(a, b)
+        ky = kk * (2.0 * jnp.dot(a, a) + jnp.dot(d, b)) / 3.0
+        kz = kk * jnp.dot(d, a)
+
+        p = ky - kx * kx
+        p3 = p * p * p
+        q = kx * (2.0 * kx * kx - 3.0 * ky) + kz
+        h = q * q + 4.0 * p3
+
+        def positive_case():
+            parametric_position = -kx
+
+            sqrt_h = jnp.sqrt(h)
+
+            for param in (sqrt_h, -sqrt_h):
+                x = (param - q) / 2.0
+                parametric_position += jnp.sign(x) * jnp.pow(jnp.abs(x), 1.0 / 3.0)
+
+            mask = clamp_mask(parametric_position, 0, 1)
+            distance_vector = d + (c + b * parametric_position) * parametric_position
+            tangent_vector = c + 2 * b * parametric_position
+
+            sign = jnp.sign(jnp.cross(tangent_vector, distance_vector))
+
+            return sign * jnp.linalg.norm(distance_vector) * mask, mask
+
+        def negative_case():
+            z = jnp.sqrt(-p)
+            v = jnp.acos(q / (p * z * 2.0)) / 3.0
+            m = jnp.cos(v)
+            n = jnp.sin(v) * 1.732050808
+
+            parametric_position_1 = (m + m) * z - kx
+            parametric_position_2 = (-n - m) * z - kx
+
+            parametric_positions = jnp.array(
+                [parametric_position_1, parametric_position_2]
+            )
+
+            distance_vectors = jnp.array(
+                [
+                    d + (c + b * parametric_position_1) * parametric_position_1,
+                    d + (c + b * parametric_position_2) * parametric_position_2,
+                ]
+            )
+
+            distances = jnp.linalg.norm(distance_vectors, axis=1)
+            min_index = jnp.argmin(distances)
+
+            mask = clamp_mask(parametric_positions[min_index], 0, 1)
+            tangent_vector = c + 2 * b * parametric_positions[min_index]
+
+            sign = jnp.sign(jnp.cross(tangent_vector, distance_vectors[min_index]))
+
+            return sign * distances[min_index] * mask, mask
+
+            # the third root cannot be the closest
+            # res = min(res,dot2(d+(c+b*t.z)*t.z))
+
+        return jax.lax.cond(h > 0, positive_case, negative_case)
+
+
 class TranslatedSegment:
     def __init__(self, segment, translation):
         self.segment = segment

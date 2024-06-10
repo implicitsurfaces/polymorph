@@ -21,6 +21,7 @@ from .paths import (
     LineSegment,
     ClosedPath,
     TranslatedSegment,
+    QuadraticBezierSegment,
 )
 
 

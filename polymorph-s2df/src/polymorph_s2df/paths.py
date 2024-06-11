@@ -1,30 +1,54 @@
 import jax.numpy as jnp
 import jax.lax
 
+from jax.tree_util import register_pytree_node_class
+
 from .operations import Shape
 from .utils import clamp_mask, indent_shape, repr_point
 
 
-class LineSegment:
-    def __init__(self, start, end):
+class PathSegment:
+    @classmethod
+    def tree_unflatten(cls, _, children):
+        return cls(*children)
+
+
+@register_pytree_node_class
+class LineSegment(PathSegment):
+    start: jax.Array
+    end: jax.Array
+
+    def __init__(self, start: jax.Array, end: jax.Array):
         self.start = start
         self.end = end
 
-        self.segment = end - start
-        self.segment_length_square = jnp.dot(self.segment, self.segment)
-
-        length = jnp.sqrt(self.segment_length_square)
-        self.start_tangent = self.segment / length
-        self.end_tangent = -self.segment / length
-
     def __repr__(self):
         return f"LineSegment({repr_point(self.start)}, {repr_point(self.end)})"
+
+    def tree_flatten(self):
+        return (self.start, self.end), None
+
+    @property
+    def segment(self):
+        return self.end - self.start
+
+    @property
+    def _segment_length_square(self):
+        return jnp.dot(self.segment, self.segment)
+
+    @property
+    def start_tangent(self):
+        return self.segment / jnp.sqrt(self._segment_length_square)
+
+    @property
+    def end_tangent(self):
+        return -self.segment / jnp.sqrt(self._segment_length_square)
 
     def distance_and_mask(self, p):
         start_to_p = p - self.start
 
         parametric_position = (
-            jnp.dot(start_to_p, self.segment) / self.segment_length_square
+            jnp.dot(start_to_p, self.segment) / self._segment_length_square
         )
 
         mask = clamp_mask(parametric_position, 0, 1)
@@ -42,28 +66,52 @@ def normalize_angle(q):
     return jnp.mod(q + 2 * jnp.pi, 2 * jnp.pi)
 
 
-class ArcSegment:
+@register_pytree_node_class
+class ArcSegment(PathSegment):
     def __init__(self, start_angle, end_angle, radius):
         self.start_angle = normalize_angle(start_angle)
         self.end_angle = normalize_angle(end_angle)
         self.radius = radius
 
-        self.start = jnp.array(
-            [radius * jnp.cos(self.start_angle), radius * jnp.sin(self.start_angle)]
-        )
-        self.end = jnp.array([radius * jnp.cos(end_angle), radius * jnp.sin(end_angle)])
-
-        self.angular_length = self.end_angle - self.start_angle
-
-        self.start_tangent = jnp.sign(self.angular_length) * jnp.array(
-            [-jnp.sin(self.start_angle), jnp.cos(self.start_angle)]
-        )
-        self.end_tangent = jnp.sign(self.angular_length) * jnp.array(
-            [jnp.sin(self.end_angle), -jnp.cos(self.end_angle)]
-        )
-
     def __repr__(self):
         return f"ArcSegment({self.start_angle}, {self.end_angle}, {self.radius})"
+
+    def tree_flatten(self):
+        return (self.start_angle, self.end_angle, self.radius), None
+
+    @property
+    def start(self):
+        return jnp.array(
+            [
+                self.radius * jnp.cos(self.start_angle),
+                self.radius * jnp.sin(self.start_angle),
+            ]
+        )
+
+    @property
+    def end(self):
+        return jnp.array(
+            [
+                self.radius * jnp.cos(self.end_angle),
+                self.radius * jnp.sin(self.end_angle),
+            ]
+        )
+
+    @property
+    def angular_length(self):
+        return self.end_angle - self.start_angle
+
+    @property
+    def start_tangent(self):
+        return jnp.sign(self.angular_length) * jnp.array(
+            [-jnp.sin(self.start_angle), jnp.cos(self.start_angle)]
+        )
+
+    @property
+    def end_tangent(self):
+        return jnp.sign(self.angular_length) * jnp.array(
+            [jnp.sin(self.end_angle), -jnp.cos(self.end_angle)]
+        )
 
     def distance_and_mask(self, p):
         angle_position = normalize_angle(jnp.atan2(p[1], p[0]))
@@ -76,11 +124,18 @@ class ArcSegment:
         return parametric_distance, mask
 
 
-class QuadraticBezierSegment:
+@register_pytree_node_class
+class QuadraticBezierSegment(PathSegment):
     def __init__(self, start, control, end):
         self.start = start
         self.control = control
         self.end = end
+
+    def __repr__(self):
+        return f"QuadraticBezierSegment({repr_point(self.start)}, {repr_point(self.control)}, {repr_point(self.end)})"
+
+    def tree_flatten(self):
+        return (self.start, self.control, self.end), None
 
     @property
     def start_tangent(self):
@@ -91,9 +146,6 @@ class QuadraticBezierSegment:
     def end_tangent(self):
         vector = self.control - self.end
         return vector / jnp.linalg.norm(vector)
-
-    def __repr__(self):
-        return f"QuadraticBezierSegment({repr_point(self.start)}, {repr_point(self.control)}, {repr_point(self.end)})"
 
     def distance_and_mask(self, pos):
         a = self.control - self.start
@@ -164,10 +216,17 @@ class QuadraticBezierSegment:
         return jax.lax.cond(h > 0, positive_case, negative_case)
 
 
-class TranslatedSegment:
+@register_pytree_node_class
+class TranslatedSegment(PathSegment):
     def __init__(self, segment, translation):
         self.segment = segment
         self.translation = translation
+
+    def __repr__(self):
+        return f"TranslatedSegment({self.segment}, {repr_point(self.translation)})"
+
+    def tree_flatten(self):
+        return (self.segment, self.translation), None
 
     @property
     def start(self):
@@ -185,16 +244,20 @@ class TranslatedSegment:
     def end_tangent(self):
         return self.segment.end_tangent
 
-    def __repr__(self):
-        return f"TranslatedSegment({self.segment}, {repr_point(self.translation)})"
-
     def distance_and_mask(self, p):
         return self.segment.distance_and_mask(p - self.translation)
 
 
-class InversedSegment:
+@register_pytree_node_class
+class InversedSegment(PathSegment):
     def __init__(self, segment):
         self.segment = segment
+
+    def tree_flatten(self):
+        return (self.segment,), None
+
+    def __repr__(self):
+        return f"InversedSegment({self.segment})"
 
     @property
     def start(self):
@@ -212,43 +275,51 @@ class InversedSegment:
     def end_tangent(self):
         return self.segment.end_tangent
 
-    def __repr__(self):
-        return f"InversedSegment({self.segment})"
-
     def distance_and_mask(self, p):
         distance, mask = self.segment.distance_and_mask(p)
         return -distance, mask
 
 
+@register_pytree_node_class
 class ClosedPath(Shape):
     def __init__(self, segments):
         self.segments = segments
-        self.starts = [segment.start for segment in segments]
-
-        tangents = list(
-            zip(
-                [segment.start_tangent for segment in segments],
-                [segment.end_tangent for segment in segments[-1:] + segments[:-1]],
-            )
-        )
-
-        self.concave_points = [
-            point
-            for (tg1, tg2), point in zip(tangents, self.starts)
-            if jnp.cross(tg1, tg2) < 0
-        ]
-
-        # TODO: Improve this code - some of it should be in the Segment class
-        self.orientation_sign = jnp.sign(
-            jnp.sum(
-                jnp.array(
-                    [jnp.cross(segment.start, segment.end) for segment in segments]
-                )
-            )
-        )
 
     def __repr__(self):
         return f"ClosedPath([\n{',\n'.join(indent_shape(seg) for seg in self.segments)}\n])"
+
+    def tree_flatten(self):
+        return (self.segments,), None
+
+    @property
+    def starts(self):
+        return [segment.start for segment in self.segments]
+
+    @property
+    def points_concavity(self):
+        tangents = zip(
+            [segment.start_tangent for segment in self.segments],
+            [
+                segment.end_tangent
+                for segment in self.segments[-1:] + self.segments[:-1]
+            ],
+        )
+
+        return [
+            (point, jnp.sign(jnp.cross(tg1, tg2)))
+            for (tg1, tg2), point in zip(tangents, self.starts)
+        ]
+
+    @property
+    def orientation_sign(self):
+        # TODO: Improve this code - some of it should be in the Segment class
+        return jnp.sign(
+            jnp.sum(
+                jnp.array(
+                    [jnp.cross(segment.start, segment.end) for segment in self.segments]
+                )
+            )
+        )
 
     def _min_distance_to_points(self, p):
         dist = jnp.linalg.norm(p - self.starts[0])
@@ -297,17 +368,17 @@ class ClosedPath(Shape):
             + (1 - current_mask) * points_distance
         )
 
-        current_sign = 1
+        current_sign = 1.0
         # We take the sign from the distance it found
         for distance, _ in distances_and_masks:
             current_sign = jax.lax.select(
-                minimum_distance == -distance, -1, current_sign
+                minimum_distance == -distance, -1.0, current_sign
             )
 
-        for point in self.concave_points:
+        for point, concavity in self.points_concavity:
             point_distance = jnp.linalg.norm(p - point)
             current_sign = jax.lax.select(
-                minimum_distance == point_distance, -1, current_sign
+                minimum_distance == point_distance, concavity, current_sign
             )
 
         return minimum_distance * current_sign * self.orientation_sign

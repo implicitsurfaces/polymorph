@@ -19,9 +19,17 @@ from .solve import async_solver
 INITIAL_WINDOW_SIZE = (800, 600)
 
 
+def rectangle(w, h):
+    if w == 0 or h == 0:
+        return Circle(0)
+    return polygon(
+        [p(-w / 2, -h / 2), p(w / 2, -h / 2), p(w / 2, h / 2), p(-w / 2, h / 2)]
+    )
+
+
 # Maps from a glfw key constant (https://www.glfw.org/docs/3.3/group__keys.html)
 # to a s2df constructor.
-TOOL_HOTKEYS = {glfw.KEY_C: Circle, glfw.KEY_B: Box}
+TOOL_HOTKEYS = {glfw.KEY_C: Circle, glfw.KEY_B: Box, glfw.KEY_R: rectangle}
 
 
 Gesture = namedtuple("Gesture", ["start_pos", "shapes"])
@@ -267,6 +275,12 @@ class ViewModel:
                 r = jnp.linalg.norm(current_pos - start_pos, axis=-1)
                 self.gesture = Gesture(
                     start_pos, [Shape("Circle", Circle(r).translate(start_pos))]
+                )
+            elif self.tool == rectangle:
+                w, h = (jnp.abs(current_pos - start_pos)) * 2
+                self.gesture = Gesture(
+                    start_pos,
+                    [Shape("Rectangle", rectangle(w, h).translate(start_pos))],
                 )
             elif self.tool == Box:
                 w, h = (jnp.abs(current_pos - start_pos)) * 2

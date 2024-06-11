@@ -26,6 +26,7 @@ TOOL_HOTKEYS = {glfw.KEY_C: Circle, glfw.KEY_B: Box}
 
 Gesture = namedtuple("Gesture", ["start_pos", "shapes"])
 Shape = namedtuple("Shape", ["name", "sdf"])
+Transform = namedtuple("Transform", ["translation", "scale"])
 
 
 def memoize(fn):
@@ -217,14 +218,28 @@ class ViewModel:
         glfw.set_mouse_button_callback(window, self.on_mouse_button)
 
         # Window stuff
-        self.window_size = glfw.get_window_size(window)
         self.vsync_enabled = True
+        self._update_transforms(window)
 
         # User-level state
         self.gesture = None
         self.shapes = []
         self.tool = None
         self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
+
+    def _update_transforms(self, window):
+        # About coordinate frames:
+        # - Screen space (GLFW): (0, 0) is top left, y+ down.
+        # - World space (SDF): (0, 0) is center, y+ up.
+        # - ImGui coordinates are the same as GLFW.
+        # - On retina displays, glfw.get_framebuffer_size() returns 2x window
+        #   size, but we don't care about that.
+        self.window_size = glfw.get_window_size(window)
+        hw, hh = self.window_size[0] / 2, self.window_size[1] / 2
+        self.world_transform = Transform(
+            translation=jnp.array([-hw, hh]),
+            scale=jnp.array([1, -1]),
+        )
 
     def on_key(self, window, key, scancode, action, mods):
         if action == glfw.PRESS and key in TOOL_HOTKEYS:
@@ -242,7 +257,7 @@ class ViewModel:
             self.gesture = None
 
     def on_frame(self, window):
-        self.window_size = glfw.get_window_size(window)
+        self._update_transforms(window)
         self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
         gesture, tool = (self.gesture, self.tool)
         if gesture and tool:
@@ -260,12 +275,10 @@ class ViewModel:
                 )
 
     def world_to_screen(self, pt):
-        w, h = self.window_size
-        return p(pt[0] + w / 2, h / 2 - pt[1])
+        return (p(*pt) - self.world_transform.translation) / self.world_transform.scale
 
     def screen_to_world(self, pt):
-        w, h = self.window_size
-        return p(pt[0] - w / 2, h / 2 - pt[1])
+        return p(*pt) * self.world_transform.scale + self.world_transform.translation
 
     @property
     def scene(self):
@@ -292,12 +305,12 @@ def main(solver):
     render_quad = init_quad(gl_context)
 
     @memoize
-    def get_sdf_texture(framebuffer_size):
+    def get_sdf_texture(size):
         """
         Allocate the texture into which we render the SDF.
         Memoized to account for changes to the framebuffer size.
         """
-        return gl_context.texture(framebuffer_size, components=4)
+        return gl_context.texture(size, components=4)
 
     while not glfw.window_should_close(window):
         ###############
@@ -317,9 +330,8 @@ def main(solver):
         gl_context.clear()
 
         # Render SDFs
-        fb_size = glfw.get_framebuffer_size(window)
-        texture = get_sdf_texture(fb_size)
-        buf = render_scene(view_model.scene, fb_size)
+        texture = get_sdf_texture(view_model.window_size)
+        buf = render_scene(view_model.scene, view_model.window_size)
         texture.write(jax.device_get(buf))
         texture.use(0)
         render_quad()

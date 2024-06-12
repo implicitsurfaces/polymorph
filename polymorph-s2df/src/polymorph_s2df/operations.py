@@ -77,7 +77,6 @@ class Translation(Shape):
     def tree_flatten(self):
         return (self.offset, self.shape), None
 
-    @jax.jit
     def distance(self, p):
         return self.shape.distance(p - self.offset)
 
@@ -105,7 +104,6 @@ class Rotation(Shape):
     def tree_flatten(self):
         return (self.angle, self.shape), None
 
-    @jax.jit
     def distance(self, p):
         return self.shape.distance((self.R @ p.T).T)
 
@@ -122,7 +120,6 @@ class Intersection(Shape):
     def tree_flatten(self):
         return (self.shape_1, self.shape_2), None
 
-    # @jax.jit
     def distance(self, p):
         return jnp.maximum(self.shape_1.distance(p), self.shape_2.distance(p))
 
@@ -140,7 +137,6 @@ class SmoothIntersection(Shape):
     def tree_flatten(self):
         return (self.k / 4, self.shape_1, self.shape_2), None
 
-    # @jax.jit
     def distance(self, p):
         val1 = self.shape_1.distance(p)
         val2 = self.shape_2.distance(p)
@@ -163,7 +159,6 @@ class Union(Shape):
     def tree_flatten(self):
         return (self.shape_1, self.shape_2), None
 
-    # @jax.jit
     def distance(self, p):
         return jnp.minimum(self.shape_1.distance(p), self.shape_2.distance(p))
 
@@ -181,7 +176,6 @@ class SmoothUnion(Shape):
     def tree_flatten(self):
         return (self.k / 4, self.shape_1, self.shape_2), None
 
-    # @jax.jit
     def distance(self, p):
         val1 = self.shape_1.distance(p)
         val2 = self.shape_2.distance(p)
@@ -202,7 +196,6 @@ class Substraction(Shape):
     def tree_flatten(self):
         return (self.shape_1, self.shape_2), None
 
-    # @jax.jit
     def distance(self, p):
         return jnp.maximum(self.shape_1.distance(p), -self.shape_2.distance(p))
 
@@ -220,7 +213,6 @@ class SmoothSubstraction(Shape):
     def tree_flatten(self):
         return (self.k / 4, self.shape_1, self.shape_2), None
 
-    # @jax.jit
     def distance(self, p):
         val1 = self.shape_1.distance(p)
         val2 = self.shape_2.distance(p)
@@ -241,7 +233,6 @@ class Scale(Shape):
     def tree_flatten(self):
         return (self.scale, self.shape), None
 
-    @jax.jit
     def distance(self, p):
         return self.shape.distance(p / self.scale) * self.scale
 
@@ -257,7 +248,6 @@ class Inversion(Shape):
     def tree_flatten(self):
         return (self.shape,), None
 
-    @jax.jit
     def distance(self, p):
         return -self.shape.distance(p)
 
@@ -274,7 +264,6 @@ class Dilate(Shape):
     def tree_flatten(self):
         return (self.offset, self.shape), None
 
-    @jax.jit
     def distance(self, p):
         return self.shape.distance(p) - self.offset
 
@@ -288,7 +277,6 @@ class Shell(Shape):
     def __repr__(self):
         return f"Shell(\n  {self.thickness},\n{indent_shape(self.shape)}\n)"
 
-    @jax.jit
     def distance(self, p):
         return jnp.abs(self.shape.distance(p)) - self.thickness
 
@@ -309,7 +297,6 @@ class Morph(Shape):
     def tree_flatten(self):
         return (self.t, self.shape_1, self.shape_2), None
 
-    # @jax.jit
     def distance(self, p):
         return (1 - self.t) * self.shape_1.distance(p) + self.t * self.shape_2.distance(
             p
@@ -329,7 +316,6 @@ class Taper(Shape):
     def tree_flatten(self):
         return (self.height, self.scale, self.shape), None
 
-    @jax.jit
     def distance(self, p):
         s = self.height / (self.scale * p[:, 1] + (self.height - p[:, 1]))
         print(s)

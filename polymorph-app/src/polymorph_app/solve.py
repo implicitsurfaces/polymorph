@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+from jax import grad
 
 from polymorph_s2df import *
 
@@ -39,6 +40,9 @@ def async_solver(pool):
             currently_processing = pool.apply_async(
                 optimize_params, (cost, params, scene)
             )
+
+        g = grad(cost)(params, scene)
+        print(f"grad {g}")
 
         return value if value is not None else params
 

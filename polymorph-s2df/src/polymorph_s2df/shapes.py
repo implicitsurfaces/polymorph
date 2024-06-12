@@ -1,5 +1,4 @@
 import jax.numpy as jnp
-import jax
 
 from jax.tree_util import register_pytree_node_class
 
@@ -19,7 +18,6 @@ class BottomHalfPlane(Shape):
     def tree_flatten(self):
         return (), None
 
-    @jax.jit
     def distance(self, p):
         return p[:, 1]
 
@@ -35,7 +33,6 @@ class TopHalfPlane(Shape):
     def tree_flatten(self):
         return (), None
 
-    @jax.jit
     def distance(self, p):
         return -p[:, 1]
 
@@ -51,7 +48,6 @@ class LeftHalfPlane(Shape):
     def tree_flatten(self):
         return (), None
 
-    @jax.jit
     def distance(self, p):
         return p[:, 0]
 
@@ -67,7 +63,6 @@ class RightHalfPlane(Shape):
     def tree_flatten(self):
         return (), None
 
-    @jax.jit
     def distance(self, p):
         return -p[:, 0]
 
@@ -83,7 +78,6 @@ class Circle(Shape):
     def tree_flatten(self):
         return (self.radius,), None
 
-    @jax.jit
     def distance(self, p):
         return length(p) - self.radius
 
@@ -104,7 +98,6 @@ class Box(Shape):
     def tree_flatten(self):
         return (self.width, self.height), None
 
-    @jax.jit
     def distance(self, p):
         q = jnp.abs(p) - self.center
         return length(soft_plus(q)) + soft_minus(jnp.amax(q, axis=1))

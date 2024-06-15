@@ -1,16 +1,24 @@
 import node as n
-import math
+import jax
+from jax import Array
+from jax import numpy as jnp
 
-def eval(node: n.Node, params) -> float:
+def eval(node: n.Node, params) -> Array:
     match node:
-        case n.Constant(value):
-            return value
+        case n.Scalar(value):
+            return jnp.array(value)
+        
+        case n.Vector(value):
+            return jnp.array(value)
+        
+        case n.Broadcast(orig, dim):
+            return eval(orig, params)
         
         case n.Unary(orig, op):
             o = eval(orig, params)
             match op:
                 case n.UnOp.Sqrt:
-                    return math.sqrt(o)
+                    return jnp.sqrt(o)
                 
         case n.Binary(left, right, op):
             l = eval(left, params)
@@ -27,5 +35,8 @@ def eval(node: n.Node, params) -> float:
                 
         case n.Var(pos):
             return params[pos]
+        
+        case n.Sum(orig):
+            return jnp.sum(eval(orig, params))
         
     raise ValueError()

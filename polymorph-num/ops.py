@@ -1,7 +1,10 @@
 import node
 
-def var(pos: int):
-    return node.Var(pos)
+counter = 0
+def param():
+    global counter
+    counter += 1
+    return node.Param(counter)
 
 def vec(value: list[float]):
     return node.Vector(value)

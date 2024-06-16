@@ -21,8 +21,10 @@ class UnOp(Enum):
   Sqrt = "sqrt"
 
 class Node:
+  dim: int
+  
   def __init__(self, dim):
-    self.dim = dim
+    object.__setattr__(self, "dim", dim)
 
   def __mul__(self, other):
     return self.__binary(other, BinOp.Mul)
@@ -37,37 +39,38 @@ class Node:
     return self.__binary(other, BinOp.Div)
 
   def __binary(self, other, op):
-    if(self.dim == other.dim):
-      return Binary(self, as_node(other), op)
+    o = as_node(other)
+    if(self.dim == o.dim):
+      return Binary(self, o, op)
     elif(self.dim == 1):
-        return Binary(Broadcast(self, other.dim), other, op)
-    elif(other.dim == 1):
-        return Binary(self, Broadcast(other, self.dim), op)
+        return Binary(Broadcast(self, o.dim), o, op)
+    elif(o.dim == 1):
+        return Binary(self, Broadcast(o, self.dim), op)
     
     raise ValueError()
 
-@dataclass
-class Var(Node):
-  position: int
+@dataclass(frozen=True)
+class Param(Node):
+  id: int
 
   def __post_init__(self):
     super().__init__(1)
 
-@dataclass
+@dataclass(frozen=True)
 class Scalar(Node):
   value: float
 
   def __post_init__(self):
     super().__init__(1)
 
-@dataclass
+@dataclass(frozen=True)
 class Vector(Node):
   value: list[float]
 
   def __post_init__(self):
     super().__init__(len(self.value))
 
-@dataclass
+@dataclass(frozen=True)
 class Binary(Node):
   left: Node
   right: Node
@@ -79,7 +82,7 @@ class Binary(Node):
     else:
       raise ValueError()
 
-@dataclass
+@dataclass(frozen=True)
 class Unary(Node):
   orig: Node
   op: UnOp
@@ -87,12 +90,12 @@ class Unary(Node):
   def __post_init__(self):
     super().__init__(self.orig.dim)
 
-@dataclass
+@dataclass(frozen=True)
 class Broadcast(Node):
   orig: Node
   dim: int
 
-@dataclass
+@dataclass(frozen=True)
 class Sum(Node):
   orig: Node
 

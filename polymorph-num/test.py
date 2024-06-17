@@ -15,3 +15,7 @@ d = circle_sdf(r, c, point.Point(1, 1))
 loss = d*d
 solution = jax_eval.minimize(loss)
 print(solution.eval(r))
+
+v = ops.vec([1., 3.])
+d2 = circle_sdf(r, c, point.Point(v, v))
+print(solution.eval(d2))

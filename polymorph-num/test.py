@@ -1,7 +1,7 @@
 import ops
-import jax_eval
+import optimizer
 import point
-import params
+import loss
 
 def circle_sdf(radius, center, point):
     dx = center.x - point.x
@@ -9,13 +9,19 @@ def circle_sdf(radius, center, point):
     dist = ops.sqrt(dx*dx + dy*dy)
     return dist - radius
 
-r = ops.param() * 5
+r = ops.param()
 c = point.Point(0,0)
 d = circle_sdf(r, c, point.Point(1, 1))
-loss = d*d
-solution = jax_eval.minimize(loss)
-print(solution.eval(r))
+l = loss.Loss(d*d)
+l.register_output(r)
+opt = optimizer.Optimizer(l)
+soln = opt.optimize({})
+print(soln.eval(r))
+#solution = optimizer.minimize(loss)
+#print(solution.eval(r))
+
+l.register_output(d)
 
 v = ops.vec([1., 3.])
 d2 = circle_sdf(r, c, point.Point(v, v))
-print(solution.eval(d2))
+#print(solution.eval(ops.sum(d2)))

@@ -1,17 +1,15 @@
-import jax.numpy as jnp
-from jax import grad
+from timeit import default_timer as timer
 
+import jax.numpy as jnp
+import optimistix
+from jax import grad
 from polymorph_s2df import *
 
 
-import optimistix
-from timeit import default_timer as timer
-
-
-def optimize_params(cost, params, scene):
+def optimize_params(cost, params, sdf):
     solver = optimistix.BFGS(rtol=1e-5, atol=1e-6)
     start = timer()
-    solution = optimistix.minimise(cost, solver, params, scene, throw=False)
+    solution = optimistix.minimise(cost, solver, params, sdf, throw=False)
     elapsed = timer() - start
     print(
         "{0} steps in {1:.3f} seconds".format(solution.stats.get("num_steps"), elapsed)
@@ -29,7 +27,7 @@ def async_solver(pool):
     value = None
     currently_processing = False
 
-    def solver(params, scene):
+    def solver(params, sdf):
         nonlocal value, currently_processing
 
         if currently_processing and currently_processing.ready():
@@ -38,10 +36,10 @@ def async_solver(pool):
 
         if not currently_processing:
             currently_processing = pool.apply_async(
-                optimize_params, (cost, params, scene)
+                optimize_params, (cost, params, sdf)
             )
 
-        g = grad(cost)(params, scene)
+        g = grad(cost)(params, sdf)
         print(f"grad {g}")
 
         return value if value is not None else params
@@ -49,5 +47,5 @@ def async_solver(pool):
     return solver
 
 
-def sync_solver(params, scene):
-    return optimize_params(cost, params, scene)
+def sync_solver(params, sdf):
+    return optimize_params(cost, params, sdf)

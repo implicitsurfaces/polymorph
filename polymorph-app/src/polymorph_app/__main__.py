@@ -1,39 +1,32 @@
-import moderngl
-
-import numpy as np
-import jax
-import jax.numpy as jnp
 import multiprocessing
-
-from polymorph_s2df import *
-
+import sys
 from collections import namedtuple
+from functools import lru_cache
+
 import glfw
 import imgui
-from functools import lru_cache, reduce
+import jax
+import jax.numpy as jnp
+import moderngl
+import numpy as np
 from imgui.integrations.glfw import GlfwRenderer
-import sys
+from polymorph_s2df import p, polygon
 
+from .graph import Circle, Graph, Rect, Shape
 from .solve import async_solver
 
 INITIAL_WINDOW_SIZE = (800, 600)
 
 
-def rectangle(w, h):
-    if w == 0 or h == 0:
-        return Circle(0)
-    return polygon(
-        [p(-w / 2, -h / 2), p(w / 2, -h / 2), p(w / 2, h / 2), p(-w / 2, h / 2)]
-    )
-
-
 # Maps from a glfw key constant (https://www.glfw.org/docs/3.3/group__keys.html)
 # to a s2df constructor.
-TOOL_HOTKEYS = {glfw.KEY_C: Circle, glfw.KEY_B: Box, glfw.KEY_R: rectangle}
+TOOL_HOTKEYS = {
+    glfw.KEY_C: Circle,
+    glfw.KEY_B: Rect,
+    # glfw.KEY_R: rectangle
+}
 
 
-Gesture = namedtuple("Gesture", ["start_pos", "shapes"])
-Shape = namedtuple("Shape", ["name", "sdf"])
 Transform = namedtuple("Transform", ["translation", "scale"])
 
 
@@ -176,8 +169,8 @@ def render_shapes_tree(vm):
     imgui.begin(
         "Shapes", closable=False, flags=imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE
     )
-    for s in vm.shapes:
-        if imgui.tree_node(s.name, imgui.TREE_NODE_LEAF):
+    for s in vm.graph.nodes:
+        if imgui.tree_node(s.classname(), imgui.TREE_NODE_LEAF):
             imgui.tree_pop()
     imgui.end()
 
@@ -230,8 +223,9 @@ class ViewModel:
         self._update_transforms(window)
 
         # User-level state
-        self.gesture = None
-        self.shapes = []
+        self.gesture_start_pos = None
+        self.active_shape = None
+        self.graph = Graph()
         self.tool = None
         self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
 
@@ -258,49 +252,25 @@ class ViewModel:
             return
 
         if action == glfw.PRESS:
-            pos = self.screen_to_world(glfw.get_cursor_pos(window))
-            self.gesture = Gesture(p(*pos), [])
+            pos = p(*self.screen_to_world(glfw.get_cursor_pos(window)))
+            self.gesture_start_pos = pos
+            if self.tool:
+                self.active_shape = self.graph.add(self.tool)
         elif action == glfw.RELEASE:
-            self.shapes = self.shapes + self.gesture.shapes
-            self.gesture = None
+            self.gesture_start_pos = None
+            self.active_shape = None
 
     def on_frame(self, window):
         self._update_transforms(window)
         self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
-        gesture, tool = (self.gesture, self.tool)
-        if gesture and tool:
-            current_pos = self.cursor_world
-            start_pos = gesture.start_pos
-            if tool == Circle:
-                r = jnp.linalg.norm(current_pos - start_pos, axis=-1)
-                self.gesture = Gesture(
-                    start_pos, [Shape("Circle", Circle(r).translate(start_pos))]
-                )
-            elif self.tool == rectangle:
-                w, h = (jnp.abs(current_pos - start_pos)) * 2
-                self.gesture = Gesture(
-                    start_pos,
-                    [Shape("Rectangle", rectangle(w, h).translate(start_pos))],
-                )
-            elif self.tool == Box:
-                w, h = (jnp.abs(current_pos - start_pos)) * 2
-                self.gesture = Gesture(
-                    start_pos, [Shape("Box", Box(w, h).translate(start_pos))]
-                )
+        if self.active_shape:
+            self.active_shape.grow(self.gesture_start_pos, self.cursor_world)
 
     def world_to_screen(self, pt):
         return (p(*pt) - self.world_transform.translation) / self.world_transform.scale
 
     def screen_to_world(self, pt):
         return p(*pt) * self.world_transform.scale + self.world_transform.translation
-
-    @property
-    def scene(self):
-        """Returns an SDF representing the current scene to be rendered."""
-        all_shapes = self.shapes + (self.gesture.shapes if self.gesture else [])
-        return reduce(
-            lambda a, b: Union(a, b), map(lambda s: s.sdf, all_shapes), Circle(0)
-        )
 
 
 def main(solver):
@@ -335,8 +305,9 @@ def main(solver):
 
         view_model.on_frame(window)
 
-        initial_params = get_params(view_model.cursor_world, view_model.scene)
-        params = solver(initial_params, view_model.scene)
+        scene = view_model.graph.to_sdf()  # TODO: Don't do this every frame
+        initial_params = get_params(view_model.cursor_world, scene)
+        params = solver(initial_params, scene)
 
         ###########
         ## Render
@@ -345,7 +316,7 @@ def main(solver):
 
         # Render SDFs
         texture = get_sdf_texture(view_model.window_size)
-        buf = render_scene(view_model.scene, view_model.window_size)
+        buf = render_scene(scene, view_model.window_size)
         texture.write(jax.device_get(buf))
         texture.use(0)
         render_quad()

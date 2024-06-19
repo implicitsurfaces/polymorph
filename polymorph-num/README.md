@@ -2,7 +2,7 @@ For now this is just a quick note to get people up to speed on the latest change
 
 As well as `Parameter` nodes, there are now `Observation` nodes.
 Parameter nodes are for unknown values that we want the optimizer to find. They are not named, and their creation is generally encapsulated because the parameterization is an implementation detail of the model.
-Observation nodes are for values that are known at any point in time, but will change rapidly and interactively (dragging a point, moving a slider). They are named (eg, `ops.observation("mouse_x")`).
+Observation nodes are for values that are known at any point in time, but will change rapidly and interactively (dragging a point, moving a slider). They are named (a canonical example would be `ops.observation("mouse_x")`). It's expected that these will be created more at the top level where the names are known and known to be unique.
 
 After you create a node graph with parameters and (optionally) observations, you need to:
 
@@ -15,3 +15,5 @@ After you create a node graph with parameters and (optionally) observations, you
 The node objects are immutable, as are the Solution objects. The solution objects store both the observation values they were created with, and the discovered optimal parameter values, and will use both of these in the evaluation. There's no problem creating multiple different solutions from the same Optimizer and evaluating the same node objects with them; the results will always be consistent.
 
 See test.py for a very simple demonstration of this.
+
+A note particularly about rendering SDFs: in theory the right way to do this would be to create a pair of `ops.vec` objects representing all the x,y points you want to evaluate at, and register that as an output node. Maybe this will work fine, but this seems like a possible place we might want to make the API either more ergonomic (some kind of special case?) or performant (if the use of naive python lists of floats is bad).

@@ -12,17 +12,19 @@ import numpy as np
 from imgui.integrations.glfw import GlfwRenderer
 from polymorph_s2df import p, polygon
 
-from .graph import Circle, Graph, Rect, Shape
+from .graph import Circle, Graph, Polygon, Rect, Shape
 from .solve import async_solver
+from .tools import CircleTool, PolygonTool, RectTool
 
 INITIAL_WINDOW_SIZE = (800, 600)
 
 
 # Maps from a glfw key constant (https://www.glfw.org/docs/3.3/group__keys.html)
-# to a s2df constructor.
+# to a tool constructor.
 TOOL_HOTKEYS = {
-    glfw.KEY_C: Circle,
-    glfw.KEY_B: Rect,
+    glfw.KEY_C: CircleTool,
+    glfw.KEY_B: RectTool,
+    glfw.KEY_P: PolygonTool,
     # glfw.KEY_R: rectangle
 }
 
@@ -223,8 +225,6 @@ class ViewModel:
         self._update_transforms(window)
 
         # User-level state
-        self.gesture_start_pos = None
-        self.active_shape = None
         self.graph = Graph()
         self.tool = None
         self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
@@ -245,26 +245,23 @@ class ViewModel:
 
     def on_key(self, window, key, scancode, action, mods):
         if action == glfw.PRESS and key in TOOL_HOTKEYS:
-            self.tool = TOOL_HOTKEYS[key]
+            self.tool = TOOL_HOTKEYS[key](self)
+        if self.tool:
+            self.tool.handle_key(key, action, mods)
 
     def on_mouse_button(self, window, button, action, mods):
         if imgui.get_io().want_capture_mouse or button != glfw.MOUSE_BUTTON_LEFT:
             return
 
-        if action == glfw.PRESS:
+        if self.tool:
             pos = p(*self.screen_to_world(glfw.get_cursor_pos(window)))
-            self.gesture_start_pos = pos
-            if self.tool:
-                self.active_shape = self.graph.add(self.tool)
-        elif action == glfw.RELEASE:
-            self.gesture_start_pos = None
-            self.active_shape = None
+            self.tool.handle_mouse_button(pos, action)
 
     def on_frame(self, window):
         self._update_transforms(window)
         self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
-        if self.active_shape:
-            self.active_shape.grow(self.gesture_start_pos, self.cursor_world)
+        if self.tool:
+            self.tool.handle_frame(self.cursor_world)
 
     def world_to_screen(self, pt):
         return (p(*pt) - self.world_transform.translation) / self.world_transform.scale

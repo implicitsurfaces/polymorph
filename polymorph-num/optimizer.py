@@ -10,22 +10,27 @@ class Optimizer:
         self.solver = optimistix.BFGS(rtol=1e-5, atol=1e-6)
         self.loss = l
         self.compiled_nodes = {}
+        def err(p, d):
+            return self._eval(self.loss.loss, p, d)
+        self.loss_fn = jax.jit(err)
         for n in l.nodes:
             self.compiled_nodes[n] = self._compile(n)
 
     def optimize(self, obs_dict):
         params = jnp.full(self.loss.params.count, 0.0)
-        def err(p, d):
-            return _eval(self.loss.loss, p, self.loss.params, d)
-        soln = optimistix.minimise(err, self.solver, params, obs_dict, max_steps=1000, throw=False)
+        soln = optimistix.minimise(self.loss_fn, self.solver, params, obs_dict, max_steps=1000, throw=False)
         return Solution(self.compiled_nodes, soln.value, obs_dict)
 
     def _compile(self, node):
         def err(p, d):
-            return _eval(node, p, self.loss.params, d)
+            return self._eval(node, p, d)
         params = jnp.full(self.loss.params.count, 0.0)
         fn = jax.jit(err).lower(params, self.loss.observations).compile()
         return fn
+    
+    def _eval(self, node, p, d):
+        print("tracing")
+        return _eval(node, p, self.loss.params, d)
 
 class Solution:
     def __init__(self, compiled_nodes, params, obs_dict):

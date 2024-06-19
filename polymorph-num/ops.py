@@ -20,3 +20,6 @@ def sum(n: node.Node):
         raise ValueError()
 
     return node.Sum(n)
+
+def sigmoid(x: node.Node):
+    return node.Unary(x, node.UnOp.Sigmoid)

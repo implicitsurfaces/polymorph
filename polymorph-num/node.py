@@ -19,6 +19,7 @@ class BinOp(Enum):
 
 class UnOp(Enum):
   Sqrt = "sqrt"
+  Sigmoid = "sigmoid"
 
 class Node:
   dim: int

@@ -3,6 +3,7 @@ import loss
 import jax
 from jax import Array
 from jax import numpy as jnp
+import jax.nn
 import optimistix
 
 class Optimizer:
@@ -57,6 +58,8 @@ def _eval(node: n.Node, params, param_map, obs_dict) -> Array:
             match op:
                 case n.UnOp.Sqrt:
                     return jnp.sqrt(o)
+                case n.UnOp.Sigmoid:
+                    return jax.nn.sigmoid(o)
                 
         case n.Binary(left, right, op):
             l = _eval(left, params, param_map, obs_dict)

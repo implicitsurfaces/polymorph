@@ -1,6 +1,7 @@
 import glfw
+import imgui
 
-from .graph import Circle, Polygon, Rect
+from .graph import Box, Circle, Polygon
 
 
 class Tool:
@@ -45,6 +46,9 @@ class Tool:
     def escape(self):
         pass
 
+    def render_feedback(self, view_model, draw_list):
+        pass
+
 
 class CircleTool(Tool):
     def mousedown(self, pos):
@@ -57,9 +61,9 @@ class CircleTool(Tool):
         self.shape = None
 
 
-class RectTool(Tool):
+class BoxTool(Tool):
     def mousedown(self, pos):
-        self.shape = self.view_model.graph.add(Rect)
+        self.shape = self.view_model.graph.add(Box)
 
     def mousedrag(self, pos, start_pos):
         self.shape.adjust(start_pos, pos)
@@ -83,3 +87,13 @@ class PolygonTool(Tool):
 
     def escape(self):
         self.shape = None
+
+    def render_feedback(self, view_model, draw_list):
+        if self.shape:
+            color = imgui.get_color_u32_rgba(1, 1, 1, 1)
+            draw_list.add_polyline(
+                [view_model.world_to_screen(p) for p in self.shape.points],
+                color,
+                flags=imgui.DRAW_NONE,
+                thickness=1,
+            )

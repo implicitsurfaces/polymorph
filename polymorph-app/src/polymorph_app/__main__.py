@@ -12,9 +12,9 @@ import numpy as np
 from imgui.integrations.glfw import GlfwRenderer
 from polymorph_s2df import p, polygon
 
-from .graph import Circle, Graph, Polygon, Rect, Shape
+from .graph import Box, Circle, Graph, Polygon, Shape
 from .solve import async_solver
-from .tools import CircleTool, PolygonTool, RectTool
+from .tools import BoxTool, CircleTool, PolygonTool
 
 INITIAL_WINDOW_SIZE = (800, 600)
 
@@ -23,7 +23,7 @@ INITIAL_WINDOW_SIZE = (800, 600)
 # to a tool constructor.
 TOOL_HOTKEYS = {
     glfw.KEY_C: CircleTool,
-    glfw.KEY_B: RectTool,
+    glfw.KEY_B: BoxTool,
     glfw.KEY_P: PolygonTool,
     # glfw.KEY_R: rectangle
 }
@@ -200,6 +200,9 @@ def render_overlay(vm, params):
     draw_list.add_circle_filled(
         x_screen, y_screen, 4, imgui.get_color_u32_rgba(1, 0, 0, 1)
     )
+
+    if vm.tool:
+        vm.tool.render_feedback(vm, draw_list)
 
     imgui.end()
 

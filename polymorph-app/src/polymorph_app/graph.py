@@ -47,7 +47,7 @@ class Circle(Node):
         self.radius = jnp.linalg.norm(v2 - v1)
 
 
-class Rect(Node):
+class Box(Node):
     p1: Point = (0.0, 0.0)
     p2: Point = (0.0, 0.0)
 

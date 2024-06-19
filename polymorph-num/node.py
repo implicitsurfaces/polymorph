@@ -35,7 +35,7 @@ class Node:
   def __sub__(self, other):
     return self.__binary(other, BinOp.Sub)
   
-  def __div__(self, other):
+  def __truediv__(self, other):
     return self.__binary(other, BinOp.Div)
 
   def __binary(self, other, op):

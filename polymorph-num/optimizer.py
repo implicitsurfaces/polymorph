@@ -24,7 +24,7 @@ class Optimizer:
         def err(p, d):
             return _eval(node, p, self.loss.params, d)
         params = jnp.full(self.loss.params.count, 0.0)
-        fn = jax.jit(err).lower(params, {}).compile()
+        fn = jax.jit(err).lower(params, self.loss.observations).compile()
         return fn
 
 class Solution:
@@ -68,6 +68,9 @@ def _eval(node: n.Node, params, param_map, obs_dict) -> Array:
                 
         case n.Param():
             return param_map.get(node, params)
+        
+        case n.Observation(name):
+            return obs_dict[name]
         
         case n.Sum(orig):
             return jnp.sum(_eval(orig, params, param_map, obs_dict))

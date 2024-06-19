@@ -4,14 +4,13 @@ class Loss():
     def __init__(self, loss):
         self.loss = loss
         self.params = ParamMap()
-        self.observations = ParamMap()
+        self.observations = {}
         _find_params(loss, self.params, self.observations)
         self.nodes = []
-        self.loss_observations = self.observations.nodes()
 
     def register_output(self, node):
         node_params = ParamMap()
-        _find_params(node, node_params, self.observations)
+        _find_params(node, node_params, {})
         extra_params = node_params.nodes() - self.params.nodes()
         if len(extra_params) > 0:
             raise ValueError()
@@ -31,6 +30,9 @@ def _find_params(node, params, observations):
             
         case n.Param(id):
             params.add(node)
+
+        case n.Observation(name):
+            observations[name] = 0.0
     
         case n.Sum(orig):
             _find_params(orig, params, observations)

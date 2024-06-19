@@ -11,17 +11,16 @@ def circle_sdf(radius, center, point):
 
 r = ops.param()
 c = point.Point(0,0)
-d = circle_sdf(r, c, point.Point(1, 1))
+obs_pt = point.Point(ops.observation("x"), ops.observation("y"))
+d = circle_sdf(r, c, obs_pt)
+q = obs_pt.x * r
 l = loss.Loss(d*d)
 l.register_output(r)
+l.register_output(q)
 opt = optimizer.Optimizer(l)
-soln = opt.optimize({})
+soln = opt.optimize({"x": 1.0, "y": 1.0})
+soln2 = opt.optimize({"x": 2.0, "y": 1.0})
 print(soln.eval(r))
-#solution = optimizer.minimize(loss)
-#print(solution.eval(r))
-
-l.register_output(d)
-
-v = ops.vec([1., 3.])
-d2 = circle_sdf(r, c, point.Point(v, v))
-#print(solution.eval(ops.sum(d2)))
+print(soln.eval(q))
+print(soln2.eval(r))
+print(soln2.eval(q))

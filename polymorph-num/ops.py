@@ -6,6 +6,9 @@ def param():
     counter += 1
     return node.Param(counter)
 
+def observation(name):
+    return node.Observation(name)
+
 def vec(value: list[float]):
     return node.Vector(value)
 

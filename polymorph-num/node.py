@@ -57,6 +57,13 @@ class Param(Node):
     super().__init__(1)
 
 @dataclass(frozen=True)
+class Observation(Node):
+  name: str
+
+  def __post_init__(self):
+    super().__init__(1)
+
+@dataclass(frozen=True)
 class Scalar(Node):
   value: float
 

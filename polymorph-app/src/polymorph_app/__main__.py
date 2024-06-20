@@ -10,6 +10,7 @@ import jax.numpy as jnp
 import moderngl
 import numpy as np
 from imgui.integrations.glfw import GlfwRenderer
+from polymorph_num import loss, optimizer
 from polymorph_s2df import p, polygon
 
 from .graph import Box, Circle, Graph, Polygon, Shape
@@ -196,10 +197,11 @@ def render_overlay(vm, params):
     )
 
     draw_list = imgui.get_window_draw_list()
-    x_screen, y_screen = vm.world_to_screen((params[0], params[1]))
-    draw_list.add_circle_filled(
-        x_screen, y_screen, 4, imgui.get_color_u32_rgba(1, 0, 0, 1)
-    )
+    if params is not None:
+        x_screen, y_screen = vm.world_to_screen((params[0], params[1]))
+        draw_list.add_circle_filled(
+            x_screen, y_screen, 4, imgui.get_color_u32_rgba(1, 0, 0, 1)
+        )
 
     if vm.tool:
         vm.tool.render_feedback(vm, draw_list)
@@ -305,9 +307,12 @@ def main(solver):
 
         view_model.on_frame(window)
 
-        scene = view_model.graph.to_sdf()  # TODO: Don't do this every frame
-        initial_params = get_params(view_model.cursor_world, scene)
-        params = solver(initial_params, scene)
+        l = view_model.graph.total_loss()
+
+        opt = optimizer.Optimizer(l)
+        soln = opt.optimize({})
+
+        scene = view_model.graph.to_sdf(soln)
 
         ###########
         ## Render
@@ -322,7 +327,7 @@ def main(solver):
         render_quad()
 
         # Render ImGui
-        render_ui(imgui_glfw_renderer, view_model, params)
+        render_ui(imgui_glfw_renderer, view_model, None)
 
         glfw.swap_buffers(window)
 

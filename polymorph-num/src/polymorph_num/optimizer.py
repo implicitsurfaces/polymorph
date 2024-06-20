@@ -1,4 +1,5 @@
 from . import node as n, loss
+from . import point
 import jax
 from jax import Array
 from jax import numpy as jnp
@@ -67,6 +68,8 @@ def _eval(node: n.Node, params, param_map, obs_dict) -> Array:
                     return jnp.sqrt(o)
                 case n.UnOp.Sigmoid:
                     return jax.nn.sigmoid(o)
+                case n.UnOp.SmoothAbs:
+                    return o * jnp.tanh(10.0 * o)
 
         case n.Binary(left, right, op):
             l = _eval(left, params, param_map, obs_dict)
@@ -89,3 +92,11 @@ def _eval(node: n.Node, params, param_map, obs_dict) -> Array:
 
         case n.Sum(orig):
             return jnp.sum(_eval(orig, params, param_map, obs_dict))
+
+        case point.Point(x, y):
+            return jnp.array(
+                [
+                    _eval(x, params, param_map, obs_dict),
+                    _eval(y, params, param_map, obs_dict),
+                ]
+            )

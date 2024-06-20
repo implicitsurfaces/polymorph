@@ -30,3 +30,7 @@ def sum(n: node.Node):
 
 def sigmoid(x: node.Node):
     return node.Unary(x, node.UnOp.Sigmoid)
+
+
+def smoothabs(x: node.Node):
+    return node.Unary(x, node.UnOp.SmoothAbs)

@@ -13,8 +13,7 @@ def as_node(x):
     elif isinstance(x, jnp.ndarray) and 1 == len(x.shape):
         return Vector(x)
 
-    print("Cannot convert to node:\n", repr(x))
-    raise ValueError()
+    raise ValueError(f"{x} ({type(x)})")
 
 
 class BinOp(Enum):
@@ -27,6 +26,7 @@ class BinOp(Enum):
 class UnOp(Enum):
     Sqrt = "sqrt"
     Sigmoid = "sigmoid"
+    SmoothAbs = "smoothabs"
 
 
 class Node:

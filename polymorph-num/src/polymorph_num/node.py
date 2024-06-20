@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+import jax.numpy as jnp
 
 
 def as_node(x):
@@ -9,7 +10,10 @@ def as_node(x):
         return Scalar(x)
     elif isinstance(x, int):
         return Scalar(float(x))
+    elif isinstance(x, jnp.ndarray) and 1 == len(x.shape):
+        return Vector(x)
 
+    print("Cannot convert to node:\n", repr(x))
     raise ValueError()
 
 

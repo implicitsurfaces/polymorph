@@ -11,9 +11,9 @@ def optimize_params(cost, params, sdf):
     start = timer()
     solution = optimistix.minimise(cost, solver, params, sdf, throw=False)
     elapsed = timer() - start
-    print(
-        "{0} steps in {1:.3f} seconds".format(solution.stats.get("num_steps"), elapsed)
-    )
+    # print(
+    #     "{0} steps in {1:.3f} seconds".format(solution.stats.get("num_steps"), elapsed)
+    # )
     return solution.value
 
 
@@ -40,7 +40,7 @@ def async_solver(pool):
             )
 
         g = grad(cost)(params, sdf)
-        print(f"grad {g}")
+        # print(f"grad {g}")
 
         return value if value is not None else params
 

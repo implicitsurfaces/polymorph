@@ -119,5 +119,5 @@ class Broadcast(Node):
 class Sum(Node):
     orig: Node
 
-    def __post__init(self):
+    def __post_init__(self):
         super().__init__(1)

@@ -2,12 +2,7 @@
 name = "polymorph-s2df"
 version = "0.1.0"
 description = "Add your description here"
-authors = [
-    { name = "Steve Genoud", email = "steve@sgenoud.com" }
-]
-dependencies = [
-    "jax>=0.4.28",
-]
+dependencies = ["jax>=0.4.28"]
 readme = "README.md"
 requires-python = ">= 3.12"
 

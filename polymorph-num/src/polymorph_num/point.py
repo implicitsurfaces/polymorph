@@ -1,4 +1,5 @@
-import node
+from . import node
+
 
 class Point:
     x: node.Node

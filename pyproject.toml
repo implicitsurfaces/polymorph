@@ -2,7 +2,12 @@
 name = "polymorph"
 version = "0.1.0"
 description = "Add your description here"
-authors = []
+authors = [
+    { name = "Avi Bryant", email = "avi@avibryant.com" },
+    { name = "Kevin J. Lynagh", email = "kevin@keminglabs.com" },
+    { name = "Patrick Dubroy", email = "pdubroy@gmail.com" },
+    { name = "Steve Genoud", email = "steve@sgenoud.com" },
+]
 dependencies = [
     "matplotlib>=3.8.4",
     "ruff>=0.4.4",

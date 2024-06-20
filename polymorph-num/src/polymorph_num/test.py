@@ -1,20 +1,19 @@
-import ops
-import optimizer
-import point
-import loss
+from . import ops, optimizer, point, loss
+
 
 def circle_sdf(radius, center, point):
     dx = center.x - point.x
     dy = center.y - point.y
-    dist = ops.sqrt(dx*dx + dy*dy)
+    dist = ops.sqrt(dx * dx + dy * dy)
     return dist - radius
 
+
 r = ops.param()
-c = point.Point(0,0)
+c = point.Point(0, 0)
 obs_pt = point.Point(ops.observation("x"), ops.observation("y"))
 d = circle_sdf(r, c, obs_pt)
 q = obs_pt.x * r
-l = loss.Loss(d*d)
+l = loss.Loss(d * d)
 l.register_output(r)
 l.register_output(q)
 opt = optimizer.Optimizer(l)

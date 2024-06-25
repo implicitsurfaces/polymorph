@@ -59,6 +59,15 @@ class Expr:
 
         raise ValueError()
 
+    def sqrt(self):
+        return Unary(self, UnOp.Sqrt)
+
+    def sigmoid(self):
+        return Unary(self, UnOp.Sigmoid)
+
+    def smoothabs(self):
+        return Unary(self, UnOp.SmoothAbs)
+
 
 @dataclass(frozen=True)
 class Param(Expr):

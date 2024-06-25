@@ -2,7 +2,7 @@ from typing import Callable, FrozenSet, List, Self
 
 import jax.numpy as jnp
 import polymorph_s2df as s2df
-from polymorph_num import loss, ops
+from polymorph_num import loss
 from polymorph_num.expr import Expr, as_expr
 from polymorph_num.point import Point
 
@@ -80,8 +80,8 @@ class Box(Node):
 
     def register_outputs(self, loss):
         center = Point.origin() + (self.p1 + self.p2) / 2
-        w = ops.smoothabs(self.p2.x - self.p1.x)
-        h = ops.smoothabs(self.p2.y - self.p1.y)
+        w = (self.p2.x - self.p1.x).smoothabs()
+        h = (self.p2.y - self.p1.y).smoothabs()
         self._outputs = [w, h, center]
         for o in self._outputs:
             loss.register_output(o)

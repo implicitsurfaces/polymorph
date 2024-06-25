@@ -1,4 +1,4 @@
-from polymorph_num import loss, ops, optimizer, point
+from . import loss, ops, optimizer, point
 
 
 def circle_sdf(radius, center, point):

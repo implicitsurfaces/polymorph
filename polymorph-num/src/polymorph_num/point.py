@@ -1,4 +1,4 @@
-from . import expr, ops
+from . import expr
 
 
 class Point:
@@ -40,4 +40,4 @@ class Vec2:
         return Vec2(self.x / expr.as_expr(other), self.y / expr.as_expr(other))
 
     def length(self):
-        return ops.sqrt(self.x * self.x + self.y * self.y)
+        return (self.x * self.x + self.y * self.y).sqrt()

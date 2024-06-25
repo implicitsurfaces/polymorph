@@ -10,10 +10,10 @@ import jax.numpy as jnp
 import moderngl
 import numpy as np
 from imgui.integrations.glfw import GlfwRenderer
-from polymorph_num import loss, optimizer
-from polymorph_s2df import p, polygon
+from polymorph_num import optimizer
+from polymorph_s2df import p
 
-from .graph import Box, Circle, Graph, Polygon, Shape
+from .graph import Graph
 from .solve import async_solver
 from .tools import BoxTool, CircleTool, PolygonTool
 
@@ -307,9 +307,9 @@ def main(solver):
 
         view_model.on_frame(window)
 
-        l = view_model.graph.total_loss()
+        loss = view_model.graph.total_loss()
 
-        opt = optimizer.Optimizer(l)
+        opt = optimizer.Optimizer(loss)
         soln = opt.optimize({})
 
         scene = view_model.graph.to_sdf(soln)

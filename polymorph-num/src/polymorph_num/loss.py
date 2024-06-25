@@ -20,17 +20,17 @@ class Loss:
 
 def _find_params(node, params, observations):
     match node:
-        case e.Broadcast(orig, dim):
+        case e.Broadcast(orig, _dim):
             _find_params(orig, params, observations)
 
-        case e.Unary(orig, op):
+        case e.Unary(orig, _op):
             _find_params(orig, params, observations)
 
-        case e.Binary(left, right, op):
+        case e.Binary(left, right, _op):
             _find_params(left, params, observations)
             _find_params(right, params, observations)
 
-        case e.Param(id):
+        case e.Param(_id):
             params.add(node)
 
         case e.Observation(name):

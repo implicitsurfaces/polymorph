@@ -1,4 +1,4 @@
-from . import expr as e, loss
+from . import expr as e
 from . import point
 import jax
 from jax import Array

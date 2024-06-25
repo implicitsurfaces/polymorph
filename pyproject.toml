@@ -47,3 +47,7 @@ members = ["polymorph-*"]
 
 [tool.rye.scripts]
 polymorph = "python -m polymorph_app"
+
+[tool.ruff.lint]
+ignore = ["E741"]
+exclude = ["pat/*"]

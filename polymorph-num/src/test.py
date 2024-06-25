@@ -8,7 +8,7 @@ def circle_sdf(radius, center, point):
     return dist - radius
 
 
-r = ops.param()
+r = ops.param()  # ok
 c = vec.Vec2(0, 0)
 obs_pt = vec.Vec2(ops.observation("x"), ops.observation("y"))
 d = circle_sdf(r, c, obs_pt)

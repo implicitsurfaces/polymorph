@@ -22,6 +22,7 @@ class BinOp(Enum):
     Add = "add"
     Div = "div"
     Sub = "sub"
+    Exp = "exp"
 
 
 class UnOp(Enum):
@@ -47,6 +48,9 @@ class Expr:
 
     def __truediv__(self, other):
         return self.__binary(other, BinOp.Div)
+
+    def __pow__(self, exponent):
+        return self.__binary(exponent, BinOp.Exp)
 
     def __binary(self, other, op):
         o = as_expr(other)

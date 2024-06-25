@@ -84,6 +84,8 @@ def _eval(expr: e.Expr, params, param_map, obs_dict) -> Array:
                     return l * r
                 case e.BinOp.Div:
                     return l / r
+                case e.BinOp.Exp:
+                    return l**r
 
         case e.Param():
             return param_map.get(expr, params)

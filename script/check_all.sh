@@ -14,5 +14,5 @@ cd "$DIR/../"
 #       -A clippy::new-without-default
 
 # Keep people from accidentally pushing unformatted Python code.
-rye lint .
-rye fmt --check .
+rye lint --fix .
+rye fmt .

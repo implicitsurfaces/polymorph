@@ -49,7 +49,6 @@ members = ["polymorph-*"]
 polymorph = "python -m polymorph_app"
 
 [tool.ruff.lint]
-exclude = ["pat/*"]
 ignore = ["E741", "E501"]
 
 # From https://docs.astral.sh/ruff/linter/#rule-selection: "a configuration

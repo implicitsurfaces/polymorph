@@ -6,6 +6,9 @@ Install [Rye](https://rye-up.com/guide/installation/). Then run:
 
     rye sync
 
+Setup pre-commit hooks:
+
+    git config --unset-all core.hooksPath && rye run pre-commit install
 
 ## Things that work
 
@@ -16,11 +19,9 @@ Run
 to open various experiments/explorations in `notebooks/`.
 You can also use VS Code's Jupyter extension, which will detect the rye-managed Python kernel in `.venv`.
 
-
 To run the Python app UI:
 
     rye run polymorph
-
 
 ## Rust experiments (Apr/May)
 
@@ -45,7 +46,6 @@ To visualize the cost function data:
 or, for the 3D visualization:
 
     python script/equilibrium_viz.py --3d cost_function_data.csv
-
 
 ## Architecture + overview
 

@@ -1,4 +1,4 @@
-from polymorph_num import loss, ops, optimizer, point
+from polymorph_num import loss, ops, optimizer, vec
 
 
 def circle_sdf(radius, center, point):
@@ -9,8 +9,8 @@ def circle_sdf(radius, center, point):
 
 
 r = ops.param()
-c = point.Point(0, 0)
-obs_pt = point.Point(ops.observation("x"), ops.observation("y"))
+c = vec.Vec2(0, 0)
+obs_pt = vec.Vec2(ops.observation("x"), ops.observation("y"))
 d = circle_sdf(r, c, obs_pt)
 q = obs_pt.x * r
 l = loss.Loss(d * d)

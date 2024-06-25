@@ -14,7 +14,7 @@ def observation(name):
 
 
 def vec(value: list[float]):
-    return expr.Vector(value)
+    return expr.Arr(value)
 
 
 def sum(n: expr.Expr):

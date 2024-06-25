@@ -1,10 +1,10 @@
-from typing import Callable, FrozenSet, List, Self
+from typing import Callable, FrozenSet, List
 
 import jax.numpy as jnp
 import polymorph_s2df as s2df
 from polymorph_num import loss
 from polymorph_num.expr import Expr, as_expr
-from polymorph_num.point import Point
+from polymorph_num.vec import Vec2
 
 
 class Node:
@@ -14,11 +14,14 @@ class Node:
     def register_outputs(self, loss):
         pass
 
+    def to_sdf(self, soln):
+        raise NotImplementedError
+
 
 class Graph(Node):
     nodes: FrozenSet[Node] = frozenset()
 
-    def add(self, node_ctor: Callable[[Self], Node]):
+    def add(self, node_ctor: Callable[[], Node]):
         shape = node_ctor()
         self.nodes |= frozenset([shape])
         return shape
@@ -45,7 +48,7 @@ class Shape(Node):
 
 
 class Circle(Node):
-    center = Point(0.0, 0.0)
+    center = Vec2(0.0, 0.0)
     radius: Expr = as_expr(0.0)
 
     __match_args__ = ("center", "radius")
@@ -56,8 +59,8 @@ class Circle(Node):
         return s2df.Circle(r).translate(c)
 
     def adjust(self, p1, p2):
-        self.center = Point(*p1.tolist())
-        self.radius = (Point(*p2.tolist()) - Point(*p1.tolist())).length()
+        self.center = Vec2(*p1.tolist())
+        self.radius = (Vec2(*p2.tolist()) - Vec2(*p1.tolist())).norm()
 
     def register_outputs(self, loss):
         loss.register_output(self.center)
@@ -65,8 +68,8 @@ class Circle(Node):
 
 
 class Box(Node):
-    p1 = Point(0.0, 0.0)
-    p2 = Point(0.0, 0.0)
+    p1 = Vec2(0.0, 0.0)
+    p2 = Vec2(0.0, 0.0)
 
     __match_args__ = ("p1", "p2")
 
@@ -75,11 +78,11 @@ class Box(Node):
         return s2df.Box(w, h).translate(center)
 
     def adjust(self, p1, p2):
-        self.p1 = Point(*p1.tolist())
-        self.p2 = Point(*p2.tolist())
+        self.p1 = Vec2(*p1.tolist())
+        self.p2 = Vec2(*p2.tolist())
 
     def register_outputs(self, loss):
-        center = Point.origin() + (self.p1 + self.p2) / 2
+        center = Vec2.origin() + (self.p1 + self.p2) / 2
         w = (self.p2.x - self.p1.x).smoothabs()
         h = (self.p2.y - self.p1.y).smoothabs()
         self._outputs = [w, h, center]
@@ -88,7 +91,7 @@ class Box(Node):
 
 
 class Polygon(Node):
-    points: List[Point] = []
+    points: List[Vec2] = []
 
     __match_args__ = "points"
 

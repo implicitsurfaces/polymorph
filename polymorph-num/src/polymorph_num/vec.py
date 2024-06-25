@@ -1,7 +1,7 @@
 from . import expr
 
 
-class Point:
+class Vec2:
     x: expr.Expr
     y: expr.Expr
 
@@ -21,23 +21,10 @@ class Point:
     def __add__(self, other):
         match other:
             case Vec2(x, y):
-                return Point(self.x + x, self.y + y)
-            case Point(x, y):
-                return Vec2(self.x + other.x, self.y + other.y)
-
-
-class Vec2:
-    x: expr.Expr
-    y: expr.Expr
-
-    __match_args__ = ("x", "y")
-
-    def __init__(self, x, y):
-        self.x = expr.as_expr(x)
-        self.y = expr.as_expr(y)
+                return Vec2(self.x + x, self.y + y)
 
     def __truediv__(self, other):
         return Vec2(self.x / expr.as_expr(other), self.y / expr.as_expr(other))
 
-    def length(self):
+    def norm(self):
         return (self.x * self.x + self.y * self.y).sqrt()

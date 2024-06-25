@@ -5,7 +5,7 @@ from jax import Array
 from jax import numpy as jnp
 
 from . import expr as e
-from . import point
+from .vec import Vec2
 
 
 class Optimizer:
@@ -56,7 +56,7 @@ def _eval(expr: e.Expr, params, param_map, obs_dict) -> Array:
         case e.Scalar(value):
             return jnp.array(value)
 
-        case e.Vector(value):
+        case e.Arr(value):
             return jnp.array(value)
 
         case e.Broadcast(orig, _dim):
@@ -94,7 +94,7 @@ def _eval(expr: e.Expr, params, param_map, obs_dict) -> Array:
         case e.Sum(orig):
             return jnp.sum(_eval(orig, params, param_map, obs_dict))
 
-        case point.Point(x, y):
+        case Vec2(x, y):
             return jnp.array(
                 [
                     _eval(x, params, param_map, obs_dict),

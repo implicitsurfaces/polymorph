@@ -9,8 +9,8 @@ def circle_sdf(radius, center, point):
 
 
 r = ops.param()
-c = point.Point(0, 0)
-obs_pt = point.Point(ops.observation("x"), ops.observation("y"))
+c = point.Vec2(0, 0)
+obs_pt = point.Vec2(ops.observation("x"), ops.observation("y"))
 d = circle_sdf(r, c, obs_pt)
 q = obs_pt.x * r
 l = loss.Loss(d * d)

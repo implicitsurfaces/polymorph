@@ -12,7 +12,7 @@ def as_expr(x):
     elif isinstance(x, int):
         return Scalar(float(x))
     elif isinstance(x, jnp.ndarray) and len(x.shape) == 1:
-        return Vector(x)
+        return Arr(x)
 
     raise ValueError(f"{x} ({type(x)})")
 
@@ -94,7 +94,7 @@ class Scalar(Expr):
 
 
 @dataclass(frozen=True)
-class Vector(Expr):
+class Arr(Expr):
     value: list[float]
 
     def __post_init__(self):

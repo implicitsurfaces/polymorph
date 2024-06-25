@@ -49,5 +49,16 @@ members = ["polymorph-*"]
 polymorph = "python -m polymorph_app"
 
 [tool.ruff.lint]
-ignore = ["E741"]
 exclude = ["pat/*"]
+ignore = ["E741", "E501"]
+
+# From https://docs.astral.sh/ruff/linter/#rule-selection: "a configuration
+# that enables some of the most popular rules (without being too pedantic)"
+select = [
+    "E",   # pycodestyle
+    "F",   # Pyflakes
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "I",   # isort
+]

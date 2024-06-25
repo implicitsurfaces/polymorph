@@ -1,7 +1,7 @@
-import jax.numpy as jnp
-import jax
-
 import textwrap
+
+import jax
+import jax.numpy as jnp
 
 
 def soft_plus(value):

@@ -1,10 +1,11 @@
-from . import expr as e
-from . import point
 import jax
-from jax import Array
-from jax import numpy as jnp
 import jax.nn
 import optimistix
+from jax import Array
+from jax import numpy as jnp
+
+from . import expr as e
+from . import point
 
 
 class Optimizer:
@@ -58,7 +59,7 @@ def _eval(expr: e.Expr, params, param_map, obs_dict) -> Array:
         case e.Vector(value):
             return jnp.array(value)
 
-        case e.Broadcast(orig, dim):
+        case e.Broadcast(orig, _dim):
             return _eval(orig, params, param_map, obs_dict)
 
         case e.Unary(orig, op):

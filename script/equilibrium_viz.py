@@ -1,8 +1,9 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import csv
-import sys
 import os
+import sys
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 three_d = "--3d" in sys.argv
 
@@ -15,7 +16,7 @@ filename = sys.argv[-1]
 # Read the cost function data from a CSV file
 parameters = []
 costs = []
-with open(filename, "r") as file:
+with open(filename) as file:
     csv_reader = csv.reader(file)
     next(csv_reader)  # Skip the header row if present
     for row in csv_reader:

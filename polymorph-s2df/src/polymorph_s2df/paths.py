@@ -1,6 +1,5 @@
-import jax.numpy as jnp
 import jax.lax
-
+import jax.numpy as jnp
 from jax.tree_util import register_pytree_node_class
 
 from .operations import Shape

@@ -1,10 +1,8 @@
 import jax.numpy as jnp
-
 from jax.tree_util import register_pytree_node_class
 
-
 from .operations import Shape
-from .utils import *
+from .utils import length, soft_minus, soft_plus
 
 
 @register_pytree_node_class

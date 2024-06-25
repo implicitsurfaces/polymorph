@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+
 import jax.numpy as jnp
 
 
@@ -10,7 +11,7 @@ def as_expr(x):
         return Scalar(x)
     elif isinstance(x, int):
         return Scalar(float(x))
-    elif isinstance(x, jnp.ndarray) and 1 == len(x.shape):
+    elif isinstance(x, jnp.ndarray) and len(x.shape) == 1:
         return Vector(x)
 
     raise ValueError(f"{x} ({type(x)})")

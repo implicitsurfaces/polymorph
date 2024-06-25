@@ -1,8 +1,8 @@
-from .utils import indent_shape
+import jax
+import jax.numpy as jnp
 from jax.tree_util import register_pytree_node_class
 
-import jax.numpy as jnp
-import jax
+from .utils import indent_shape
 
 
 class Shape:

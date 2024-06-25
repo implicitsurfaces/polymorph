@@ -11,7 +11,7 @@ def optimize_params(cost, params, sdf):
     solution = optimistix.minimise(cost, solver, params, sdf, throw=False)
     elapsed = timer() - start
     print(
-        "{0} steps in {1:.3f} seconds".format(solution.stats.get("num_steps"), elapsed)
+        "{} steps in {:.3f} seconds".format(solution.stats.get("num_steps"), elapsed)
     )
     return solution.value
 

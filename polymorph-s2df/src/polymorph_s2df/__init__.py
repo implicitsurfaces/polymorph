@@ -1,28 +1,24 @@
 import jax.numpy as jnp
-from .shapes import (
-    Box,
-    Circle,
-    TopHalfPlane,
-    BottomHalfPlane,
-    LeftHalfPlane,
-    RightHalfPlane,
-)
-from .operations import (
-    Shape,
-    Intersection,
-    Union,
-    SmoothUnion,
-    SmoothIntersection,
-)
 
-from .paths import (
-    ArcSegment,
-    InversedSegment,
-    LineSegment,
-    ClosedPath,
-    TranslatedSegment,
-    QuadraticBezierSegment,
-)
+# Note: `X as X` stops ruff (and other tools) from flagging imports as unused.
+# See https://docs.astral.sh/ruff/rules/unused-import/
+from .operations import Intersection as Intersection
+from .operations import Shape as Shape
+from .operations import SmoothIntersection as SmoothIntersection
+from .operations import SmoothUnion as SmoothUnion
+from .operations import Union as Union
+from .paths import ArcSegment as ArcSegment
+from .paths import ClosedPath as ClosedPath
+from .paths import InversedSegment as InversedSegment
+from .paths import LineSegment as LineSegment
+from .paths import QuadraticBezierSegment as QuadraticBezierSegment
+from .paths import TranslatedSegment as TranslatedSegment
+from .shapes import BottomHalfPlane as BottomHalfPlane
+from .shapes import Box as Box
+from .shapes import Circle as Circle
+from .shapes import LeftHalfPlane as LeftHalfPlane
+from .shapes import RightHalfPlane as RightHalfPlane
+from .shapes import TopHalfPlane as TopHalfPlane
 
 
 def p(x, y):

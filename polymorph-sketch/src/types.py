@@ -14,7 +14,7 @@ class Dimension:
 
 class Constraint:
     def __init__(self):
-        ()
+        pass
 
 
 class Distance(Constraint):

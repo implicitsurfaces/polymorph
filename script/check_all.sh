@@ -14,4 +14,5 @@ cd "$DIR/../"
 #       -A clippy::new-without-default
 
 # Keep people from accidentally pushing unformatted Python code.
-rye fmt --check polymorph-app
+rye lint .
+rye fmt --check .

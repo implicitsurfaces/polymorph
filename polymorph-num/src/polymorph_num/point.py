@@ -1,9 +1,9 @@
-from . import node, ops
+from . import expr, ops
 
 
 class Point:
-    x: node.Node
-    y: node.Node
+    x: expr.Expr
+    y: expr.Expr
 
     __match_args__ = ("x", "y")
 
@@ -12,8 +12,8 @@ class Point:
         return cls(0.0, 0.0)
 
     def __init__(self, x, y):
-        self.x = node.as_node(x)
-        self.y = node.as_node(y)
+        self.x = expr.as_expr(x)
+        self.y = expr.as_expr(y)
 
     def __sub__(self, other):
         return Vec2(self.x - other.x, self.y - other.y)
@@ -27,17 +27,17 @@ class Point:
 
 
 class Vec2:
-    x: node.Node
-    y: node.Node
+    x: expr.Expr
+    y: expr.Expr
 
     __match_args__ = ("x", "y")
 
     def __init__(self, x, y):
-        self.x = node.as_node(x)
-        self.y = node.as_node(y)
+        self.x = expr.as_expr(x)
+        self.y = expr.as_expr(y)
 
     def __truediv__(self, other):
-        return Vec2(self.x / node.as_node(other), self.y / node.as_node(other))
+        return Vec2(self.x / expr.as_expr(other), self.y / expr.as_expr(other))
 
     def length(self):
         return ops.sqrt(self.x * self.x + self.y * self.y)

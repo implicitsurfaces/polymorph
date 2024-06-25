@@ -5,8 +5,7 @@ from typing import Any, Callable, FrozenSet, List, Self, Tuple
 import jax.numpy as jnp
 import polymorph_s2df as s2df
 from polymorph_num import loss, ops
-from polymorph_num.node import Node as Expr
-from polymorph_num.node import as_node as as_expr
+from polymorph_num.expr import Expr, as_expr
 from polymorph_num.point import Point
 
 

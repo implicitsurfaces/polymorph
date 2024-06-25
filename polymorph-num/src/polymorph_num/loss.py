@@ -1,4 +1,4 @@
-from . import node as n
+from . import expr as e
 
 
 class Loss:
@@ -20,23 +20,23 @@ class Loss:
 
 def _find_params(node, params, observations):
     match node:
-        case n.Broadcast(orig, dim):
+        case e.Broadcast(orig, dim):
             _find_params(orig, params, observations)
 
-        case n.Unary(orig, op):
+        case e.Unary(orig, op):
             _find_params(orig, params, observations)
 
-        case n.Binary(left, right, op):
+        case e.Binary(left, right, op):
             _find_params(left, params, observations)
             _find_params(right, params, observations)
 
-        case n.Param(id):
+        case e.Param(id):
             params.add(node)
 
-        case n.Observation(name):
+        case e.Observation(name):
             observations[name] = 0.0
 
-        case n.Sum(orig):
+        case e.Sum(orig):
             _find_params(orig, params, observations)
 
 

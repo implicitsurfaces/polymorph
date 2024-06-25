@@ -1,4 +1,4 @@
-from . import node as n, loss
+from . import expr as e, loss
 from . import point
 import jax
 from jax import Array
@@ -50,47 +50,47 @@ class Solution:
         return self.compiled_nodes[node](self.params, self.obs_dict)
 
 
-def _eval(node: n.Node, params, param_map, obs_dict) -> Array:
-    match node:
-        case n.Scalar(value):
+def _eval(expr: e.Expr, params, param_map, obs_dict) -> Array:
+    match expr:
+        case e.Scalar(value):
             return jnp.array(value)
 
-        case n.Vector(value):
+        case e.Vector(value):
             return jnp.array(value)
 
-        case n.Broadcast(orig, dim):
+        case e.Broadcast(orig, dim):
             return _eval(orig, params, param_map, obs_dict)
 
-        case n.Unary(orig, op):
+        case e.Unary(orig, op):
             o = _eval(orig, params, param_map, obs_dict)
             match op:
-                case n.UnOp.Sqrt:
+                case e.UnOp.Sqrt:
                     return jnp.sqrt(o)
-                case n.UnOp.Sigmoid:
+                case e.UnOp.Sigmoid:
                     return jax.nn.sigmoid(o)
-                case n.UnOp.SmoothAbs:
+                case e.UnOp.SmoothAbs:
                     return o * jnp.tanh(10.0 * o)
 
-        case n.Binary(left, right, op):
+        case e.Binary(left, right, op):
             l = _eval(left, params, param_map, obs_dict)
             r = _eval(right, params, param_map, obs_dict)
             match op:
-                case n.BinOp.Add:
+                case e.BinOp.Add:
                     return l + r
-                case n.BinOp.Sub:
+                case e.BinOp.Sub:
                     return l - r
-                case n.BinOp.Mul:
+                case e.BinOp.Mul:
                     return l * r
-                case n.BinOp.Div:
+                case e.BinOp.Div:
                     return l / r
 
-        case n.Param():
-            return param_map.get(node, params)
+        case e.Param():
+            return param_map.get(expr, params)
 
-        case n.Observation(name):
+        case e.Observation(name):
             return obs_dict[name]
 
-        case n.Sum(orig):
+        case e.Sum(orig):
             return jnp.sum(_eval(orig, params, param_map, obs_dict))
 
         case point.Point(x, y):

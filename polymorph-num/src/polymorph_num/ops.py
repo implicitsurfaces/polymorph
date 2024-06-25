@@ -1,4 +1,4 @@
-from . import node
+from . import expr
 
 counter = 0
 
@@ -6,31 +6,31 @@ counter = 0
 def param():
     global counter
     counter += 1
-    return node.Param(counter)
+    return expr.Param(counter)
 
 
 def observation(name):
-    return node.Observation(name)
+    return expr.Observation(name)
 
 
 def vec(value: list[float]):
-    return node.Vector(value)
+    return expr.Vector(value)
 
 
 def sqrt(v):
-    return node.Unary(node.as_node(v), node.UnOp.Sqrt)
+    return expr.Unary(expr.as_expr(v), expr.UnOp.Sqrt)
 
 
-def sum(n: node.Node):
+def sum(n: expr.Expr):
     if n.dim == 1:
         raise ValueError()
 
-    return node.Sum(n)
+    return expr.Sum(n)
 
 
-def sigmoid(x: node.Node):
-    return node.Unary(x, node.UnOp.Sigmoid)
+def sigmoid(x: expr.Expr):
+    return expr.Unary(x, expr.UnOp.Sigmoid)
 
 
-def smoothabs(x: node.Node):
-    return node.Unary(x, node.UnOp.SmoothAbs)
+def smoothabs(x: expr.Expr):
+    return expr.Unary(x, expr.UnOp.SmoothAbs)

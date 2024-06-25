@@ -3,8 +3,8 @@ from enum import Enum
 import jax.numpy as jnp
 
 
-def as_node(x):
-    if isinstance(x, Node):
+def as_expr(x):
+    if isinstance(x, Expr):
         return x
     elif isinstance(x, float):
         return Scalar(x)
@@ -29,7 +29,7 @@ class UnOp(Enum):
     SmoothAbs = "smoothabs"
 
 
-class Node:
+class Expr:
     dim: int
 
     def __init__(self, dim):
@@ -48,7 +48,7 @@ class Node:
         return self.__binary(other, BinOp.Div)
 
     def __binary(self, other, op):
-        o = as_node(other)
+        o = as_expr(other)
         if self.dim == o.dim:
             return Binary(self, o, op)
         elif self.dim == 1:
@@ -60,7 +60,7 @@ class Node:
 
 
 @dataclass(frozen=True)
-class Param(Node):
+class Param(Expr):
     id: int
 
     def __post_init__(self):
@@ -68,7 +68,7 @@ class Param(Node):
 
 
 @dataclass(frozen=True)
-class Observation(Node):
+class Observation(Expr):
     name: str
 
     def __post_init__(self):
@@ -76,7 +76,7 @@ class Observation(Node):
 
 
 @dataclass(frozen=True)
-class Scalar(Node):
+class Scalar(Expr):
     value: float
 
     def __post_init__(self):
@@ -84,7 +84,7 @@ class Scalar(Node):
 
 
 @dataclass(frozen=True)
-class Vector(Node):
+class Vector(Expr):
     value: list[float]
 
     def __post_init__(self):
@@ -92,9 +92,9 @@ class Vector(Node):
 
 
 @dataclass(frozen=True)
-class Binary(Node):
-    left: Node
-    right: Node
+class Binary(Expr):
+    left: Expr
+    right: Expr
     op: BinOp
 
     def __post_init__(self):
@@ -105,8 +105,8 @@ class Binary(Node):
 
 
 @dataclass(frozen=True)
-class Unary(Node):
-    orig: Node
+class Unary(Expr):
+    orig: Expr
     op: UnOp
 
     def __post_init__(self):
@@ -114,14 +114,14 @@ class Unary(Node):
 
 
 @dataclass(frozen=True)
-class Broadcast(Node):
-    orig: Node
+class Broadcast(Expr):
+    orig: Expr
     dim: int
 
 
 @dataclass(frozen=True)
-class Sum(Node):
-    orig: Node
+class Sum(Expr):
+    orig: Expr
 
     def __post_init__(self):
         super().__init__(1)

@@ -45,6 +45,8 @@ certifi==2024.2.2
     # via requests
 cffi==1.16.0
     # via argon2-cffi-bindings
+cfgv==3.4.0
+    # via pre-commit
 charset-normalizer==3.3.2
     # via requests
 chex==0.1.86
@@ -62,6 +64,8 @@ decorator==5.1.1
     # via ipython
 defusedxml==0.7.1
     # via nbconvert
+distlib==0.3.8
+    # via virtualenv
 equinox==0.11.4
     # via lineax
     # via optimistix
@@ -69,6 +73,8 @@ executing==2.0.1
     # via stack-data
 fastjsonschema==2.19.1
     # via nbformat
+filelock==3.15.4
+    # via virtualenv
 fonttools==4.51.0
     # via matplotlib
 fqdn==1.5.1
@@ -83,6 +89,8 @@ httpcore==1.0.5
     # via httpx
 httpx==0.27.0
     # via jupyterlab
+identify==2.5.36
+    # via pre-commit
 idna==3.7
     # via anyio
     # via httpx
@@ -207,6 +215,8 @@ nbformat==5.10.4
     # via nbconvert
 nest-asyncio==1.6.0
     # via ipykernel
+nodeenv==1.9.1
+    # via pre-commit
 notebook==7.1.3
     # via jupyter
 notebook-shim==0.2.4
@@ -255,7 +265,10 @@ pillow==10.3.0
     # via matplotlib
 platformdirs==4.2.1
     # via jupyter-core
+    # via virtualenv
 plotly==5.22.0
+    # via polymorph
+pre-commit==3.7.1
     # via polymorph
 prometheus-client==0.20.0
     # via jupyter-server
@@ -297,6 +310,7 @@ pytz==2024.1
     # via pandas
 pyyaml==6.0.1
     # via jupyter-events
+    # via pre-commit
 pyzmq==26.0.3
     # via ipykernel
     # via jupyter-client
@@ -390,6 +404,8 @@ uri-template==1.3.0
     # via jsonschema
 urllib3==2.2.1
     # via requests
+virtualenv==20.26.3
+    # via pre-commit
 wcwidth==0.2.13
     # via prompt-toolkit
 webcolors==1.13

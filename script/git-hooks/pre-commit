@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+# This script was originally used to run some custom pre-commit checks.
+# If you've run `rye run pre-commit install` in your local repository, this
+# script won't be used anymore, but keeping it avoids unnecessary breakage.
+
+set -euo pipefail
+
+rye run pre-commit run

@@ -14,7 +14,9 @@ class Loss:
         _find_params(node, node_params, {})
         extra_params = node_params.nodes() - self.params.nodes()
         if len(extra_params) > 0:
-            raise ValueError()
+            raise ValueError(
+                f"Cannot register node that contains parameter(s) not in loss: {extra_params}"
+            )
         self.nodes.append(node)
 
 

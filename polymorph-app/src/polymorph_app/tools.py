@@ -56,6 +56,7 @@ class CircleTool(Tool):
         self.shape = self.view_model.graph.add(Circle)
 
     def mousedrag(self, pos, start_pos):
+        self.view_model.graph.changed()  # TODO: Find a cleaner way to do this.
         self.shape.adjust(start_pos, pos)
 
     def mouseup(self, pos):

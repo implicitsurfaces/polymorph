@@ -1,46 +1,45 @@
 from typing import Callable, FrozenSet, List
 
-import jax.numpy as jnp
-import polymorph_s2df as s2df
 from polymorph_num import loss
 from polymorph_num.expr import Expr, as_expr
 from polymorph_num.vec import Vec2
+
+from . import sdf
 
 
 class Node:
     def classname(self):
         return self.__class__.__name__
 
-    def register_outputs(self, loss):
-        pass
-
-    def to_sdf(self, soln):
+    def to_sdf(self):
         raise NotImplementedError
 
 
 class Graph(Node):
     nodes: FrozenSet[Node] = frozenset()
+    _sdf: sdf.Shape | None = None
+
+    def changed(self):
+        self._sdf = None
 
     def add(self, node_ctor: Callable[[], Node]):
         shape = node_ctor()
         self.nodes |= frozenset([shape])
+        self.changed()
         return shape
 
-    def to_sdf(self, soln):
-        ans = s2df.Circle(0)
+    def to_sdf(self):
+        if self._sdf:
+            return self._sdf
+
+        ans = sdf.Circle(as_expr(0.0))
         for s in self.nodes:
-            ans = s2df.Union(ans, s.to_sdf(soln))
+            ans = sdf.Union(ans, s.to_sdf())
+        self._sdf = ans
         return ans
 
-    def register_outputs(self, loss):
-        for n in self.nodes:
-            n.register_outputs(loss)
-
     def total_loss(self):
-        l = loss.Loss(as_expr(0))  # TODO
-        for n in self.nodes:
-            n.register_outputs(l)
-        return l
+        return loss.Loss(as_expr(0))  # TODO
 
 
 class Shape(Node):
@@ -53,18 +52,13 @@ class Circle(Node):
 
     __match_args__ = ("center", "radius")
 
-    def to_sdf(self, soln):
-        r = soln.eval(self.radius)
-        c = soln.eval(self.center)
-        return s2df.Circle(r).translate(c)
+    def to_sdf(self):
+        c = self.center
+        return sdf.Translation(c.x, c.y, sdf.Circle(self.radius))
 
     def adjust(self, p1, p2):
         self.center = Vec2(*p1.tolist())
         self.radius = (Vec2(*p2.tolist()) - Vec2(*p1.tolist())).norm()
-
-    def register_outputs(self, loss):
-        loss.register_output(self.center)
-        loss.register_output(self.radius)
 
 
 class Box(Node):
@@ -73,21 +67,12 @@ class Box(Node):
 
     __match_args__ = ("p1", "p2")
 
-    def to_sdf(self, soln):
-        w, h, center = (soln.eval(o) for o in self._outputs)
-        return s2df.Box(w, h).translate(center)
+    def to_sdf(self):
+        raise NotImplementedError()
 
     def adjust(self, p1, p2):
         self.p1 = Vec2(*p1.tolist())
         self.p2 = Vec2(*p2.tolist())
-
-    def register_outputs(self, loss):
-        center = Vec2.origin() + (self.p1 + self.p2) / 2
-        w = (self.p2.x - self.p1.x).smoothabs()
-        h = (self.p2.y - self.p1.y).smoothabs()
-        self._outputs = [w, h, center]
-        for o in self._outputs:
-            loss.register_output(o)
 
 
 class Polygon(Node):
@@ -95,9 +80,5 @@ class Polygon(Node):
 
     __match_args__ = "points"
 
-    def to_sdf(self, soln):
-        return (
-            s2df.polygon(jnp.array(self.points))
-            if len(self.points) > 2
-            else s2df.Circle(0)
-        )
+    def to_sdf(self):
+        raise NotImplementedError()

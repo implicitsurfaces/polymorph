@@ -22,3 +22,7 @@ def sum(n: expr.Expr):
         raise ValueError()
 
     return expr.Sum(n)
+
+
+def minimum(a, b):
+    return expr.Binary(a, b, expr.BinOp.Minimum)

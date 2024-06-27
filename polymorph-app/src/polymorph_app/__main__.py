@@ -1,7 +1,7 @@
 import multiprocessing
 import sys
 from collections import namedtuple
-from functools import lru_cache
+from functools import lru_cache, partial
 
 import glfw
 import imgui
@@ -11,6 +11,7 @@ import moderngl
 import numpy as np
 from imgui.integrations.glfw import GlfwRenderer
 from polymorph_num import optimizer
+from polymorph_num.expr import as_expr
 from polymorph_s2df import p
 
 from .graph import Graph
@@ -37,7 +38,7 @@ def memoize(fn):
     return lru_cache(maxsize=1)(fn)
 
 
-@memoize
+# @memoize
 def pixel_grid(size):
     """
     Allocates a uniform grid of points for sampling the SDFs.
@@ -47,20 +48,22 @@ def pixel_grid(size):
     half_height = size[1] / 2
 
     yy, xx = jnp.mgrid[-half_height:half_height, -half_width:half_width]
-    return jnp.column_stack((xx.ravel(), yy.ravel()))
+    return as_expr(xx.ravel()), as_expr(yy.ravel())
 
 
 def get_params(cursor, scene):
     return cursor
 
 
-def render_scene(sdf, size):
+@partial(jax.jit, static_argnums=[0, 1, 2])
+def render_scene(sdf, size, opt):
     # start = time.time()
-    ans = sdf.is_inside(pixel_grid(size))
+    exp = sdf.is_inside(*pixel_grid(size))
+    ans = opt._eval(exp, jnp.array([]), {})
 
     # Convert the float entries for each pixel into a (4,) of uint8.
     ans_3d = jnp.repeat(
-        255 * ans.reshape((size[1], size[0], 1)).astype(jnp.uint8), 4, axis=2
+        255 * ans.reshape((size[0], size[1], 1)).astype(jnp.uint8), 4, axis=2
     )
     # print(f"rendered in {time.time() - start}s")
     return ans_3d
@@ -298,6 +301,10 @@ def main(solver):
         """
         return gl_context.texture(size, components=4)
 
+    loss = view_model.graph.total_loss()
+
+    opt = optimizer.Optimizer(loss)
+
     while not glfw.window_should_close(window):
         ###############
         ## Model update
@@ -307,12 +314,7 @@ def main(solver):
 
         view_model.on_frame(window)
 
-        loss = view_model.graph.total_loss()
-
-        opt = optimizer.Optimizer(loss)
-        soln = opt.optimize({})
-
-        scene = view_model.graph.to_sdf(soln)
+        scene = view_model.graph.to_sdf()
 
         ###########
         ## Render
@@ -321,7 +323,7 @@ def main(solver):
 
         # Render SDFs
         texture = get_sdf_texture(view_model.window_size)
-        buf = render_scene(scene, view_model.window_size)
+        buf = render_scene(scene, view_model.window_size, opt)
         texture.write(jax.device_get(buf))
         texture.use(0)
         render_quad()

@@ -11,7 +11,8 @@ def as_expr(x):
         return Scalar(x)
     elif isinstance(x, int):
         return Scalar(float(x))
-    elif isinstance(x, jnp.ndarray) and len(x.shape) == 1:
+    elif isinstance(x, jnp.ndarray):
+        assert len(x.shape) == 1, f"Expected 1D array, got {x.shape}"
         return Arr(x)
 
     raise ValueError(f"{x} ({type(x)})")
@@ -23,6 +24,7 @@ class BinOp(Enum):
     Div = "div"
     Sub = "sub"
     Exp = "exp"
+    Minimum = "minimum"
 
 
 class UnOp(Enum):
@@ -139,3 +141,38 @@ class Sum(Expr):
 
     def __post_init__(self):
         super().__init__(1)
+
+
+def to_str(expr: Expr, indent: str = "") -> str:
+    if isinstance(expr, Scalar):
+        return f"{indent}Scalar({expr.value})"
+    elif isinstance(expr, Arr):
+        return f"{indent}Arr({expr.value})"
+    elif isinstance(expr, Param):
+        return f"{indent}Param({expr.id})"
+    elif isinstance(expr, Observation):
+        return f"{indent}Observation('{expr.name}')"
+    elif isinstance(expr, Binary):
+        return (
+            f"{indent}Binary({expr.op},\n"
+            f"{to_str(expr.left, indent + '  ')},\n"
+            f"{to_str(expr.right, indent + '  ')},\n"
+            f"{indent})"
+        )
+    elif isinstance(expr, Unary):
+        return (
+            f"{indent}Unary({expr.op},\n"
+            f"{to_str(expr.orig, indent + '  ')},\n"
+            f"{indent})"
+        )
+    elif isinstance(expr, Broadcast):
+        return (
+            f"{indent}Broadcast(\n"
+            f"{to_str(expr.orig, indent + '  ')},\n"
+            f"{indent}  {expr.dim}\n"
+            f"{indent})"
+        )
+    elif isinstance(expr, Sum):
+        return f"{indent}Sum(\n" f"{to_str(expr.orig, indent + '  ')}\n" f"{indent})"
+    else:
+        return f"{indent}Unknown Expr type: {type(expr)}"

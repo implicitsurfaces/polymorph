@@ -1,11 +1,16 @@
 from dataclasses import dataclass
 
+from polymorph_num import ops
 from polymorph_num.expr import Expr, as_expr
-from polymorph_num.ops import minimum
+from polymorph_num.vec import Vec2
 
 
-def norm(x, y) -> Expr:
+def norm(x: Expr, y: Expr) -> Expr:
     return (x * x + y * y).sqrt()
+
+
+def softminus(x: Expr) -> Expr:
+    return x - x.softplus()
 
 
 @dataclass(frozen=True)
@@ -19,12 +24,11 @@ class Shape:
 
 @dataclass(frozen=True)
 class Translation(Shape):
-    x: Expr
-    y: Expr
+    offset: Vec2
     shape: Shape
 
     def distance(self, x: Expr, y: Expr) -> Expr:
-        return self.shape.distance(x - self.x, y - self.y)
+        return self.shape.distance(x - self.offset.x, y - self.offset.y)
 
 
 @dataclass(frozen=True)
@@ -41,19 +45,16 @@ class Union(Shape):
     b: Shape
 
     def distance(self, x: Expr, y: Expr) -> Expr:
-        return minimum(self.a.distance(x, y), self.b.distance(x, y))
+        return ops.min(self.a.distance(x, y), self.b.distance(x, y))
 
 
-# @dataclass(frozen=True)
-# class Box(Shape):
-#     def __init__(self, width, height):
-#         self.width = width
-#         self.height = height
+@dataclass(frozen=True)
+class Box(Shape):
+    width: Expr
+    height: Expr
 
-#     @property
-#     def center(self):
-#         return jnp.array([self.width, self.height]) / 2
+    def distance(self, x: Expr, y: Expr) -> Expr:
+        q_x = x.smoothabs() - self.width / 2
+        q_y = y.smoothabs() - self.height / 2
 
-#     def distance(self, p):
-#         q = jnp.abs(p) - self.center
-#         return length(soft_plus(q)) + soft_minus(jnp.amax(q, axis=1))
+        return norm(q_x.softplus(), q_y.softplus()) + softminus(ops.max(q_x, q_y))

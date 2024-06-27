@@ -71,6 +71,8 @@ def _eval(expr: e.Expr, params, param_map, obs_dict) -> Array:
                     return jax.nn.sigmoid(o)
                 case e.UnOp.SmoothAbs:
                     return o * jnp.tanh(10.0 * o)
+                case e.UnOp.SoftPlus:
+                    return jax.nn.softplus(50 * o) / 50
 
         case e.Binary(left, right, op):
             l = _eval(left, params, param_map, obs_dict)
@@ -86,8 +88,10 @@ def _eval(expr: e.Expr, params, param_map, obs_dict) -> Array:
                     return l / r
                 case e.BinOp.Exp:
                     return l**r
-                case e.BinOp.Minimum:
+                case e.BinOp.Min:
                     return jnp.minimum(l, r)
+                case e.BinOp.Max:
+                    return jnp.maximum(l, r)
 
         case e.Param():
             return param_map.get(expr, params)
@@ -105,5 +109,10 @@ def _eval(expr: e.Expr, params, param_map, obs_dict) -> Array:
                     _eval(y, params, param_map, obs_dict),
                 ]
             )
+        case e.Debug(tag, orig):
+            o = _eval(orig, params, param_map, obs_dict)
+            print(tag, o)
+            return o
+
         case _:
             raise ValueError(f"Unknown expression: {expr}")

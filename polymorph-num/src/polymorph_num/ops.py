@@ -24,5 +24,13 @@ def sum(n: expr.Expr):
     return expr.Sum(n)
 
 
-def minimum(a, b):
-    return expr.Binary(a, b, expr.BinOp.Minimum)
+def min(a, b):
+    return expr.Binary(a, b, expr.BinOp.Min)
+
+
+def max(a, b):
+    return expr.Binary(a, b, expr.BinOp.Max)
+
+
+def debug(tag, orig):
+    return expr.Debug(tag, orig)

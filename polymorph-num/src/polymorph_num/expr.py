@@ -24,13 +24,15 @@ class BinOp(Enum):
     Div = "div"
     Sub = "sub"
     Exp = "exp"
-    Minimum = "minimum"
+    Max = "max"
+    Min = "min"
 
 
 class UnOp(Enum):
     Sqrt = "sqrt"
     Sigmoid = "sigmoid"
     SmoothAbs = "smoothabs"
+    SoftPlus = "softplus"
 
 
 class Expr:
@@ -54,6 +56,9 @@ class Expr:
     def __pow__(self, exponent):
         return self.__binary(exponent, BinOp.Exp)
 
+    def __neg__(self):
+        return self.__binary(-1, BinOp.Mul)
+
     def __binary(self, other, op):
         o = as_expr(other)
         if self.dim == o.dim:
@@ -73,6 +78,9 @@ class Expr:
 
     def smoothabs(self):
         return Unary(self, UnOp.SmoothAbs)
+
+    def softplus(self):
+        return Unary(self, UnOp.SoftPlus)
 
 
 @dataclass(frozen=True)
@@ -124,6 +132,15 @@ class Binary(Expr):
 class Unary(Expr):
     orig: Expr
     op: UnOp
+
+    def __post_init__(self):
+        super().__init__(self.orig.dim)
+
+
+@dataclass(frozen=True)
+class Debug(Expr):
+    tag: str
+    orig: Expr
 
     def __post_init__(self):
         super().__init__(self.orig.dim)

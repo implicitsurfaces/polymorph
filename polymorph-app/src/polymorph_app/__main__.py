@@ -38,7 +38,6 @@ def memoize(fn):
     return lru_cache(maxsize=1)(fn)
 
 
-# @memoize
 def pixel_grid(size):
     """
     Allocates a uniform grid of points for sampling the SDFs.
@@ -55,7 +54,7 @@ def get_params(cursor, scene):
     return cursor
 
 
-@partial(jax.jit, static_argnums=[0, 1, 2])
+@partial(jax.jit, static_argnums=(0, 1, 2))
 def render_scene(sdf, size, opt):
     # start = time.time()
     exp = sdf.is_inside(*pixel_grid(size))

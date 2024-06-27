@@ -53,8 +53,7 @@ class Circle(Node):
     __match_args__ = ("center", "radius")
 
     def to_sdf(self):
-        c = self.center
-        return sdf.Translation(c.x, c.y, sdf.Circle(self.radius))
+        return sdf.Translation(self.center, sdf.Circle(self.radius))
 
     def adjust(self, p1, p2):
         self.center = Vec2(*p1.tolist())
@@ -68,7 +67,10 @@ class Box(Node):
     __match_args__ = ("p1", "p2")
 
     def to_sdf(self):
-        raise NotImplementedError()
+        center = (self.p1 + self.p2) / 2
+        w = (self.p2.x - self.p1.x).smoothabs()
+        h = (self.p2.y - self.p1.y).smoothabs()
+        return sdf.Translation(center, sdf.Box(w, h))
 
     def adjust(self, p1, p2):
         self.p1 = Vec2(*p1.tolist())

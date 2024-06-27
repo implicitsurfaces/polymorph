@@ -26,6 +26,7 @@ class Tool:
 
     def handle_frame(self, mouse_pos):
         if self._mousedown_pos is not None:
+            self.view_model.graph.changed()  # TODO: Find a cleaner way to do this.
             self.mousedrag(mouse_pos, self._mousedown_pos)
         else:
             self.mousemove(mouse_pos)
@@ -56,7 +57,6 @@ class CircleTool(Tool):
         self.shape = self.view_model.graph.add(Circle)
 
     def mousedrag(self, pos, start_pos):
-        self.view_model.graph.changed()  # TODO: Find a cleaner way to do this.
         self.shape.adjust(start_pos, pos)
 
     def mouseup(self, pos):
@@ -68,6 +68,7 @@ class BoxTool(Tool):
         self.shape = self.view_model.graph.add(Box)
 
     def mousedrag(self, pos, start_pos):
+        print("adjust", pos, start_pos)
         self.shape.adjust(start_pos, pos)
 
     def mouseup(self, pos):

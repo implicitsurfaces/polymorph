@@ -22,6 +22,8 @@ class Vec2:
         match other:
             case Vec2(x, y):
                 return Vec2(self.x + x, self.y + y)
+            case _:
+                raise NotImplementedError()
 
     def __truediv__(self, other):
         return Vec2(self.x / expr.as_expr(other), self.y / expr.as_expr(other))

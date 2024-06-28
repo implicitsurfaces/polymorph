@@ -13,6 +13,7 @@ class Optimizer:
         self.solver = optimistix.BFGS(rtol=1e-5, atol=1e-6)
         self.loss = l
         self.compiled_nodes = {}
+        self.initial = jnp.full(self.loss.params.count, 0.0)
 
         def err(p, d):
             return self._eval(self.loss.loss, p, d)
@@ -22,10 +23,10 @@ class Optimizer:
             self.compiled_nodes[n] = self._compile(n)
 
     def optimize(self, obs_dict):
-        params = jnp.full(self.loss.params.count, 0.0)
         soln = optimistix.minimise(
-            self.loss_fn, self.solver, params, obs_dict, max_steps=1000, throw=False
+            self.loss_fn, self.solver, self.initial, obs_dict, max_steps=1000, throw=False
         )
+        self.initial = soln.value
         return Solution(self.compiled_nodes, soln.value, obs_dict)
 
     def _compile(self, node):

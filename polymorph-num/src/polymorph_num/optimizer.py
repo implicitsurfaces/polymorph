@@ -7,13 +7,15 @@ from jax import numpy as jnp
 from . import expr as e
 from .vec import Vec2
 
+DefaultPRNGKey = jax.random.PRNGKey(0)
+
 
 class Optimizer:
-    def __init__(self, l):
+    def __init__(self, l, key=DefaultPRNGKey):
         self.solver = optimistix.BFGS(rtol=1e-5, atol=1e-6)
         self.loss = l
         self.compiled_nodes = {}
-        self.initial = jnp.full(self.loss.params.count, 0.0)
+        self.initial = jax.random.uniform(key, (self.loss.params.count,))
 
         def err(p, d):
             return self._eval(self.loss.loss, p, d)
@@ -24,7 +26,12 @@ class Optimizer:
 
     def optimize(self, obs_dict):
         soln = optimistix.minimise(
-            self.loss_fn, self.solver, self.initial, obs_dict, max_steps=1000, throw=False
+            self.loss_fn,
+            self.solver,
+            self.initial,
+            obs_dict,
+            max_steps=1000,
+            throw=False,
         )
         self.initial = soln.value
         return Solution(self.compiled_nodes, soln.value, obs_dict)

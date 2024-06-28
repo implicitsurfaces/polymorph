@@ -33,6 +33,7 @@ class UnOp(Enum):
     Sigmoid = "sigmoid"
     SmoothAbs = "smoothabs"
     SoftPlus = "softplus"
+    Log = "log"
 
 
 class Expr:
@@ -81,6 +82,9 @@ class Expr:
 
     def softplus(self):
         return Unary(self, UnOp.SoftPlus)
+
+    def log(self):
+        return Unary(self, UnOp.Log)
 
 
 @dataclass(frozen=True)

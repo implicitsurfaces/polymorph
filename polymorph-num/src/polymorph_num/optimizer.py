@@ -81,6 +81,8 @@ def _eval(expr: e.Expr, params, param_map, obs_dict) -> Array:
                     return o * jnp.tanh(10.0 * o)
                 case e.UnOp.SoftPlus:
                     return jax.nn.softplus(50 * o) / 50
+                case e.UnOp.Log:
+                    return jnp.log(o)
 
         case e.Binary(left, right, op):
             l = _eval(left, params, param_map, obs_dict)

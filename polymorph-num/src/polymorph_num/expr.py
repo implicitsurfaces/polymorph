@@ -36,6 +36,17 @@ class UnOp(Enum):
     Log = "log"
 
 
+def broadcast_binary(left, right, op):
+    if left.dim == right.dim:
+        return Binary(left, right, op)
+    elif left.dim == 1:
+        return Binary(Broadcast(left, right.dim), right, op)
+    elif right.dim == 1:
+        return Binary(left, Broadcast(right, left.dim), op)
+
+    raise ValueError(f"Dimension mismatch: {left.dim} != {right.dim}")
+
+
 class Expr:
     dim: int
 
@@ -43,33 +54,22 @@ class Expr:
         object.__setattr__(self, "dim", dim)
 
     def __mul__(self, other):
-        return self.__binary(other, BinOp.Mul)
+        return broadcast_binary(self, as_expr(other), BinOp.Mul)
 
     def __add__(self, other):
-        return self.__binary(other, BinOp.Add)
+        return broadcast_binary(self, as_expr(other), BinOp.Add)
 
     def __sub__(self, other):
-        return self.__binary(other, BinOp.Sub)
+        return broadcast_binary(self, as_expr(other), BinOp.Sub)
 
     def __truediv__(self, other):
-        return self.__binary(other, BinOp.Div)
+        return broadcast_binary(self, as_expr(other), BinOp.Div)
 
     def __pow__(self, exponent):
-        return self.__binary(exponent, BinOp.Exp)
+        return broadcast_binary(self, as_expr(exponent), BinOp.Exp)
 
     def __neg__(self):
-        return self.__binary(-1, BinOp.Mul)
-
-    def __binary(self, other, op):
-        o = as_expr(other)
-        if self.dim == o.dim:
-            return Binary(self, o, op)
-        elif self.dim == 1:
-            return Binary(Broadcast(self, o.dim), o, op)
-        elif o.dim == 1:
-            return Binary(self, Broadcast(o, self.dim), op)
-
-        raise ValueError()
+        return broadcast_binary(self, as_expr(-1), BinOp.Mul)
 
     def sqrt(self):
         return Unary(self, UnOp.Sqrt)

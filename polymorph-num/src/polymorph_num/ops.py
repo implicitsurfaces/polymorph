@@ -29,7 +29,7 @@ def min(a, b):
 
 
 def max(a, b):
-    return expr.Binary(a, b, expr.BinOp.Max)
+    return expr.broadcast_binary(a, b, expr.BinOp.Max)
 
 
 def debug(tag, orig):

@@ -28,5 +28,17 @@ class Vec2:
     def __truediv__(self, other):
         return Vec2(self.x / expr.as_expr(other), self.y / expr.as_expr(other))
 
+    def __neg__(self):
+        return Vec2(-self.x, -self.y)
+
     def norm(self):
         return (self.x * self.x + self.y * self.y).sqrt()
+
+    def scale(self, other):
+        return Vec2(self.x * other, self.y * other)
+
+    def dot(self, other):
+        return self.x * other.x + self.y * other.y
+
+    def cross(self, other):
+        return self.x * other.y - self.y * other.x

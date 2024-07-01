@@ -79,10 +79,18 @@ def _eval(expr: e.Expr, params, param_map, obs_dict) -> Array:
                     return jax.nn.sigmoid(o)
                 case e.UnOp.SmoothAbs:
                     return o * jnp.tanh(10.0 * o)
+                case e.UnOp.Abs:
+                    return jnp.abs(o)
                 case e.UnOp.SoftPlus:
                     return jax.nn.softplus(50 * o) / 50
                 case e.UnOp.Log:
                     return jnp.log(o)
+                case e.UnOp.Sign:
+                    return jnp.sign(o)
+                case e.UnOp.Tanh:
+                    return jnp.tanh(o)
+                case e.UnOp.ArcTan:
+                    return jnp.atan(o)
 
         case e.Binary(left, right, op):
             l = _eval(left, params, param_map, obs_dict)
@@ -102,6 +110,8 @@ def _eval(expr: e.Expr, params, param_map, obs_dict) -> Array:
                     return jnp.minimum(l, r)
                 case e.BinOp.Max:
                     return jnp.maximum(l, r)
+                case e.BinOp.ArcTan2:
+                    return jnp.arctan2(l, r)
 
         case e.Param():
             return param_map.get(expr, params)

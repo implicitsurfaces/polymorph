@@ -1,4 +1,4 @@
-from typing import Callable, FrozenSet, List
+from typing import Callable, FrozenSet
 
 from polymorph_num import loss
 from polymorph_num.expr import Expr, as_expr
@@ -60,6 +60,10 @@ class Circle(Node):
         self.radius = (Vec2(*p2.tolist()) - Vec2(*p1.tolist())).norm()
 
 
+def as_vec2(p):
+    return Vec2(*p.tolist())
+
+
 class Box(Node):
     p1 = Vec2(0.0, 0.0)
     p2 = Vec2(0.0, 0.0)
@@ -78,9 +82,18 @@ class Box(Node):
 
 
 class Polygon(Node):
-    points: List[Vec2] = []
+    points: list[Vec2] = []
 
     __match_args__ = "points"
 
     def to_sdf(self):
-        raise NotImplementedError()
+        if len(self.points) < 3:
+            return sdf.Circle(as_expr(0.0))
+        segments = [
+            sdf.LineSegment(
+                as_vec2(self.points[i]),
+                as_vec2(self.points[(i + 1) % len(self.points)]),
+            )
+            for i in range(len(self.points))
+        ]
+        return sdf.ClosedPath(tuple(segments))

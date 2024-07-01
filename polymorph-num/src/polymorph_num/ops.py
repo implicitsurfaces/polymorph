@@ -32,5 +32,9 @@ def max(a, b):
     return expr.broadcast_binary(a, b, expr.BinOp.Max)
 
 
+def atan2(a, b):
+    return expr.broadcast_binary(a, b, expr.BinOp.ArcTan2)
+
+
 def debug(tag, orig):
     return expr.Debug(tag, orig)

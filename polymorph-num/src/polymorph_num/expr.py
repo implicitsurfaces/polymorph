@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+import math
 
 import jax.numpy as jnp
 
@@ -26,14 +27,19 @@ class BinOp(Enum):
     Exp = "exp"
     Max = "max"
     Min = "min"
+    ArcTan2 = "arctan2"
 
 
 class UnOp(Enum):
     Sqrt = "sqrt"
     Sigmoid = "sigmoid"
     SmoothAbs = "smoothabs"
+    Abs = "abs"
     SoftPlus = "softplus"
     Log = "log"
+    Tanh = "tanh"
+    ArcTan = "arctan"
+    Sign = "sign"
 
 
 def broadcast_binary(left, right, op):
@@ -80,11 +86,23 @@ class Expr:
     def smoothabs(self):
         return Unary(self, UnOp.SmoothAbs)
 
+    def abs(self):
+        return Unary(self, UnOp.Abs)
+
     def softplus(self):
         return Unary(self, UnOp.SoftPlus)
 
     def log(self):
         return Unary(self, UnOp.Log)
+
+    def arctan(self):
+        return Unary(self, UnOp.ArcTan)
+
+    def sign(self):
+        return Unary(self, UnOp.Sign)
+
+    def tanh(self):
+        return Unary(self, UnOp.Tanh)
 
 
 @dataclass(frozen=True)
@@ -129,7 +147,7 @@ class Binary(Expr):
         if self.left.dim == self.right.dim:
             super().__init__(self.left.dim)
         else:
-            raise ValueError()
+            raise ValueError(f"Dimension mismatch: {self.left.dim} != {self.right.dim}")
 
 
 @dataclass(frozen=True)
@@ -197,3 +215,8 @@ def to_str(expr: Expr, indent: str = "") -> str:
         return f"{indent}Sum(\n" f"{to_str(expr.orig, indent + '  ')}\n" f"{indent})"
     else:
         return f"{indent}Unknown Expr type: {type(expr)}"
+
+
+Infinity = Scalar(float("inf"))
+PI = Scalar(math.pi)
+TAU = Scalar(2 * math.pi)

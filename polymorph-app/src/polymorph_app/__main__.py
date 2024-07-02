@@ -12,7 +12,7 @@ import moderngl
 import numpy as np
 from imgui.integrations.glfw import GlfwRenderer
 from polymorph_num.expr import Observation, as_expr
-from polymorph_num.optimizer import Optimizer
+from polymorph_num.loss import Unit
 from polymorph_s2df import p
 
 from .graph import Graph
@@ -284,6 +284,9 @@ class ViewModel:
             "mouse_y": self.cursor_world[1],
         }
 
+    def observation_names(self):
+        return frozenset(self.current_obs_dict().keys())
+
 
 def main(solver):
     window = create_window()
@@ -309,14 +312,11 @@ def main(solver):
         return gl_context.texture(size, components=4)
 
     @memoize
-    def optimizer_and_renderer(sdf, size: tuple[int, int], obs_names: FrozenSet[str]):
-        is_inside = sdf.is_inside(*pixel_grid(size))
-
-        loss = view_model.graph.total_loss()
-        loss.register_output(is_inside)
-        for name in obs_names:
-            loss.observations[name] = 0.0
-        return Optimizer(loss), is_inside
+    def compile_unit(sdf, size: tuple[int, int], obs_names: FrozenSet[str]):
+        unit = Unit(obs_names)
+        unit.register("is_inside", sdf.is_inside(*pixel_grid(size)))
+        unit.registerLoss(view_model.graph.total_loss())
+        return unit.compile()
 
     while not glfw.window_should_close(window):
         ###############
@@ -329,10 +329,8 @@ def main(solver):
 
         sdf = view_model.graph.cached_sdf
         obs_dict = view_model.current_obs_dict()
-        opt, is_inside = optimizer_and_renderer(
-            sdf, view_model.window_size, frozenset(obs_dict.keys())
-        )
-        soln = opt.optimize(obs_dict)
+        unit = compile_unit(sdf, view_model.window_size, view_model.observation_names())
+        unit = unit.observe(obs_dict)
 
         ###########
         ## Render
@@ -341,7 +339,7 @@ def main(solver):
 
         # Render SDFs
         texture = get_sdf_texture(view_model.window_size)
-        buf = render_scene(soln.eval(is_inside), view_model.window_size)
+        buf = render_scene(unit.evaluate("is_inside"), view_model.window_size)
         texture.write(jax.device_get(buf))
         texture.use(0)
         render_quad()

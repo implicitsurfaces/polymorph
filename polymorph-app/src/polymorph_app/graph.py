@@ -1,7 +1,6 @@
 from functools import cached_property
 from typing import FrozenSet
 
-from polymorph_num import loss
 from polymorph_num.expr import Expr, as_expr
 from polymorph_num.vec import Vec2
 
@@ -43,11 +42,11 @@ class Graph(Node):
             ans = sdf.Union(ans, s.to_sdf())
         return ans
 
-    def total_loss(self) -> loss.Loss:
+    def total_loss(self) -> Expr:
         ans = as_expr(0.0)
         for n in self.nodes:
             ans += n.loss()
-        return loss.Loss(ans)
+        return ans
 
 
 class Shape(Node):

@@ -11,6 +11,8 @@ from .vec import Vec2
 
 DefaultPRNGKey = jax.random.PRNGKey(0)
 
+__all__ = ["_eval", "Optimizer", "Solution"]
+
 
 class Optimizer:
     def __init__(self, l, key=DefaultPRNGKey):

@@ -25,7 +25,7 @@ def sum(n: expr.Expr):
 
 
 def min(a, b):
-    return expr.Binary(a, b, expr.BinOp.Min)
+    return expr.broadcast_binary(a, b, expr.BinOp.Min)
 
 
 def max(a, b):

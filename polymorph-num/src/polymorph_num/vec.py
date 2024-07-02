@@ -45,3 +45,9 @@ class Vec2:
 
     def norm_squared(self):
         return self.x * self.x + self.y * self.y
+
+
+def as_vec2(p: Vec2 | tuple[float, float] | tuple[expr.Expr, expr.Expr]):
+    if isinstance(p, Vec2):
+        return p
+    return Vec2(p[0], p[1])

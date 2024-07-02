@@ -87,6 +87,10 @@ def _eval(expr: e.Expr, params, param_map, obs_dict) -> Array:
                     return jax.nn.softplus(50 * o) / 50
                 case e.UnOp.Log:
                     return jnp.log(o)
+                case e.UnOp.Cos:
+                    return jnp.cos(o)
+                case e.UnOp.Sin:
+                    return jnp.sin(o)
                 case e.UnOp.Sign:
                     return jnp.sign(o)
                 case e.UnOp.Tanh:
@@ -114,6 +118,8 @@ def _eval(expr: e.Expr, params, param_map, obs_dict) -> Array:
                     return jnp.maximum(l, r)
                 case e.BinOp.ArcTan2:
                     return jnp.arctan2(l, r)
+                case e.BinOp.Mod:
+                    return jnp.mod(l, r)
 
         case e.Param():
             return param_map.get(expr, params)

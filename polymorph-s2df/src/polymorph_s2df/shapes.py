@@ -1,101 +1,123 @@
-import jax.numpy as jnp
-from jax.tree_util import register_pytree_node_class
+from polymorph_num import ops
+from polymorph_num.expr import Expr, as_expr
 
 from .operations import Shape
-from .utils import length, soft_minus, soft_plus
+from .utils import norm
 
 
-@register_pytree_node_class
 class BottomHalfPlane(Shape):
     def __init__(self):
         pass
 
+    def __eq__(self, other):
+        return isinstance(other, BottomHalfPlane)
+
+    def __hash__(self):
+        return hash("BottomHalfPlane")
+
     def __repr__(self):
         return "BottomHalfPlane()"
 
-    def tree_flatten(self):
-        return (), None
-
-    def distance(self, p):
-        return p[:, 1]
+    def distance(self, x: Expr, y: Expr) -> Expr:
+        return y
 
 
-@register_pytree_node_class
 class TopHalfPlane(Shape):
     def __init__(self):
         pass
 
+    def __eq__(self, other):
+        return isinstance(other, TopHalfPlane)
+
+    def __hash__(self):
+        return hash("TopHalfPlane")
+
     def __repr__(self):
         return "TopHalfPlane()"
 
-    def tree_flatten(self):
-        return (), None
-
-    def distance(self, p):
-        return -p[:, 1]
+    def distance(self, x: Expr, y: Expr) -> Expr:
+        return -y
 
 
-@register_pytree_node_class
 class LeftHalfPlane(Shape):
     def __init__(self):
         pass
 
+    def __eq__(self, other):
+        return isinstance(other, LeftHalfPlane)
+
+    def __hash__(self):
+        return hash("LeftHalfPlane")
+
     def __repr__(self):
         return "LeftHalfPlane()"
 
-    def tree_flatten(self):
-        return (), None
-
-    def distance(self, p):
-        return p[:, 0]
+    def distance(self, x: Expr, y: Expr) -> Expr:
+        return x
 
 
-@register_pytree_node_class
 class RightHalfPlane(Shape):
     def __init__(self):
         pass
 
+    def __eq__(self, other):
+        return isinstance(other, RightHalfPlane)
+
+    def __hash__(self):
+        return hash("RightHalfPlane")
+
     def __repr__(self):
         return "RightHalfPlane()"
 
-    def tree_flatten(self):
-        return (), None
-
-    def distance(self, p):
-        return -p[:, 0]
+    def distance(self, x: Expr, y: Expr) -> Expr:
+        return -x
 
 
-@register_pytree_node_class
 class Circle(Shape):
-    def __init__(self, radius):
-        self.radius = radius
+    def __init__(self, radius: Expr) -> None:
+        super().__init__()
+        self.radius = as_expr(radius)
+
+    def astuple(self):
+        return (self.radius,)
+
+    def __eq__(self, other):
+        if not isinstance(other, Circle):
+            return False
+        return self.astuple() == other.astuple()
+
+    def __hash__(self):
+        return hash(self.astuple())
 
     def __repr__(self):
         return f"Circle({self.radius})"
 
-    def tree_flatten(self):
-        return (self.radius,), None
-
-    def distance(self, p):
-        return length(p) - self.radius
+    def distance(self, x: Expr, y: Expr) -> Expr:
+        return (x * x + y * y).sqrt() - self.radius
 
 
-@register_pytree_node_class
 class Box(Shape):
     def __init__(self, width, height):
-        self.width = width
-        self.height = height
+        super().__init__()
+        self.width = as_expr(width)
+        self.height = as_expr(height)
 
-    @property
-    def center(self):
-        return jnp.array([self.width, self.height]) / 2
+    def astuple(self):
+        return (self.width, self.height)
+
+    def __eq__(self, other):
+        if not isinstance(other, Box):
+            return False
+        return self.astuple() == other.astuple()
+
+    def __hash__(self):
+        return hash(self.astuple())
 
     def __repr__(self):
         return f"Box({self.width}, {self.height})"
 
-    def tree_flatten(self):
-        return (self.width, self.height), None
+    def distance(self, x: Expr, y: Expr) -> Expr:
+        q_x = x.smoothabs() - self.width / 2
+        q_y = y.smoothabs() - self.height / 2
 
-    def distance(self, p):
-        q = jnp.abs(p) - self.center
-        return length(soft_plus(q)) + soft_minus(jnp.amax(q, axis=1))
+        return norm(q_x.softplus(), q_y.softplus()) + ops.max(q_x, q_y).softminus()

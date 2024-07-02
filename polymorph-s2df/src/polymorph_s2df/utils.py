@@ -1,15 +1,8 @@
 import textwrap
+from typing import Iterable
 
-import jax
-import jax.numpy as jnp
-
-
-def soft_plus(value):
-    return jax.nn.softplus(50 * value) / 50
-
-
-def soft_minus(value):
-    return -jax.nn.softplus(50 * -value) / 50
+from polymorph_num import ops
+from polymorph_num.expr import Expr, Infinity, as_expr
 
 
 def indent_shape(shape):
@@ -17,15 +10,29 @@ def indent_shape(shape):
 
 
 def repr_point(p):
-    return f"p({p[0]}, {p[1]})"
+    return f"p({p.x}, {p.y})"
 
 
-def length(coordinates):
-    return jnp.linalg.norm(coordinates, axis=1)
+def norm(x: Expr, y: Expr) -> Expr:
+    return (x * x + y * y).sqrt()
 
 
-def clamp_mask(x, low=0.0, high=1.0, softness=1e-6):
+def smooth_clamp_mask(x, low=0.0, high=1.0, softness=1e-6):
     """A smooth implementation of a mask between the boundary values"""
-    lower_transition = 0.5 * (1 + jnp.tanh((x - low) / softness))
-    upper_transition = 0.5 * (1 - jnp.tanh((x - high) / softness))
+    lower_transition = as_expr(0.5) * (as_expr(1) + ((x - low) / softness).tanh())
+    upper_transition = as_expr(0.5) * (as_expr(1) - ((x - high) / softness).tanh())
     return lower_transition * upper_transition
+
+
+def sum_iterable(values: Iterable[Expr]) -> Expr:
+    x = as_expr(0)
+    for item in values:
+        x += item
+    return x
+
+
+def min_iterable(values: Iterable[Expr]) -> Expr:
+    x = Infinity
+    for item in values:
+        x = ops.min(x, item)
+    return x

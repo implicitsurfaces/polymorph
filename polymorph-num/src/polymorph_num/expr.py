@@ -27,6 +27,7 @@ class BinOp(Enum):
     Exp = "exp"
     Max = "max"
     Min = "min"
+    Mod = "mod"
     ArcTan2 = "arctan2"
 
 
@@ -37,6 +38,8 @@ class UnOp(Enum):
     Abs = "abs"
     SoftPlus = "softplus"
     Log = "log"
+    Cos = "cos"
+    Sin = "sin"
     Tanh = "tanh"
     ArcTan = "arctan"
     Sign = "sign"
@@ -74,6 +77,9 @@ class Expr:
     def __pow__(self, exponent):
         return broadcast_binary(self, as_expr(exponent), BinOp.Exp)
 
+    def __mod__(self, mod):
+        return broadcast_binary(self, as_expr(mod), BinOp.Mod)
+
     def __neg__(self):
         return broadcast_binary(self, as_expr(-1), BinOp.Mul)
 
@@ -92,10 +98,19 @@ class Expr:
     def softplus(self):
         return Unary(self, UnOp.SoftPlus)
 
+    def softminus(self):
+        return self - Unary(self, UnOp.SoftPlus)
+
     def log(self):
         return Unary(self, UnOp.Log)
 
-    def arctan(self):
+    def cos(self):
+        return Unary(self, UnOp.Cos)
+
+    def sin(self):
+        return Unary(self, UnOp.Sin)
+
+    def atan(self):
         return Unary(self, UnOp.ArcTan)
 
     def sign(self):

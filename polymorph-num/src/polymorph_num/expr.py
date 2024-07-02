@@ -1,6 +1,6 @@
+import math
 from dataclasses import dataclass
 from enum import Enum
-import math
 
 import jax.numpy as jnp
 
@@ -135,6 +135,12 @@ class Arr(Expr):
 
     def __post_init__(self):
         super().__init__(len(self.value))
+
+    # We need to implement __hash__ so instances can be used as dict keys.
+    # `list` is not hashable, and we don't want to convert it to a tuple
+    # because we've empirically observed this to be quite expensive.
+    def __hash__(self):
+        return id(self)
 
 
 @dataclass(frozen=True)

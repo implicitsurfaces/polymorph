@@ -1,3 +1,5 @@
+import time
+
 import jax
 import jax.nn
 import optimistix
@@ -45,7 +47,7 @@ class Optimizer:
         return fn
 
     def _eval(self, node, p, d):
-        print("tracing")
+        print(f"tracing at {time.time()}")
         return _eval(node, p, self.loss.params, d)
 
 

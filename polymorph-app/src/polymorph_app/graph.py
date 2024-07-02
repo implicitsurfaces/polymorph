@@ -1,4 +1,5 @@
-from typing import Callable, FrozenSet
+from functools import cached_property
+from typing import FrozenSet
 
 from polymorph_num import loss
 from polymorph_num.expr import Expr, as_expr
@@ -14,32 +15,39 @@ class Node:
     def to_sdf(self):
         raise NotImplementedError
 
+    def loss(self) -> Expr:
+        return as_expr(0.0)
+
 
 class Graph(Node):
     nodes: FrozenSet[Node] = frozenset()
-    _sdf: sdf.Shape | None = None
+    last_node: Node | None = None
+
+    @cached_property
+    def cached_sdf(self):
+        return self.to_sdf()
 
     def changed(self):
-        self._sdf = None
+        if hasattr(self, "cached_sdf"):
+            del self.cached_sdf
 
-    def add(self, node_ctor: Callable[[], Node]):
-        shape = node_ctor()
-        self.nodes |= frozenset([shape])
+    def add(self, node):
+        self.nodes |= frozenset([node])
+        self.last_node = node
         self.changed()
-        return shape
+        return node
 
     def to_sdf(self):
-        if self._sdf:
-            return self._sdf
-
         ans = sdf.Circle(as_expr(0.0))
         for s in self.nodes:
             ans = sdf.Union(ans, s.to_sdf())
-        self._sdf = ans
         return ans
 
-    def total_loss(self):
-        return loss.Loss(as_expr(0))  # TODO
+    def total_loss(self) -> loss.Loss:
+        ans = as_expr(0.0)
+        for n in self.nodes:
+            ans += n.loss()
+        return loss.Loss(ans)
 
 
 class Shape(Node):
@@ -47,17 +55,20 @@ class Shape(Node):
 
 
 class Circle(Node):
-    center = Vec2(0.0, 0.0)
-    radius: Expr = as_expr(0.0)
+    center: Vec2
+    radius: Expr
 
     __match_args__ = ("center", "radius")
+
+    def __init__(self, x, y):
+        self.center = Vec2(x, y)
+        self.radius = as_expr(10.0)
 
     def to_sdf(self):
         return sdf.Translation(self.center, sdf.Circle(self.radius))
 
     def adjust(self, p1, p2):
-        self.center = Vec2(*p1.tolist())
-        self.radius = (Vec2(*p2.tolist()) - Vec2(*p1.tolist())).norm()
+        raise NotImplementedError()
 
 
 def as_vec2(p):
@@ -65,10 +76,13 @@ def as_vec2(p):
 
 
 class Box(Node):
-    p1 = Vec2(0.0, 0.0)
-    p2 = Vec2(0.0, 0.0)
+    p1: Vec2
+    p2: Vec2
 
     __match_args__ = ("p1", "p2")
+
+    def __init__(self, p1):
+        self.adjust(p1, p1)
 
     def to_sdf(self):
         center = (self.p1 + self.p2) / 2

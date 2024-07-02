@@ -1,7 +1,8 @@
 import multiprocessing
 import sys
 from collections import namedtuple
-from functools import lru_cache, partial
+from functools import lru_cache
+from typing import FrozenSet
 
 import glfw
 import imgui
@@ -10,8 +11,8 @@ import jax.numpy as jnp
 import moderngl
 import numpy as np
 from imgui.integrations.glfw import GlfwRenderer
-from polymorph_num import optimizer
-from polymorph_num.expr import as_expr
+from polymorph_num.expr import Observation, as_expr
+from polymorph_num.optimizer import Optimizer
 from polymorph_s2df import p
 
 from .graph import Graph
@@ -38,6 +39,7 @@ def memoize(fn):
     return lru_cache(maxsize=1)(fn)
 
 
+@memoize
 def pixel_grid(size):
     """
     Allocates a uniform grid of points for sampling the SDFs.
@@ -54,12 +56,7 @@ def get_params(cursor, scene):
     return cursor
 
 
-@partial(jax.jit, static_argnums=(0, 1, 2))
-def render_scene(sdf, size, opt):
-    # start = time.time()
-    exp = sdf.is_inside(*pixel_grid(size))
-    ans = opt._eval(exp, jnp.array([]), {})
-
+def render_scene(ans, size):
     # Convert the float entries for each pixel into a (4,) of uint8.
     ans_3d = jnp.repeat(
         255 * ans.reshape((size[0], size[1], 1)).astype(jnp.uint8), 4, axis=2
@@ -231,10 +228,15 @@ class ViewModel:
         self.vsync_enabled = True
         self._update_transforms(window)
 
+        class Observations:
+            mouse_x = Observation("mouse_x")
+            mouse_y = Observation("mouse_y")
+
         # User-level state
         self.graph = Graph()
         self.tool = None
         self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
+        self.observations = Observations()
 
     def _update_transforms(self, window):
         # About coordinate frames:
@@ -268,13 +270,19 @@ class ViewModel:
         self._update_transforms(window)
         self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
         if self.tool:
-            self.tool.handle_frame(self.cursor_world)
+            self.tool.handle_frame()
 
     def world_to_screen(self, pt):
         return (p(*pt) - self.world_transform.translation) / self.world_transform.scale
 
     def screen_to_world(self, pt):
         return p(*pt) * self.world_transform.scale + self.world_transform.translation
+
+    def current_obs_dict(self):
+        return {
+            "mouse_x": self.cursor_world[0],
+            "mouse_y": self.cursor_world[1],
+        }
 
 
 def main(solver):
@@ -300,9 +308,15 @@ def main(solver):
         """
         return gl_context.texture(size, components=4)
 
-    loss = view_model.graph.total_loss()
+    @memoize
+    def optimizer_and_renderer(sdf, size: tuple[int, int], obs_names: FrozenSet[str]):
+        is_inside = sdf.is_inside(*pixel_grid(size))
 
-    opt = optimizer.Optimizer(loss)
+        loss = view_model.graph.total_loss()
+        loss.register_output(is_inside)
+        for name in obs_names:
+            loss.observations[name] = 0.0
+        return Optimizer(loss), is_inside
 
     while not glfw.window_should_close(window):
         ###############
@@ -313,7 +327,12 @@ def main(solver):
 
         view_model.on_frame(window)
 
-        scene = view_model.graph.to_sdf()
+        sdf = view_model.graph.cached_sdf
+        obs_dict = view_model.current_obs_dict()
+        opt, is_inside = optimizer_and_renderer(
+            sdf, view_model.window_size, frozenset(obs_dict.keys())
+        )
+        soln = opt.optimize(obs_dict)
 
         ###########
         ## Render
@@ -322,7 +341,7 @@ def main(solver):
 
         # Render SDFs
         texture = get_sdf_texture(view_model.window_size)
-        buf = render_scene(scene, view_model.window_size, opt)
+        buf = render_scene(soln.eval(is_inside), view_model.window_size)
         texture.write(jax.device_get(buf))
         texture.use(0)
         render_quad()

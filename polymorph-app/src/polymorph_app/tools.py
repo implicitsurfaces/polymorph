@@ -1,6 +1,7 @@
 import glfw
 import imgui
 import jax.numpy as jnp
+from polymorph_num.vec import Vec2
 
 from .graph import Box, Circle, Polygon
 
@@ -24,7 +25,8 @@ class Tool:
         if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
             self.escape()
 
-    def handle_frame(self, mouse_pos):
+    def handle_frame(self):
+        mouse_pos = self.view_model.cursor_world
         if self._mousedown_pos is not None:
             self.view_model.graph.changed()  # TODO: Find a cleaner way to do this.
             self.mousedrag(mouse_pos, self._mousedown_pos)
@@ -54,21 +56,26 @@ class Tool:
 
 class CircleTool(Tool):
     def mousedown(self, pos):
-        self.shape = self.view_model.graph.add(Circle)
+        self.shape = self.view_model.graph.add(Circle(pos[0].item(), pos[1].item()))
 
-    def mousedrag(self, pos, start_pos):
-        self.shape.adjust(start_pos, pos)
+        obs = self.view_model.observations
+        self.shape.radius = (Vec2(obs.mouse_x, obs.mouse_y) - self.shape.center).norm()
 
     def mouseup(self, pos):
+        # Lock in the current radius
+        self.shape.radius = (
+            Vec2(pos[0].item(), pos[1].item()) - self.shape.center
+        ).norm()
+        self.view_model.graph.changed()  # Ugh
         self.shape = None
 
 
 class BoxTool(Tool):
     def mousedown(self, pos):
-        self.shape = self.view_model.graph.add(Box)
+        self.shape = self.view_model.graph.add(Box(pos))
 
     def mousedrag(self, pos, start_pos):
-        print("adjust", pos, start_pos)
+        assert self.shape is not None
         self.shape.adjust(start_pos, pos)
 
     def mouseup(self, pos):
@@ -87,7 +94,7 @@ class PolygonTool(Tool):
 
     def mousedown(self, pos):
         if self.shape is None:
-            self.shape = self.view_model.graph.add(Polygon)
+            self.shape = self.view_model.graph.add(Polygon())
         else:
             self.shape.points.pop()  # Remove the preview point.
 

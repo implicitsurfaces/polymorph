@@ -42,3 +42,6 @@ class Vec2:
 
     def cross(self, other):
         return self.x * other.y - self.y * other.x
+
+    def norm_squared(self):
+        return self.x * self.x + self.y * self.y

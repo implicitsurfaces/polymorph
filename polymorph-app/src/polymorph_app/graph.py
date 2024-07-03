@@ -1,7 +1,7 @@
 from functools import cached_property
 from typing import FrozenSet
 
-from polymorph_num.expr import Expr, as_expr
+from polymorph_num.expr import Expr, Observation, Param, as_expr
 from polymorph_num.vec import Vec2
 
 from . import sdf
@@ -59,15 +59,18 @@ class Circle(Node):
 
     __match_args__ = ("center", "radius")
 
-    def __init__(self, x, y):
-        self.center = Vec2(x, y)
-        self.radius = as_expr(10.0)
+    def __init__(self, center: Vec2, radius: Expr):
+        self.center = center
+        self.radius = radius
 
     def to_sdf(self):
         return sdf.Translation(self.center, sdf.Circle(self.radius))
 
-    def adjust(self, p1, p2):
-        raise NotImplementedError()
+    def loss(self) -> Expr:
+        if isinstance(self.radius, Param):
+            d = self.to_sdf().distance(Observation("mouse_x"), Observation("mouse_y"))
+            return d * d
+        return as_expr(0.0)
 
 
 def as_vec2(p):
@@ -80,18 +83,15 @@ class Box(Node):
 
     __match_args__ = ("p1", "p2")
 
-    def __init__(self, p1):
-        self.adjust(p1, p1)
+    def __init__(self, p1: Vec2, p2: Vec2):
+        self.p1 = p1
+        self.p2 = p2
 
     def to_sdf(self):
         center = (self.p1 + self.p2) / 2
         w = (self.p2.x - self.p1.x).smoothabs()
         h = (self.p2.y - self.p1.y).smoothabs()
         return sdf.Translation(center, sdf.Box(w, h))
-
-    def adjust(self, p1, p2):
-        self.p1 = Vec2(*p1.tolist())
-        self.p2 = Vec2(*p2.tolist())
 
 
 class Polygon(Node):

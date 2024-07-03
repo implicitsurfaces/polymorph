@@ -1,6 +1,8 @@
 import glfw
 import imgui
 import jax.numpy as jnp
+from polymorph_num.expr import Observation
+from polymorph_num.ops import param
 from polymorph_num.vec import Vec2
 
 from .graph import Box, Circle, Polygon
@@ -56,10 +58,8 @@ class Tool:
 
 class CircleTool(Tool):
     def mousedown(self, pos):
-        self.shape = self.view_model.graph.add(Circle(pos.x, pos.y))
-
-        obs = self.view_model.observations
-        self.shape.radius = (Vec2(obs.mouse_x, obs.mouse_y) - self.shape.center).norm()
+        r = param()
+        self.shape = self.view_model.graph.add(Circle(Vec2(pos.x, pos.y), r))
 
     def mouseup(self, pos):
         # Lock in the current radius
@@ -70,13 +70,13 @@ class CircleTool(Tool):
 
 class BoxTool(Tool):
     def mousedown(self, pos):
-        self.shape = self.view_model.graph.add(Box(pos))
-
-    def mousedrag(self, pos, start_pos):
-        assert self.shape is not None
-        self.shape.adjust(start_pos, pos)
+        p1 = Vec2(pos.x, pos.y)
+        p2 = Vec2(Observation("mouse_x"), Observation("mouse_y"))
+        self.shape = self.view_model.graph.add(Box(p1, p2))
 
     def mouseup(self, pos):
+        self.shape.p2 = Vec2(pos.x, pos.y)
+        self.view_model.graph.changed()  # Ugh
         self.shape = None
 
 

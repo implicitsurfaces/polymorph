@@ -1,7 +1,7 @@
 from typing import Sequence
 
 from polymorph_num import ops
-from polymorph_num.expr import Expr, TAU, as_expr
+from polymorph_num.expr import TAU, Expr, as_expr
 from polymorph_num.vec import Vec2, as_vec2
 
 from .operations import Shape

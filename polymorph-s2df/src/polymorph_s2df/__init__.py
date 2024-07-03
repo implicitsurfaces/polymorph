@@ -1,3 +1,4 @@
+from jax.numpy import isscalar
 from polymorph_num import ops
 from polymorph_num.expr import Expr, as_expr
 from polymorph_num.vec import Vec2
@@ -128,7 +129,7 @@ def bulging_polygon(points):
     segments = []
 
     for point_or_bulge in points[1:] + [points[0]]:
-        if jnp.isscalar(point_or_bulge):
+        if isscalar(point_or_bulge):
             previous_bulge = point_or_bulge
         else:
             segment = (

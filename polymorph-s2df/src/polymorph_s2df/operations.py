@@ -1,6 +1,6 @@
 from polymorph_num import ops
 from polymorph_num.expr import Expr, as_expr
-from polymorph_num.vec import as_vec2, Vec2
+from polymorph_num.vec import Vec2, as_vec2
 
 from .utils import indent_shape
 

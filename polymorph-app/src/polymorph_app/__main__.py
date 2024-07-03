@@ -13,7 +13,6 @@ import numpy as np
 from imgui.integrations.glfw import GlfwRenderer
 from polymorph_num.expr import Observation, as_expr
 from polymorph_num.loss import Unit
-from polymorph_s2df import p
 
 from .graph import Graph
 from .solve import async_solver
@@ -263,7 +262,7 @@ class ViewModel:
             return
 
         if self.tool:
-            pos = p(*self.screen_to_world(glfw.get_cursor_pos(window)))
+            pos = jnp.array(self.screen_to_world(glfw.get_cursor_pos(window)))
             self.tool.handle_mouse_button(pos, action)
 
     def on_frame(self, window):
@@ -273,10 +272,15 @@ class ViewModel:
             self.tool.handle_frame()
 
     def world_to_screen(self, pt):
-        return (p(*pt) - self.world_transform.translation) / self.world_transform.scale
+        return (
+            jnp.array(pt) - self.world_transform.translation
+        ) / self.world_transform.scale
 
     def screen_to_world(self, pt):
-        return p(*pt) * self.world_transform.scale + self.world_transform.translation
+        return (
+            jnp.array(pt) * self.world_transform.scale
+            + self.world_transform.translation
+        )
 
     def current_obs_dict(self):
         return {

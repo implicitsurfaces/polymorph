@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from typing import Callable
 
 import jax
 import jax.numpy as jnp
+import optimistix
 
 from . import expr as e
 from .optimizer import _eval
@@ -27,17 +28,38 @@ class ParamMap:
         return set(self.dict.keys())
 
 
+def _make_bfgs():
+    return optimistix.BFGS(rtol=1e-5, atol=1e-6)
+
+
 @dataclass(frozen=True)
 class CompiledUnit:
-    _compiled_exprs: dict[str, Callable]
-    _params: jax.Array
-    _obs_dict: dict[str, float]
+    loss_fn: Callable
+    compiled_exprs: dict[str, Callable]
+    params: jax.Array
+    obs_dict: dict[str, float]
+
+    solver: optimistix.AbstractMinimiser = field(default_factory=_make_bfgs)
 
     def evaluate(self, exprName: str):
-        return self._compiled_exprs[exprName](self._params, self._obs_dict)
+        return self.compiled_exprs[exprName](self.params, self.obs_dict)
 
     def observe(self, obs_dict) -> CompiledUnit:
-        return CompiledUnit(self._compiled_exprs, self._params, obs_dict)
+        return replace(self, obs_dict=obs_dict)
+
+        def err(p, d):
+            return self._eval(self.loss.loss, p, d)
+
+    def minimize(self, max_steps=1000):
+        soln = optimistix.minimise(
+            self.loss_fn,
+            self.solver,
+            self.params,
+            self.obs_dict,
+            max_steps=max_steps,
+            throw=False,
+        )
+        return replace(self, params=soln.value)
 
 
 class Unit:
@@ -47,7 +69,7 @@ class Unit:
     observations: frozenset[str]
 
     _exprs: dict[str, e.Expr] = dict()
-    lossExpr: e.Expr | None = None
+    lossExpr: e.Expr = e.as_expr(0.0)
 
     def __init__(self, obs_names: frozenset[str]):
         self.observations = obs_names
@@ -64,10 +86,10 @@ class Unit:
         self.lossExpr = expr
 
     def _compile(self, expr, params, obs_dict):
-        def f(p, o):
-            return _eval(expr, p, self.param_map, o)
+        def eval_expr(p, d):
+            return _eval(expr, p, self.param_map, d)
 
-        return jax.jit(f).lower(params, obs_dict).compile()
+        return jax.jit(eval_expr).lower(params, obs_dict).compile()
 
     def compile(self) -> CompiledUnit:
         params = jnp.full(self.param_map.count, 0.0)
@@ -75,7 +97,12 @@ class Unit:
         compiled_exprs = {
             n: self._compile(e, params, obs) for n, e in self._exprs.items()
         }
-        return CompiledUnit(compiled_exprs, params, obs)
+
+        def eval_loss(p, d):
+            return _eval(self.lossExpr, p, self.param_map, d)
+
+        loss_fn = jax.jit(eval_loss)
+        return CompiledUnit(loss_fn, compiled_exprs, params, obs)
 
 
 class Loss:

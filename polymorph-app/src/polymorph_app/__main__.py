@@ -334,7 +334,7 @@ def main(solver):
         sdf = view_model.graph.cached_sdf
         obs_dict = view_model.current_obs_dict()
         unit = compile_unit(sdf, view_model.window_size, view_model.observation_names())
-        unit = unit.observe(obs_dict)
+        unit = unit.observe(obs_dict).minimize()
 
         ###########
         ## Render

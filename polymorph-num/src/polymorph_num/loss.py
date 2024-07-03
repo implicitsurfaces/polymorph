@@ -9,6 +9,7 @@ import optimistix
 
 from . import expr as e
 from .optimizer import _eval
+from .types import ObsDict
 
 
 class ParamMap:
@@ -37,14 +38,14 @@ class CompiledUnit:
     loss_fn: Callable
     compiled_exprs: dict[str, Callable]
     params: jax.Array
-    obs_dict: dict[str, float]
+    obs_dict: ObsDict
 
     solver: optimistix.AbstractMinimiser = field(default_factory=_make_bfgs)
 
     def evaluate(self, exprName: str):
         return self.compiled_exprs[exprName](self.params, self.obs_dict)
 
-    def observe(self, obs_dict) -> CompiledUnit:
+    def observe(self, obs_dict: ObsDict) -> CompiledUnit:
         return replace(self, obs_dict=obs_dict)
 
         def err(p, d):
@@ -85,20 +86,20 @@ class Unit:
     def registerLoss(self, expr: e.Expr) -> None:
         self.lossExpr = expr
 
-    def _compile(self, expr, params, obs_dict):
-        def eval_expr(p, d):
+    def _compile(self, expr, params, obs_dict: ObsDict):
+        def eval_expr(p, d: ObsDict):
             return _eval(expr, p, self.param_map, d)
 
         return jax.jit(eval_expr).lower(params, obs_dict).compile()
 
     def compile(self) -> CompiledUnit:
         params = jnp.full(self.param_map.count, 0.0)
-        obs = {k: 0.0 for k in self.observations}
+        obs = {k: jnp.array(0.0) for k in self.observations}
         compiled_exprs = {
             n: self._compile(e, params, obs) for n, e in self._exprs.items()
         }
 
-        def eval_loss(p, d):
+        def eval_loss(p, d: ObsDict):
             return _eval(self.lossExpr, p, self.param_map, d)
 
         loss_fn = jax.jit(eval_loss)

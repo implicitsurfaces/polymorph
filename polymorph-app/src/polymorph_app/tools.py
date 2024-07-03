@@ -56,16 +56,14 @@ class Tool:
 
 class CircleTool(Tool):
     def mousedown(self, pos):
-        self.shape = self.view_model.graph.add(Circle(pos[0].item(), pos[1].item()))
+        self.shape = self.view_model.graph.add(Circle(pos.x, pos.y))
 
         obs = self.view_model.observations
         self.shape.radius = (Vec2(obs.mouse_x, obs.mouse_y) - self.shape.center).norm()
 
     def mouseup(self, pos):
         # Lock in the current radius
-        self.shape.radius = (
-            Vec2(pos[0].item(), pos[1].item()) - self.shape.center
-        ).norm()
+        self.shape.radius = (Vec2(pos.x, pos.y) - self.shape.center).norm()
         self.view_model.graph.changed()  # Ugh
         self.shape = None
 

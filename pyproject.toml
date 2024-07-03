@@ -24,6 +24,7 @@ dependencies = [
     "glfw>=2.7.0",
     "pyopengl>=3.1.7",
     "pre-commit>=3.7.1",
+    "jaxtyping>=0.2.31",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"

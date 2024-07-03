@@ -13,10 +13,12 @@ import numpy as np
 from imgui.integrations.glfw import GlfwRenderer
 from polymorph_num.expr import Observation, as_expr
 from polymorph_num.loss import Unit
+from polymorph_num.types import ObsDict
 
 from .graph import Graph
 from .solve import async_solver
 from .tools import BoxTool, CircleTool, PolygonTool
+from .types import ScreenPos, WorldPos
 
 INITIAL_WINDOW_SIZE = (800, 600)
 
@@ -262,7 +264,7 @@ class ViewModel:
             return
 
         if self.tool:
-            pos = jnp.array(self.screen_to_world(glfw.get_cursor_pos(window)))
+            pos = self.screen_to_world(glfw.get_cursor_pos(window))
             self.tool.handle_mouse_button(pos, action)
 
     def on_frame(self, window):
@@ -271,22 +273,22 @@ class ViewModel:
         if self.tool:
             self.tool.handle_frame()
 
-    def world_to_screen(self, pt):
-        return (
-            jnp.array(pt) - self.world_transform.translation
+    def world_to_screen(self, pos: WorldPos) -> ScreenPos:
+        x, y = (
+            pos.as_array() - self.world_transform.translation
         ) / self.world_transform.scale
+        return (x.item(), y.item())
 
-    def screen_to_world(self, pt):
-        return (
-            jnp.array(pt) * self.world_transform.scale
+    def screen_to_world(self, pos: ScreenPos) -> WorldPos:
+        x, y = (
+            jnp.array(pos) * self.world_transform.scale
             + self.world_transform.translation
         )
+        return WorldPos(x.item(), y.item())
 
-    def current_obs_dict(self):
-        return {
-            "mouse_x": self.cursor_world[0],
-            "mouse_y": self.cursor_world[1],
-        }
+    def current_obs_dict(self) -> ObsDict:
+        x, y = self.cursor_world.as_array()
+        return {"mouse_x": x, "mouse_y": y}
 
     def observation_names(self):
         return frozenset(self.current_obs_dict().keys())

@@ -1,19 +1,20 @@
-from . import expr
+from dataclasses import dataclass
+
+from .expr import Expr, as_expr
 
 
+@dataclass(init=False, frozen=True)
 class Vec2:
-    x: expr.Expr
-    y: expr.Expr
-
-    __match_args__ = ("x", "y")
+    x: Expr
+    y: Expr
 
     @classmethod
     def origin(cls):
         return cls(0.0, 0.0)
 
-    def __init__(self, x, y):
-        self.x = expr.as_expr(x)
-        self.y = expr.as_expr(y)
+    def __init__(self, x: float | Expr, y: float | Expr):
+        object.__setattr__(self, "x", as_expr(x))
+        object.__setattr__(self, "y", as_expr(y))
 
     def __sub__(self, other):
         return Vec2(self.x - other.x, self.y - other.y)
@@ -26,7 +27,7 @@ class Vec2:
                 raise NotImplementedError()
 
     def __truediv__(self, other):
-        return Vec2(self.x / expr.as_expr(other), self.y / expr.as_expr(other))
+        return Vec2(self.x / as_expr(other), self.y / as_expr(other))
 
     def __neg__(self):
         return Vec2(-self.x, -self.y)
@@ -47,7 +48,7 @@ class Vec2:
         return self.x * self.x + self.y * self.y
 
 
-def as_vec2(p: Vec2 | tuple[float, float] | tuple[expr.Expr, expr.Expr]):
+def as_vec2(p: Vec2 | tuple[float, float] | tuple[Expr, Expr]):
     if isinstance(p, Vec2):
         return p
     return Vec2(p[0], p[1])

@@ -40,4 +40,4 @@ jobs:
           rye run pre-commit run --all-files
       - name: Test
         run: |
-          rye test -a
+          rye test --package polymorph_num

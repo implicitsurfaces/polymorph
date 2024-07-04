@@ -3,7 +3,8 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
-from polymorph_num.expr import _eval, as_expr
+from polymorph_num.eval import _eval
+from polymorph_num.expr import as_expr
 from polymorph_num.vec import Vec2
 
 from .operations import Shape

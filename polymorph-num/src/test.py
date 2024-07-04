@@ -1,7 +1,9 @@
 import math
 
 import pytest
-from polymorph_num import loss, ops, optimizer, vec
+from polymorph_num.ops import observation, param
+from polymorph_num.unit import Unit
+from polymorph_num.vec import Vec2
 
 
 def circle_sdf(radius, center, point):
@@ -12,23 +14,21 @@ def circle_sdf(radius, center, point):
 
 
 def test_minimal():
-    x = ops.observation("x")
-    unit = (
-        loss.Unit(["x"]).register("2x", x * 2).compile().minimize().observe({"x": 1.0})
-    )
+    x = observation("x")
+    unit = Unit(["x"]).register("2x", x * 2).compile().minimize().observe({"x": 1.0})
     assert unit.evaluate("2x") == 2.0
 
 
 def test_optimization_with_units():
     # For circle at (0, 0), find the radius by minimizing the distance to a
     # point determined by two observations.
-    r = ops.param()
-    c = vec.Vec2(0, 0)
-    obs_pt = vec.Vec2(ops.observation("x"), ops.observation("y"))
+    r = param()
+    c = Vec2(0, 0)
+    obs_pt = Vec2(observation("x"), observation("y"))
     d = circle_sdf(r, c, obs_pt)
     q = obs_pt.x * r
     unit = (
-        loss.Unit(["x", "y"])
+        Unit(["x", "y"])
         .registerLoss(d * d)
         .register("radius", r)
         .register("q", q)
@@ -44,22 +44,13 @@ def test_optimization_with_units():
     assert unit.evaluate("q") == 4.0
 
 
-def test_basic_optimization():
-    # For circle at (0, 0), find the radius by minimizing the distance to a
-    # point determined by two observations.
-    r = ops.param()
-    c = vec.Vec2(0, 0)
-    obs_pt = vec.Vec2(ops.observation("x"), ops.observation("y"))
-    d = circle_sdf(r, c, obs_pt)
-    q = obs_pt.x * r
-    l = loss.Loss(d * d)
-    l.register_output(r)
-    l.register_output(q)
-    opt = optimizer.Optimizer(l)
-    soln = opt.optimize({"x": 1.0, "y": 1.0})
-    assert soln.eval(r).item() == pytest.approx(math.sqrt(2.0))
-    assert soln.eval(q).item() == pytest.approx(math.sqrt(2.0))
+def test_unknown_param():
+    with pytest.raises(ValueError) as e:
+        Unit().register("x", param()).compile()
+    assert "params not found in loss" in str(e.value)
 
-    soln2 = opt.optimize({"x": 2.0, "y": 0.0})
-    assert soln2.eval(r) == 2.0
-    assert soln2.eval(q) == 4.0
+
+def test_unknown_obs():
+    with pytest.raises(ValueError) as e:
+        Unit(["x"]).register("x", observation("y")).compile()
+    assert "Observation 'y' not found" in str(e.value)

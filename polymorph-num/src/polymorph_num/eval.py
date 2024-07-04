@@ -1,69 +1,12 @@
-import time
-
 import jax
-import jax.nn
-import optimistix
-from jax import Array
-from jax import numpy as jnp
+import jax.numpy as jnp
 
 from . import expr as e
-from .vec import Vec2
 
-DefaultPRNGKey = jax.random.PRNGKey(0)
-
-__all__ = ["_eval", "Optimizer", "Solution"]
+__all__ = ["_eval"]
 
 
-class Optimizer:
-    def __init__(self, l, key=DefaultPRNGKey):
-        self.solver = optimistix.BFGS(rtol=1e-5, atol=1e-6)
-        self.loss = l
-        self.compiled_nodes = {}
-        self.initial = jax.random.uniform(key, (self.loss.params.count,))
-
-        def err(p, d):
-            return self._eval(self.loss.loss, p, d)
-
-        self.loss_fn = jax.jit(err)
-        for n in l.nodes:
-            self.compiled_nodes[n] = self._compile(n)
-
-    def optimize(self, obs_dict):
-        soln = optimistix.minimise(
-            self.loss_fn,
-            self.solver,
-            self.initial,
-            obs_dict,
-            max_steps=1000,
-            throw=False,
-        )
-        self.initial = soln.value
-        return Solution(self.compiled_nodes, soln.value, obs_dict)
-
-    def _compile(self, node):
-        def err(p, d):
-            return self._eval(node, p, d)
-
-        params = jnp.full(self.loss.params.count, 0.0)
-        fn = jax.jit(err).lower(params, self.loss.observations).compile()
-        return fn
-
-    def _eval(self, node, p, d):
-        print(f"tracing at {time.time()}")
-        return _eval(node, p, self.loss.params, d)
-
-
-class Solution:
-    def __init__(self, compiled_nodes, params, obs_dict):
-        self.compiled_nodes = compiled_nodes
-        self.params = params
-        self.obs_dict = obs_dict
-
-    def eval(self, node):
-        return self.compiled_nodes[node](self.params, self.obs_dict)
-
-
-def _eval(expr: e.Expr, params, param_map, obs_dict) -> Array:
+def _eval(expr: e.Expr, params, param_map, obs_dict) -> jax.Array:
     match expr:
         case e.Scalar(value):
             return jnp.array(value)
@@ -132,13 +75,6 @@ def _eval(expr: e.Expr, params, param_map, obs_dict) -> Array:
         case e.Sum(orig):
             return jnp.sum(_eval(orig, params, param_map, obs_dict))
 
-        case Vec2(x, y):
-            return jnp.array(
-                [
-                    _eval(x, params, param_map, obs_dict),
-                    _eval(y, params, param_map, obs_dict),
-                ]
-            )
         case e.Debug(tag, orig):
             o = _eval(orig, params, param_map, obs_dict)
             print(tag, o)

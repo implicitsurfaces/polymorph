@@ -8,8 +8,10 @@ import jax.numpy as jnp
 import optimistix
 
 from . import expr as e
-from .optimizer import _eval
+from .eval import _eval
 from .types import ObsDict
+
+_DEFAULT_PRNG_KEY = jax.random.PRNGKey(0)
 
 
 class ParamMap:
@@ -74,21 +76,26 @@ class Unit:
     _exprs: dict[str, e.Expr]
     lossExpr: e.Expr = e.as_expr(0.0)
 
-    def __init__(self, obs_names: Sequence[str] | set[str]):
+    def __init__(
+        self, obs_names: Sequence[str] | set[str] | frozenset[str] = frozenset()
+    ):
         self.param_map = ParamMap()
         self.observations = frozenset(obs_names)
         self._exprs = dict()
 
     def register(self, name: str, expr: e.Expr) -> Unit:
-        obs = {}
-        _find_params(expr, self.param_map, obs)  # TODO: Make this do the check?
-        for k in obs:
-            if k not in self.observations:
-                raise ValueError(f"Observation {k} not in {self.observations}")
+        params = ParamMap()
+        _find_params(expr, params, self.observations)
+
+        extra_params = params.nodes() - self.param_map.nodes()
+        if len(extra_params) > 0:
+            raise ValueError(f"Expr has params not found in loss: {extra_params}")
+
         self._exprs[name] = expr
         return self
 
     def registerLoss(self, expr: e.Expr) -> Unit:
+        _find_params(expr, self.param_map, self.observations)
         self.lossExpr = expr
         return self
 
@@ -98,8 +105,8 @@ class Unit:
 
         return jax.jit(eval_expr).lower(params, obs_dict).compile()
 
-    def compile(self) -> CompiledUnit:
-        params = jnp.full(self.param_map.count, 0.0)
+    def compile(self, prng_key=_DEFAULT_PRNG_KEY) -> CompiledUnit:
+        params = jax.random.uniform(prng_key, (self.param_map.count,))
         obs = {k: jnp.array(0.0) for k in self.observations}
         compiled_exprs = {
             n: self._compile(e, params, obs) for n, e in self._exprs.items()
@@ -113,42 +120,24 @@ class Unit:
         return CompiledUnit(loss_fn, compiled_exprs, params, obs, dims)
 
 
-class Loss:
-    def __init__(self, loss):
-        self.loss = loss
-        self.params = ParamMap()
-        self.observations = {}
-        _find_params(loss, self.params, self.observations)
-        self.nodes = []
-
-    def register_output(self, node):
-        node_params = ParamMap()
-        _find_params(node, node_params, {})
-        extra_params = node_params.nodes() - self.params.nodes()
-        if len(extra_params) > 0:
-            raise ValueError(
-                f"Cannot register node that contains parameter(s) not in loss: {extra_params}"
-            )
-        self.nodes.append(node)
-
-
-def _find_params(node, params, observations):
-    match node:
+def _find_params(expr, params: ParamMap, obs_names: frozenset[str]):
+    match expr:
         case e.Broadcast(orig, _dim):
-            _find_params(orig, params, observations)
+            _find_params(orig, params, obs_names)
 
         case e.Unary(orig, _op):
-            _find_params(orig, params, observations)
+            _find_params(orig, params, obs_names)
 
         case e.Binary(left, right, _op):
-            _find_params(left, params, observations)
-            _find_params(right, params, observations)
+            _find_params(left, params, obs_names)
+            _find_params(right, params, obs_names)
 
         case e.Param(_id):
-            params.add(node)
+            params.add(expr)
 
         case e.Observation(name):
-            observations[name] = 0.0
+            if name not in obs_names:
+                raise ValueError(f"Observation '{name}' not found in {obs_names}")
 
         case e.Sum(orig):
-            _find_params(orig, params, observations)
+            _find_params(orig, params, obs_names)

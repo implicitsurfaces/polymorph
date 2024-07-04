@@ -12,8 +12,7 @@ import moderngl
 import numpy as np
 from imgui.integrations.glfw import GlfwRenderer
 from polymorph_num.expr import Observation, as_expr
-from polymorph_num.loss import Unit
-from polymorph_num.types import ObsDict
+from polymorph_num.unit import Unit
 
 from .graph import Graph
 from .solve import async_solver
@@ -286,7 +285,7 @@ class ViewModel:
         )
         return WorldPos(x.item(), y.item())
 
-    def current_obs_dict(self) -> ObsDict:
+    def current_obs_dict(self) -> dict[str, float]:
         x, y = self.cursor_world.as_array()
         return {"mouse_x": x, "mouse_y": y}
 
@@ -320,8 +319,8 @@ def main(solver):
     @memoize
     def compile_unit(sdf, size: tuple[int, int], obs_names: FrozenSet[str]):
         unit = Unit(obs_names)
-        unit.register("is_inside", sdf.is_inside(*pixel_grid(size)))
         unit.registerLoss(view_model.graph.total_loss())
+        unit.register("is_inside", sdf.is_inside(*pixel_grid(size)))
         return unit.compile()
 
     while not glfw.window_should_close(window):

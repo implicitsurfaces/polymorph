@@ -4,7 +4,7 @@ from typing import FrozenSet
 from polymorph_num.expr import Expr, Observation, Param, as_expr
 from polymorph_num.vec import Vec2
 
-from . import sdf
+import polymorph_s2df as sdf
 
 
 class Node:
@@ -39,7 +39,7 @@ class Graph(Node):
     def to_sdf(self):
         ans = sdf.Circle(as_expr(0.0))
         for s in self.nodes:
-            ans = sdf.Union(ans, s.to_sdf())
+            ans = ans.union(s.to_sdf())
         return ans
 
     def total_loss(self) -> Expr:
@@ -64,7 +64,7 @@ class Circle(Node):
         self.radius = radius
 
     def to_sdf(self):
-        return sdf.Translation(self.center, sdf.Circle(self.radius))
+        return sdf.Circle(self.radius).translate(self.center)
 
     def loss(self) -> Expr:
         if isinstance(self.radius, Param):
@@ -91,7 +91,7 @@ class Box(Node):
         center = (self.p1 + self.p2) / 2
         w = (self.p2.x - self.p1.x).smoothabs()
         h = (self.p2.y - self.p1.y).smoothabs()
-        return sdf.Translation(center, sdf.Box(w, h))
+        return sdf.Box(w, h).translate(center)
 
 
 class Polygon(Node):

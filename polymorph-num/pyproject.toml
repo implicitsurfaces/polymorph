@@ -19,3 +19,8 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/polymorph_num"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["."]
+python_files = ["test.py"]

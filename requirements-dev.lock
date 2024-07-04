@@ -98,6 +98,8 @@ idna==3.7
     # via requests
 imgui==2.0.0
     # via polymorph
+iniconfig==2.0.0
+    # via pytest
 ipykernel==6.29.4
     # via jupyter
     # via jupyter-console
@@ -251,6 +253,7 @@ packaging==24.0
     # via matplotlib
     # via nbconvert
     # via plotly
+    # via pytest
     # via qtconsole
     # via qtpy
 pandas==2.2.2
@@ -268,6 +271,8 @@ platformdirs==4.2.1
     # via virtualenv
 plotly==5.22.0
     # via polymorph
+pluggy==1.5.0
+    # via pytest
 pre-commit==3.7.1
     # via polymorph
 prometheus-client==0.20.0
@@ -297,6 +302,7 @@ pyopengl==3.1.7
     # via polymorph
 pyparsing==3.1.2
     # via matplotlib
+pytest==8.2.2
 python-dateutil==2.9.0.post0
     # via arrow
     # via jupyter-client

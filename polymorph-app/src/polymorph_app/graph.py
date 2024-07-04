@@ -1,10 +1,9 @@
 from functools import cached_property
 from typing import FrozenSet
 
+import polymorph_s2df as sdf
 from polymorph_num.expr import Expr, Observation, Param, as_expr
 from polymorph_num.vec import Vec2
-
-import polymorph_s2df as sdf
 
 
 class Node:

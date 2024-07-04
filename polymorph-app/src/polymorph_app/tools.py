@@ -1,6 +1,6 @@
 import glfw
 import imgui
-import jax.numpy as jnp
+from polymorph_app.types import WorldPos
 from polymorph_num.expr import Observation
 from polymorph_num.ops import param
 from polymorph_num.vec import Vec2
@@ -80,40 +80,37 @@ class BoxTool(Tool):
         self.shape = None
 
 
-def unique_point(p, other):
-    """Add jitter to `p` if it's equal to `other`."""
-    return p + 0.1 if jnp.array_equal(p, other) else p
-
-
 class PolygonTool(Tool):
-    def _add_point(self, pos):
-        last_p = self.shape.points[-1] if self.shape.points else []
-        self.shape.points.append(unique_point(pos, last_p))
+    points: list[WorldPos]
+
+    def __init__(self, view_model):
+        super().__init__(view_model)
+        self.points = []
 
     def mousedown(self, pos):
         if self.shape is None:
             self.shape = self.view_model.graph.add(Polygon())
-        else:
-            self.shape.points.pop()  # Remove the preview point.
-
-        # Push two points: one is permanent, the other is a "preview" point.
-        self._add_point(pos)
+            self.shape.temp_point = Vec2(Observation("mouse_x"), Observation("mouse_y"))
         self._add_point(pos)
 
-    def mousemove(self, pos):
-        if self.shape:
-            # Update the preview point.
-            self.shape.points[-1] = unique_point(pos, self.shape.points[-2])
+    def _add_point(self, pos):
+        assert self.shape is not None
+        self.points.append(pos)
+        self.shape.points = [Vec2(pos.x, pos.y) for pos in self.points]
+        self.view_model.graph.changed()  # Ugh
 
     def escape(self):
-        self.shape.points.pop()  # Remove the preview point.
+        assert self.shape is not None
+        self.shape.temp_point = None
         self.shape = None
+        self.view_model.graph.changed()  # Ugh
 
     def render_feedback(self, view_model, draw_list):
-        if self.shape and len(self.shape.points) < 3:
+        if self.shape:
             color = imgui.get_color_u32_rgba(1, 1, 1, 1)
+            points = self.points + [view_model.cursor_world]
             draw_list.add_polyline(
-                [view_model.world_to_screen(p) for p in self.shape.points],
+                [view_model.world_to_screen(p) for p in points],
                 color,
                 flags=imgui.DRAW_NONE,
                 thickness=1,

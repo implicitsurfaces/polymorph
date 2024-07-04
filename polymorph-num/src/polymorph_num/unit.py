@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import time
 from dataclasses import dataclass, field, replace
 from typing import Callable, Sequence
 
@@ -12,6 +14,10 @@ from .eval import _eval
 from .types import ObsDict
 
 _DEFAULT_PRNG_KEY = jax.random.PRNGKey(0)
+
+logger = logging.getLogger(__name__)
+
+# logging.basicConfig(level=logging.DEBUG)
 
 
 class ParamMap:
@@ -106,17 +112,24 @@ class Unit:
         return jax.jit(eval_expr).lower(params, obs_dict).compile()
 
     def compile(self, prng_key=_DEFAULT_PRNG_KEY) -> CompiledUnit:
+        start_time = time.time()
+
         params = jax.random.uniform(prng_key, (self.param_map.count,))
         obs = {k: jnp.array(0.0) for k in self.observations}
-        compiled_exprs = {
-            n: self._compile(e, params, obs) for n, e in self._exprs.items()
-        }
+        compiled_exprs = {}
+        for name, expr in self._exprs.items():
+            start_time = time.time()
+            compiled_exprs[name] = self._compile(expr, params, obs)
+            logger.debug(f"Compiled {name} in {time.time() - start_time:.2f}s")
         dims = {n: e.dim for n, e in self._exprs.items()}
 
         def eval_loss(p, d: ObsDict):
             return _eval(self.lossExpr, p, self.param_map, d)
 
         loss_fn = jax.jit(eval_loss)
+
+        logger.debug(f"Unit compilation: {time.time() - start_time:.2f}s")
+
         return CompiledUnit(loss_fn, compiled_exprs, params, obs, dims)
 
 

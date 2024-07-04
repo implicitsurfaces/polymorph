@@ -1,4 +1,3 @@
-from functools import cached_property
 from typing import FrozenSet
 
 import polymorph_s2df as sdf
@@ -21,13 +20,17 @@ class Graph(Node):
     nodes: FrozenSet[Node] = frozenset()
     last_node: Node | None = None
 
-    @cached_property
+    def __init__(self):
+        self._sdf = None
+
+    @property
     def cached_sdf(self):
-        return self.to_sdf()
+        if self._sdf is None:
+            self._sdf = self.to_sdf()
+        return self._sdf
 
     def changed(self):
-        if hasattr(self, "cached_sdf"):
-            del self.cached_sdf
+        self._sdf = None
 
     def add(self, node):
         self.nodes |= frozenset([node])
@@ -94,18 +97,23 @@ class Box(Node):
 
 
 class Polygon(Node):
-    points: list[Vec2] = []
+    points: list[Vec2]
+    temp_point: Vec2 | None = None
 
     __match_args__ = "points"
 
+    def __init__(self):
+        self.points = []
+
     def to_sdf(self):
-        if len(self.points) < 3:
+        points = self.points + ([self.temp_point] if self.temp_point else [])
+        if len(points) < 3:
             return sdf.Circle(as_expr(0.0))
         segments = [
             sdf.LineSegment(
-                as_vec2(self.points[i]),
-                as_vec2(self.points[(i + 1) % len(self.points)]),
+                points[i],
+                points[(i + 1) % len(points)],
             )
-            for i in range(len(self.points))
+            for i in range(len(points))
         ]
-        return sdf.ClosedPath(tuple(segments))
+        return sdf.ClosedPath(segments)

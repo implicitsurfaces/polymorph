@@ -45,6 +45,12 @@ class UnOp(Enum):
     Sign = "sign"
 
 
+class ComparisonOp(Enum):
+    Gt = "gt"
+    Ge = "ge"
+    Eq = "eq"
+
+
 def broadcast_binary(left, right, op):
     if left.dim == right.dim:
         return Binary(left, right, op)
@@ -54,6 +60,19 @@ def broadcast_binary(left, right, op):
         return Binary(left, Broadcast(right, left.dim), op)
 
     raise ValueError(f"Dimension mismatch: {left.dim} != {right.dim}")
+
+
+def broacast_args(*args):
+    dims = set(arg.dim for arg in args)
+
+    if len(dims) == 1:
+        return args
+
+    if len(dims) > 2 or min(dims) != 1:
+        raise ValueError(f"Dimension mismatch, multiple dimensions: {dims}")
+
+    big_dim = max(dims)
+    return [Broadcast(arg, big_dim) if arg.dim == 1 else arg for arg in args]
 
 
 class Expr:
@@ -201,6 +220,31 @@ class Sum(Expr):
 
     def __post_init__(self):
         super().__init__(1)
+
+
+@dataclass(frozen=True)
+class ComparisonIf(Expr):
+    a: Expr
+    b: Expr
+    condition_true: Expr
+    condition_false: Expr
+    op: ComparisonOp
+
+    def __post_init__(self):
+        if (
+            len(
+                {
+                    self.a.dim,
+                    self.b.dim,
+                    self.condition_true.dim,
+                    self.condition_false.dim,
+                }
+            )
+            != 1
+        ):
+            raise ValueError("Dimension mismatch")
+
+        super().__init__(self.a.dim)
 
 
 def to_str(expr: Expr, indent: str = "") -> str:

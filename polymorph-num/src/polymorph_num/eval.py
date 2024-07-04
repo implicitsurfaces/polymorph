@@ -66,6 +66,28 @@ def _eval(expr: e.Expr, params, param_map, obs_dict) -> jax.Array:
                 case e.BinOp.Mod:
                     return jnp.mod(l, r)
 
+        case e.ComparisonIf(a, b, condition_true, condition_false, op):
+            a_ = _eval(a, params, param_map, obs_dict)
+            b_ = _eval(b, params, param_map, obs_dict)
+            if op == e.ComparisonOp.Gt:
+                return jnp.where(
+                    a_ > b_,
+                    _eval(condition_true, params, param_map, obs_dict),
+                    _eval(condition_false, params, param_map, obs_dict),
+                )
+            elif op == e.ComparisonOp.Ge:
+                return jnp.where(
+                    a_ >= b_,
+                    _eval(condition_true, params, param_map, obs_dict),
+                    _eval(condition_false, params, param_map, obs_dict),
+                )
+            elif op == e.ComparisonOp.Eq:
+                return jnp.where(
+                    a_ == b_,
+                    _eval(condition_true, params, param_map, obs_dict),
+                    _eval(condition_false, params, param_map, obs_dict),
+                )
+
         case e.Param():
             return param_map.get(expr, params)
 

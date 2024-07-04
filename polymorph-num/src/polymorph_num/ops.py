@@ -36,5 +36,32 @@ def atan2(a, b):
     return expr.broadcast_binary(a, b, expr.BinOp.ArcTan2)
 
 
+def if_gt(a, b, if_a_gt_b, if_a_le_b):
+    args = expr.broacast_args(a, b, if_a_gt_b, if_a_le_b)
+    return expr.ComparisonIf(*args, op=expr.ComparisonOp.Gt)
+
+
+def if_ge(a, b, if_a_ge_b, if_a_lt_b):
+    args = expr.broacast_args(a, b, if_a_ge_b, if_a_lt_b)
+    return expr.ComparisonIf(*args, op=expr.ComparisonOp.Ge)
+
+
+def if_lt(a, b, if_a_lt_b, if_a_ge_b):
+    return if_ge(a, b, if_a_ge_b, if_a_lt_b)
+
+
+def if_le(a, b, if_a_le_b, if_a_gt_b):
+    return if_gt(a, b, if_a_gt_b, if_a_le_b)
+
+
+def if_eq(a, b, if_a_eq_b, if_a_ne_b):
+    args = expr.broacast_args(a, b, if_a_eq_b, if_a_ne_b)
+    return expr.ComparisonIf(*args, op=expr.ComparisonOp.Eq)
+
+
+def if_ne(a, b, if_a_ne_b, if_a_eq_b):
+    return if_eq(a, b, if_a_eq_b, if_a_ne_b)
+
+
 def debug(tag, orig):
     return expr.Debug(tag, orig)

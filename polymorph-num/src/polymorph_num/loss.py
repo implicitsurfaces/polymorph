@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Callable
+from typing import Callable, Sequence
 
 import jax
 import jax.numpy as jnp
@@ -40,16 +40,18 @@ class CompiledUnit:
     params: jax.Array
     obs_dict: ObsDict
 
+    _expr_dims: dict[str, int] = field(default_factory=dict)
     solver: optimistix.AbstractMinimiser = field(default_factory=_make_bfgs)
 
     def evaluate(self, exprName: str):
-        return self.compiled_exprs[exprName](self.params, self.obs_dict)
+        ans = self.compiled_exprs[exprName](self.params, self.obs_dict)
+        return ans.item() if self._expr_dims[exprName] == 1 else ans
 
-    def observe(self, obs_dict: ObsDict) -> CompiledUnit:
-        return replace(self, obs_dict=obs_dict)
-
-        def err(p, d):
-            return self._eval(self.loss.loss, p, d)
+    def observe(self, obs_dict: ObsDict | dict[str, float]) -> CompiledUnit:
+        # Passing float observations (as opposed to a JAX scalar) causes
+        # recompilation, so make sure everything is a JAX array.
+        new_obs = {k: jnp.asarray(v) for k, v in obs_dict.items()}
+        return replace(self, obs_dict=new_obs)
 
     def minimize(self, max_steps=1000):
         soln = optimistix.minimise(
@@ -66,25 +68,29 @@ class CompiledUnit:
 class Unit:
     """A unit is family of `Exprs` that share parameters and observations."""
 
-    param_map = ParamMap()
+    param_map: ParamMap
     observations: frozenset[str]
 
-    _exprs: dict[str, e.Expr] = dict()
+    _exprs: dict[str, e.Expr]
     lossExpr: e.Expr = e.as_expr(0.0)
 
-    def __init__(self, obs_names: frozenset[str]):
-        self.observations = obs_names
+    def __init__(self, obs_names: Sequence[str] | set[str]):
+        self.param_map = ParamMap()
+        self.observations = frozenset(obs_names)
+        self._exprs = dict()
 
-    def register(self, name: str, expr: e.Expr) -> None:
+    def register(self, name: str, expr: e.Expr) -> Unit:
         obs = {}
         _find_params(expr, self.param_map, obs)  # TODO: Make this do the check?
         for k in obs:
             if k not in self.observations:
                 raise ValueError(f"Observation {k} not in {self.observations}")
         self._exprs[name] = expr
+        return self
 
-    def registerLoss(self, expr: e.Expr) -> None:
+    def registerLoss(self, expr: e.Expr) -> Unit:
         self.lossExpr = expr
+        return self
 
     def _compile(self, expr, params, obs_dict: ObsDict):
         def eval_expr(p, d: ObsDict):
@@ -98,12 +104,13 @@ class Unit:
         compiled_exprs = {
             n: self._compile(e, params, obs) for n, e in self._exprs.items()
         }
+        dims = {n: e.dim for n, e in self._exprs.items()}
 
         def eval_loss(p, d: ObsDict):
             return _eval(self.lossExpr, p, self.param_map, d)
 
         loss_fn = jax.jit(eval_loss)
-        return CompiledUnit(loss_fn, compiled_exprs, params, obs)
+        return CompiledUnit(loss_fn, compiled_exprs, params, obs, dims)
 
 
 class Loss:

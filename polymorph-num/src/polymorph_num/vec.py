@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from .expr import Expr, as_expr
+from .expr import Expr, Num, as_expr
 
 
 @dataclass(init=False, frozen=True)
@@ -12,7 +12,7 @@ class Vec2:
     def origin(cls):
         return cls(0.0, 0.0)
 
-    def __init__(self, x: float | Expr, y: float | Expr):
+    def __init__(self, x: Num, y: Num):
         object.__setattr__(self, "x", as_expr(x))
         object.__setattr__(self, "y", as_expr(y))
 
@@ -48,7 +48,10 @@ class Vec2:
         return self.x * self.x + self.y * self.y
 
 
-def as_vec2(p: Vec2 | tuple[float, float] | tuple[Expr, Expr]):
+type ValVec = tuple[Num, Num] | Vec2
+
+
+def as_vec2(p: ValVec):
     if isinstance(p, Vec2):
         return p
     return Vec2(p[0], p[1])

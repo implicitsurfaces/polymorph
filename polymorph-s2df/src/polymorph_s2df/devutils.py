@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from polymorph_num.eval import _eval
-from polymorph_num.expr import as_expr
+from polymorph_num.expr import Expr, Num, as_expr
 from polymorph_num.vec import Vec2
 
 from .operations import Shape
@@ -68,13 +68,13 @@ def render(shape: Shape, bounds=(-3, 3), n=500):
 class S(Shape):
     """A shape adapter for segments"""
 
-    def __init__(self, segment):
+    def __init__(self, segment: PathSegment):
         self.segment = segment
 
     def astuple(self):
         return (self.segment,)
 
-    def distance(self, x, y):
+    def distance(self, x: Num, y: Num) -> Expr:
         distance, _ = self.segment.distance_and_mask(Vec2(x, y))
         return distance
 

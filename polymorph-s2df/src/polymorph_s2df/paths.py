@@ -1,8 +1,8 @@
 from typing import Sequence
 
 from polymorph_num import ops
-from polymorph_num.expr import PI, TAU, Expr, as_expr
-from polymorph_num.vec import Vec2, as_vec2
+from polymorph_num.expr import PI, TAU, Expr, Num, as_expr
+from polymorph_num.vec import ValVec, Vec2, as_vec2
 
 from .operations import Shape
 from .utils import min_iterable, repr_point, smooth_clamp_mask, sum_iterable
@@ -31,7 +31,7 @@ class PathSegment:
 
 
 class LineSegment(PathSegment):
-    def __init__(self, start: Vec2, end: Vec2):
+    def __init__(self, start: ValVec, end: ValVec):
         super().__init__()
         self.start = as_vec2(start)
         self.end = as_vec2(end)
@@ -225,7 +225,7 @@ class ArcSegment(PathSegment):
 
 
 class TranslatedSegment(PathSegment):
-    def __init__(self, segment: PathSegment, translation: Vec2):
+    def __init__(self, segment: PathSegment, translation: ValVec):
         super().__init__()
         self.segment = segment
         self.translation = as_vec2(translation)
@@ -315,7 +315,7 @@ class ClosedPath(Shape):
             sum_iterable(segment.winding_number(p) for segment in self.segments) / TAU
         )
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
+    def distance(self, x: Num, y: Num) -> Expr:
         # The gist of the algorithm is to combine the distance to each segment
         # and to each point between the segments. Segments cannot apply to the
         # whole space, so we need to combine them with "masks".

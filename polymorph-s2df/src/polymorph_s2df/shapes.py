@@ -1,5 +1,5 @@
 from polymorph_num import ops
-from polymorph_num.expr import Expr, as_expr
+from polymorph_num.expr import Expr, Num, as_expr
 
 from .operations import Shape
 from .utils import norm
@@ -18,8 +18,8 @@ class BottomHalfPlane(Shape):
     def __repr__(self):
         return "BottomHalfPlane()"
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
-        return y
+    def distance(self, x: Num, y: Num) -> Expr:
+        return as_expr(y)
 
 
 class TopHalfPlane(Shape):
@@ -35,8 +35,8 @@ class TopHalfPlane(Shape):
     def __repr__(self):
         return "TopHalfPlane()"
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
-        return -y
+    def distance(self, x: Num, y: Num) -> Expr:
+        return as_expr(-y)
 
 
 class LeftHalfPlane(Shape):
@@ -52,8 +52,8 @@ class LeftHalfPlane(Shape):
     def __repr__(self):
         return "LeftHalfPlane()"
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
-        return x
+    def distance(self, x: Num, y: Num) -> Expr:
+        return as_expr(x)
 
 
 class RightHalfPlane(Shape):
@@ -69,12 +69,12 @@ class RightHalfPlane(Shape):
     def __repr__(self):
         return "RightHalfPlane()"
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
-        return -x
+    def distance(self, x: Num, y: Num) -> Expr:
+        return as_expr(-x)
 
 
 class Circle(Shape):
-    def __init__(self, radius: Expr) -> None:
+    def __init__(self, radius: Num) -> None:
         super().__init__()
         self.radius = as_expr(radius)
 
@@ -92,7 +92,10 @@ class Circle(Shape):
     def __repr__(self):
         return f"Circle({self.radius})"
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
+    def distance(self, x: Num, y: Num) -> Expr:
+        x = as_expr(x)
+        y = as_expr(y)
+
         return (x * x + y * y).sqrt() - self.radius
 
 
@@ -116,8 +119,8 @@ class Box(Shape):
     def __repr__(self):
         return f"Box({self.width}, {self.height})"
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
-        q_x = x.smoothabs() - self.width / 2
-        q_y = y.smoothabs() - self.height / 2
+    def distance(self, x: Num, y: Num) -> Expr:
+        q_x = as_expr(x).smoothabs() - self.width / 2
+        q_y = as_expr(y).smoothabs() - self.height / 2
 
         return norm(q_x.softplus(), q_y.softplus()) + ops.max(q_x, q_y).softminus()

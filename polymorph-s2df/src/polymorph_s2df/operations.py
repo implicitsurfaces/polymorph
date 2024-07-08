@@ -1,15 +1,15 @@
 from polymorph_num import ops
-from polymorph_num.expr import Expr, as_expr
-from polymorph_num.vec import Vec2, as_vec2
+from polymorph_num.expr import Expr, Num, as_expr
+from polymorph_num.vec import ValVec, as_vec2
 
 from .utils import indent_shape
 
 
 class Shape:
-    def distance(self, x: Expr, y: Expr) -> Expr:
+    def distance(self, x: Num, y: Num) -> Expr:
         raise NotImplementedError
 
-    def is_inside(self, x: Expr, y: Expr, scale=100):
+    def is_inside(self, x: Num, y: Num, scale=100):
         return as_expr(1) - (self.distance(x, y) * scale).sigmoid()
 
     def astuple(self):
@@ -27,48 +27,48 @@ class Shape:
     def substract(self, other: "Shape"):
         return Substraction(self, other)
 
-    def smooth_union(self, k: Expr, other: "Shape"):
+    def smooth_union(self, k: Num, other: "Shape"):
         return SmoothUnion(k, self, other)
 
-    def smooth_intersect(self, k: Expr, other: "Shape"):
+    def smooth_intersect(self, k: Num, other: "Shape"):
         return SmoothIntersection(k, self, other)
 
     def smooth_substract(self, k, other: "Shape"):
         return SmoothSubstraction(k, self, other)
 
-    def shell(self, thickness: Expr):
+    def shell(self, thickness: Num):
         return Shell(thickness, self)
 
-    def translate(self, offset: Vec2):
+    def translate(self, offset: ValVec):
         return Translation(offset, self)
 
-    def rotate(self, angle: Expr):
+    def rotate(self, angle: Num):
         return Rotation(angle, self)
 
-    def rotate_around(self, angle: Expr, center: Vec2):
+    def rotate_around(self, angle: Num, center: ValVec):
         return Translation(center, Rotation(angle, Translation(-center, self)))
 
-    def scale(self, factor: Expr):
+    def scale(self, factor: Num):
         return Scale(factor, self)
 
     def invert(self):
         return Inversion(self)
 
-    def dilate(self, offset: Expr):
+    def dilate(self, offset: Num):
         return Dilate(offset, self)
 
-    def morph(self, t: Expr, other: "Shape"):
+    def morph(self, t: Num, other: "Shape"):
         return Morph(t, self, other)
 
-    def taper(self, height: Expr, factor: Expr):
+    def taper(self, height: Num, factor: Num):
         return Taper(height, factor, self)
 
-    def taper_from_point(self, point: Vec2, height: Expr, factor: Expr):
+    def taper_from_point(self, point: ValVec, height: Num, factor: Num):
         return Translation(point, Taper(height, factor, Translation(-point, self)))
 
 
 class Translation(Shape):
-    def __init__(self, offset: Vec2, shape: Shape):
+    def __init__(self, offset: ValVec, shape: Shape):
         super().__init__()
         self.offset = as_vec2(offset)
         self.shape = shape
@@ -87,12 +87,12 @@ class Translation(Shape):
     def __repr__(self):
         return f"Translation(\n  {self.offset},\n{indent_shape(self.shape)}\n)"
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
+    def distance(self, x: Num, y: Num) -> Expr:
         return self.shape.distance(x - self.offset.x, y - self.offset.y)
 
 
 class Rotation(Shape):
-    def __init__(self, angle: Expr, shape: Shape):
+    def __init__(self, angle: Num, shape: Shape):
         super().__init__()
         self.angle = as_expr(angle)
         self.shape = shape
@@ -111,7 +111,10 @@ class Rotation(Shape):
     def __repr__(self):
         return f"Rotation(\n  {self.angle}, \n{indent_shape(self.shape)}\n)"
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
+    def distance(self, x: Num, y: Num) -> Expr:
+        x = as_expr(x)
+        y = as_expr(y)
+
         c = self.angle.cos()
         s = self.angle.sin()
 
@@ -141,12 +144,12 @@ class Intersection(Shape):
     def __repr__(self):
         return f"Intersection(\n{indent_shape(self.shape_1)}, \n{indent_shape(self.shape_2)}\n)"
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
+    def distance(self, x: Num, y: Num) -> Expr:
         return ops.max(self.shape_1.distance(x, y), self.shape_2.distance(x, y))
 
 
 class SmoothIntersection(Shape):
-    def __init__(self, k: Expr, shape_1: Shape, shape_2: Shape):
+    def __init__(self, k: Num, shape_1: Shape, shape_2: Shape):
         super().__init__()
         self.k = as_expr(k * 4)
         self.shape_1 = shape_1
@@ -166,7 +169,7 @@ class SmoothIntersection(Shape):
     def __repr__(self):
         return f"SmoothIntersection(\n  {self.k / 4},\n{indent_shape(self.shape_1)}, \n{indent_shape(self.shape_2)} \n)"
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
+    def distance(self, x: Num, y: Num) -> Expr:
         val1 = self.shape_1.distance(x, y)
         val2 = self.shape_2.distance(x, y)
 
@@ -196,7 +199,7 @@ class Union(Shape):
             f"Union(\n{indent_shape(self.shape_1)}, \n{indent_shape(self.shape_2)}\n)"
         )
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
+    def distance(self, x: Num, y: Num) -> Expr:
         return ops.min(self.shape_1.distance(x, y), self.shape_2.distance(x, y))
 
 
@@ -221,7 +224,7 @@ class SmoothUnion(Shape):
     def __repr__(self):
         return f"SmoothUnion(\n  {self.k / 4},\n{indent_shape(self.shape_1)}, \n{indent_shape(self.shape_2)} \n)"
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
+    def distance(self, x: Num, y: Num) -> Expr:
         val1 = self.shape_1.distance(x, y)
         val2 = self.shape_2.distance(x, y)
 
@@ -249,12 +252,12 @@ class Substraction(Shape):
     def __repr__(self):
         return f"Substraction(\n{indent_shape(self.shape_1)}, \n{indent_shape(self.shape_2)}\n)"
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
+    def distance(self, x: Num, y: Num) -> Expr:
         return ops.max(self.shape_1.distance(x, y), -self.shape_2.distance(x, y))
 
 
 class SmoothSubstraction(Shape):
-    def __init__(self, k: Expr, shape_1: Shape, shape_2: Shape):
+    def __init__(self, k: Num, shape_1: Shape, shape_2: Shape):
         super().__init__()
         self.k = as_expr(k * 4)
         self.shape_1 = shape_1
@@ -274,7 +277,7 @@ class SmoothSubstraction(Shape):
     def __repr__(self):
         return f"SmoothSubstraction(\n  {self.k / 4},\n{indent_shape(self.shape_1)}, \n{indent_shape(self.shape_2)} \n)"
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
+    def distance(self, x: Num, y: Num) -> Expr:
         val1 = self.shape_1.distance(x, y)
         val2 = self.shape_2.distance(x, y)
 
@@ -283,7 +286,7 @@ class SmoothSubstraction(Shape):
 
 
 class Scale(Shape):
-    def __init__(self, factor: Expr, shape: Shape):
+    def __init__(self, factor: Num, shape: Shape):
         super().__init__()
         self.factor = as_expr(factor)
         self.shape = shape
@@ -302,8 +305,11 @@ class Scale(Shape):
     def __repr__(self):
         return f"Scale(\n  {self.factor},\n{indent_shape(self.shape)}\n)"
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
-        return self.shape.distance(x / self.factor, y / self.factor) * self.factor
+    def distance(self, x: Num, y: Num) -> Expr:
+        return (
+            self.shape.distance(as_expr(x) / self.factor, as_expr(y) / self.factor)
+            * self.factor
+        )
 
 
 class Inversion(Shape):
@@ -325,12 +331,12 @@ class Inversion(Shape):
     def __repr__(self):
         return f"Inversion(\n{indent_shape(self.shape)}\n)"
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
+    def distance(self, x: Num, y: Num) -> Expr:
         return -self.shape.distance(x, y)
 
 
 class Dilate(Shape):
-    def __init__(self, offset: Expr, shape: Shape):
+    def __init__(self, offset: Num, shape: Shape):
         super().__init__()
         self.offset = as_expr(offset)
         self.shape = shape
@@ -349,12 +355,12 @@ class Dilate(Shape):
     def __repr__(self):
         return f"Dilate(\n  {self.offset},\n{indent_shape(self.shape)}\n)"
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
+    def distance(self, x: Num, y: Num) -> Expr:
         return self.shape.distance(x, y) - self.offset
 
 
 class Shell(Shape):
-    def __init__(self, thickness: Expr, shape: Shape):
+    def __init__(self, thickness: Num, shape: Shape):
         super().__init__()
         self.shape = shape
         self.thickness = as_expr(thickness)
@@ -373,12 +379,12 @@ class Shell(Shape):
     def __repr__(self):
         return f"Shell(\n  {self.thickness},\n{indent_shape(self.shape)}\n)"
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
+    def distance(self, x: Num, y: Num) -> Expr:
         return self.shape.distance(x, y).abs() - self.thickness
 
 
 class Morph(Shape):
-    def __init__(self, t: Expr, shape_1: Shape, shape_2: Shape):
+    def __init__(self, t: Num, shape_1: Shape, shape_2: Shape):
         super().__init__()
         self.shape_1 = shape_1
         self.shape_2 = shape_2
@@ -398,14 +404,14 @@ class Morph(Shape):
     def __repr__(self):
         return f"Morph(\n  {self.t},\n{indent_shape(self.shape_1)}, \n{indent_shape(self.shape_2)}\n)"
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
+    def distance(self, x: Num, y: Num) -> Expr:
         return (as_expr(1) - self.t) * self.shape_1.distance(
             x, y
         ) + self.t * self.shape_2.distance(x, y)
 
 
 class Taper(Shape):
-    def __init__(self, height: Expr, factor: Expr, shape: Shape):
+    def __init__(self, height: Num, factor: Num, shape: Shape):
         super().__init__()
         self.height = as_expr(height)
         self.factor = as_expr(factor)
@@ -427,6 +433,6 @@ class Taper(Shape):
             f"Taper(\n  {self.height}, {self.factor}, \n{indent_shape(self.shape)}\n)"
         )
 
-    def distance(self, x: Expr, y: Expr) -> Expr:
+    def distance(self, x: Num, y: Num) -> Expr:
         s = self.height / (self.factor * y + (self.height - y))
-        return self.shape.distance(x * s, y)
+        return self.shape.distance(as_expr(x) * s, y)

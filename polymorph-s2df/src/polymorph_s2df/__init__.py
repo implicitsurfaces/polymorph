@@ -1,7 +1,7 @@
 from jax.numpy import isscalar
 from polymorph_num import ops
-from polymorph_num.expr import Expr, as_expr
-from polymorph_num.vec import Vec2, as_vec2
+from polymorph_num.expr import Expr, Num, as_expr
+from polymorph_num.vec import ValVec, Vec2, as_vec2
 
 from .operations import Intersection as Intersection
 from .operations import Shape as Shape
@@ -23,17 +23,23 @@ from .shapes import RightHalfPlane as RightHalfPlane
 from .shapes import TopHalfPlane as TopHalfPlane
 
 
-def center_and_point_circle(center: Vec2, point: Vec2):
+def center_and_point_circle(center: ValVec, point: ValVec):
+    center = as_vec2(center)
+    point = as_vec2(point)
+
     radius = (center - point).norm()
     return Circle(radius).translate(center)
 
 
-def two_corners_rectangle(corner1: Vec2, corner2: Vec2):
+def two_corners_rectangle(corner1: ValVec, corner2: ValVec):
+    corner1 = as_vec2(corner1)
+    corner2 = as_vec2(corner2)
+
     size = corner1 - corner2
     return Box(size.x.abs(), size.y.abs()).translate((corner1 + corner2) / 2)
 
 
-def polygon(vertices: list[Vec2]):
+def polygon(vertices: list[ValVec]):
     segments = [
         LineSegment(vertices[i], vertices[(i + 1) % len(vertices)])
         for i in range(len(vertices))
@@ -41,7 +47,7 @@ def polygon(vertices: list[Vec2]):
     return ClosedPath(segments)
 
 
-def bulge_arc(point1, point2, bulge):
+def bulge_arc(point1: ValVec, point2: ValVec, bulge: Num):
     point1 = as_vec2(point1)
     point2 = as_vec2(point2)
     bulge = as_expr(bulge)

@@ -1,11 +1,14 @@
 import math
 from dataclasses import dataclass
 from enum import Enum
+from typing import Sequence
 
 import jax.numpy as jnp
 
+type Num = int | float | "Expr" | jnp.ndarray
 
-def as_expr(x):
+
+def as_expr(x: Num) -> "Expr":
     if isinstance(x, Expr):
         return x
     elif isinstance(x, float):
@@ -78,28 +81,28 @@ def broacast_args(*args):
 class Expr:
     dim: int
 
-    def __init__(self, dim):
+    def __init__(self, dim: int):
         object.__setattr__(self, "dim", dim)
 
-    def __mul__(self, other):
+    def __mul__(self, other: Num):
         return broadcast_binary(self, as_expr(other), BinOp.Mul)
 
-    def __add__(self, other):
+    def __add__(self, other: Num):
         return broadcast_binary(self, as_expr(other), BinOp.Add)
 
-    def __sub__(self, other):
+    def __sub__(self, other: Num):
         return broadcast_binary(self, as_expr(other), BinOp.Sub)
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: Num):
         return broadcast_binary(self, as_expr(other), BinOp.Div)
 
-    def __pow__(self, exponent):
+    def __pow__(self, exponent: Num):
         return broadcast_binary(self, as_expr(exponent), BinOp.Exp)
 
-    def __mod__(self, mod):
+    def __mod__(self, mod: Num):
         return broadcast_binary(self, as_expr(mod), BinOp.Mod)
 
-    def __neg__(self):
+    def __neg__(self: Num):
         return broadcast_binary(self, as_expr(-1), BinOp.Mul)
 
     def sqrt(self):
@@ -165,7 +168,7 @@ class Scalar(Expr):
 
 @dataclass(frozen=True)
 class Arr(Expr):
-    value: list[float]
+    value: Sequence[float] | jnp.ndarray
 
     def __post_init__(self):
         super().__init__(len(self.value))

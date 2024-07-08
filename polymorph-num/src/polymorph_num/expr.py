@@ -87,20 +87,38 @@ class Expr:
     def __mul__(self, other: Num):
         return broadcast_binary(self, as_expr(other), BinOp.Mul)
 
+    def __rmul__(self, other: Num):
+        return broadcast_binary(as_expr(other), self, BinOp.Mul)
+
     def __add__(self, other: Num):
         return broadcast_binary(self, as_expr(other), BinOp.Add)
+
+    def __radd__(self, other: Num):
+        return broadcast_binary(as_expr(other), self, BinOp.Add)
 
     def __sub__(self, other: Num):
         return broadcast_binary(self, as_expr(other), BinOp.Sub)
 
+    def __rsub__(self, other: Num):
+        return broadcast_binary(as_expr(other), self, BinOp.Sub)
+
     def __truediv__(self, other: Num):
         return broadcast_binary(self, as_expr(other), BinOp.Div)
+
+    def __rtruediv__(self, other: Num):
+        return broadcast_binary(as_expr(other), self, BinOp.Div)
 
     def __pow__(self, exponent: Num):
         return broadcast_binary(self, as_expr(exponent), BinOp.Exp)
 
+    def __rpow__(self, base: Num):
+        return broadcast_binary(as_expr(base), self, BinOp.Exp)
+
     def __mod__(self, mod: Num):
         return broadcast_binary(self, as_expr(mod), BinOp.Mod)
+
+    def __rmod__(self, mod: Num):
+        return broadcast_binary(as_expr(mod), self, BinOp.Mod)
 
     def __neg__(self: Num):
         return broadcast_binary(self, as_expr(-1), BinOp.Mul)
@@ -288,3 +306,4 @@ def to_str(expr: Expr, indent: str = "") -> str:
 Infinity = Scalar(float("inf"))
 PI = Scalar(math.pi)
 TAU = Scalar(2 * math.pi)
+ZERO = Scalar(0.0)

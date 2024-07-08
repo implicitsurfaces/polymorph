@@ -92,7 +92,7 @@ def winding_number_indefinite_integral(t, radius, x, y):
     sin_t = half_t.sin()
     cos_t = half_t.cos()
 
-    term1 = R2 * sin_t + as_expr(2) * radius * (x * sin_t - y * cos_t)
+    term1 = R2 * sin_t + 2 * radius * (x * sin_t - y * cos_t)
     term2 = (x * x + y * y) * sin_t
 
     numerator = (term1 + term2) / cos_t
@@ -197,9 +197,9 @@ class ArcSegment(PathSegment):
         pi_crossing_correction = (
             ops.if_lt(
                 is_crossing_pi * self.orientation_sign,
-                as_expr(0),
+                0,
                 min_pi_integral - pi_integral,
-                as_expr(0),
+                0,
             )
             * self.orientation_sign
         )
@@ -340,25 +340,21 @@ class ClosedPath(Shape):
             current_distance = ops.min(minimum_distance * mask, distance * current_mask)
 
             # if only one of the segment can apply we use it
-            current_distance += minimum_distance * (as_expr(1) - mask) + distance * (
-                as_expr(1) - current_mask
+            current_distance += minimum_distance * (1 - mask) + distance * (
+                1 - current_mask
             )
 
-            current_mask = as_expr(1) - (
-                (as_expr(1) - mask) * (as_expr(1) - current_mask)
-            )
+            current_mask = 1 - ((1 - mask) * (1 - current_mask))
             minimum_distance = current_distance
 
         points_distance = self._min_distance_to_points(p)
         minimum_distance = (
             ops.min(minimum_distance, points_distance)
-            + (as_expr(1) - current_mask) * points_distance
+            + (1 - current_mask) * points_distance
         )
 
         # We need to map the winding number such that outside the path it is 1
         # and inside it is -1
-        current_sign = (
-            as_expr(1) - ops.min(self.winding_number(p).abs(), as_expr(1)) * 2
-        )
+        current_sign = 1 - ops.min(self.winding_number(p).abs(), 1) * 2
 
         return minimum_distance * current_sign

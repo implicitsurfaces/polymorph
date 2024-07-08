@@ -24,16 +24,16 @@ def sum(n: expr.Expr):
     return expr.Sum(n)
 
 
-def min(a, b):
-    return expr.broadcast_binary(a, b, expr.BinOp.Min)
+def min(a: expr.Num, b: expr.Num):
+    return expr.broadcast_binary(expr.as_expr(a), expr.as_expr(b), expr.BinOp.Min)
 
 
-def max(a, b):
-    return expr.broadcast_binary(a, b, expr.BinOp.Max)
+def max(a: expr.Num, b: expr.Num):
+    return expr.broadcast_binary(expr.as_expr(a), expr.as_expr(b), expr.BinOp.Max)
 
 
-def atan2(a, b):
-    return expr.broadcast_binary(a, b, expr.BinOp.ArcTan2)
+def atan2(a: expr.Num, b: expr.Num):
+    return expr.broadcast_binary(expr.as_expr(a), expr.as_expr(b), expr.BinOp.ArcTan2)
 
 
 def if_gt(a: expr.Num, b: expr.Num, if_a_gt_b: expr.Num, if_a_le_b: expr.Num):

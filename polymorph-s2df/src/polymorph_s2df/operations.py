@@ -10,7 +10,7 @@ class Shape:
         raise NotImplementedError
 
     def is_inside(self, x: Num, y: Num, scale=100):
-        return as_expr(1) - (self.distance(x, y) * scale).sigmoid()
+        return 1 - (self.distance(x, y) * scale).sigmoid()
 
     def astuple(self):
         raise NotImplementedError
@@ -46,7 +46,7 @@ class Shape:
         return Rotation(angle, self)
 
     def rotate_around(self, angle: Num, center: ValVec):
-        return Translation(center, Rotation(angle, Translation(-center, self)))
+        return Translation(center, Rotation(angle, Translation(-as_vec2(center), self)))
 
     def scale(self, factor: Num):
         return Scale(factor, self)
@@ -64,7 +64,9 @@ class Shape:
         return Taper(height, factor, self)
 
     def taper_from_point(self, point: ValVec, height: Num, factor: Num):
-        return Translation(point, Taper(height, factor, Translation(-point, self)))
+        return Translation(
+            point, Taper(height, factor, Translation(-as_vec2(point), self))
+        )
 
 
 class Translation(Shape):
@@ -173,8 +175,8 @@ class SmoothIntersection(Shape):
         val1 = self.shape_1.distance(x, y)
         val2 = self.shape_2.distance(x, y)
 
-        h = ops.max(self.k - (val1 - val2).abs(), as_expr(0.0)) / self.k
-        return ops.max(val1, val2) + h * h * self.k * as_expr(1.0 / 4.0)
+        h = ops.max(self.k - (val1 - val2).abs(), 0.0) / self.k
+        return ops.max(val1, val2) + h * h * self.k * 1.0 / 4.0
 
 
 class Union(Shape):
@@ -228,8 +230,8 @@ class SmoothUnion(Shape):
         val1 = self.shape_1.distance(x, y)
         val2 = self.shape_2.distance(x, y)
 
-        h = ops.max(self.k - (val1 - val2).abs(), as_expr(0.0)) / self.k
-        return ops.min(val1, val2) - h * h * self.k * as_expr(1.0 / 4.0)
+        h = ops.max(self.k - (val1 - val2).abs(), 0.0) / self.k
+        return ops.min(val1, val2) - h * h * self.k * 1.0 / 4.0
 
 
 class Substraction(Shape):
@@ -405,7 +407,7 @@ class Morph(Shape):
         return f"Morph(\n  {self.t},\n{indent_shape(self.shape_1)}, \n{indent_shape(self.shape_2)}\n)"
 
     def distance(self, x: Num, y: Num) -> Expr:
-        return (as_expr(1) - self.t) * self.shape_1.distance(
+        return (1 - self.t) * self.shape_1.distance(
             x, y
         ) + self.t * self.shape_2.distance(x, y)
 

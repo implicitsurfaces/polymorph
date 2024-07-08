@@ -80,7 +80,7 @@ class Unit:
     observations: frozenset[str]
 
     _exprs: dict[str, e.Expr]
-    lossExpr: e.Expr = e.as_expr(0.0)
+    lossExpr: e.Expr = e.ZERO
 
     def __init__(
         self, obs_names: Sequence[str] | set[str] | frozenset[str] = frozenset()

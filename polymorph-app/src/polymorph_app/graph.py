@@ -1,7 +1,7 @@
 from typing import FrozenSet
 
 import polymorph_s2df as sdf
-from polymorph_num.expr import Expr, Observation, Param, as_expr
+from polymorph_num.expr import ZERO, Expr, Observation, Param
 from polymorph_num.vec import Vec2
 
 
@@ -13,7 +13,7 @@ class Node:
         raise NotImplementedError
 
     def loss(self) -> Expr:
-        return as_expr(0.0)
+        return ZERO
 
 
 class Graph(Node):
@@ -39,13 +39,13 @@ class Graph(Node):
         return node
 
     def to_sdf(self):
-        ans = sdf.Circle(as_expr(0.0))
+        ans = sdf.Circle(0.0)
         for s in self.nodes:
             ans = ans.union(s.to_sdf())
         return ans
 
     def total_loss(self) -> Expr:
-        ans = as_expr(0.0)
+        ans = ZERO
         for n in self.nodes:
             ans += n.loss()
         return ans
@@ -72,11 +72,7 @@ class Circle(Node):
         if isinstance(self.radius, Param):
             d = self.to_sdf().distance(Observation("mouse_x"), Observation("mouse_y"))
             return d * d
-        return as_expr(0.0)
-
-
-def as_vec2(p):
-    return Vec2(*p.tolist())
+        return ZERO
 
 
 class Box(Node):
@@ -108,7 +104,7 @@ class Polygon(Node):
     def to_sdf(self):
         points = self.points + ([self.temp_point] if self.temp_point else [])
         if len(points) < 3:
-            return sdf.Circle(as_expr(0.0))
+            return sdf.Circle(0.0)
         segments = [
             sdf.LineSegment(
                 points[i],

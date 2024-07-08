@@ -71,6 +71,9 @@ class S(Shape):
     def __init__(self, segment):
         self.segment = segment
 
+    def astuple(self):
+        return (self.segment,)
+
     def distance(self, x, y):
         distance, _ = self.segment.distance_and_mask(Vec2(x, y))
         return distance

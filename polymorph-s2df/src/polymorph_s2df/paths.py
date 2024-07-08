@@ -1,7 +1,7 @@
 from typing import Sequence
 
 from polymorph_num import ops
-from polymorph_num.expr import TAU, Expr, as_expr
+from polymorph_num.expr import PI, TAU, Expr, as_expr
 from polymorph_num.vec import Vec2, as_vec2
 
 from .operations import Shape
@@ -83,23 +83,10 @@ class LineSegment(PathSegment):
 
 
 def normalize_angle(q):
-    return (q + TAU) % TAU
+    return ((q % TAU) + TAU) % TAU
 
 
 def winding_number_indefinite_integral(t, radius, x, y):
-    half_t = t / 2
-    sin_t = half_t.sin()
-    cos_t = half_t.cos()
-
-    numerator = y * cos_t + (-radius - x) * sin_t
-    denominator = (x - radius) * cos_t + y * sin_t
-
-    arctan_term = ops.atan2(denominator, numerator)
-
-    return half_t + arctan_term
-
-
-def winding_number_indefinite_integral_2(t, radius, x, y):
     R2 = radius * radius
     half_t = t / 2
     sin_t = half_t.sin()
@@ -116,19 +103,25 @@ def winding_number_indefinite_integral_2(t, radius, x, y):
     return radius * (arctan_term / radius + t / (radius * 2))
 
 
+def angular_distance(start_angle, end_angle, orientation_sign):
+    raw_distance = orientation_sign * (end_angle - start_angle)
+    return (raw_distance + TAU) % TAU
+
+
 class ArcSegment(PathSegment):
     start_angle: Expr
     end_angle: Expr
     radius: Expr
 
-    def __init__(self, start_angle, end_angle, radius):
+    def __init__(self, start_angle, end_angle, radius, orientation_sign):
         super().__init__()
         self.start_angle = normalize_angle(as_expr(start_angle))
         self.end_angle = normalize_angle(as_expr(end_angle))
         self.radius = as_expr(radius)
+        self.orientation_sign = as_expr(orientation_sign)
 
     def astuple(self):
-        return (self.start_angle, self.end_angle, self.radius)
+        return (self.start_angle, self.end_angle, self.radius, self.orientation_sign)
 
     def __eq__(self, other):
         return isinstance(other, ArcSegment) and self.astuple() == other.astuple()
@@ -149,18 +142,81 @@ class ArcSegment(PathSegment):
         )
 
     def winding_number(self, p: Vec2) -> Expr:
-        return winding_number_indefinite_integral(
-            (self.end_angle), self.radius, p.x, p.y
-        ) - winding_number_indefinite_integral(
-            (self.start_angle), self.radius, p.x, p.y
+        end_angle_integral = winding_number_indefinite_integral(
+            self.end_angle, self.radius, p.x, p.y
+        )
+        start_angle_integral = winding_number_indefinite_integral(
+            self.start_angle, self.radius, p.x, p.y
         )
 
+        pi_integral = winding_number_indefinite_integral(PI, self.radius, p.x, p.y)
+        min_pi_integral = winding_number_indefinite_integral(-PI, self.radius, p.x, p.y)
+
+        # First, we consider the case where the angles are oriented counter
+        # clockwise
+        #
+        # We need to consider three cases: - both angles are smaller than pi
+        # - both angles are greater than pi - one angle is smaller than pi and
+        # the other is greater than pi
+        #
+        # If the angles are on the same side of pi, we cross the pi line if end
+        # angle is small than the start angle. This is the same for when they
+        # are both bigger and small than pi - so we really only have two cases,
+        # either the angles are on the same side of pi or not.
+        #
+        # We can use the sign of the product of the differences to determine if
+        # the angles are on the same side of pi.
+        #
+        # Then, as the cases are the inverse of each other, we can use the sign
+        # of the product of the differences
+        #
+        # An angle is smaller than pi if the difference between the angle and
+        # pi is positive and greater than pi if the difference is negative
+        #
+        # When the angles are on different sides of pi, we cross pi if the end
+        # angles is bigger than the start angle.
+        # As this is the opposite of the case where the angles are on the same
+        # side of pi, we can use the sign of the product of the differences to
+        # determine if the angles are on the same side of pi.
+
+        is_crossing_pi = (
+            (PI - self.start_angle)
+            * (PI - self.end_angle)
+            * (self.end_angle - self.start_angle)
+        )
+
+        # We then need to take into account the case where the angles are
+        # clockwise. In that case we need to make two changes:
+        #
+        # - the angles are inverted (i.e. the is_crossing_pi needs to invert
+        # its sign)
+        #
+        # - the integral needs to be inverted (i.e. we need to subtract the
+        # integral from the start to the end)
+
+        pi_crossing_correction = (
+            ops.if_lt(
+                is_crossing_pi * self.orientation_sign,
+                as_expr(0),
+                min_pi_integral - pi_integral,
+                as_expr(0),
+            )
+            * self.orientation_sign
+        )
+
+        return -((end_angle_integral - start_angle_integral) + pi_crossing_correction)
+
     def distance_and_mask(self, p: Vec2) -> tuple[Expr, Expr]:
-        angular_length = (self.end_angle) - self.start_angle
+        angular_length = angular_distance(
+            self.start_angle, self.end_angle, self.orientation_sign
+        )
 
         angle_position = normalize_angle(ops.atan2(p.y, p.x))
 
-        parametric_position = (angle_position - self.start_angle) / angular_length
+        parametric_position = (
+            angular_distance(self.start_angle, angle_position, self.orientation_sign)
+            / angular_length
+        )
         mask = smooth_clamp_mask(parametric_position, 0, 1)
 
         parametric_distance = (p.norm() - self.radius) * mask
@@ -187,9 +243,6 @@ class TranslatedSegment(PathSegment):
 
     def __repr__(self):
         return f"TranslatedSegment({self.segment}, {repr_point(self.translation)})"
-
-    def tree_flatten(self):
-        return (self.segment, self.translation), None
 
     @property
     def first_point(self):
@@ -257,6 +310,11 @@ class ClosedPath(Shape):
             (p - segment.first_point).norm() for segment in self.segments
         )
 
+    def winding_number(self, p: Vec2) -> Expr:
+        return (
+            sum_iterable(segment.winding_number(p) for segment in self.segments) / TAU
+        )
+
     def distance(self, x: Expr, y: Expr) -> Expr:
         # The gist of the algorithm is to combine the distance to each segment
         # and to each point between the segments. Segments cannot apply to the
@@ -297,12 +355,10 @@ class ClosedPath(Shape):
             + (as_expr(1) - current_mask) * points_distance
         )
 
-        total_winding_number = (
-            sum_iterable(segment.winding_number(p) for segment in self.segments) / TAU
-        )
         # We need to map the winding number such that outside the path it is 1
         # and inside it is -1
-
-        current_sign = as_expr(1) - ops.min(total_winding_number.abs(), as_expr(1)) * 2
+        current_sign = (
+            as_expr(1) - ops.min(self.winding_number(p).abs(), as_expr(1)) * 2
+        )
 
         return minimum_distance * current_sign

@@ -1,7 +1,7 @@
 from jax.numpy import isscalar
 from polymorph_num import ops
 from polymorph_num.expr import Expr, as_expr
-from polymorph_num.vec import Vec2
+from polymorph_num.vec import Vec2, as_vec2
 
 from .operations import Intersection as Intersection
 from .operations import Shape as Shape
@@ -11,7 +11,6 @@ from .operations import Union as Union
 from .paths import (
     ArcSegment,
     ClosedPath,
-    InversedSegment,
     LineSegment,
     PathSegment,
     TranslatedSegment,
@@ -42,33 +41,33 @@ def polygon(vertices: list[Vec2]):
     return ClosedPath(segments)
 
 
-def bulge_arc(point1: Vec2, point2: Vec2, bulge: float):
+def bulge_arc(point1, point2, bulge):
+    point1 = as_vec2(point1)
+    point2 = as_vec2(point2)
+    bulge = as_expr(bulge)
+
     half_chord = (point2 - point1).norm() / 2
 
     # the sagitta is the perpendicular distance from the midpoint of the chord to the arc
-    sagitta: Expr = as_expr(bulge).abs() * half_chord
+    sagitta: Expr = bulge.abs() * half_chord
 
     midpoint = (point1 + point2) / 2
 
     radius = (half_chord * half_chord + sagitta * sagitta) / (sagitta * 2)
 
     # Calculate the direction vector perpendicular to the chord
-    direction = point2 - point1
+    direction = Vec2(point2.y - point1.y, point1.x - point2.x)
     direction = direction / direction.norm()
 
-    if bulge > 0:
-        center = midpoint + direction.scale(radius - sagitta)
-    else:
-        center = midpoint - direction.scale(radius - sagitta)
+    center = midpoint + direction.scale((radius - sagitta) * bulge.sign())
 
     # Calculate the angles
     diff1 = point1 - center
     angle1 = ops.atan2(diff1.y, diff1.x)
-    diff2 = point1 - center
+    diff2 = point2 - center
     angle2 = ops.atan2(diff2.y, diff2.x)
 
-    segment = TranslatedSegment(ArcSegment(angle1, angle2, radius), center)
-    return segment if bulge < 0 else InversedSegment(segment)
+    return TranslatedSegment(ArcSegment(angle1, angle2, radius, -bulge.sign()), center)
 
 
 class DrawingPen:

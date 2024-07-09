@@ -164,6 +164,30 @@ def render_devtools(vm):
     imgui.pop_style_var()
 
 
+def render_shape_stats(vm, area=None):
+    w = 100
+    window_width, window_height = vm.window_size
+
+    # Bottom right
+    imgui.set_next_window_position(window_width - w - 10, window_height - 50)
+
+    imgui.push_style_var(imgui.STYLE_ALPHA, 0.5)
+    imgui.begin(
+        "Shape stats",
+        None,
+        imgui.WINDOW_NO_TITLE_BAR
+        | imgui.WINDOW_NO_RESIZE
+        | imgui.WINDOW_NO_MOVE
+        | imgui.WINDOW_ALWAYS_AUTO_RESIZE,
+    )
+
+    imgui.text(
+        f"Area: {area:.2E}",
+    )
+    imgui.end()
+    imgui.pop_style_var()
+
+
 def render_shapes_tree(vm):
     _, window_height = vm.window_size
     imgui.set_next_window_size(200, window_height)
@@ -208,12 +232,13 @@ def render_overlay(vm, params):
     imgui.end()
 
 
-def render_ui(renderer, vm, params):
+def render_ui(renderer, vm, params, stats=None):
     imgui.new_frame()
 
     render_overlay(vm, params)
     render_shapes_tree(vm)
     render_devtools(vm)
+    render_shape_stats(vm, **stats)
 
     imgui.render()
     renderer.render(imgui.get_draw_data())
@@ -320,7 +345,7 @@ def main(solver):
     def compile_unit(sdf, size: tuple[int, int], obs_names: FrozenSet[str]):
         unit = Unit(obs_names)
         unit.registerLoss(view_model.graph.total_loss())
-        unit.register("is_inside", sdf.is_inside(*pixel_grid(size)))
+        unit.register("sdf_bitmap", sdf.is_inside(*pixel_grid(size)))
         return unit.compile()
 
     while not glfw.window_should_close(window):
@@ -343,14 +368,19 @@ def main(solver):
         gl_context.clear()
 
         # Render SDFs
+        bitmap = unit.evaluate("sdf_bitmap")
+
+        # area is simply sum of nonzero pixels in bitmap
+        area = bitmap.sum()
+
+        buf = render_scene(bitmap, view_model.window_size)
         texture = get_sdf_texture(view_model.window_size)
-        buf = render_scene(unit.evaluate("is_inside"), view_model.window_size)
         texture.write(jax.device_get(buf))
         texture.use(0)
         render_quad()
 
         # Render ImGui
-        render_ui(imgui_glfw_renderer, view_model, None)
+        render_ui(imgui_glfw_renderer, view_model, None, stats={"area": area})
 
         glfw.swap_buffers(window)
 

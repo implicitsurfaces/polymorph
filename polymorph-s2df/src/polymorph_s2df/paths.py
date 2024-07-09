@@ -26,6 +26,9 @@ class PathSegment:
     def distance_and_mask(self, p: Vec2) -> tuple[Expr, Expr]:
         raise NotImplementedError()
 
+    def distance(self, x: Num, y: Num) -> Expr:
+        raise NotImplementedError()
+
     def winding_number(self, p: Vec2) -> Expr:
         raise NotImplementedError()
 
@@ -65,6 +68,18 @@ class LineSegment(PathSegment):
         b = self.end - p
 
         return ops.atan2(a.cross(b), a.dot(b))
+
+    def distance(self, x: Num, y: Num) -> Expr:
+        p = Vec2(x, y)
+        start_to_p = p - self.start
+
+        parametric_position = start_to_p.dot(self.segment) / self.segment.dot(
+            self.segment
+        )
+        clamped_position = ops.clamp(parametric_position, 0, 1)
+
+        projected_point = self.start + self.segment.scale(clamped_position)
+        return (p - projected_point).norm()
 
     def distance_and_mask(self, p: Vec2) -> tuple[Expr, Expr]:
         start_to_p = p - self.start
@@ -206,6 +221,29 @@ class ArcSegment(PathSegment):
 
         return -((end_angle_integral - start_angle_integral) + pi_crossing_correction)
 
+    def distance(self, x: Num, y: Num) -> Expr:
+        p = Vec2(x, y)
+        angular_length = angular_distance(
+            self.start_angle, self.end_angle, self.orientation_sign
+        )
+
+        angle_position = normalize_angle(ops.atan2(y, x))
+
+        parametric_position = (
+            angular_distance(self.start_angle, angle_position, self.orientation_sign)
+            / angular_length
+        )
+
+        clamped_position = ops.clamp(parametric_position, 0.1, 1)
+        clamped_angle = normalize_angle(
+            self.start_angle + clamped_position * angular_length
+        )
+        projected_point = Vec2(
+            self.radius * clamped_angle.cos(), self.radius * clamped_angle.sin()
+        )
+
+        return (p - projected_point).norm()
+
     def distance_and_mask(self, p: Vec2) -> tuple[Expr, Expr]:
         angular_length = angular_distance(
             self.start_angle, self.end_angle, self.orientation_sign
@@ -254,6 +292,9 @@ class TranslatedSegment(PathSegment):
 
     def distance_and_mask(self, p):
         return self.segment.distance_and_mask(p - self.translation)
+
+    def distance(self, x, y):
+        return self.segment.distance(x - self.translation.x, y - self.translation.y)
 
     def winding_number(self, p):
         return self.segment.winding_number(p - self.translation)
@@ -315,7 +356,7 @@ class ClosedPath(Shape):
             sum_iterable(segment.winding_number(p) for segment in self.segments) / TAU
         )
 
-    def distance(self, x: Num, y: Num) -> Expr:
+    def distance_masked(self, x: Num, y: Num) -> Expr:
         # The gist of the algorithm is to combine the distance to each segment
         # and to each point between the segments. Segments cannot apply to the
         # whole space, so we need to combine them with "masks".
@@ -355,6 +396,18 @@ class ClosedPath(Shape):
 
         # We need to map the winding number such that outside the path it is 1
         # and inside it is -1
+        current_sign = 1 - ops.min(self.winding_number(p).abs(), 1) * 2
+
+        return minimum_distance * current_sign
+
+    def distance(self, x: Num, y: Num) -> Expr:
+        minimum_distance = min_iterable(
+            segment.distance(x, y) for segment in self.segments
+        )
+
+        # We need to map the winding number such that outside the path it is 1
+        # and inside it is -1
+        p = Vec2(x, y)
         current_sign = 1 - ops.min(self.winding_number(p).abs(), 1) * 2
 
         return minimum_distance * current_sign

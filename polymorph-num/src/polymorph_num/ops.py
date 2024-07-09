@@ -78,5 +78,9 @@ def if_ne(a: expr.Num, b: expr.Num, if_a_ne_b: expr.Num, if_a_eq_b: expr.Num):
     return if_eq(a, b, if_a_eq_b, if_a_ne_b)
 
 
+def clamp(value: expr.Num, min_value: expr.Num, max_value: expr.Num):
+    return max(min(value, max_value), min_value)
+
+
 def debug(tag, orig):
     return expr.Debug(tag, orig)

@@ -1,10 +1,7 @@
-from functools import partial
-
-import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
-from polymorph_num.eval import _eval
-from polymorph_num.expr import Expr, Num, as_expr
+from polymorph_num.expr import Expr, Num
+from polymorph_num.unit import Unit
 from polymorph_num.vec import Vec2
 
 from .operations import Shape
@@ -15,16 +12,19 @@ def p(x, y):
     return Vec2(x, y)
 
 
-@partial(jax.jit, static_argnums=(0,))
-def compute_distance(shape: Shape, X: jnp.ndarray, Y: jnp.ndarray):
-    return _eval(shape.distance(as_expr(X.ravel()), as_expr(Y.ravel())), [], {}, {})
+def eval_expr(expr: Expr):
+    return Unit().register("result", expr).compile().evaluate("result")
+
+
+def eval_distance(shape, x, y):
+    return eval_expr(shape.distance(x, y))
 
 
 def render_distance(shape: Shape, bounds=(-3, 3), n=500):
     x = jnp.linspace(bounds[0], bounds[1], n)
     X, Y = jnp.meshgrid(x, x)
 
-    values = compute_distance(shape, X, Y).reshape(n, n)
+    values = eval_distance(shape, X.ravel(), Y.ravel()).reshape(n, n)
 
     _, ax2 = plt.subplots(layout="constrained")
 
@@ -55,7 +55,7 @@ def render(shape: Shape, bounds=(-3, 3), n=500):
     x = jnp.linspace(bounds[0], bounds[1], n)
     X, Y = jnp.meshgrid(x, x)
 
-    values = compute_distance(shape, X, Y).reshape(n, n)
+    values = eval_distance(shape, X.ravel(), Y.ravel()).reshape(n, n)
 
     plt.imshow(
         values > 0,
@@ -79,11 +79,8 @@ class S(Shape):
         return distance
 
 
-@partial(jax.jit, static_argnums=(0,))
 def compute_winding_number(segment, X, Y):
-    return _eval(
-        segment.winding_number(Vec2(as_expr(X.ravel()), as_expr(Y.ravel()))), [], [], {}
-    )
+    return eval_expr(segment.winding_number(Vec2(X.ravel(), Y.ravel())))
 
 
 def render_winding_number(segment: PathSegment, bounds=(-3, 3), n=500):
@@ -91,7 +88,7 @@ def render_winding_number(segment: PathSegment, bounds=(-3, 3), n=500):
     X, Y = jnp.meshgrid(x, x)
     values = compute_winding_number(segment, X, Y).reshape(n, n)
     plt.imshow(
-        values / (2 * jnp.pi),
+        values,
         origin="lower",
         cmap="coolwarm",
         extent=(bounds[0], bounds[1], bounds[0], bounds[1]),

@@ -1,7 +1,7 @@
 from typing import FrozenSet
 
 import polymorph_s2df as sdf
-from polymorph_num.expr import ZERO, Expr, Observation, Param
+from polymorph_num.expr import ZERO, Expr, Observation, Param, as_expr
 from polymorph_num.vec import Vec2
 
 
@@ -21,16 +21,16 @@ class Graph(Node):
     last_node: Node | None = None
 
     def __init__(self):
-        self._sdf = None
+        self._sdfs = None
 
     @property
-    def cached_sdf(self):
-        if self._sdf is None:
-            self._sdf = self.to_sdf()
-        return self._sdf
+    def cached_sdfs(self):
+        if self._sdfs is None:
+            self._sdfs = tuple(n.to_sdf() for n in self.nodes)
+        return self._sdfs
 
     def changed(self):
-        self._sdf = None
+        self._sdfs = None
 
     def add(self, node):
         self.nodes |= frozenset([node])
@@ -38,17 +38,8 @@ class Graph(Node):
         self.changed()
         return node
 
-    def to_sdf(self):
-        ans = sdf.Circle(0.0)
-        for s in self.nodes:
-            ans = ans.union(s.to_sdf())
-        return ans
-
     def total_loss(self) -> Expr:
-        ans = ZERO
-        for n in self.nodes:
-            ans += n.loss()
-        return ans
+        return as_expr(sum(n.loss() for n in self.nodes))
 
 
 class Shape(Node):

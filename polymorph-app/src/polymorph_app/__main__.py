@@ -52,14 +52,27 @@ def pixel_grid(size):
     return as_expr(xx.ravel()), as_expr(yy.ravel())
 
 
+@memoize
+def empty_bitmap(size):
+    return jnp.zeros(size[0] * size[1], dtype=jnp.float32)
+
+
 def get_params(cursor, scene):
     return cursor
 
 
-def render_scene(ans, size):
+def combine_bitmaps(bitmaps, viewport_size):
+    if len(bitmaps) == 0:
+        return empty_bitmap(viewport_size)
+    return jnp.amax(jnp.array(bitmaps), axis=0)
+
+
+def render_scene(bitmap, viewport_size):
     # Convert the float entries for each pixel into a (4,) of uint8.
     ans_3d = jnp.repeat(
-        255 * ans.reshape((size[0], size[1], 1)).astype(jnp.uint8), 4, axis=2
+        255 * bitmap.reshape((viewport_size[0], viewport_size[1], 1)).astype(jnp.uint8),
+        4,
+        axis=2,
     )
     # print(f"rendered in {time.time() - start}s")
     return ans_3d
@@ -342,10 +355,11 @@ def main(solver):
         return gl_context.texture(size, components=4)
 
     @memoize
-    def compile_unit(sdf, size: tuple[int, int], obs_names: FrozenSet[str]):
+    def compile_unit(sdfs, size: tuple[int, int], obs_names: FrozenSet[str]):
         unit = Unit(obs_names)
         unit.registerLoss(view_model.graph.total_loss())
-        unit.register("sdf_bitmap", sdf.is_inside(*pixel_grid(size)))
+        for i, sdf in enumerate(sdfs):
+            unit.register(f"sdf_bitmap{i}", sdf.is_inside(*pixel_grid(size)))
         return unit.compile()
 
     while not glfw.window_should_close(window):
@@ -357,9 +371,11 @@ def main(solver):
 
         view_model.on_frame(window)
 
-        sdf = view_model.graph.cached_sdf
+        sdfs = view_model.graph.cached_sdfs
         obs_dict = view_model.current_obs_dict()
-        unit = compile_unit(sdf, view_model.window_size, view_model.observation_names())
+        unit = compile_unit(
+            sdfs, view_model.window_size, view_model.observation_names()
+        )
         unit = unit.observe(obs_dict).minimize()
 
         ###########
@@ -368,12 +384,13 @@ def main(solver):
         gl_context.clear()
 
         # Render SDFs
-        bitmap = unit.evaluate("sdf_bitmap")
+        bitmaps = tuple(unit.evaluate(f"sdf_bitmap{i}") for i in range(len(sdfs)))
+        flat_bitmap = combine_bitmaps(bitmaps, view_model.window_size)
 
         # area is simply sum of nonzero pixels in bitmap
-        area = bitmap.sum()
+        area = flat_bitmap.sum()
 
-        buf = render_scene(bitmap, view_model.window_size)
+        buf = render_scene(flat_bitmap, view_model.window_size)
         texture = get_sdf_texture(view_model.window_size)
         texture.write(jax.device_get(buf))
         texture.use(0)

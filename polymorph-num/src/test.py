@@ -12,12 +12,24 @@ def circle_sdf(radius, center, point):
     dist = (dx * dx + dy * dy).sqrt()
     return dist - radius
 
+def fib(n):
+    if(n == 0 or n == 1):
+        return observation("x")
+    else:
+        return fib(n - 1) + fib(n - 2)
+
+def fib18():
+    unit = Unit(["x"]).register("fib", fib(18)).compile().minimize().observe({"x": 1.0})
+    return unit.evaluate("fib")
 
 def test_minimal():
     x = observation("x")
     unit = Unit(["x"]).register("2x", x * 2).compile().minimize().observe({"x": 1.0})
     assert unit.evaluate("2x") == 2.0
 
+def test_fib(benchmark):
+    result = benchmark(fib18)
+    assert result == 4181
 
 def test_optimization_with_units():
     # For circle at (0, 0), find the radius by minimizing the distance to a

@@ -6,6 +6,8 @@
 #   features: []
 #   all-features: false
 #   with-sources: false
+#   generate-hashes: false
+#   universal: false
 
 -e file:.
 -e file:polymorph-app
@@ -18,8 +20,6 @@ absl-py==2.1.0
 anyio==4.3.0
     # via httpx
     # via jupyter-server
-appnope==0.1.4
-    # via ipykernel
 argon2-cffi==23.1.0
     # via jupyter-server
 argon2-cffi-bindings==21.2.0
@@ -287,6 +287,8 @@ ptyprocess==0.7.0
     # via terminado
 pure-eval==0.2.2
     # via stack-data
+py-cpuinfo==9.0.0
+    # via pytest-benchmark
 pycparser==2.22
     # via cffi
 pygame-ce==2.4.1
@@ -303,6 +305,8 @@ pyopengl==3.1.7
 pyparsing==3.1.2
     # via matplotlib
 pytest==8.2.2
+    # via pytest-benchmark
+pytest-benchmark==4.0.0
 python-dateutil==2.9.0.post0
     # via arrow
     # via jupyter-client

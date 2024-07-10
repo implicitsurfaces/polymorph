@@ -38,6 +38,7 @@ virtural = true
 managed = true
 dev-dependencies = [
     "pytest>=8.2.2",
+    "pytest-benchmark"
 ]
 
 [tool.hatch.metadata]

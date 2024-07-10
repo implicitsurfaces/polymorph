@@ -107,7 +107,7 @@ class Unit:
 
     def _compile(self, expr, params, obs_dict: ObsDict):
         def eval_expr(p, d: ObsDict):
-            return _eval(expr, p, self.param_map, d)
+            return _eval(expr, p, self.param_map, d, {})
 
         return jax.jit(eval_expr).lower(params, obs_dict).compile()
 
@@ -124,7 +124,7 @@ class Unit:
         dims = {n: e.dim for n, e in self._exprs.items()}
 
         def eval_loss(p, d: ObsDict):
-            return _eval(self.lossExpr, p, self.param_map, d)
+            return _eval(self.lossExpr, p, self.param_map, d, {})
 
         loss_fn = jax.jit(eval_loss)
 

@@ -12,6 +12,9 @@ class Shape:
     def is_inside(self, x: Num, y: Num, scale=100):
         return 1 - (self.distance(x, y) * scale).sigmoid()
 
+    def area(self, sample_xs: Num, sample_ys: Num, sample_area: Num):
+        return ops.mean(self.is_inside(sample_xs, sample_ys)) * sample_area
+
     def astuple(self):
         raise NotImplementedError
 

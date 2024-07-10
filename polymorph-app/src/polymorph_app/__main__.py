@@ -177,12 +177,18 @@ def render_devtools(vm):
     imgui.pop_style_var()
 
 
-def render_shape_stats(vm, area=None):
+def render_shape_stats(vm, areas=None):
     w = 100
+
     window_width, window_height = vm.window_size
 
-    # Bottom right
-    imgui.set_next_window_position(window_width - w - 10, window_height - 50)
+    # TODO: how can I calculate actual line height from imgui?
+    line_height = 20
+
+    # Align group to bottom right
+    imgui.set_next_window_position(
+        window_width - w - 10, window_height - 50 - line_height * len(areas)
+    )
 
     imgui.push_style_var(imgui.STYLE_ALPHA, 0.5)
     imgui.begin(
@@ -194,9 +200,11 @@ def render_shape_stats(vm, area=None):
         | imgui.WINDOW_ALWAYS_AUTO_RESIZE,
     )
 
-    imgui.text(
-        f"Area: {area:.2E}",
-    )
+    imgui.text("Areas: ")
+    for area in areas:
+        imgui.text(
+            f"  {area:.2E}",
+        )
     imgui.end()
     imgui.pop_style_var()
 
@@ -358,8 +366,10 @@ def main(solver):
     def compile_unit(sdfs, size: tuple[int, int], obs_names: FrozenSet[str]):
         unit = Unit(obs_names)
         unit.registerLoss(view_model.graph.total_loss())
+        pg = pixel_grid(size)
         for i, sdf in enumerate(sdfs):
-            unit.register(f"sdf_bitmap{i}", sdf.is_inside(*pixel_grid(size)))
+            unit.register(f"sdf_bitmap{i}", sdf.is_inside(*pg))
+            unit.register(f"area{i}", sdf.area(*pg, size[0] * size[1]))
         return unit.compile()
 
     while not glfw.window_should_close(window):
@@ -386,18 +396,18 @@ def main(solver):
         # Render SDFs
         bitmaps = tuple(unit.evaluate(f"sdf_bitmap{i}") for i in range(len(sdfs)))
         flat_bitmap = combine_bitmaps(bitmaps, view_model.window_size)
-
-        # area is simply sum of nonzero pixels in bitmap
-        area = flat_bitmap.sum()
-
         buf = render_scene(flat_bitmap, view_model.window_size)
         texture = get_sdf_texture(view_model.window_size)
         texture.write(jax.device_get(buf))
         texture.use(0)
         render_quad()
 
+        # Calculate stats
+        areas = tuple(unit.evaluate(f"area{i}") for i in range(len(sdfs)))
+
         # Render ImGui
-        render_ui(imgui_glfw_renderer, view_model, None, stats={"area": area})
+
+        render_ui(imgui_glfw_renderer, view_model, None, stats={"areas": areas})
 
         glfw.swap_buffers(window)
 

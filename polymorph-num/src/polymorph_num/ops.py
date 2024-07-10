@@ -24,6 +24,13 @@ def sum(n: expr.Expr):
     return expr.Sum(n)
 
 
+def mean(n: expr.Expr):
+    if n.dim == 1:
+        raise ValueError()
+
+    return expr.Sum(n) / n.dim
+
+
 def min(a: expr.Num, b: expr.Num):
     return expr.broadcast_binary(expr.as_expr(a), expr.as_expr(b), expr.BinOp.Min)
 

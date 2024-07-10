@@ -13,13 +13,15 @@ def circle_sdf(radius, center, point):
     return dist - radius
 
 def cumulative_sum(n):
-    sum = observation("x")
-    for i in range(n):
+    i = observation("x")
+    sum = i
+    for _ in range(n):
+        i = i + 1
         sum = sum + i
     return sum
 
-def cumulative200():
-    unit = Unit(["x"]).register("sum", cumulative_sum(200)).compile().minimize().observe({"x": 0.0})
+def cumulative_n(n):
+    unit = Unit(["x"]).register("sum", cumulative_sum(n)).compile().minimize().observe({"x": 0.0})
     return unit.evaluate("sum")
 
 def test_minimal():
@@ -28,8 +30,8 @@ def test_minimal():
     assert unit.evaluate("2x") == 2.0
 
 def test_cumulative(benchmark):
-    result = benchmark(cumulative200)
-    assert result == 19900
+    result = benchmark(cumulative_n, 100)
+    assert result == 5050
 
 def test_optimization_with_units():
     # For circle at (0, 0), find the radius by minimizing the distance to a

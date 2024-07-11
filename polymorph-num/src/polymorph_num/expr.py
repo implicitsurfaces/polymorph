@@ -1,6 +1,7 @@
 import math
 from dataclasses import dataclass
 from enum import Enum
+from functools import cached_property
 from typing import Sequence
 
 import jax.numpy as jnp
@@ -208,6 +209,13 @@ class Binary(Expr):
     right: Expr
     op: BinOp
 
+    @cached_property
+    def hash_value(self) -> int:
+        return hash((self.dim, self.left, self.right, self.op))
+
+    def __hash__(self):
+        return self.hash_value
+
     def __post_init__(self):
         if self.left.dim == self.right.dim:
             super().__init__(self.left.dim)
@@ -220,6 +228,13 @@ class Unary(Expr):
     orig: Expr
     op: UnOp
     constants: tuple = ()
+
+    @cached_property
+    def hash_value(self) -> int:
+        return hash((self.dim, self.orig, self.op, self.constants))
+
+    def __hash__(self):
+        return self.hash_value
 
     def __post_init__(self):
         super().__init__(self.orig.dim)
@@ -255,6 +270,22 @@ class ComparisonIf(Expr):
     condition_true: Expr
     condition_false: Expr
     op: ComparisonOp
+
+    @cached_property
+    def hash_value(self):
+        return hash(
+            (
+                self.dim,
+                self.a,
+                self.b,
+                self.condition_true,
+                self.condition_false,
+                self.op,
+            )
+        )
+
+    def __hash__(self):
+        return self.hash_value
 
     def __post_init__(self):
         if (

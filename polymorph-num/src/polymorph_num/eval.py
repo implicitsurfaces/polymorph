@@ -7,8 +7,8 @@ __all__ = ["_eval"]
 
 
 def _eval(expr: e.Expr, params, param_map, obs_dict, memo) -> jax.Array:
-    if id(expr) in memo:
-        return memo[id(expr)]
+    if expr in memo:
+        return memo[expr]
     else:
         result = None
         match expr:
@@ -110,5 +110,5 @@ def _eval(expr: e.Expr, params, param_map, obs_dict, memo) -> jax.Array:
 
             case _:
                 raise ValueError(f"Unknown expression: {expr}")
-        memo[id(expr)] = result
+        memo[expr] = result
         return result

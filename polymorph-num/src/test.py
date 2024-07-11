@@ -1,6 +1,9 @@
 import math
 
+import jax.numpy as jnp
+import polymorph_s2df as s2df
 import pytest
+from polymorph_num.expr import as_expr
 from polymorph_num.ops import observation, param
 from polymorph_num.unit import Unit
 from polymorph_num.vec import Vec2
@@ -79,3 +82,37 @@ def test_unknown_obs():
     with pytest.raises(ValueError) as e:
         Unit(["x"]).register("x", observation("y")).compile()
     assert "Observation 'y' not found" in str(e.value)
+
+
+def make_polygon(points):
+    segments = [
+        s2df.LineSegment(
+            points[i],
+            points[(i + 1) % len(points)],
+        )
+        for i in range(len(points))
+    ]
+    return s2df.ClosedPath(segments)
+
+
+def test_is_inside_polygon(benchmark):
+    def compile():
+        half_height, half_width = 300, 500
+        yy, xx = jnp.mgrid[-half_height:half_height, -half_width:half_width]
+        grid = as_expr(xx.ravel()), as_expr(yy.ravel())
+
+        sdf = make_polygon(
+            [
+                Vec2(-100, -100),
+                Vec2(100, -100),
+                Vec2(100, 100),
+                Vec2(0, 0),
+                Vec2(-100, 100),
+            ]
+        )
+
+        unit = Unit()
+        unit.register("is_inside", sdf.is_inside(*grid))
+        return unit.compile()
+
+    benchmark(compile)

@@ -1,3 +1,4 @@
+from functools import cached_property
 from typing import Sequence
 
 from polymorph_num import ops
@@ -9,14 +10,6 @@ from .utils import min_iterable, repr_point, sum_iterable
 
 
 class PathSegment(Shape):
-    @property
-    def first_point(self) -> Vec2:
-        raise NotImplementedError()
-
-    @property
-    def last_point(self) -> Vec2:
-        raise NotImplementedError()
-
     def astuple(self):
         raise NotImplementedError()
 
@@ -45,18 +38,10 @@ class LineSegment(PathSegment):
     def __hash__(self):
         return hash(self.astuple())
 
-    @property
-    def first_point(self) -> Vec2:
-        return self.start
-
-    @property
-    def last_point(self) -> Vec2:
-        return self.end
-
     def __repr__(self):
         return f"LineSegment({repr_point(self.start)}, {repr_point(self.end)})"
 
-    @property
+    @cached_property
     def segment(self):
         return self.end - self.start
 
@@ -126,17 +111,21 @@ class ArcSegment(PathSegment):
     def __hash__(self):
         return hash(self.astuple())
 
-    @property
+    @cached_property
     def first_point(self) -> Vec2:
         return Vec2(
             self.radius * self.start_angle.cos(), self.radius * self.start_angle.sin()
         )
 
-    @property
+    @cached_property
     def last_point(self) -> Vec2:
         return Vec2(
             self.radius * self.end_angle.cos(), self.radius * self.end_angle.sin()
         )
+
+    @cached_property
+    def angular_length(self):
+        return angular_distance(self.start_angle, self.end_angle, self.orientation_sign)
 
     def winding_number(self, p: Vec2) -> Expr:
         end_angle_integral = winding_number_indefinite_integral(
@@ -205,34 +194,24 @@ class ArcSegment(PathSegment):
 
     def distance(self, x: Num, y: Num) -> Expr:
         p = Vec2(x, y)
-        angular_length = angular_distance(
-            self.start_angle, self.end_angle, self.orientation_sign
-        )
-
         angle_position = normalize_angle(ops.atan2(y, x))
 
         parametric_position = (
             angular_distance(self.start_angle, angle_position, self.orientation_sign)
-            / angular_length
+            / self.angular_length
         )
 
         clamped_position = self.orientation_sign * ops.clamp(parametric_position, 0, 1)
         clamped_angle = normalize_angle(
-            self.start_angle + clamped_position * angular_length
+            self.start_angle + clamped_position * self.angular_length
         )
         projected_point = Vec2(
             self.radius * clamped_angle.cos(), self.radius * clamped_angle.sin()
         )
 
-        start_point = Vec2(
-            self.radius * self.start_angle.cos(), self.radius * self.start_angle.sin()
-        )
-        end_point = Vec2(
-            self.radius * self.end_angle.cos(), self.radius * self.end_angle.sin()
-        )
-
         return min_iterable(
-            (p - point).norm() for point in (projected_point, start_point, end_point)
+            (p - point).norm()
+            for point in (projected_point, self.first_point, self.last_point)
         )
 
 
@@ -255,14 +234,6 @@ class TranslatedSegment(PathSegment):
 
     def __repr__(self):
         return f"TranslatedSegment({self.segment}, {repr_point(self.translation)})"
-
-    @property
-    def first_point(self):
-        return self.segment.first_point + self.translation
-
-    @property
-    def last_point(self):
-        return self.segment.last_point + self.translation
 
     def distance(self, x, y):
         return self.segment.distance(x - self.translation.x, y - self.translation.y)
@@ -287,14 +258,6 @@ class InversedSegment(PathSegment):
 
     def __repr__(self):
         return f"InversedSegment({self.segment})"
-
-    @property
-    def first_point(self) -> Vec2:
-        return self.segment.first_point
-
-    @property
-    def last_point(self) -> Vec2:
-        return self.segment.last_point
 
     def winding_number(self, p: Vec2):
         return -self.segment.winding_number(p)

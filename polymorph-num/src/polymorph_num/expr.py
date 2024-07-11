@@ -219,7 +219,7 @@ class Binary(Expr):
 class Unary(Expr):
     orig: Expr
     op: UnOp
-    op_params: tuple = ()
+    constants: tuple = ()
 
     def __post_init__(self):
         super().__init__(self.orig.dim)

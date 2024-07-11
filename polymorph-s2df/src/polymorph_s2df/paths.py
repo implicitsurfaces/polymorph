@@ -234,7 +234,7 @@ class ArcSegment(PathSegment):
             / angular_length
         )
 
-        clamped_position = ops.clamp(parametric_position, 0.1, 1)
+        clamped_position = self.orientation_sign * ops.clamp(parametric_position, 0, 1)
         clamped_angle = normalize_angle(
             self.start_angle + clamped_position * angular_length
         )
@@ -242,7 +242,16 @@ class ArcSegment(PathSegment):
             self.radius * clamped_angle.cos(), self.radius * clamped_angle.sin()
         )
 
-        return (p - projected_point).norm()
+        start_point = Vec2(
+            self.radius * self.start_angle.cos(), self.radius * self.start_angle.sin()
+        )
+        end_point = Vec2(
+            self.radius * self.end_angle.cos(), self.radius * self.end_angle.sin()
+        )
+
+        return min_iterable(
+            (p - point).norm() for point in (projected_point, start_point, end_point)
+        )
 
     def distance_and_mask(self, p: Vec2) -> tuple[Expr, Expr]:
         angular_length = angular_distance(

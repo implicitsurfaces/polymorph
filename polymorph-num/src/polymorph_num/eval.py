@@ -74,8 +74,8 @@ def _eval(expr: e.Expr, params, param_map, obs_dict, memo) -> jax.Array:
                         result = jnp.mod(l, r)
 
             case e.ComparisonIf(a, b, condition_true, condition_false, op):
-                a_ = _eval(a, params, param_map, obs_dict)
-                b_ = _eval(b, params, param_map, obs_dict)
+                a_ = _eval(a, params, param_map, obs_dict, memo=memo)
+                b_ = _eval(b, params, param_map, obs_dict, memo=memo)
                 if op == e.ComparisonOp.Gt:
                     result = jnp.where(
                         a_ > b_,

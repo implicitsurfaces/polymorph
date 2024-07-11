@@ -49,11 +49,21 @@ Transform = namedtuple("Transform", ["translation", "scale"])
 
 
 render_log = logging.getLogger("render")
-log = logging.getLogger(__name__)  # A generic logger
+compile_log = logging.getLogger("compile")
 
-# Turn on debug logging if POLYMORPH_DEBUG is set to a non-empty value.
-if os.environ.get("POLYMORPH_DEBUG"):
+logging.basicConfig(level=logging.WARNING)
+
+# Turn on logging via the POLYMORPH_DEBUG environment variable.
+# Examples:
+#
+#     POLYMORPH_DEBUG=all
+#     POLYMORPH_DEBUG=render,compile
+debug_key = os.environ.get("POLYMORPH_DEBUG", "")
+if debug_key in ["1", "all"]:
     logging.basicConfig(level=logging.DEBUG)
+else:
+    for k in debug_key.split(","):
+        logging.getLogger(k).setLevel(logging.DEBUG)
 
 
 def memoize(fn):
@@ -414,7 +424,7 @@ def main(solver):
         return gl_context.texture(size, components=4)
 
     @memoize
-    @log_perf(log)
+    @log_perf(compile_log)
     def compile_unit(
         sdfs: tuple[s2df.Shape], size: tuple[int, int], obs_names: FrozenSet[str]
     ) -> CompiledUnit:

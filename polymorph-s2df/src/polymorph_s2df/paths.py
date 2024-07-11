@@ -5,10 +5,10 @@ from polymorph_num.expr import PI, TAU, Expr, Num, as_expr
 from polymorph_num.vec import ValVec, Vec2, as_vec2
 
 from .operations import Shape
-from .utils import min_iterable, repr_point, smooth_clamp_mask, sum_iterable
+from .utils import min_iterable, repr_point, sum_iterable
 
 
-class PathSegment:
+class PathSegment(Shape):
     @property
     def first_point(self) -> Vec2:
         raise NotImplementedError()
@@ -22,9 +22,6 @@ class PathSegment:
 
     def __hash__(self):
         return hash(self.astuple())
-
-    def distance_and_mask(self, p: Vec2) -> tuple[Expr, Expr]:
-        raise NotImplementedError()
 
     def distance(self, x: Num, y: Num) -> Expr:
         raise NotImplementedError()
@@ -80,21 +77,6 @@ class LineSegment(PathSegment):
 
         projected_point = self.start + self.segment.scale(clamped_position)
         return (p - projected_point).norm()
-
-    def distance_and_mask(self, p: Vec2) -> tuple[Expr, Expr]:
-        start_to_p = p - self.start
-
-        parametric_position = start_to_p.dot(self.segment) / self.segment.dot(
-            self.segment
-        )
-
-        mask = smooth_clamp_mask(parametric_position, 0, 1)
-
-        projected_point = self.start + self.segment.scale(parametric_position)
-        return (
-            (p - projected_point).norm() * mask,
-            mask,
-        )
 
 
 def normalize_angle(q):
@@ -253,23 +235,6 @@ class ArcSegment(PathSegment):
             (p - point).norm() for point in (projected_point, start_point, end_point)
         )
 
-    def distance_and_mask(self, p: Vec2) -> tuple[Expr, Expr]:
-        angular_length = angular_distance(
-            self.start_angle, self.end_angle, self.orientation_sign
-        )
-
-        angle_position = normalize_angle(ops.atan2(p.y, p.x))
-
-        parametric_position = (
-            angular_distance(self.start_angle, angle_position, self.orientation_sign)
-            / angular_length
-        )
-        mask = smooth_clamp_mask(parametric_position, 0, 1)
-
-        parametric_distance = (p.norm() - self.radius) * mask
-
-        return parametric_distance.abs(), mask
-
 
 class TranslatedSegment(PathSegment):
     def __init__(self, segment: PathSegment, translation: ValVec):
@@ -298,9 +263,6 @@ class TranslatedSegment(PathSegment):
     @property
     def last_point(self):
         return self.segment.last_point + self.translation
-
-    def distance_and_mask(self, p):
-        return self.segment.distance_and_mask(p - self.translation)
 
     def distance(self, x, y):
         return self.segment.distance(x - self.translation.x, y - self.translation.y)
@@ -334,9 +296,6 @@ class InversedSegment(PathSegment):
     def last_point(self) -> Vec2:
         return self.segment.last_point
 
-    def distance_and_mask(self, p: Vec2):
-        return self.segment.distance_and_mask(p)
-
     def winding_number(self, p: Vec2):
         return -self.segment.winding_number(p)
 
@@ -364,50 +323,6 @@ class ClosedPath(Shape):
         return (
             sum_iterable(segment.winding_number(p) for segment in self.segments) / TAU
         )
-
-    def distance_masked(self, x: Num, y: Num) -> Expr:
-        # The gist of the algorithm is to combine the distance to each segment
-        # and to each point between the segments. Segments cannot apply to the
-        # whole space, so we need to combine them with "masks".
-
-        # We use a mask instead of an if condition as jax jit does not support it
-
-        p = Vec2(x, y)
-
-        distances_and_masks = [
-            segment.distance_and_mask(p) for segment in self.segments
-        ]
-
-        current_distance, current_mask = distances_and_masks[0]
-        minimum_distance = current_distance
-
-        # We combine the distance for all the segments
-        for distance, mask in distances_and_masks[1:]:
-            distance = distance
-
-            # first we handle the case where the distance can be defined by
-            # its distance to both segment
-            current_distance = ops.min(minimum_distance * mask, distance * current_mask)
-
-            # if only one of the segment can apply we use it
-            current_distance += minimum_distance * (1 - mask) + distance * (
-                1 - current_mask
-            )
-
-            current_mask = 1 - ((1 - mask) * (1 - current_mask))
-            minimum_distance = current_distance
-
-        points_distance = self._min_distance_to_points(p)
-        minimum_distance = (
-            ops.min(minimum_distance, points_distance)
-            + (1 - current_mask) * points_distance
-        )
-
-        # We need to map the winding number such that outside the path it is 1
-        # and inside it is -1
-        current_sign = 1 - ops.min(self.winding_number(p).abs(), 1) * 2
-
-        return minimum_distance * current_sign
 
     def distance(self, x: Num, y: Num) -> Expr:
         minimum_distance = min_iterable(

@@ -10,14 +10,22 @@ import jax
 import jax.numpy as jnp
 import moderngl
 import numpy as np
+import polymorph_s2df as s2df
 from imgui.integrations.glfw import GlfwRenderer
+from jaxtyping import Array, Float, UInt8
+from PIL import Image
 from polymorph_num.expr import Observation, as_expr
-from polymorph_num.unit import Unit
+from polymorph_num.unit import CompiledUnit, Unit
 
 from .graph import Graph
 from .solve import async_solver
 from .tools import BoxTool, CircleTool, PolygonTool
 from .types import ScreenPos, WorldPos
+
+type Rgb3D = UInt8[Array, "h w 3"]  # noqa: F722
+type Rgba3D = UInt8[Array, "h w 4"]  # noqa: F722
+type FloatBitmap1D = Float[Array, "pix_count"]  # noqa: F821
+
 
 INITIAL_WINDOW_SIZE = (800, 600)
 
@@ -31,6 +39,8 @@ TOOL_HOTKEYS = {
     # glfw.KEY_R: rectangle
 }
 
+COLOR_FILL = (255, 255, 255)
+COLOR_OUTLINE = (128, 171, 228)
 
 Transform = namedtuple("Transform", ["translation", "scale"])
 
@@ -53,29 +63,58 @@ def pixel_grid(size):
 
 
 @memoize
-def empty_bitmap(size):
+def empty_bitmap(size: tuple[int, int]):
     return jnp.zeros(size[0] * size[1], dtype=jnp.float32)
+
+
+@memoize
+def empty_rgba3d(size: tuple[int, int]) -> Rgba3D:
+    return jnp.zeros((size[1], size[0], 4), jnp.uint8)
+
+
+def new_render_target(size: tuple[int, int]) -> Image.Image:
+    return Image.new("RGBA", size)
 
 
 def get_params(cursor, scene):
     return cursor
 
 
-def combine_bitmaps(bitmaps, viewport_size):
-    if len(bitmaps) == 0:
-        return empty_bitmap(viewport_size)
-    return jnp.amax(jnp.array(bitmaps), axis=0)
+def to_rgba3d(
+    bitmap: FloatBitmap1D, size: tuple[int, int], color: tuple[int, int, int]
+) -> Rgba3D:
+    w, h = size
+    color_and_alpha = jnp.array([*color, 255])
+    bitmap_2d = bitmap.reshape(h, w)
+    return (bitmap_2d[:, :, jnp.newaxis] * color_and_alpha).astype(jnp.uint8)
 
 
-def render_scene(bitmap, viewport_size):
-    # Convert the float entries for each pixel into a (4,) of uint8.
-    ans_3d = jnp.repeat(
-        255 * bitmap.reshape((viewport_size[0], viewport_size[1], 1)).astype(jnp.uint8),
-        4,
-        axis=2,
-    )
-    # print(f"rendered in {time.time() - start}s")
-    return ans_3d
+def composite_layers(out: Image.Image, layers: list[Rgb3D]):
+    images = (Image.fromarray(np.asarray(layer)) for layer in layers)
+    for img in images:
+        out.alpha_composite(img)
+
+
+def render_scene(
+    fills: tuple[FloatBitmap1D],
+    outlines: tuple[FloatBitmap1D] | None,
+    viewport_size: tuple[int, int],
+) -> Rgba3D:
+    if len(fills) == 0:
+        return empty_rgba3d(viewport_size)
+
+    if outlines is None:
+        # Naive (but cheap) rendering — just merge all the bitmaps.
+        combined_bitmaps = jnp.max(jnp.array(fills), axis=0)
+        return to_rgba3d(combined_bitmaps, viewport_size, COLOR_FILL)
+
+    dest = new_render_target(viewport_size)
+    fills_3d = [to_rgba3d(bitmap, viewport_size, COLOR_FILL) for bitmap in fills]
+    outlines_3d = [
+        to_rgba3d(bitmap, viewport_size, COLOR_OUTLINE) for bitmap in outlines
+    ]
+    composite_layers(dest, fills_3d + outlines_3d)
+    return jnp.array(np.array(dest))
 
 
 vertex_shader = """
@@ -172,6 +211,7 @@ def render_devtools(vm):
     changed, vm.vsync_enabled = imgui.checkbox("VSync", vm.vsync_enabled)
     if changed:
         glfw.swap_interval(vm.vsync_enabled)
+    _, vm.show_outlines = imgui.checkbox("Outlines", vm.show_outlines)
 
     imgui.end()
     imgui.pop_style_var()
@@ -270,9 +310,10 @@ class ViewModel:
         glfw.set_key_callback(window, self.on_key)
         glfw.set_mouse_button_callback(window, self.on_mouse_button)
 
-        # Window stuff
+        # Window/rendering stuff
         self.vsync_enabled = True
         self._update_transforms(window)
+        self.show_outlines = False
 
         class Observations:
             mouse_x = Observation("mouse_x")
@@ -363,14 +404,27 @@ def main(solver):
         return gl_context.texture(size, components=4)
 
     @memoize
-    def compile_unit(sdfs, size: tuple[int, int], obs_names: FrozenSet[str]):
+    def compile_unit(
+        sdfs: tuple[s2df.Shape], size: tuple[int, int], obs_names: FrozenSet[str]
+    ) -> CompiledUnit:
         unit = Unit(obs_names)
         unit.registerLoss(view_model.graph.total_loss())
         pg = pixel_grid(size)
         for i, sdf in enumerate(sdfs):
-            unit.register(f"sdf_bitmap{i}", sdf.is_inside(*pg))
+            unit.register(f"is_inside{i}", sdf.is_inside(*pg))
+            unit.register(f"is_on_boundary{i}", sdf.is_on_boundary(*pg))
             unit.register(f"area{i}", sdf.area(*pg, size[0] * size[1]))
         return unit.compile()
+
+    def render_sdfs(
+        unit: CompiledUnit, window_size: tuple[int, int], count: int
+    ) -> tuple[FloatBitmap1D]:
+        return tuple(unit.evaluate(f"is_inside{i}") for i in range(count))
+
+    def render_outlines(
+        unit: CompiledUnit, window_size: tuple[int, int], count: int
+    ) -> tuple[FloatBitmap1D]:
+        return tuple(unit.evaluate(f"is_on_boundary{i}") for i in range(count))
 
     while not glfw.window_should_close(window):
         ###############
@@ -394,9 +448,14 @@ def main(solver):
         gl_context.clear()
 
         # Render SDFs
-        bitmaps = tuple(unit.evaluate(f"sdf_bitmap{i}") for i in range(len(sdfs)))
-        flat_bitmap = combine_bitmaps(bitmaps, view_model.window_size)
-        buf = render_scene(flat_bitmap, view_model.window_size)
+        count = len(sdfs)
+        bitmaps = render_sdfs(unit, view_model.window_size, count)
+
+        outlines = None
+        if view_model.show_outlines:
+            outlines = render_outlines(unit, view_model.window_size, count)
+        buf = render_scene(bitmaps, outlines, view_model.window_size)
+
         texture = get_sdf_texture(view_model.window_size)
         texture.write(jax.device_get(buf))
         texture.use(0)

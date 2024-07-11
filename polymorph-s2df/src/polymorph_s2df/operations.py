@@ -9,8 +9,11 @@ class Shape:
     def distance(self, x: Num, y: Num) -> Expr:
         raise NotImplementedError
 
-    def is_inside(self, x: Num, y: Num, scale=100):
+    def is_inside(self, x: Num, y: Num, scale=100) -> Expr:
         return 1 - (self.distance(x, y) * scale).sigmoid()
+
+    def is_on_boundary(self, x: Num, y: Num, dist=2.0) -> Expr:
+        return self.distance(x, y).boxcar(-dist / 2.0, dist / 2.0)
 
     def area(self, sample_xs: Num, sample_ys: Num, sample_area: Num):
         return ops.mean(self.is_inside(sample_xs, sample_ys)) * sample_area

@@ -21,7 +21,7 @@ def _eval(expr: e.Expr, params, param_map, obs_dict, memo) -> jax.Array:
             case e.Broadcast(orig, _dim):
                 result = _eval(orig, params, param_map, obs_dict, memo)
 
-            case e.Unary(orig, op):
+            case e.Unary(orig, op, op_params):
                 o = _eval(orig, params, param_map, obs_dict, memo)
                 match op:
                     case e.UnOp.Sqrt:
@@ -46,6 +46,9 @@ def _eval(expr: e.Expr, params, param_map, obs_dict, memo) -> jax.Array:
                         result = jnp.tanh(o)
                     case e.UnOp.ArcTan:
                         result = jnp.atan(o)
+                    case e.UnOp.Boxcar:
+                        min, max = op_params
+                        return jnp.where((o >= min) & (o <= max), 1.0, 0.0)
 
             case e.Binary(left, right, op):
                 l = _eval(left, params, param_map, obs_dict, memo)

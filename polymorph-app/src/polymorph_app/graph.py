@@ -1,6 +1,6 @@
 from typing import FrozenSet
 
-import polymorph_s2df as sdf
+import polymorph_s2df as s2df
 from polymorph_num.expr import ZERO, Expr, Observation, Param, as_expr
 from polymorph_num.vec import Vec2
 
@@ -24,7 +24,7 @@ class Graph(Node):
         self._sdfs = None
 
     @property
-    def cached_sdfs(self):
+    def cached_sdfs(self) -> tuple[s2df.Shape]:
         if self._sdfs is None:
             self._sdfs = tuple(n.to_sdf() for n in self.nodes)
         return self._sdfs
@@ -57,7 +57,7 @@ class Circle(Node):
         self.radius = radius
 
     def to_sdf(self):
-        return sdf.Circle(self.radius).translate(self.center)
+        return s2df.Circle(self.radius).translate(self.center)
 
     def loss(self) -> Expr:
         if isinstance(self.radius, Param):
@@ -80,7 +80,7 @@ class Box(Node):
         center = (self.p1 + self.p2) / 2
         w = (self.p2.x - self.p1.x).smoothabs()
         h = (self.p2.y - self.p1.y).smoothabs()
-        return sdf.Box(w, h).translate(center)
+        return s2df.Box(w, h).translate(center)
 
 
 class Polygon(Node):
@@ -95,12 +95,12 @@ class Polygon(Node):
     def to_sdf(self):
         points = self.points + ([self.temp_point] if self.temp_point else [])
         if len(points) < 3:
-            return sdf.Circle(0.0)
+            return s2df.Circle(0.0)
         segments = [
-            sdf.LineSegment(
+            s2df.LineSegment(
                 points[i],
                 points[(i + 1) % len(points)],
             )
             for i in range(len(points))
         ]
-        return sdf.ClosedPath(segments)
+        return s2df.ClosedPath(segments)

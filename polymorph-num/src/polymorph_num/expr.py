@@ -46,6 +46,7 @@ class UnOp(Enum):
     Tanh = "tanh"
     ArcTan = "arctan"
     Sign = "sign"
+    Boxcar = "boxcar"
 
 
 class ComparisonOp(Enum):
@@ -159,6 +160,9 @@ class Expr:
     def tanh(self):
         return Unary(self, UnOp.Tanh)
 
+    def boxcar(self, min: float, max: float):
+        return Unary(self, UnOp.Boxcar, (min, max))
+
 
 @dataclass(frozen=True)
 class Param(Expr):
@@ -215,6 +219,7 @@ class Binary(Expr):
 class Unary(Expr):
     orig: Expr
     op: UnOp
+    op_params: tuple = ()
 
     def __post_init__(self):
         super().__init__(self.orig.dim)

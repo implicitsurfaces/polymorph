@@ -3,7 +3,8 @@ name = "polymorph-app"
 version = "0.1.0"
 description = "Add your description here"
 dependencies = [
-    "pygame-gui>=0.6.10"
+    "pygame-gui>=0.6.10",
+    "pillow>=10.4.0",
 ]
 readme = "README.md"
 requires-python = ">= 3.12"

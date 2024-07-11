@@ -1,4 +1,6 @@
+import logging
 import multiprocessing
+import os
 import sys
 from collections import namedtuple
 from functools import lru_cache
@@ -21,6 +23,7 @@ from .graph import Graph
 from .solve import async_solver
 from .tools import BoxTool, CircleTool, PolygonTool
 from .types import ScreenPos, WorldPos
+from .util import log_perf
 
 type Rgb3D = UInt8[Array, "h w 3"]  # noqa: F722
 type Rgba3D = UInt8[Array, "h w 4"]  # noqa: F722
@@ -43,6 +46,14 @@ COLOR_FILL = (255, 255, 255)
 COLOR_OUTLINE = (128, 171, 228)
 
 Transform = namedtuple("Transform", ["translation", "scale"])
+
+
+render_log = logging.getLogger("render")
+log = logging.getLogger(__name__)  # A generic logger
+
+# Turn on debug logging if POLYMORPH_DEBUG is set to a non-empty value.
+if os.environ.get("POLYMORPH_DEBUG"):
+    logging.basicConfig(level=logging.DEBUG)
 
 
 def memoize(fn):
@@ -76,10 +87,7 @@ def new_render_target(size: tuple[int, int]) -> Image.Image:
     return Image.new("RGBA", size)
 
 
-def get_params(cursor, scene):
-    return cursor
-
-
+@log_perf(render_log)
 def to_rgba3d(
     bitmap: FloatBitmap1D, size: tuple[int, int], color: tuple[int, int, int]
 ) -> Rgba3D:
@@ -89,12 +97,14 @@ def to_rgba3d(
     return (bitmap_2d[:, :, jnp.newaxis] * color_and_alpha).astype(jnp.uint8)
 
 
+@log_perf(render_log)
 def composite_layers(out: Image.Image, layers: list[Rgb3D]):
     images = (Image.fromarray(np.asarray(layer)) for layer in layers)
     for img in images:
         out.alpha_composite(img)
 
 
+@log_perf(render_log)
 def render_scene(
     fills: tuple[FloatBitmap1D],
     outlines: tuple[FloatBitmap1D] | None,
@@ -404,6 +414,7 @@ def main(solver):
         return gl_context.texture(size, components=4)
 
     @memoize
+    @log_perf(log)
     def compile_unit(
         sdfs: tuple[s2df.Shape], size: tuple[int, int], obs_names: FrozenSet[str]
     ) -> CompiledUnit:
@@ -416,11 +427,13 @@ def main(solver):
             unit.register(f"area{i}", sdf.area(*pg, size[0] * size[1]))
         return unit.compile()
 
+    @log_perf(render_log)
     def render_sdfs(
         unit: CompiledUnit, window_size: tuple[int, int], count: int
     ) -> tuple[FloatBitmap1D]:
         return tuple(unit.evaluate(f"is_inside{i}") for i in range(count))
 
+    @log_perf(render_log)
     def render_outlines(
         unit: CompiledUnit, window_size: tuple[int, int], count: int
     ) -> tuple[FloatBitmap1D]:

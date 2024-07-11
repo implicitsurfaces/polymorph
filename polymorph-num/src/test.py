@@ -12,6 +12,7 @@ def circle_sdf(radius, center, point):
     dist = (dx * dx + dy * dy).sqrt()
     return dist - radius
 
+
 def cumulative_sum(n):
     i = observation("x")
     sum = i
@@ -20,18 +21,28 @@ def cumulative_sum(n):
         sum = sum + i
     return sum
 
+
 def cumulative_n(n):
-    unit = Unit(["x"]).register("sum", cumulative_sum(n)).compile().minimize().observe({"x": 0.0})
+    unit = (
+        Unit(["x"])
+        .register("sum", cumulative_sum(n))
+        .compile()
+        .minimize()
+        .observe({"x": 0.0})
+    )
     return unit.evaluate("sum")
+
 
 def test_minimal():
     x = observation("x")
     unit = Unit(["x"]).register("2x", x * 2).compile().minimize().observe({"x": 1.0})
     assert unit.evaluate("2x") == 2.0
 
+
 def test_cumulative(benchmark):
     result = benchmark(cumulative_n, 100)
     assert result == 5050
+
 
 def test_optimization_with_units():
     # For circle at (0, 0), find the radius by minimizing the distance to a

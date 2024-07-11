@@ -7,7 +7,7 @@ __all__ = ["_eval"]
 
 
 def _eval(expr: e.Expr, params, param_map, obs_dict, memo) -> jax.Array:
-    if(id(expr) in memo):
+    if id(expr) in memo:
         return memo[id(expr)]
     else:
         result = None

@@ -18,6 +18,20 @@ def _eval(expr: e.Expr, params, param_map, obs_dict, memo) -> jax.Array:
             case e.Arr(value):
                 result = jnp.array(value)
 
+            case e.GridX(width, height):
+                half_width = width / 2
+                half_height = height / 2
+
+                yy, xx = jnp.mgrid[-half_height:half_height, -half_width:half_width]
+                return xx.ravel()
+
+            case e.GridY(width, height):
+                half_width = width / 2
+                half_height = height / 2
+
+                yy, xx = jnp.mgrid[-half_height:half_height, -half_width:half_width]
+                return yy.ravel()
+
             case e.Broadcast(orig, _dim):
                 result = _eval(orig, params, param_map, obs_dict, memo)
 

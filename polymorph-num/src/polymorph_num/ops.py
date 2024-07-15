@@ -89,5 +89,9 @@ def clamp(value: expr.Num, min_value: expr.Num, max_value: expr.Num):
     return max(min(value, max_value), min_value)
 
 
+def grid_gen(width: int, height: int):
+    return (expr.GridX(width, height), expr.GridY(width, height))
+
+
 def debug(tag, orig):
     return expr.Debug(tag, orig)

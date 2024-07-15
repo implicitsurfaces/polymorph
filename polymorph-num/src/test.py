@@ -1,10 +1,8 @@
 import math
 
-import jax.numpy as jnp
 import polymorph_s2df as s2df
 import pytest
-from polymorph_num.expr import as_expr
-from polymorph_num.ops import observation, param
+from polymorph_num.ops import grid_gen, observation, param
 from polymorph_num.unit import Unit
 from polymorph_num.vec import Vec2
 
@@ -97,10 +95,6 @@ def make_polygon(points):
 
 def test_is_inside_polygon(benchmark):
     def compile():
-        half_height, half_width = 300, 500
-        yy, xx = jnp.mgrid[-half_height:half_height, -half_width:half_width]
-        grid = as_expr(xx.ravel()), as_expr(yy.ravel())
-
         sdf = make_polygon(
             [
                 Vec2(-100, -100),
@@ -110,6 +104,8 @@ def test_is_inside_polygon(benchmark):
                 Vec2(-100, 100),
             ]
         )
+
+        grid = grid_gen(300, 500)
 
         unit = Unit()
         unit.register("is_inside", sdf.is_inside(*grid))

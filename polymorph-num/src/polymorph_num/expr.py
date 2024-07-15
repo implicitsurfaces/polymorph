@@ -264,6 +264,24 @@ class Sum(Expr):
 
 
 @dataclass(frozen=True)
+class GridX(Expr):
+    width: int
+    height: int
+
+    def __post_init__(self):
+        super().__init__(self.width * self.height)
+
+
+@dataclass(frozen=True)
+class GridY(Expr):
+    width: int
+    height: int
+
+    def __post_init__(self):
+        super().__init__(self.width * self.height)
+
+
+@dataclass(frozen=True)
 class ComparisonIf(Expr):
     a: Expr
     b: Expr

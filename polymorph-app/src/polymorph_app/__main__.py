@@ -415,7 +415,7 @@ def main(solver):
         sdfs: tuple[s2df.Shape], size: tuple[int, int], obs_names: FrozenSet[str]
     ) -> CompiledUnit:
         unit = Unit(obs_names)
-        unit.registerLoss(view_model.sketch.total_loss())
+        unit.registerLoss(view_model.sketch.total_loss(size=size))
 
         pg = grid_gen(*size)
         for i, sdf in enumerate(sdfs):

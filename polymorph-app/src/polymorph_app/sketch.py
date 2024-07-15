@@ -5,7 +5,7 @@ import polymorph_s2df as s2df
 from polymorph_num.expr import PI, ZERO, Expr, Param, as_expr
 from polymorph_num.ops import atan2, observation, param
 from polymorph_num.vec import Vec2
-from polymorph_s2df import routines
+from polymorph_s2df import geometric_properties
 
 
 @dataclass(frozen=True)
@@ -96,11 +96,9 @@ class LengthValue(Value):
         self.mm = FreeAtom()
 
     def lock(self, mm: float) -> None:
-        assert isinstance(self.mm, FreeAtom)
         self.mm = LockedAtom(mm)
 
     def bind(self, mm: str) -> None:
-        assert isinstance(self.mm, FreeAtom)
         self.mm = BoundAtom(mm)
 
     def free(self) -> None:
@@ -117,11 +115,9 @@ class AreaValue(Value):
         self.mm2 = FreeAtom()
 
     def lock(self, mm2: float) -> None:
-        assert isinstance(self.mm2, FreeAtom)
         self.mm2 = LockedAtom(mm2)
 
     def bind(self, mm2: str) -> None:
-        assert isinstance(self.mm2, FreeAtom)
         self.mm2 = BoundAtom(mm2)
 
     def free(self) -> None:
@@ -138,11 +134,9 @@ class AngleValue(Value):
         self.mm2 = FreeAtom()
 
     def lock(self, mm2: float) -> None:
-        assert isinstance(self.mm2, FreeAtom)
         self.mm2 = LockedAtom(mm2)
 
     def bind(self, mm2: str) -> None:
-        assert isinstance(self.mm2, FreeAtom)
         self.mm2 = BoundAtom(mm2)
 
     def free(self) -> None:
@@ -198,7 +192,7 @@ class AreaConstraint(Constraint):
     def loss(self, **kwargs) -> Expr:
         size = kwargs.get("size", (100, 100))
         shape = self.shape.to_sdf()
-        shape_area = routines.area(shape, size)
+        shape_area = geometric_properties.area(shape, size)
 
         diff = self.area.as_expr() - shape_area
         return diff * diff
@@ -212,7 +206,7 @@ class CentroidConstraint(Constraint):
     def loss(self, **kwargs) -> Expr:
         size = kwargs.get("size", (100, 100))
         shape = self.shape.to_sdf()
-        centroid = routines.centroid(shape, size)
+        centroid = geometric_properties.centroid(shape, size)
 
         diff = self.centroid.as_vec2() - centroid
         return diff.dot(diff)  # The square of the norm

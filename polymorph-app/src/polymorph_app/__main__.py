@@ -19,7 +19,7 @@ from PIL import Image
 from polymorph_num.expr import Observation, as_expr
 from polymorph_num.unit import CompiledUnit, Unit
 
-from .graph import Graph
+from .sketch import Sketch
 from .solve import async_solver
 from .tools import BoxTool, CircleTool, PolygonTool
 from .types import ScreenPos, WorldPos
@@ -50,8 +50,6 @@ Transform = namedtuple("Transform", ["translation", "scale"])
 
 render_log = logging.getLogger("render")
 compile_log = logging.getLogger("compile")
-
-logging.basicConfig(level=logging.WARNING)
 
 # Turn on logging via the POLYMORPH_DEBUG environment variable.
 # Examples:
@@ -276,7 +274,7 @@ def render_shapes_tree(vm):
     imgui.begin(
         "Shapes", closable=False, flags=imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE
     )
-    for s in vm.graph.nodes:
+    for s in vm.sketch:
         if imgui.tree_node(s.classname(), imgui.TREE_NODE_LEAF):
             imgui.tree_pop()
     imgui.end()
@@ -340,7 +338,7 @@ class ViewModel:
             mouse_y = Observation("mouse_y")
 
         # User-level state
-        self.graph = Graph()
+        self.sketch = Sketch()
         self.tool = None
         self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
         self.observations = Observations()
@@ -429,7 +427,7 @@ def main(solver):
         sdfs: tuple[s2df.Shape], size: tuple[int, int], obs_names: FrozenSet[str]
     ) -> CompiledUnit:
         unit = Unit(obs_names)
-        unit.registerLoss(view_model.graph.total_loss())
+        unit.registerLoss(view_model.sketch.total_loss())
         pg = pixel_grid(size)
         for i, sdf in enumerate(sdfs):
             unit.register(f"is_inside{i}", sdf.is_inside(*pg))
@@ -458,7 +456,7 @@ def main(solver):
 
         view_model.on_frame(window)
 
-        sdfs = view_model.graph.cached_sdfs
+        sdfs = view_model.sketch.cached_sdfs
         obs_dict = view_model.current_obs_dict()
         unit = compile_unit(
             sdfs, view_model.window_size, view_model.observation_names()

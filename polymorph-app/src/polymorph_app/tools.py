@@ -2,10 +2,9 @@ import glfw
 import imgui
 from polymorph_app.types import WorldPos
 from polymorph_num.expr import Observation
-from polymorph_num.ops import param
 from polymorph_num.vec import Vec2
 
-from .graph import Box, Circle, Polygon
+from .sketch import Box, Circle, OnBoundaryConstraint, Polygon
 
 
 class Tool:
@@ -30,7 +29,7 @@ class Tool:
     def handle_frame(self):
         mouse_pos = self.view_model.cursor_world
         if self._mousedown_pos is not None:
-            self.view_model.graph.changed()  # TODO: Find a cleaner way to do this.
+            self.view_model.sketch.changed()  # TODO: Find a cleaner way to do this.
             self.mousedrag(mouse_pos, self._mousedown_pos)
         else:
             self.mousemove(mouse_pos)
@@ -58,13 +57,20 @@ class Tool:
 
 class CircleTool(Tool):
     def mousedown(self, pos):
-        r = param()
-        self.shape = self.view_model.graph.add(Circle(Vec2(pos.x, pos.y), r))
+        self.shape = self.view_model.sketch.add(Circle())
+        self.shape.center.lock(pos.x, pos.y)
+        self.bp = self.shape.boundary_point()
+        self.view_model.sketch.constraints.append(
+            OnBoundaryConstraint(self.shape, self.bp)
+        )
+        self.bp.bind("mouse_x", "mouse_y")
 
     def mouseup(self, pos):
         # Lock in the current radius
-        self.shape.radius = (Vec2(pos.x, pos.y) - self.shape.center).norm()
-        self.view_model.graph.changed()  # Ugh
+        assert self.shape is not None
+        center = self.shape.center.as_vec2()
+        self.shape.radius.lock((Vec2(pos.x, pos.y) - center).norm())
+        self.view_model.sketch.changed()  # Ugh
         self.shape = None
 
 
@@ -72,11 +78,11 @@ class BoxTool(Tool):
     def mousedown(self, pos):
         p1 = Vec2(pos.x, pos.y)
         p2 = Vec2(Observation("mouse_x"), Observation("mouse_y"))
-        self.shape = self.view_model.graph.add(Box(p1, p2))
+        self.shape = self.view_model.sketch.add(Box(p1, p2))
 
     def mouseup(self, pos):
         self.shape.p2 = Vec2(pos.x, pos.y)
-        self.view_model.graph.changed()  # Ugh
+        self.view_model.sketch.changed()  # Ugh
         self.shape = None
 
 
@@ -89,7 +95,7 @@ class PolygonTool(Tool):
 
     def mousedown(self, pos):
         if self.shape is None:
-            self.shape = self.view_model.graph.add(Polygon())
+            self.shape = self.view_model.sketch.add(Polygon())
             self.shape.temp_point = Vec2(Observation("mouse_x"), Observation("mouse_y"))
         self._add_point(pos)
 
@@ -97,13 +103,13 @@ class PolygonTool(Tool):
         assert self.shape is not None
         self.points.append(pos)
         self.shape.points = [Vec2(pos.x, pos.y) for pos in self.points]
-        self.view_model.graph.changed()  # Ugh
+        self.view_model.sketch.changed()  # Ugh
 
     def escape(self):
         assert self.shape is not None
         self.shape.temp_point = None
         self.shape = None
-        self.view_model.graph.changed()  # Ugh
+        self.view_model.sketch.changed()  # Ugh
 
     def render_feedback(self, view_model, draw_list):
         if self.shape:

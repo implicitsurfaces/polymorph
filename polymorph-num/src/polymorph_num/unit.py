@@ -73,6 +73,10 @@ class CompiledUnit:
         return replace(self, params=soln.value)
 
 
+def eval_expr(expr, params_map, params, obs_dict):
+    return _eval(expr, params, params_map, obs_dict, {})
+
+
 class Unit:
     """A unit is family of `Exprs` that share parameters and observations."""
 
@@ -106,10 +110,11 @@ class Unit:
         return self
 
     def _compile(self, expr, params, obs_dict: ObsDict):
-        def eval_expr(p, d: ObsDict):
-            return _eval(expr, p, self.param_map, d, {})
-
-        return jax.jit(eval_expr).lower(params, obs_dict).compile()
+        return (
+            jax.jit(eval_expr, static_argnums=(0, 1))
+            .lower(expr, self.param_map, params, obs_dict)
+            .compile()
+        )
 
     def compile(self, prng_key=_DEFAULT_PRNG_KEY) -> CompiledUnit:
         start_time = time.time()

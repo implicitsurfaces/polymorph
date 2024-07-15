@@ -16,7 +16,8 @@ import polymorph_s2df as s2df
 from imgui.integrations.glfw import GlfwRenderer
 from jaxtyping import Array, Float, UInt8
 from PIL import Image
-from polymorph_num.expr import Observation, as_expr
+from polymorph_num.expr import Observation
+from polymorph_num.ops import grid_gen
 from polymorph_num.unit import CompiledUnit, Unit
 
 from .sketch import Sketch
@@ -66,19 +67,6 @@ else:
 
 def memoize(fn):
     return lru_cache(maxsize=1)(fn)
-
-
-@memoize
-def pixel_grid(size):
-    """
-    Allocates a uniform grid of points for sampling the SDFs.
-    Memoized to handle changes to the viewport size.
-    """
-    half_width = size[0] / 2
-    half_height = size[1] / 2
-
-    yy, xx = jnp.mgrid[-half_height:half_height, -half_width:half_width]
-    return as_expr(xx.ravel()), as_expr(yy.ravel())
 
 
 @memoize
@@ -428,7 +416,8 @@ def main(solver):
     ) -> CompiledUnit:
         unit = Unit(obs_names)
         unit.registerLoss(view_model.sketch.total_loss())
-        pg = pixel_grid(size)
+
+        pg = grid_gen(*size)
         for i, sdf in enumerate(sdfs):
             unit.register(f"is_inside{i}", sdf.is_inside(*pg))
             unit.register(f"is_on_boundary{i}", sdf.is_on_boundary(*pg))

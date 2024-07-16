@@ -18,7 +18,7 @@ from jaxtyping import Array, Float, UInt8
 from PIL import Image
 from polymorph_num.expr import Observation
 from polymorph_num.ops import grid_gen
-from polymorph_num.unit import CompiledUnit, Unit
+from polymorph_num.unit import CompiledUnit, ParamValues, Unit
 from polymorph_s2df import geometric_properties
 
 from .sketch import Sketch
@@ -337,6 +337,7 @@ class ViewModel:
         # User-level state
         self.sketch = Sketch()
         self.tool = None
+        self.current_params: None | ParamValues = None
         self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
         self.observations = Observations()
 
@@ -463,6 +464,7 @@ def main(solver):
             sdfs, view_model.window_size, view_model.observation_names()
         )
         unit = unit.observe(obs_dict).minimize()
+        view_model.current_params = unit.current_params
 
         ###########
         ## Render

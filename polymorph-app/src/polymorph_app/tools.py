@@ -1,15 +1,12 @@
-import math
-
 import glfw
 import imgui
 from polymorph_app.types import WorldPos
+from polymorph_num.unit import ParamValues
 
 from .sketch import (
     Box,
     Circle,
     Constraint,
-    LengthValue,
-    LockedAtom,
     OnBoundaryConstraint,
     PointValue,
     Polygon,
@@ -81,18 +78,10 @@ class CircleGesture:
         self.circle = circle
         self.sketch = sketch
 
-    def _distance(self, center: PointValue, pos: WorldPos):
-        match center:
-            case PointValue(LockedAtom(float(x)), LockedAtom(float(y))):
-                # Lock in the current radius.
-                return math.sqrt((x - pos.x) ** 2 + (y - pos.y) ** 2)
-        raise ValueError(f"Not a PointValue: {center}")
-
-    def mouseup(self, pos: WorldPos):
+    def mouseup(self, pos: WorldPos, param_values: ParamValues):
         # Lock in the radius at its current value.
         self.sketch.remove_constraint(self.constraint)
-        r = self._distance(self.circle.center, pos)
-        self.circle.radius = LengthValue().lock(r)
+        self.circle.radius.lock_from_computed(param_values)
 
 
 class CircleTool(Tool):
@@ -103,7 +92,7 @@ class CircleTool(Tool):
 
     def mouseup(self, pos):
         if self.gesture is not None:
-            self.gesture.mouseup(pos)
+            self.gesture.mouseup(pos, self.view_model.current_params)
         self.gesture = None
 
 

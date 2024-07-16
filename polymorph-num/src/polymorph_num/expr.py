@@ -282,6 +282,19 @@ class GridY(Expr):
 
 
 @dataclass(frozen=True)
+class Random(Expr):
+    dim: int
+    low: Expr
+    high: Expr
+
+    def __hash__(self):
+        return hash(id(self))
+
+    def __eq__(self, other):
+        return id(self) == id(other)
+
+
+@dataclass(frozen=True)
 class ComparisonIf(Expr):
     a: Expr
     b: Expr

@@ -41,6 +41,13 @@ def _make_bfgs():
     return optimistix.BFGS(rtol=1e-5, atol=1e-6)
 
 
+def key_generator(start_key=_DEFAULT_PRNG_KEY):
+    key = start_key
+    while True:
+        key, subkey = jax.random.split(key)
+        yield subkey
+
+
 @dataclass(frozen=True)
 class CompiledUnit:
     loss_fn: Callable
@@ -74,7 +81,8 @@ class CompiledUnit:
 
 
 def eval_expr(expr, params_map, params, obs_dict):
-    return _eval(expr, params, params_map, obs_dict, {})
+    random_key = key_generator()
+    return _eval(expr, params, params_map, obs_dict, random_key, {})
 
 
 class Unit:
@@ -129,7 +137,7 @@ class Unit:
         dims = {n: e.dim for n, e in self._exprs.items()}
 
         def eval_loss(p, d: ObsDict):
-            return _eval(self.lossExpr, p, self.param_map, d, {})
+            return _eval(self.lossExpr, p, self.param_map, d, key_generator(), {})
 
         loss_fn = jax.jit(eval_loss)
 

@@ -93,5 +93,9 @@ def grid_gen(width: int, height: int):
     return (expr.GridX(width, height), expr.GridY(width, height))
 
 
+def random_uniform(low: expr.Num, high: expr.Num, dim: int):
+    return expr.Random(dim, expr.as_expr(low), expr.as_expr(high))
+
+
 def debug(tag, orig):
     return expr.Debug(tag, orig)

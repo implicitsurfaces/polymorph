@@ -6,7 +6,7 @@ from . import expr as e
 __all__ = ["_eval"]
 
 
-def _eval(expr: e.Expr, params, param_map, obs_dict, memo) -> jax.Array:
+def _eval(expr: e.Expr, params, param_map, obs_dict, random_key, memo) -> jax.Array:
     if expr in memo:
         return memo[expr]
     else:
@@ -23,20 +23,28 @@ def _eval(expr: e.Expr, params, param_map, obs_dict, memo) -> jax.Array:
                 half_height = height / 2
 
                 yy, xx = jnp.mgrid[-half_height:half_height, -half_width:half_width]
-                return xx.ravel()
+                result = xx.ravel()
 
             case e.GridY(width, height):
                 half_width = width / 2
                 half_height = height / 2
 
                 yy, xx = jnp.mgrid[-half_height:half_height, -half_width:half_width]
-                return yy.ravel()
+                result = yy.ravel()
+
+            case e.Random(dim, low, high):
+                min_ = _eval(low, params, param_map, obs_dict, random_key, memo)
+                max_ = _eval(high, params, param_map, obs_dict, random_key, memo)
+
+                result = jax.random.uniform(
+                    next(random_key), shape=(dim,), minval=min_, maxval=max_
+                )
 
             case e.Broadcast(orig, _dim):
-                result = _eval(orig, params, param_map, obs_dict, memo)
+                result = _eval(orig, params, param_map, obs_dict, random_key, memo)
 
             case e.Unary(orig, op, constants):
-                o = _eval(orig, params, param_map, obs_dict, memo)
+                o = _eval(orig, params, param_map, obs_dict, random_key, memo)
                 match op:
                     case e.UnOp.Sqrt:
                         result = jnp.sqrt(o)
@@ -65,8 +73,8 @@ def _eval(expr: e.Expr, params, param_map, obs_dict, memo) -> jax.Array:
                         return jnp.where((o >= min) & (o <= max), 1.0, 0.0)
 
             case e.Binary(left, right, op):
-                l = _eval(left, params, param_map, obs_dict, memo)
-                r = _eval(right, params, param_map, obs_dict, memo)
+                l = _eval(left, params, param_map, obs_dict, random_key, memo)
+                r = _eval(right, params, param_map, obs_dict, random_key, memo)
                 match op:
                     case e.BinOp.Add:
                         result = l + r
@@ -88,25 +96,67 @@ def _eval(expr: e.Expr, params, param_map, obs_dict, memo) -> jax.Array:
                         result = jnp.mod(l, r)
 
             case e.ComparisonIf(a, b, condition_true, condition_false, op):
-                a_ = _eval(a, params, param_map, obs_dict, memo=memo)
-                b_ = _eval(b, params, param_map, obs_dict, memo=memo)
+                a_ = _eval(a, params, param_map, obs_dict, random_key, memo=memo)
+                b_ = _eval(b, params, param_map, obs_dict, random_key, memo=memo)
                 if op == e.ComparisonOp.Gt:
                     result = jnp.where(
                         a_ > b_,
-                        _eval(condition_true, params, param_map, obs_dict, memo),
-                        _eval(condition_false, params, param_map, obs_dict, memo),
+                        _eval(
+                            condition_true,
+                            params,
+                            param_map,
+                            obs_dict,
+                            random_key,
+                            memo,
+                        ),
+                        _eval(
+                            condition_false,
+                            params,
+                            param_map,
+                            obs_dict,
+                            random_key,
+                            memo,
+                        ),
                     )
                 elif op == e.ComparisonOp.Ge:
                     result = jnp.where(
                         a_ >= b_,
-                        _eval(condition_true, params, param_map, obs_dict, memo),
-                        _eval(condition_false, params, param_map, obs_dict, memo),
+                        _eval(
+                            condition_true,
+                            params,
+                            param_map,
+                            obs_dict,
+                            random_key,
+                            memo,
+                        ),
+                        _eval(
+                            condition_false,
+                            params,
+                            param_map,
+                            obs_dict,
+                            random_key,
+                            memo,
+                        ),
                     )
                 elif op == e.ComparisonOp.Eq:
                     result = jnp.where(
                         a_ == b_,
-                        _eval(condition_true, params, param_map, obs_dict, memo),
-                        _eval(condition_false, params, param_map, obs_dict, memo),
+                        _eval(
+                            condition_true,
+                            params,
+                            param_map,
+                            obs_dict,
+                            random_key,
+                            memo,
+                        ),
+                        _eval(
+                            condition_false,
+                            params,
+                            param_map,
+                            obs_dict,
+                            random_key,
+                            memo,
+                        ),
                     )
 
             case e.Param():
@@ -116,10 +166,12 @@ def _eval(expr: e.Expr, params, param_map, obs_dict, memo) -> jax.Array:
                 result = obs_dict[name]
 
             case e.Sum(orig):
-                result = jnp.sum(_eval(orig, params, param_map, obs_dict, memo))
+                result = jnp.sum(
+                    _eval(orig, params, param_map, obs_dict, random_key, memo)
+                )
 
             case e.Debug(tag, orig):
-                result = _eval(orig, params, param_map, obs_dict, memo)
+                result = _eval(orig, params, param_map, obs_dict, random_key, memo)
                 print(tag, result)
 
             case _:

@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Self
@@ -5,6 +6,7 @@ from typing import Self
 import polymorph_s2df as s2df
 from polymorph_num.expr import PI, ZERO, Expr, Param, as_expr
 from polymorph_num.ops import atan2, observation, param
+from polymorph_num.unit import ParamValues
 from polymorph_num.vec import Vec2
 from polymorph_s2df import geometric_properties
 
@@ -100,6 +102,14 @@ class LengthValue(Value):
         self.mm = LockedAtom(mm)
         return self
 
+    def lock_from_computed(self, param_values: ParamValues):
+        if not isinstance(self.mm, FreeAtom):
+            raise ValueError("Can only lock a free value from a computed one")
+
+        raw_param = param_values.get(self.mm.param)
+        self.lock(math.exp(raw_param))
+        return self
+
     def bind(self, mm: str) -> Self:
         self.mm = BoundAtom(mm)
         return self
@@ -123,6 +133,14 @@ class AreaValue(Value):
     def lock(self, mm2: float) -> None:
         self.mm2 = LockedAtom(mm2)
 
+    def lock_from_computed(self, param_values: ParamValues):
+        if not isinstance(self.mm2, FreeAtom):
+            raise ValueError("Can only lock a free value from a computed one")
+
+        raw_param = param_values.get(self.mm2.param)
+        self.lock(math.exp(raw_param))
+        return self
+
     def bind(self, mm2: str) -> None:
         self.mm2 = BoundAtom(mm2)
 
@@ -143,6 +161,14 @@ class AngleValue(Value):
 
     def lock(self, degrees: float) -> None:
         self.degrees = LockedAtom(degrees)
+
+    def lock_from_computed(self, param_values: ParamValues):
+        if not isinstance(self.degrees, FreeAtom):
+            raise ValueError("Can only lock a free value from a computed one")
+
+        raw_param = param_values.get(self.degrees.param)
+        self.lock(math.atan(raw_param) * 180 / math.pi)
+        return self
 
     def bind(self, degrees: str) -> None:
         self.degrees = BoundAtom(degrees)

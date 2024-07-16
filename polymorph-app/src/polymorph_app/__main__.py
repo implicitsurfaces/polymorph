@@ -224,7 +224,7 @@ def render_devtools(vm):
     imgui.pop_style_var()
 
 
-def render_shape_stats(vm, areas=None):
+def render_shape_stats(vm, areas=None, **kargs):
     w = 100
 
     window_width, window_height = vm.window_size

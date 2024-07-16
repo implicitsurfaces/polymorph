@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from functools import cached_property
+from typing import Self
 
 import polymorph_s2df as s2df
 from polymorph_num.expr import PI, ZERO, Expr, Param, as_expr
@@ -61,29 +62,29 @@ class Value:
         raise NotImplementedError()
 
 
+@dataclass
 class PointValue:
-    x: Atom
-    y: Atom
-
-    def __init__(self):
-        self.x = FreeAtom()
-        self.y = FreeAtom()
+    x: Atom = field(default_factory=FreeAtom)
+    y: Atom = field(default_factory=FreeAtom)
 
     @cached_property
     def param_expr(self) -> Vec2:
         return Vec2(param(), param())
 
-    def lock(self, x: float, y: float) -> None:
+    def lock(self, x: float, y: float) -> Self:
         self.x = LockedAtom(x)
         self.y = LockedAtom(y)
+        return self
 
-    def bind(self, x: str, y: str) -> None:
+    def bind(self, x: str, y: str) -> Self:
         self.x = BoundAtom(x)
         self.y = BoundAtom(y)
+        return self
 
-    def free(self):
+    def free(self) -> Self:
         self.x = FreeAtom()
         self.y = FreeAtom()
+        return self
 
     def as_vec2(self) -> Vec2:
         return Vec2(self.x.as_expr(), self.y.as_expr())
@@ -95,14 +96,17 @@ class LengthValue(Value):
     def __init__(self):
         self.mm = FreeAtom()
 
-    def lock(self, mm: float) -> None:
+    def lock(self, mm: float) -> Self:
         self.mm = LockedAtom(mm)
+        return self
 
-    def bind(self, mm: str) -> None:
+    def bind(self, mm: str) -> Self:
         self.mm = BoundAtom(mm)
+        return self
 
-    def free(self) -> None:
+    def free(self) -> Self:
         self.mm = FreeAtom()
+        return self
 
     def as_expr(self) -> Expr:
         return self.mm.as_expr()
@@ -264,10 +268,17 @@ class Sketch:
     def changed(self):
         self._sdfs = None
 
-    def add(self, node):
-        self.shapes.append(node)
+    def add(self, shape: Shape) -> None:
+        self.shapes.append(shape)
         self.changed()
-        return node
+
+    def add_constraint(self, c: Constraint) -> None:
+        self.constraints.append(c)
+        self.changed()
+
+    def remove_constraint(self, c: Constraint) -> None:
+        self.constraints.remove(c)
+        self.changed()
 
     def total_loss(self, **kwargs) -> Expr:
         return as_expr(sum(c.loss(**kwargs) for c in self.constraints))
@@ -294,29 +305,31 @@ class Circle(Shape):
 
 
 class Box(Shape):
-    p1: Vec2
-    p2: Vec2
+    p1: PointValue
+    p2: PointValue
 
     __match_args__ = ("p1", "p2")
 
-    def __init__(self, p1: Vec2, p2: Vec2):
+    def __init__(self, p1: PointValue, p2: PointValue):
         self.p1 = p1
         self.p2 = p2
 
     def to_sdf(self):
-        center = (self.p1 + self.p2) / 2
-        w = (self.p2.x - self.p1.x).smoothabs()
-        h = (self.p2.y - self.p1.y).smoothabs()
+        v1, v2 = self.p1.as_vec2(), self.p2.as_vec2()
+        center = (v1 + v2) / 2
+        w = (v2.x - v1.x).smoothabs()
+        h = (v2.y - v1.y).smoothabs()
         return s2df.Box(w, h).translate(center)
 
 
 class Polygon(Shape):
-    points: list[Vec2]
-    temp_point: Vec2 | None = None
+    points: list[PointValue]
+    temp_point: PointValue | None = None
 
     __match_args__ = "points"
 
     def __init__(self):
+        super().__init__()
         self.points = []
 
     def to_sdf(self):
@@ -325,8 +338,8 @@ class Polygon(Shape):
             return s2df.Circle(0.0)
         segments = [
             s2df.LineSegment(
-                points[i],
-                points[(i + 1) % len(points)],
+                points[i].as_vec2(),
+                points[(i + 1) % len(points)].as_vec2(),
             )
             for i in range(len(points))
         ]

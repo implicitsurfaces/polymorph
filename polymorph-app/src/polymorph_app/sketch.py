@@ -2,9 +2,10 @@ from dataclasses import dataclass, field
 from functools import cached_property
 
 import polymorph_s2df as s2df
-from polymorph_num.expr import ZERO, Expr, Param, as_expr
-from polymorph_num.ops import observation, param
+from polymorph_num.expr import PI, ZERO, Expr, Param, as_expr
+from polymorph_num.ops import atan2, observation, param
 from polymorph_num.vec import Vec2
+from polymorph_s2df import geometric_properties
 
 
 @dataclass(frozen=True)
@@ -56,10 +57,8 @@ class Value:
     caching their most recent values.
     """
 
-    locked: bool
-
-    def __init__(self):
-        self.locked = False
+    def as_expr(self) -> Expr:
+        raise NotImplementedError()
 
 
 class PointValue:
@@ -97,11 +96,9 @@ class LengthValue(Value):
         self.mm = FreeAtom()
 
     def lock(self, mm: float) -> None:
-        assert isinstance(self.mm, FreeAtom)
         self.mm = LockedAtom(mm)
 
     def bind(self, mm: str) -> None:
-        assert isinstance(self.mm, FreeAtom)
         self.mm = BoundAtom(mm)
 
     def free(self) -> None:
@@ -112,11 +109,47 @@ class LengthValue(Value):
 
 
 class AreaValue(Value):
-    mm2: float
+    mm2: Atom
+
+    def __init__(self):
+        self.mm2 = FreeAtom()
+
+    def lock(self, mm2: float) -> None:
+        self.mm2 = LockedAtom(mm2)
+
+    def bind(self, mm2: str) -> None:
+        self.mm2 = BoundAtom(mm2)
+
+    def free(self) -> None:
+        self.mm2 = FreeAtom()
+
+    def as_expr(self) -> Expr:
+        return self.mm2.as_expr()
 
 
 class AngleValue(Value):
-    degrees: float
+    degrees: Atom
+
+    def __init__(self):
+        self.mm2 = FreeAtom()
+
+    def lock(self, mm2: float) -> None:
+        self.mm2 = LockedAtom(mm2)
+
+    def bind(self, mm2: str) -> None:
+        self.mm2 = BoundAtom(mm2)
+
+    def free(self) -> None:
+        self.mm2 = FreeAtom()
+
+    def as_expr(self) -> Expr:
+        if isinstance(self.mm2, FreeAtom):
+            # When exposing a free angle, we expose it to the optimizer as the tangent
+            # (so that it is defined on the whole real line)
+            return self.mm2.as_expr().atan()
+
+        # We store the angle in degrees, but convert to radians for the compute graph
+        return self.mm2.as_expr() / 180 * PI
 
 
 class Constraint:
@@ -126,7 +159,7 @@ class Constraint:
     owned by the constraint (usually/always with locked values).
     """
 
-    def loss(self) -> Expr:
+    def loss(self, **kargs) -> Expr:
         raise NotImplementedError()
 
 
@@ -135,6 +168,10 @@ class EqualLengthConstraint(Constraint):
     a: LengthValue
     b: LengthValue
 
+    def loss(self, **kwargs) -> Expr:
+        diff = self.a.as_expr() - self.b.as_expr()
+        return diff * diff
+
 
 @dataclass
 class DistanceConstraint(Constraint):
@@ -142,11 +179,23 @@ class DistanceConstraint(Constraint):
     b: PointValue
     length: LengthValue
 
+    def loss(self, **kwargs) -> Expr:
+        diff = (self.a.as_vec2() - self.b.as_vec2()).norm() - self.length.as_expr()
+        return diff * diff
+
 
 @dataclass
 class AreaConstraint(Constraint):
     shape: Shape
     area: AreaValue
+
+    def loss(self, **kwargs) -> Expr:
+        size = kwargs.get("size", (100, 100))
+        shape = self.shape.to_sdf()
+        shape_area = geometric_properties.area(shape, size)
+
+        diff = self.area.as_expr() - shape_area
+        return diff * diff
 
 
 @dataclass
@@ -154,13 +203,21 @@ class CentroidConstraint(Constraint):
     shape: Shape
     centroid: PointValue
 
+    def loss(self, **kwargs) -> Expr:
+        size = kwargs.get("size", (100, 100))
+        shape = self.shape.to_sdf()
+        centroid = geometric_properties.centroid(shape, size)
+
+        diff = self.centroid.as_vec2() - centroid
+        return diff.dot(diff)  # The square of the norm
+
 
 @dataclass
 class OnBoundaryConstraint(Constraint):
     shape: Shape
     point: PointValue
 
-    def loss(self) -> Expr:
+    def loss(self, **kwargs) -> Expr:
         p = self.point.as_vec2()
         d = self.shape.to_sdf().distance(p.x, p.y)
         return d * d
@@ -171,6 +228,19 @@ class AngleConstraint(Constraint):
     b: PointValue
     c: PointValue
     angleABC: AngleValue
+
+    def loss(self, **kwargs) -> Expr:
+        a = self.a.as_vec2()
+        b = self.b.as_vec2()
+        c = self.c.as_vec2()
+
+        ab = b - a
+        bc = c - b
+
+        angle = atan2(ab.dot(bc), ab.cross(bc))
+
+        diff = angle - self.angleABC.as_expr()
+        return diff * diff
 
 
 class Sketch:
@@ -199,8 +269,8 @@ class Sketch:
         self.changed()
         return node
 
-    def total_loss(self) -> Expr:
-        return as_expr(sum(c.loss() for c in self.constraints))
+    def total_loss(self, **kwargs) -> Expr:
+        return as_expr(sum(c.loss(**kwargs) for c in self.constraints))
 
 
 class Circle(Shape):

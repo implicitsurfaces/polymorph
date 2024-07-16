@@ -109,6 +109,8 @@ class LengthValue(Value):
         return self
 
     def as_expr(self) -> Expr:
+        if isinstance(self.mm, FreeAtom):
+            return self.mm.as_expr().exp()
         return self.mm.as_expr()
 
 
@@ -128,6 +130,8 @@ class AreaValue(Value):
         self.mm2 = FreeAtom()
 
     def as_expr(self) -> Expr:
+        if isinstance(self.mm2, FreeAtom):
+            return self.mm2.as_expr().exp()
         return self.mm2.as_expr()
 
 
@@ -135,25 +139,25 @@ class AngleValue(Value):
     degrees: Atom
 
     def __init__(self):
-        self.mm2 = FreeAtom()
+        self.degrees = FreeAtom()
 
-    def lock(self, mm2: float) -> None:
-        self.mm2 = LockedAtom(mm2)
+    def lock(self, degrees: float) -> None:
+        self.degrees = LockedAtom(degrees)
 
-    def bind(self, mm2: str) -> None:
-        self.mm2 = BoundAtom(mm2)
+    def bind(self, degrees: str) -> None:
+        self.degrees = BoundAtom(degrees)
 
     def free(self) -> None:
-        self.mm2 = FreeAtom()
+        self.degrees = FreeAtom()
 
     def as_expr(self) -> Expr:
-        if isinstance(self.mm2, FreeAtom):
+        if isinstance(self.degrees, FreeAtom):
             # When exposing a free angle, we expose it to the optimizer as the tangent
             # (so that it is defined on the whole real line)
-            return self.mm2.as_expr().atan()
+            return self.degrees.as_expr().atan()
 
         # We store the angle in degrees, but convert to radians for the compute graph
-        return self.mm2.as_expr() / 180 * PI
+        return self.degrees.as_expr() / 180 * PI
 
 
 class Constraint:

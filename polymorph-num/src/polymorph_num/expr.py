@@ -42,6 +42,7 @@ class UnOp(Enum):
     Abs = "abs"
     SoftPlus = "softplus"
     Log = "log"
+    Exp = "exp"
     Cos = "cos"
     Sin = "sin"
     Tanh = "tanh"
@@ -145,6 +146,9 @@ class Expr:
 
     def log(self):
         return Unary(self, UnOp.Log)
+
+    def exp(self):
+        return Unary(self, UnOp.Exp)
 
     def cos(self):
         return Unary(self, UnOp.Cos)

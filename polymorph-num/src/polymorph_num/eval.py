@@ -58,6 +58,8 @@ def _eval(expr: e.Expr, params, param_map, obs_dict, random_key, memo) -> jax.Ar
                         result = jax.nn.softplus(50 * o) / 50
                     case e.UnOp.Log:
                         result = jnp.log(o)
+                    case e.UnOp.Exp:
+                        result = jnp.exp(o)
                     case e.UnOp.Cos:
                         result = jnp.cos(o)
                     case e.UnOp.Sin:

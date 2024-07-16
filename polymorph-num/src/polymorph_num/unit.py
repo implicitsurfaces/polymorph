@@ -25,6 +25,9 @@ class ParamMap:
         self.count = 0
         self.dict = dict()
 
+    def __repr__(self):
+        return f"ParamMap({self.dict})"
+
     def add(self, node):
         if node not in self.dict:
             self.dict[node] = self.count
@@ -49,12 +52,21 @@ def key_generator(start_key=_DEFAULT_PRNG_KEY):
 
 
 @dataclass(frozen=True)
+class ParamValues:
+    values: jax.Array
+    param_map: ParamMap
+
+    def get(self, node):
+        return self.param_map.get(node, self.values)
+
+
+@dataclass(frozen=True)
 class CompiledUnit:
     loss_fn: Callable
     compiled_exprs: dict[str, Callable]
     params: jax.Array
     obs_dict: ObsDict
-
+    param_map: ParamMap = field(default_factory=ParamMap)
     _expr_dims: dict[str, int] = field(default_factory=dict)
     solver: optimistix.AbstractMinimiser = field(default_factory=_make_bfgs)
 
@@ -78,6 +90,10 @@ class CompiledUnit:
             throw=False,
         )
         return replace(self, params=soln.value)
+
+    @property
+    def current_params(self):
+        return ParamValues(self.params, self.param_map)
 
 
 def eval_expr(expr, params_map, params, obs_dict):
@@ -143,7 +159,7 @@ class Unit:
 
         logger.debug(f"Unit compilation: {time.time() - start_time:.2f}s")
 
-        return CompiledUnit(loss_fn, compiled_exprs, params, obs, dims)
+        return CompiledUnit(loss_fn, compiled_exprs, params, obs, self.param_map, dims)
 
 
 def _find_params(expr, params: ParamMap, obs_names: frozenset[str]):

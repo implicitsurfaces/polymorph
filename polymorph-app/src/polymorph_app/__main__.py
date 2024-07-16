@@ -19,6 +19,7 @@ from PIL import Image
 from polymorph_num.expr import Observation
 from polymorph_num.ops import grid_gen
 from polymorph_num.unit import CompiledUnit, Unit
+from polymorph_s2df import geometric_properties
 
 from .sketch import Sketch
 from .solve import async_solver
@@ -251,6 +252,7 @@ def render_shape_stats(vm, areas=None):
         imgui.text(
             f"  {area:.2E}",
         )
+
     imgui.end()
     imgui.pop_style_var()
 
@@ -268,7 +270,7 @@ def render_shapes_tree(vm):
     imgui.end()
 
 
-def render_overlay(vm, params):
+def render_overlay(vm, params, centroids=()):
     # Set the window position and size to cover the entire viewport
     viewport = imgui.get_main_viewport()
     imgui.set_next_window_position(*viewport.pos)
@@ -287,8 +289,15 @@ def render_overlay(vm, params):
     )
 
     draw_list = imgui.get_window_draw_list()
+
+    for centroid in centroids:
+        x_screen, y_screen = vm.world_to_screen(centroid)
+        draw_list.add_circle_filled(
+            x_screen, y_screen, 4, imgui.get_color_u32_rgba(1, 0, 0, 1)
+        )
+
     if params is not None:
-        x_screen, y_screen = vm.world_to_screen((params[0], params[1]))
+        x_screen, y_screen = vm.world_to_screen(params)
         draw_list.add_circle_filled(
             x_screen, y_screen, 4, imgui.get_color_u32_rgba(1, 0, 0, 1)
         )
@@ -302,7 +311,7 @@ def render_overlay(vm, params):
 def render_ui(renderer, vm, params, stats=None):
     imgui.new_frame()
 
-    render_overlay(vm, params)
+    render_overlay(vm, params, centroids=stats.get("centroids", []))
     render_shapes_tree(vm)
     render_devtools(vm)
     render_shape_stats(vm, **stats)
@@ -421,7 +430,10 @@ def main(solver):
         for i, sdf in enumerate(sdfs):
             unit.register(f"is_inside{i}", sdf.is_inside(*pg))
             unit.register(f"is_on_boundary{i}", sdf.is_on_boundary(*pg))
-            unit.register(f"area{i}", sdf.area(*pg, size[0] * size[1]))
+            unit.register(f"area{i}", geometric_properties.area_monte_carlo(sdf, size))
+            centroid = geometric_properties.centroid_monte_carlo(sdf, size)
+            unit.register(f"centroid_x{i}", centroid.x)
+            unit.register(f"centroid_y{i}", centroid.y)
         return unit.compile()
 
     @log_perf(render_log)
@@ -473,10 +485,19 @@ def main(solver):
 
         # Calculate stats
         areas = tuple(unit.evaluate(f"area{i}") for i in range(len(sdfs)))
+        centroids = tuple(
+            WorldPos(unit.evaluate(f"centroid_x{i}"), unit.evaluate(f"centroid_y{i}"))
+            for i in range(len(sdfs))
+        )
 
         # Render ImGui
 
-        render_ui(imgui_glfw_renderer, view_model, None, stats={"areas": areas})
+        render_ui(
+            imgui_glfw_renderer,
+            view_model,
+            None,
+            stats={"areas": areas, "centroids": centroids},
+        )
 
         glfw.swap_buffers(window)
 

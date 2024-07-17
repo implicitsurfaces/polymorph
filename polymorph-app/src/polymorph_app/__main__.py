@@ -333,6 +333,8 @@ def render_overlay(vm, params, centroids=()):
 
 
 def render_ui(renderer, vm, params, stats=None):
+    if stats is None:
+        stats = {}
     imgui.new_frame()
 
     _, window_height = vm.window_size

@@ -1,3 +1,4 @@
+from multiprocessing.pool import AsyncResult
 from timeit import default_timer as timer
 
 import jax.numpy as jnp
@@ -22,14 +23,14 @@ def cost(params, shape):
 
 def async_solver(pool):
     value = None
-    currently_processing = False
+    currently_processing: AsyncResult | None = None
 
     def solver(params, sdf):
         nonlocal value, currently_processing
 
         if currently_processing and currently_processing.ready():
             value = currently_processing.get()
-            currently_processing = False
+            currently_processing = None
 
         if not currently_processing:
             currently_processing = pool.apply_async(

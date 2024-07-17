@@ -36,10 +36,8 @@ param2_values = parameters[:, 1]
 if three_d:
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
-    scatter = ax.scatter(
-        param1_values, param2_values, costs, c=costs, cmap="viridis", s=1
-    )
-    ax.set_zlabel("Cost")
+    scatter = ax.scatter(param1_values, param2_values, costs, c=costs, cmap="viridis")
+    ax.set_zlabel("Cost")  # type: ignore
 else:
     fig, ax = plt.subplots()
     scatter = ax.scatter(param1_values, param2_values, c=costs, cmap="viridis", s=1)

@@ -1,10 +1,11 @@
+from __future__ import annotations  # For forward refs in type annotations
+
 import logging
 import multiprocessing
 import os
 import sys
 from collections import namedtuple
 from functools import lru_cache
-from typing import FrozenSet
 
 import glfw
 import imgui
@@ -21,6 +22,7 @@ from polymorph_num.ops import grid_gen
 from polymorph_num.unit import CompiledUnit, ParamValues, Unit
 from polymorph_s2df import geometric_properties
 
+from .scenes import scene_dict
 from .sketch import Sketch
 from .solve import async_solver
 from .tools import BoxTool, CircleTool, PolygonTool
@@ -203,24 +205,22 @@ def render_devtools(vm):
     window_width, _ = vm.window_size
     imgui.set_next_window_position(window_width - w - 10, 10)  # Top right
     imgui.push_style_var(imgui.STYLE_ALPHA, 0.5)
-    imgui.begin(
+    with imgui.begin(
         "FPS Meter",
         None,
         imgui.WINDOW_NO_TITLE_BAR
         | imgui.WINDOW_NO_RESIZE
         | imgui.WINDOW_NO_MOVE
         | imgui.WINDOW_ALWAYS_AUTO_RESIZE,
-    )
+    ):
+        imgui.text(
+            f"FPS: {imgui.get_io().framerate:.2f}",
+        )
+        changed, vm.vsync_enabled = imgui.checkbox("VSync", vm.vsync_enabled)
+        if changed:
+            glfw.swap_interval(vm.vsync_enabled)
+        _, vm.show_outlines = imgui.checkbox("Outlines", vm.show_outlines)
 
-    imgui.text(
-        f"FPS: {imgui.get_io().framerate:.2f}",
-    )
-    changed, vm.vsync_enabled = imgui.checkbox("VSync", vm.vsync_enabled)
-    if changed:
-        glfw.swap_interval(vm.vsync_enabled)
-    _, vm.show_outlines = imgui.checkbox("Outlines", vm.show_outlines)
-
-    imgui.end()
     imgui.pop_style_var()
 
 
@@ -238,36 +238,63 @@ def render_shape_stats(vm, areas=None, **kargs):
     )
 
     imgui.push_style_var(imgui.STYLE_ALPHA, 0.5)
-    imgui.begin(
+    with imgui.begin(
         "Shape stats",
         None,
         imgui.WINDOW_NO_TITLE_BAR
         | imgui.WINDOW_NO_RESIZE
         | imgui.WINDOW_NO_MOVE
         | imgui.WINDOW_ALWAYS_AUTO_RESIZE,
-    )
-
-    imgui.text("Areas: ")
-    for area in areas:
-        imgui.text(
-            f"  {area:.2E}",
-        )
-
-    imgui.end()
+    ):
+        imgui.text("Areas: ")
+        for area in areas:
+            imgui.text(
+                f"  {area:.2E}",
+            )
     imgui.pop_style_var()
 
 
-def render_shapes_tree(vm):
+def render_shapes_tree(vm, pos: tuple[int, int]):
     _, window_height = vm.window_size
-    imgui.set_next_window_size(200, window_height)
-    imgui.set_next_window_position(0, 0)
-    imgui.begin(
+    width = 200
+
+    padding = imgui.get_style().window_padding
+    content_width = width - 2 * padding.x
+
+    imgui.set_next_window_size(width, window_height)
+    imgui.set_next_window_position(*pos)
+    with imgui.begin(
         "Shapes", closable=False, flags=imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE
-    )
-    for s in vm.sketch:
-        if imgui.tree_node(s.classname(), imgui.TREE_NODE_LEAF):
-            imgui.tree_pop()
-    imgui.end()
+    ):
+        for s in vm.sketch:
+            if imgui.tree_node(s.classname(), imgui.TREE_NODE_LEAF):
+                imgui.tree_pop()
+
+        # Render scene selector at the bottom, full width
+        x = imgui.get_cursor_pos_x()
+        y = window_height - imgui.get_text_line_height() - 2 * padding.y
+        imgui.set_cursor_pos((x, y))
+        render_scene_selector(vm, content_width)
+
+
+def render_scene_selector(vm: ViewModel, width: int):
+    imgui.set_next_item_width(width)
+
+    default_label = "Load scene"
+    preview_value = vm.selected_scene or default_label
+
+    with imgui.begin_combo("", preview_value) as combo:
+        if combo.opened:
+            for name in vm.scene_names:
+                is_selected = name == vm.selected_scene
+
+                _, did_select = imgui.selectable(name, is_selected)
+                if did_select:
+                    vm.load_scene(name)
+
+                # Set the initial focus when opening the combo
+                if is_selected:
+                    imgui.set_item_default_focus()
 
 
 def render_overlay(vm, params, centroids=()):
@@ -276,7 +303,7 @@ def render_overlay(vm, params, centroids=()):
     imgui.set_next_window_position(*viewport.pos)
     imgui.set_next_window_size(*viewport.size)
 
-    imgui.begin(
+    with imgui.begin(
         "Overlay",
         None,
         imgui.WINDOW_NO_TITLE_BAR
@@ -286,33 +313,32 @@ def render_overlay(vm, params, centroids=()):
         | imgui.WINDOW_NO_SAVED_SETTINGS
         | imgui.WINDOW_NO_BRING_TO_FRONT_ON_FOCUS
         | imgui.WINDOW_NO_MOUSE_INPUTS,
-    )
+    ):
+        draw_list = imgui.get_window_draw_list()
 
-    draw_list = imgui.get_window_draw_list()
+        for centroid in centroids:
+            x_screen, y_screen = vm.world_to_screen(centroid)
+            draw_list.add_circle_filled(
+                x_screen, y_screen, 4, imgui.get_color_u32_rgba(1, 0, 0, 1)
+            )
 
-    for centroid in centroids:
-        x_screen, y_screen = vm.world_to_screen(centroid)
-        draw_list.add_circle_filled(
-            x_screen, y_screen, 4, imgui.get_color_u32_rgba(1, 0, 0, 1)
-        )
+        if params is not None:
+            x_screen, y_screen = vm.world_to_screen(params)
+            draw_list.add_circle_filled(
+                x_screen, y_screen, 4, imgui.get_color_u32_rgba(1, 0, 0, 1)
+            )
 
-    if params is not None:
-        x_screen, y_screen = vm.world_to_screen(params)
-        draw_list.add_circle_filled(
-            x_screen, y_screen, 4, imgui.get_color_u32_rgba(1, 0, 0, 1)
-        )
-
-    if vm.tool:
-        vm.tool.render_feedback(vm, draw_list)
-
-    imgui.end()
+        if vm.tool:
+            vm.tool.render_feedback(vm, draw_list)
 
 
 def render_ui(renderer, vm, params, stats=None):
     imgui.new_frame()
 
+    _, window_height = vm.window_size
+
     render_overlay(vm, params, centroids=stats.get("centroids", []))
-    render_shapes_tree(vm)
+    render_shapes_tree(vm, (0, 0))
     render_devtools(vm)
     render_shape_stats(vm, **stats)
 
@@ -340,6 +366,9 @@ class ViewModel:
         self.current_params: None | ParamValues = None
         self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
         self.observations = Observations()
+
+        self.scene_names = list(scene_dict.keys())
+        self.selected_scene = None
 
     def _update_transforms(self, window):
         # About coordinate frames:
@@ -395,6 +424,9 @@ class ViewModel:
     def observation_names(self):
         return frozenset(self.current_obs_dict().keys())
 
+    def load_scene(self, name: str):
+        self.sketch = scene_dict[name]()
+
 
 def main(solver):
     window = create_window()
@@ -422,7 +454,7 @@ def main(solver):
     @memoize
     @log_perf(compile_log)
     def compile_unit(
-        sdfs: tuple[s2df.Shape], size: tuple[int, int], obs_names: FrozenSet[str]
+        sdfs: tuple[s2df.Shape], size: tuple[int, int], obs_names: frozenset[str]
     ) -> CompiledUnit:
         unit = Unit(obs_names)
         unit.registerLoss(view_model.sketch.total_loss(size=size))

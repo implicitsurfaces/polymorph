@@ -69,6 +69,8 @@ distlib==0.3.8
 equinox==0.11.4
     # via lineax
     # via optimistix
+etils==1.9.2
+    # via optax
 executing==2.0.1
     # via stack-data
 fastjsonschema==2.19.1
@@ -237,7 +239,7 @@ numpy==1.26.4
     # via scipy
 opt-einsum==3.3.0
     # via jax
-optax==0.2.2
+optax==0.2.3
     # via polymorph
 optimistix==0.0.7
     # via polymorph
@@ -397,6 +399,7 @@ types-python-dateutil==2.9.0.20240316
 typing-extensions==4.11.0
     # via chex
     # via equinox
+    # via etils
     # via lineax
     # via optimistix
 tzdata==2024.1

@@ -67,6 +67,8 @@ select = [
     "I",   # isort
 ]
 
+exclude = ["typings/imgui/__init__.pyi"]
+
 [tool.pyright]
 venvPath = "."
 venv = ".venv"

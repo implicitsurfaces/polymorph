@@ -12,6 +12,8 @@ dependencies = [
     "matplotlib>=3.8.4",
     "ruff>=0.4.4",
     "jupyter>=1.0.0",
+#    "jax>=0.4.28;sys_platform=='darwin'",
+#    "jax[cuda]>=0.4.28;sys_platform=='linux'",
     "jax>=0.4.28",
     "numpy>=1.26.4",
     "jaxlib>=0.4.28",

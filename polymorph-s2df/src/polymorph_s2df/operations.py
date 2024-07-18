@@ -124,12 +124,12 @@ class Rotation(Shape):
         y = as_expr(y)
 
         c = self.angle.cos()
-        s = self.angle.sin()
+        s = -self.angle.sin()
 
-        x = x * c - y * s
-        y = x * s + y * c
+        x2 = (x * c) - (y * s)
+        y2 = (x * s) + (y * c)
 
-        return self.shape.distance(x, y)
+        return self.shape.distance(x2, y2)
 
 
 class Intersection(Shape):

@@ -78,6 +78,11 @@ class CompiledUnit:
     _expr_dims: dict[str, int] = field(default_factory=dict)
     solver: optimistix.AbstractMinimiser = field(default_factory=_make_bfgs)
 
+    def run(self, expr: e.Expr | Vec2):
+        fun = _compile_expr(expr, self.params, self.param_map, self.obs_dict)
+        val = fun(self.params, self.obs_dict)
+        return _return_val(val, expr.dim)
+
     def evaluate(self, exprName: str):
         ans = self.compiled_exprs[exprName](self.params, self.obs_dict)
         dim = self._expr_dims[exprName]
@@ -106,7 +111,7 @@ class CompiledUnit:
         return ParamValues(self.params, self.param_map)
 
 
-def eval_expr(expr, params_map, params, obs_dict):
+def eval_expr(expr: e.Expr | Vec2, params_map, params, obs_dict):
     random_key = key_generator()
     if isinstance(expr, Vec2):
         return (
@@ -116,13 +121,21 @@ def eval_expr(expr, params_map, params, obs_dict):
     return _eval(expr, params, params_map, obs_dict, random_key, {})
 
 
+def _compile_expr(expr, params, param_map, obs_dict):
+    return (
+        jax.jit(eval_expr, static_argnums=(0, 1))
+        .lower(expr, param_map, params, obs_dict)
+        .compile()
+    )
+
+
 class Unit:
     """A unit is family of `Exprs` that share parameters and observations."""
 
     param_map: ParamMap
     observations: frozenset[str]
 
-    _exprs: dict[str, e.Expr]
+    _exprs: dict[str, e.Expr | Vec2]
     lossExpr: e.Expr = e.ZERO
 
     def __init__(
@@ -132,7 +145,7 @@ class Unit:
         self.observations = frozenset(obs_names)
         self._exprs = dict()
 
-    def register(self, name: str, expr: e.Expr) -> Unit:
+    def register(self, name: str, expr: e.Expr | Vec2) -> Unit:
         params = ParamMap()
         _find_params(expr, params, self.observations)
 
@@ -148,13 +161,6 @@ class Unit:
         self.lossExpr = expr
         return self
 
-    def _compile(self, expr, params, obs_dict: ObsDict):
-        return (
-            jax.jit(eval_expr, static_argnums=(0, 1))
-            .lower(expr, self.param_map, params, obs_dict)
-            .compile()
-        )
-
     def compile(self, prng_key=_DEFAULT_PRNG_KEY) -> CompiledUnit:
         start_time = time.time()
 
@@ -163,7 +169,7 @@ class Unit:
         compiled_exprs = {}
         for name, expr in self._exprs.items():
             start_time = time.time()
-            compiled_exprs[name] = self._compile(expr, params, obs)
+            compiled_exprs[name] = _compile_expr(expr, params, self.param_map, obs)
             logger.debug(f"Compiled {name} in {time.time() - start_time:.2f}s")
         dims = {n: e.dim for n, e in self._exprs.items()}
 

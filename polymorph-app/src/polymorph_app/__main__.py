@@ -17,7 +17,6 @@ import polymorph_s2df as s2df
 from imgui.integrations.glfw import GlfwRenderer
 from jaxtyping import Array, Float, UInt8
 from PIL import Image
-from polymorph_num.expr import Observation
 from polymorph_num.ops import grid_gen
 from polymorph_num.unit import CompiledUnit, ParamValues, Unit
 from polymorph_s2df import geometric_properties
@@ -258,6 +257,7 @@ def render_shapes_tree(vm, pos: tuple[int, int]):
     _, window_height = vm.window_size
     width = 200
 
+    spacing = imgui.get_style().item_spacing
     padding = imgui.get_style().window_padding
     content_width = width - 2 * padding.x
 
@@ -270,10 +270,15 @@ def render_shapes_tree(vm, pos: tuple[int, int]):
             if imgui.tree_node(s.classname(), imgui.TREE_NODE_LEAF):
                 imgui.tree_pop()
 
-        # Render scene selector at the bottom, full width
+        # Calculate the height required for the stack of widgets at the bottom.
+        num_rows = len(vm.vars) + 1
+        stack_height = num_rows * imgui.get_frame_height() + (num_rows - 1) * spacing.y
         x = imgui.get_cursor_pos_x()
-        y = window_height - imgui.get_text_line_height() - 2 * padding.y
+        y = window_height - stack_height - padding.y
         imgui.set_cursor_pos((x, y))
+
+        # Render the stack.
+        render_vars(vm, content_width)
         render_scene_selector(vm, content_width)
 
 
@@ -295,6 +300,22 @@ def render_scene_selector(vm: ViewModel, width: int):
                 # Set the initial focus when opening the combo
                 if is_selected:
                     imgui.set_item_default_focus()
+
+
+def render_vars(vm: ViewModel, width: int):
+    col_width = (width - imgui.get_style().item_spacing.x) / 2
+    for name, value in vm.vars.items():
+        imgui.set_next_item_width(col_width)
+        # TODO: Get imgui.INPUT_TEXT_ENTER_RETURNS_TRUE working properly
+        changed, new_val = imgui.input_text(
+            name,
+            str(value),
+            -1,
+            flags=imgui.INPUT_TEXT_CHARS_DECIMAL
+            | imgui.INPUT_TEXT_ENTER_RETURNS_TRUE
+            | imgui.INPUT_TEXT_AUTO_SELECT_ALL,
+        )
+        vm.vars[name] = float(new_val)
 
 
 def render_overlay(vm, params, centroids=()):
@@ -358,19 +379,19 @@ class ViewModel:
         self._update_transforms(window)
         self.show_outlines = False
 
-        class Observations:
-            mouse_x = Observation("mouse_x")
-            mouse_y = Observation("mouse_y")
-
         # User-level state
         self.sketch = Sketch()
         self.tool = None
         self.current_params: None | ParamValues = None
         self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
-        self.observations = Observations()
 
         self.scene_names = list(scene_dict.keys())
         self.selected_scene = None
+
+        self.vars = {
+            "var1": 0.0,
+            "var2": 0.0,
+        }
 
     def _update_transforms(self, window):
         # About coordinate frames:
@@ -421,7 +442,7 @@ class ViewModel:
 
     def current_obs_dict(self) -> dict[str, float]:
         x, y = self.cursor_world.as_array()
-        return {"mouse_x": x, "mouse_y": y}
+        return {"mouse_x": x, "mouse_y": y, **self.vars}
 
     def observation_names(self):
         return frozenset(self.current_obs_dict().keys())

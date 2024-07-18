@@ -53,15 +53,6 @@ def key_generator(start_key=_DEFAULT_PRNG_KEY):
         yield subkey
 
 
-@dataclass(frozen=True)
-class ParamValues:
-    values: jax.Array
-    param_map: ParamMap
-
-    def get(self, node):
-        return self.param_map.get(node, self.values)
-
-
 def _return_val(val, dim: int) -> Any:
     if isinstance(val, tuple):
         return (_return_val(val[0], dim), _return_val(val[1], dim))
@@ -105,10 +96,6 @@ class CompiledUnit:
             throw=False,
         )
         return replace(self, params=soln.value)
-
-    @property
-    def current_params(self):
-        return ParamValues(self.params, self.param_map)
 
 
 def eval_expr(expr: e.Expr | Vec2, params_map, params, obs_dict):

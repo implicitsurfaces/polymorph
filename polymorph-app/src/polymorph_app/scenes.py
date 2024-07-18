@@ -1,4 +1,11 @@
-from polymorph_app.sketch import Circle, DistanceConstraint, LengthValue, Sketch
+from polymorph_app.sketch import (
+    CenteredBox,
+    Circle,
+    DistanceConstraint,
+    LengthValue,
+    Morph,
+    Sketch,
+)
 
 
 def load_chain():
@@ -27,7 +34,29 @@ def empty():
     return Sketch()
 
 
+def morph():
+    sketch = Sketch()
+
+    circle = Circle()
+    circle.radius.lock(200)
+    circle.center.lock()
+
+    box = CenteredBox()
+    box.position.bind("mouse_x", "mouse_y")
+    box.rotation.lock()
+    box.width.lock(300)
+    box.height.lock(200)
+
+    morph = Morph(circle, box)
+    morph.t.lock(0.5)
+
+    sketch.add(morph)
+
+    return sketch
+
+
 scene_dict = {
     "Empty": empty,
     "Chain": load_chain,
+    "Morph": morph,
 }

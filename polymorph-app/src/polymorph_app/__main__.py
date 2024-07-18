@@ -467,8 +467,7 @@ def main(solver):
             unit.register(f"is_on_boundary{i}", sdf.is_on_boundary(*pg))
             unit.register(f"area{i}", geometric_properties.area_monte_carlo(sdf, size))
             centroid = geometric_properties.centroid_monte_carlo(sdf, size)
-            unit.register(f"centroid_x{i}", centroid.x)
-            unit.register(f"centroid_y{i}", centroid.y)
+            unit.register(f"centroid{i}", centroid)
         return unit.compile()
 
     @log_perf(render_log)
@@ -522,8 +521,7 @@ def main(solver):
         # Calculate stats
         areas = tuple(unit.evaluate(f"area{i}") for i in range(len(sdfs)))
         centroids = tuple(
-            WorldPos(unit.evaluate(f"centroid_x{i}"), unit.evaluate(f"centroid_y{i}"))
-            for i in range(len(sdfs))
+            WorldPos(*unit.evaluate(f"centroid{i}")) for i in range(len(sdfs))
         )
 
         # Render ImGui

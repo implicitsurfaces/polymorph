@@ -3,11 +3,13 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field, replace
-from typing import Callable, Sequence
+from typing import Any, Callable, Sequence
 
 import jax
 import jax.numpy as jnp
 import optimistix
+
+from polymorph_num.vec import Vec2
 
 from . import expr as e
 from .eval import _eval
@@ -60,6 +62,12 @@ class ParamValues:
         return self.param_map.get(node, self.values)
 
 
+def _return_val(val, dim: int) -> Any:
+    if isinstance(val, tuple):
+        return (_return_val(val[0], dim), _return_val(val[1], dim))
+    return val.item() if dim == 1 else val
+
+
 @dataclass(frozen=True)
 class CompiledUnit:
     loss_fn: Callable
@@ -72,7 +80,9 @@ class CompiledUnit:
 
     def evaluate(self, exprName: str):
         ans = self.compiled_exprs[exprName](self.params, self.obs_dict)
-        return ans.item() if self._expr_dims[exprName] == 1 else ans
+        dim = self._expr_dims[exprName]
+
+        return _return_val(ans, dim)
 
     def observe(self, obs_dict: ObsDict | dict[str, float]) -> CompiledUnit:
         # Passing float observations (as opposed to a JAX scalar) causes
@@ -98,6 +108,11 @@ class CompiledUnit:
 
 def eval_expr(expr, params_map, params, obs_dict):
     random_key = key_generator()
+    if isinstance(expr, Vec2):
+        return (
+            _eval(expr.x, params, params_map, obs_dict, random_key, {}),
+            _eval(expr.y, params, params_map, obs_dict, random_key, {}),
+        )
     return _eval(expr, params, params_map, obs_dict, random_key, {})
 
 

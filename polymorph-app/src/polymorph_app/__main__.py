@@ -448,7 +448,7 @@ class ViewModel:
         return frozenset(self.current_obs_dict().keys())
 
     def load_scene(self, name: str):
-        self.sketch = scene_dict[name]()
+        self.sketch = scene_dict[name](self.window_size)
 
 
 def main(solver):

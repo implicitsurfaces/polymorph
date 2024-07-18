@@ -1,7 +1,7 @@
 import math
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Self
+from typing import Callable, Self
 
 import polymorph_s2df as s2df
 from polymorph_num.expr import PI, ZERO, Expr, Param, as_expr
@@ -186,6 +186,18 @@ class AngleValue(Value):
         return self.degrees.as_expr() / 180 * PI
 
 
+class MathValue(Value):
+    orig: Value
+    fun: Callable[[Expr], Expr]
+
+    def __init__(self, orig: Value, fun: Callable[[Expr], Expr]):
+        self.orig = orig
+        self.fun = fun
+
+    def as_expr(self) -> Expr:
+        return self.fun(self.orig.as_expr())
+
+
 class Constraint:
     """
     Constraints relate values to shapes and to each other. The values
@@ -257,6 +269,26 @@ class OnBoundaryConstraint(Constraint):
         return d * d
 
 
+@dataclass
+class VerticallyAligned(Constraint):
+    p1: PointValue
+    p2: PointValue
+
+    def loss(self, **kwargs) -> Expr:
+        d = self.p1.as_vec2().y - self.p2.as_vec2().y
+        return d * d
+
+
+@dataclass
+class SameValueConstraint(Constraint):
+    a: Value
+    b: Value
+
+    def loss(self, **kwargs) -> Expr:
+        diff = self.a.as_expr() - self.b.as_expr()
+        return diff * diff
+
+
 class AngleConstraint(Constraint):
     a: PointValue
     b: PointValue
@@ -312,6 +344,34 @@ class Sketch:
 
     def total_loss(self, **kwargs) -> Expr:
         return as_expr(sum(c.loss(**kwargs) for c in self.constraints))
+
+
+class Centroid(PointValue):
+    shape: Shape
+    size: tuple[int, int]
+
+    def __init__(self, shape: Shape, size: tuple[int, int]):
+        self.shape = shape
+        self.size = size
+
+    def as_vec2(self) -> Vec2:
+        return geometric_properties.centroid_monte_carlo(
+            self.shape.to_sdf(), self.size, 10000
+        )
+
+
+class Area(Value):
+    shape: Shape
+    size: tuple[int, int]
+
+    def __init__(self, shape: Shape, size: tuple[int, int]):
+        self.shape = shape
+        self.size = size
+
+    def as_expr(self) -> Expr:
+        return geometric_properties.area_monte_carlo(
+            self.shape.to_sdf(), self.size, 10000
+        )
 
 
 class Circle(Shape):
@@ -392,6 +452,11 @@ class Polygon(Shape):
         self.points = []
         self.position = PointValue()
         self.rotation = AngleValue()
+
+    def add_point(self) -> PointValue:
+        p = PointValue()
+        self.points.append(p)
+        return p
 
     def to_sdf(self):
         points = self.points + ([self.temp_point] if self.temp_point else [])

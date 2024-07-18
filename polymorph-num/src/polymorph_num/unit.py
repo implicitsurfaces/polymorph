@@ -11,6 +11,7 @@ import optimistix
 
 from . import expr as e
 from .eval import _eval
+from .trace import get_param_tracing_note
 from .types import ObsDict
 
 _DEFAULT_PRNG_KEY = jax.random.PRNGKey(0)
@@ -123,7 +124,9 @@ class Unit:
 
         extra_params = params.nodes() - self.param_map.nodes()
         if len(extra_params) > 0:
-            raise ValueError(f"Expr has params not found in loss: {extra_params}")
+            err = ValueError(f"Expr has params not found in loss: {extra_params}")
+            err.add_note(get_param_tracing_note(extra_params))
+            raise err
 
         self._exprs[name] = expr
         return self

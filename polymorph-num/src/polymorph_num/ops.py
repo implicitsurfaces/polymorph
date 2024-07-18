@@ -1,4 +1,5 @@
 from . import expr
+from .trace import maybe_trace_param
 
 counter = 0
 
@@ -6,7 +7,7 @@ counter = 0
 def param():
     global counter
     counter += 1
-    return expr.Param(counter)
+    return maybe_trace_param(expr.Param(counter))
 
 
 def observation(name):

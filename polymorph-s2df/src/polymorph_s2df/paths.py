@@ -277,11 +277,6 @@ class ClosedPath(Shape):
     def __eq__(self, other):
         return isinstance(other, ClosedPath) and self.astuple() == other.astuple()
 
-    def _min_distance_to_points(self, p):
-        return min_iterable(
-            (p - segment.first_point).norm() for segment in self.segments
-        )
-
     def winding_number(self, p: Vec2) -> Expr:
         return (
             sum_iterable(segment.winding_number(p) for segment in self.segments) / TAU

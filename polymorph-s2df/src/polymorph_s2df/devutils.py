@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
-from polymorph_num.expr import Expr, Num
+from polymorph_num.expr import Expr
 from polymorph_num.ops import grid_gen
 from polymorph_num.unit import Unit
 from polymorph_num.vec import Vec2
@@ -80,20 +80,6 @@ def render(shape: Shape, bounds=(-3, 3), n=500):
         origin="lower",
         extent=(bounds[0], bounds[1], bounds[0], bounds[1]),
     )
-
-
-class S(Shape):
-    """A shape adapter for segments"""
-
-    def __init__(self, segment: PathSegment):
-        self.segment = segment
-
-    def astuple(self):
-        return (self.segment,)
-
-    def distance(self, x: Num, y: Num) -> Expr:
-        distance, _ = self.segment.distance_and_mask(Vec2(x, y))
-        return distance
 
 
 def compute_winding_number(segment, X, Y):

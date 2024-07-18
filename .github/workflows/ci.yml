@@ -43,4 +43,4 @@ jobs:
           rye test --package polymorph_num
       - name: Check types
         run: |
-          rye run pyright polymorph-app
+          rye run pyright

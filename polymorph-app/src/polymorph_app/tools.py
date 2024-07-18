@@ -100,9 +100,12 @@ class BoxTool(Tool):
     box: Box | None = None
 
     def mousedown(self, pos):
-        p1 = PointValue().lock(pos.x, pos.y)
-        p2 = PointValue().bind("mouse_x", "mouse_y")
-        box = Box(p1, p2)
+        box = Box()
+        box.p1.lock(pos.x, pos.y)
+        box.p2.bind("mouse_x", "mouse_y")
+        box.position.lock()
+        box.rotation.lock()
+
         self.view_model.sketch.add(box)
         self.box = box
 
@@ -120,6 +123,9 @@ class PolygonGesture:
 
     def __init__(self, sketch: Sketch, pos: WorldPos):
         poly = Polygon()
+        poly.position.lock()
+        poly.rotation.lock()
+
         sketch.add(poly)
 
         self.poly = poly

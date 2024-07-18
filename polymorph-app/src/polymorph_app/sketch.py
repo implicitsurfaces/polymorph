@@ -73,7 +73,7 @@ class PointValue:
     def param_expr(self) -> Vec2:
         return Vec2(param(), param())
 
-    def lock(self, x: float, y: float) -> Self:
+    def lock(self, x: float = 0.0, y: float = 0.0) -> Self:
         self.x = LockedAtom(x)
         self.y = LockedAtom(y)
         return self
@@ -98,7 +98,7 @@ class LengthValue(Value):
     def __init__(self):
         self.mm = FreeAtom()
 
-    def lock(self, mm: float) -> Self:
+    def lock(self, mm: float = 0.0) -> Self:
         self.mm = LockedAtom(mm)
         return self
 
@@ -130,7 +130,7 @@ class AreaValue(Value):
     def __init__(self):
         self.mm2 = FreeAtom()
 
-    def lock(self, mm2: float) -> None:
+    def lock(self, mm2: float = 0.0) -> None:
         self.mm2 = LockedAtom(mm2)
 
     def lock_from_computed(self, param_values: ParamValues):
@@ -159,7 +159,7 @@ class AngleValue(Value):
     def __init__(self):
         self.degrees = FreeAtom()
 
-    def lock(self, degrees: float) -> None:
+    def lock(self, degrees: float = 0.0) -> None:
         self.degrees = LockedAtom(degrees)
 
     def lock_from_computed(self, param_values: ParamValues):
@@ -318,7 +318,9 @@ class Circle(Shape):
     center: PointValue
     radius: LengthValue
 
-    __match_args__ = ("center", "radius")
+    @property
+    def position(self) -> PointValue:
+        return self.center
 
     def __init__(self):
         self.center = PointValue()
@@ -338,11 +340,15 @@ class Box(Shape):
     p1: PointValue
     p2: PointValue
 
-    __match_args__ = ("p1", "p2")
+    position: PointValue
+    rotation: AngleValue
 
-    def __init__(self, p1: PointValue, p2: PointValue):
-        self.p1 = p1
-        self.p2 = p2
+    def __init__(self):
+        self.p1 = PointValue()
+        self.p2 = PointValue()
+
+        self.rotation = AngleValue()
+        self.position = PointValue()
 
     def to_sdf(self):
         v1, v2 = self.p1.as_vec2(), self.p2.as_vec2()
@@ -352,15 +358,40 @@ class Box(Shape):
         return s2df.Box(w, h).translate(center)
 
 
+class CenteredBox(Shape):
+    width: LengthValue
+    height: LengthValue
+
+    position: PointValue
+    rotation: AngleValue
+
+    def __init__(self):
+        self.width = LengthValue()
+        self.height = LengthValue()
+
+        self.rotation = AngleValue()
+        self.position = PointValue()
+
+    def to_sdf(self):
+        return (
+            s2df.Box(self.width.as_expr(), self.height.as_expr())
+            .rotate(self.rotation.as_expr())
+            .translate(self.position.as_vec2())
+        )
+
+
 class Polygon(Shape):
     points: list[PointValue]
     temp_point: PointValue | None = None
 
-    __match_args__ = "points"
+    position: PointValue
+    rotation: AngleValue
 
     def __init__(self):
         super().__init__()
         self.points = []
+        self.position = PointValue()
+        self.rotation = AngleValue()
 
     def to_sdf(self):
         points = self.points + ([self.temp_point] if self.temp_point else [])
@@ -373,4 +404,146 @@ class Polygon(Shape):
             )
             for i in range(len(points))
         ]
-        return s2df.ClosedPath(segments)
+        return (
+            s2df.ClosedPath(segments)
+            .rotate(self.rotation.as_expr())
+            .translate(self.position.as_vec2())
+        )
+
+
+class TopHalfPlane(Shape):
+    position: PointValue
+    rotation: AngleValue
+
+    def __init__(self):
+        self.position = PointValue()
+        self.rotation = AngleValue()
+
+    def to_sdf(self):
+        return (
+            s2df.TopHalfPlane()
+            .rotate(self.rotation.as_expr())
+            .translate(self.position.as_vec2())
+        )
+
+
+class BottomHalfPlane(Shape):
+    position: PointValue
+    rotation: AngleValue
+
+    def __init__(self):
+        self.position = PointValue()
+        self.rotation = AngleValue()
+
+    def to_sdf(self):
+        return (
+            s2df.BottomHalfPlane()
+            .rotate(self.rotation.as_expr())
+            .translate(self.position.as_vec2())
+        )
+
+
+class LeftHalfPlane(Shape):
+    position: PointValue
+    rotation: AngleValue
+
+    def __init__(self):
+        self.position = PointValue()
+        self.rotation = AngleValue()
+
+    def to_sdf(self):
+        return (
+            s2df.LeftHalfPlane()
+            .rotate(self.rotation.as_expr())
+            .translate(self.position.as_vec2())
+        )
+
+
+class RightHalfPlane(Shape):
+    position: PointValue
+    rotation: AngleValue
+
+    def __init__(self):
+        self.position = PointValue()
+        self.rotation = AngleValue()
+
+    def to_sdf(self):
+        return (
+            s2df.RightHalfPlane()
+            .rotate(self.rotation.as_expr())
+            .translate(self.position.as_vec2())
+        )
+
+
+class Union(Shape):
+    a: Shape
+    b: Shape
+
+    def __init__(self, a: Shape, b: Shape):
+        self.a = a
+        self.b = b
+
+    def to_sdf(self):
+        return self.a.to_sdf().union(self.b.to_sdf())
+
+
+class Intersection(Shape):
+    a: Shape
+    b: Shape
+
+    def __init__(self, a: Shape, b: Shape):
+        self.a = a
+        self.b = b
+
+    def to_sdf(self):
+        return self.a.to_sdf().intersect(self.b.to_sdf())
+
+
+class Difference(Shape):
+    a: Shape
+    b: Shape
+
+    def __init__(self, a: Shape, b: Shape):
+        self.a = a
+        self.b = b
+
+    def to_sdf(self):
+        return self.a.to_sdf().substract(self.b.to_sdf())
+
+
+class Shell(Shape):
+    shape: Shape
+    thickness: LengthValue
+
+    def __init__(self, shape: Shape):
+        self.shape = shape
+        self.thickness = LengthValue()
+
+    def to_sdf(self):
+        return self.shape.to_sdf().shell(self.thickness.as_expr())
+
+
+class Scale(Shape):
+    shape: Shape
+    factor: LengthValue
+
+    def __init__(self, shape: Shape):
+        self.shape = shape
+        self.factor = LengthValue()
+
+    def to_sdf(self):
+        return self.shape.to_sdf().scale(self.factor.as_expr())
+
+
+class Morph(Shape):
+    a: Shape
+    b: Shape
+    t: LengthValue
+
+    def __init__(self, a: Shape, b: Shape):
+        self.a = a
+        self.b = b
+        self.t = LengthValue()
+
+    def to_sdf(self):
+        return self.a.to_sdf().morph(self.t.as_expr(), self.b.to_sdf())

@@ -1,6 +1,7 @@
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from polymorph_num.expr import Expr, Num
+from polymorph_num.ops import grid_gen
 from polymorph_num.unit import Unit
 from polymorph_num.vec import Vec2
 
@@ -20,11 +21,28 @@ def eval_distance(shape, x, y):
     return eval_expr(shape.distance(x, y))
 
 
-def render_distance(shape: Shape, bounds=(-3, 3), n=500):
-    x = jnp.linspace(bounds[0], bounds[1], n)
-    X, Y = jnp.meshgrid(x, x)
+def grids(n, bounds):
+    def rescale_grid(b):
+        diff = bounds[1] - bounds[0]
+        return (b / n + 0.5) * diff + bounds[0]
 
-    values = eval_distance(shape, X.ravel(), Y.ravel()).reshape(n, n)
+    grid_x, grid_y = grid_gen(n, n)
+
+    half_width = n / 2
+    half_height = n / 2
+
+    Y, X = rescale_grid(jnp.mgrid[-half_height:half_height, -half_width:half_width])
+
+    return (
+        (rescale_grid(grid_x), rescale_grid(grid_y)),
+        (X, Y),
+    )
+
+
+def render_distance(shape: Shape, bounds=(-3, 3), n=500):
+    (grid_x, grid_y), (X, Y) = grids(n, bounds)
+
+    values = eval_distance(shape, grid_x, grid_y).reshape(n, n)
 
     _, ax2 = plt.subplots(layout="constrained")
 
@@ -52,10 +70,9 @@ def render_distance(shape: Shape, bounds=(-3, 3), n=500):
 
 
 def render(shape: Shape, bounds=(-3, 3), n=500):
-    x = jnp.linspace(bounds[0], bounds[1], n)
-    X, Y = jnp.meshgrid(x, x)
+    (grid_x, grid_y), (X, Y) = grids(n, bounds)
 
-    values = eval_distance(shape, X.ravel(), Y.ravel()).reshape(n, n)
+    values = eval_distance(shape, grid_x, grid_y).reshape(n, n)
 
     plt.imshow(
         values > 0,
@@ -80,13 +97,12 @@ class S(Shape):
 
 
 def compute_winding_number(segment, X, Y):
-    return eval_expr(segment.winding_number(Vec2(X.ravel(), Y.ravel())))
+    return eval_expr(segment.winding_number(Vec2(X, Y)))
 
 
 def render_winding_number(segment: PathSegment, bounds=(-3, 3), n=500):
-    x = jnp.linspace(bounds[0], bounds[1], n)
-    X, Y = jnp.meshgrid(x, x)
-    values = compute_winding_number(segment, X, Y).reshape(n, n)
+    (grid_x, grid_y), (X, Y) = grids(n, bounds)
+    values = compute_winding_number(segment, grid_x, grid_y).reshape(n, n)
     plt.imshow(
         values,
         origin="lower",

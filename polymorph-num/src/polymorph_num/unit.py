@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field, replace
+from functools import partial
 from typing import Any, Callable, Sequence
 
 import jax
@@ -48,12 +49,14 @@ def _make_lbfgs():
     return optax.lbfgs()
 
 
+@partial(jax.jit, static_argnames=["fun", "opt"])
 def _run_lbfgs(init_params, fun, opt, max_steps, tolerance, **kwargs):
     value_and_grad_fun = optax.value_and_grad_from_state(fun)
 
     def step(carry):
         params, state = carry
         value, grad = value_and_grad_fun(params, **kwargs, state=state)
+
         updates, state = opt.update(
             grad, state, params, **kwargs, value=value, grad=grad, value_fn=fun
         )

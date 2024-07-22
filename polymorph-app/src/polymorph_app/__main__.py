@@ -1,7 +1,6 @@
 from __future__ import annotations  # For forward refs in type annotations
 
 import logging
-import multiprocessing
 import os
 import sys
 from collections import namedtuple
@@ -23,7 +22,6 @@ from polymorph_s2df import geometric_properties
 
 from .scenes import scene_dict
 from .sketch import Sketch
-from .solve import async_solver
 from .tools import BoxTool, CircleTool, PolygonTool
 from .types import ScreenPos, WorldPos
 from .util import log_perf
@@ -451,7 +449,7 @@ class ViewModel:
         self.sketch = scene_dict[name](self.window_size)
 
 
-def main(solver):
+def main():
     window = create_window()
 
     gl_context = moderngl.create_context(require=330)
@@ -561,5 +559,4 @@ def main(solver):
 
 
 if __name__ == "__main__":
-    with multiprocessing.Pool(1) as pool:
-        main(async_solver(pool))
+    main()

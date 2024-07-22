@@ -19,7 +19,7 @@ from polymorph_app.sketch import (
 )
 
 
-def load_chain(size=(500, 500)):
+def load_chain():
     sketch = Sketch()
     dist = LengthValue().lock(0)
 
@@ -41,11 +41,11 @@ def load_chain(size=(500, 500)):
     return sketch
 
 
-def empty(size=(500, 500)):
+def empty():
     return Sketch()
 
 
-def morph(size=(500, 500)):
+def morph():
     sketch = Sketch()
 
     circle = Circle()
@@ -66,7 +66,7 @@ def morph(size=(500, 500)):
     return sketch
 
 
-def iceberg(size=(500, 500)):
+def iceberg():
     sketch = Sketch()
 
     # Let's generate a random polygon
@@ -102,8 +102,8 @@ def iceberg(size=(500, 500)):
         p.lock(x, y)
     sketch.add(polygon)
 
-    center_of_gravity = Centroid(polygon, size)
-    area = Area(polygon, size)
+    center_of_gravity = Centroid(polygon)
+    area = Area(polygon)
 
     # This is definitely a big hack to be able to have some small math with values
     mass = MathValue(area, lambda a: a * density)
@@ -116,14 +116,10 @@ def iceberg(size=(500, 500)):
         polygon,
         water,
     )
-    buoyancy_center = Centroid(under_water_shape, size)
-    under_water_area = Area(under_water_shape, size)
+    buoyancy_center = Centroid(under_water_shape)
+    under_water_area = Area(under_water_shape)
 
-    buoyancy_circle = Circle()
-    buoyancy_circle.radius.lock(2)
-    buoyancy_circle.center = buoyancy_center
-
-    sketch.add(buoyancy_circle)
+    sketch.add(under_water_shape)
 
     # I wrote this constraint for the specific case - to see how we could generalize this (or not)
     rotation_stable = VerticallyAligned(center_of_gravity, buoyancy_center)

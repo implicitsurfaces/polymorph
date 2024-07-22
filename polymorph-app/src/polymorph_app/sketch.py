@@ -322,30 +322,22 @@ class Sketch:
 
 class Centroid(PointValue):
     shape: Shape
-    size: tuple[int, int]
 
-    def __init__(self, shape: Shape, size: tuple[int, int]):
+    def __init__(self, shape: Shape):
         self.shape = shape
-        self.size = size
 
     def as_vec2(self) -> Vec2:
-        return geometric_properties.centroid_monte_carlo(
-            self.shape.to_sdf(), self.size, 10000
-        )
+        return geometric_properties.centroid_monte_carlo(self.shape.to_sdf())
 
 
 class Area(Value):
     shape: Shape
-    size: tuple[int, int]
 
-    def __init__(self, shape: Shape, size: tuple[int, int]):
+    def __init__(self, shape: Shape):
         self.shape = shape
-        self.size = size
 
     def as_expr(self) -> Expr:
-        return geometric_properties.area_monte_carlo(
-            self.shape.to_sdf(), self.size, 10000
-        )
+        return geometric_properties.area_monte_carlo(self.shape.to_sdf())
 
 
 class Circle(Shape):

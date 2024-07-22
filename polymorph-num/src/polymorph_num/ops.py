@@ -94,6 +94,17 @@ def grid_gen(width: int, height: int):
     return (expr.GridX(width, height), expr.GridY(width, height))
 
 
+def regular_grid(
+    min_x: expr.Num, max_x: expr.Num, min_y: expr.Num, max_y: expr.Num, n: int
+):
+    diff_x = max_x - min_x
+    diff_y = max_y - min_y
+
+    grid_x, grid_y = grid_gen(n, n)
+
+    return (grid_x / n + 0.5) * diff_x + min_x, (grid_y / n + 0.5) * diff_y + min_y
+
+
 def random_uniform(low: expr.Num, high: expr.Num, dim: int):
     return expr.Random(dim, expr.as_expr(low), expr.as_expr(high))
 

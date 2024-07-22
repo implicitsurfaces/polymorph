@@ -448,7 +448,7 @@ class ViewModel:
         return frozenset(self.current_obs_dict().keys())
 
     def load_scene(self, name: str):
-        self.sketch = scene_dict[name](self.window_size)
+        self.sketch = scene_dict[name]()
 
 
 def main(solver):
@@ -486,8 +486,8 @@ def main(solver):
         for i, sdf in enumerate(sdfs):
             unit.register(f"is_inside{i}", sdf.is_inside(*pg))
             unit.register(f"is_on_boundary{i}", sdf.is_on_boundary(*pg))
-            unit.register(f"area{i}", geometric_properties.area_monte_carlo(sdf, size))
-            centroid = geometric_properties.centroid_monte_carlo(sdf, size)
+            unit.register(f"area{i}", geometric_properties.area_monte_carlo(sdf))
+            centroid = geometric_properties.centroid_monte_carlo(sdf)
             unit.register(f"centroid{i}", centroid)
         return unit.compile()
 

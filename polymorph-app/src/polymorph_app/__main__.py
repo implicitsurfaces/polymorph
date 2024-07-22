@@ -18,7 +18,7 @@ from imgui.integrations.glfw import GlfwRenderer
 from jaxtyping import Array, Float, UInt8
 from PIL import Image
 from polymorph_num.ops import grid_gen
-from polymorph_num.unit import CompiledUnit, ParamValues, Unit
+from polymorph_num.unit import CompiledUnit, Unit
 from polymorph_s2df import geometric_properties
 
 from .scenes import scene_dict
@@ -382,7 +382,7 @@ class ViewModel:
         # User-level state
         self.sketch = Sketch()
         self.tool = None
-        self.current_params: None | ParamValues = None
+        self.current_unit: None | CompiledUnit = None
         self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
 
         self.scene_names = list(scene_dict.keys())
@@ -488,8 +488,7 @@ def main(solver):
             unit.register(f"is_on_boundary{i}", sdf.is_on_boundary(*pg))
             unit.register(f"area{i}", geometric_properties.area_monte_carlo(sdf, size))
             centroid = geometric_properties.centroid_monte_carlo(sdf, size)
-            unit.register(f"centroid_x{i}", centroid.x)
-            unit.register(f"centroid_y{i}", centroid.y)
+            unit.register(f"centroid{i}", centroid)
         return unit.compile()
 
     @log_perf(render_log)
@@ -519,7 +518,7 @@ def main(solver):
             sdfs, view_model.window_size, view_model.observation_names()
         )
         unit = unit.observe(obs_dict).minimize()
-        view_model.current_params = unit.current_params
+        view_model.current_unit = unit
 
         ###########
         ## Render
@@ -543,8 +542,7 @@ def main(solver):
         # Calculate stats
         areas = tuple(unit.evaluate(f"area{i}") for i in range(len(sdfs)))
         centroids = tuple(
-            WorldPos(unit.evaluate(f"centroid_x{i}"), unit.evaluate(f"centroid_y{i}"))
-            for i in range(len(sdfs))
+            WorldPos(*unit.evaluate(f"centroid{i}")) for i in range(len(sdfs))
         )
 
         # Render ImGui

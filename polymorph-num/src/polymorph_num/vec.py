@@ -47,6 +47,10 @@ class Vec2:
     def norm_squared(self):
         return self.x * self.x + self.y * self.y
 
+    @property
+    def dim(self):
+        return self.x.dim
+
 
 type ValVec = tuple[Num, Num] | Vec2
 

@@ -3,11 +3,13 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field, replace
-from typing import Callable, Sequence
+from typing import Any, Callable, Sequence
 
 import jax
 import jax.numpy as jnp
 import optimistix
+
+from polymorph_num.vec import Vec2
 
 from . import expr as e
 from .eval import _eval
@@ -52,13 +54,10 @@ def key_generator(start_key=_DEFAULT_PRNG_KEY):
         yield subkey
 
 
-@dataclass(frozen=True)
-class ParamValues:
-    values: jax.Array
-    param_map: ParamMap
-
-    def get(self, node):
-        return self.param_map.get(node, self.values)
+def _return_val(val, dim: int) -> Any:
+    if isinstance(val, tuple):
+        return (_return_val(val[0], dim), _return_val(val[1], dim))
+    return val.item() if dim == 1 else val
 
 
 @dataclass(frozen=True)
@@ -71,9 +70,16 @@ class CompiledUnit:
     _expr_dims: dict[str, int] = field(default_factory=dict)
     solver: optimistix.AbstractMinimiser = field(default_factory=_make_bfgs)
 
+    def run(self, expr: e.Expr | Vec2):
+        fun = _compile_expr(expr, self.params, self.param_map, self.obs_dict)
+        val = fun(self.params, self.obs_dict)
+        return _return_val(val, expr.dim)
+
     def evaluate(self, exprName: str):
         ans = self.compiled_exprs[exprName](self.params, self.obs_dict)
-        return ans.item() if self._expr_dims[exprName] == 1 else ans
+        dim = self._expr_dims[exprName]
+
+        return _return_val(ans, dim)
 
     def observe(self, obs_dict: ObsDict | dict[str, float]) -> CompiledUnit:
         # Passing float observations (as opposed to a JAX scalar) causes
@@ -92,14 +98,23 @@ class CompiledUnit:
         )
         return replace(self, params=soln.value)
 
-    @property
-    def current_params(self):
-        return ParamValues(self.params, self.param_map)
 
-
-def eval_expr(expr, params_map, params, obs_dict):
+def eval_expr(expr: e.Expr | Vec2, params_map, params, obs_dict):
     random_key = key_generator()
+    if isinstance(expr, Vec2):
+        return (
+            _eval(expr.x, params, params_map, obs_dict, random_key, {}),
+            _eval(expr.y, params, params_map, obs_dict, random_key, {}),
+        )
     return _eval(expr, params, params_map, obs_dict, random_key, {})
+
+
+def _compile_expr(expr, params, param_map, obs_dict):
+    return (
+        jax.jit(eval_expr, static_argnums=(0, 1))
+        .lower(expr, param_map, params, obs_dict)
+        .compile()
+    )
 
 
 class Unit:
@@ -108,7 +123,7 @@ class Unit:
     param_map: ParamMap
     observations: frozenset[str]
 
-    _exprs: dict[str, e.Expr]
+    _exprs: dict[str, e.Expr | Vec2]
     lossExpr: e.Expr = e.ZERO
 
     def __init__(
@@ -118,7 +133,7 @@ class Unit:
         self.observations = frozenset(obs_names)
         self._exprs = dict()
 
-    def register(self, name: str, expr: e.Expr) -> Unit:
+    def register(self, name: str, expr: e.Expr | Vec2) -> Unit:
         params = ParamMap()
         _find_params(expr, params, self.observations)
 
@@ -136,13 +151,6 @@ class Unit:
         self.lossExpr = expr
         return self
 
-    def _compile(self, expr, params, obs_dict: ObsDict):
-        return (
-            jax.jit(eval_expr, static_argnums=(0, 1))
-            .lower(expr, self.param_map, params, obs_dict)
-            .compile()
-        )
-
     def compile(self, prng_key=_DEFAULT_PRNG_KEY) -> CompiledUnit:
         start_time = time.time()
 
@@ -151,7 +159,7 @@ class Unit:
         compiled_exprs = {}
         for name, expr in self._exprs.items():
             start_time = time.time()
-            compiled_exprs[name] = self._compile(expr, params, obs)
+            compiled_exprs[name] = _compile_expr(expr, params, self.param_map, obs)
             logger.debug(f"Compiled {name} in {time.time() - start_time:.2f}s")
         dims = {n: e.dim for n, e in self._exprs.items()}
 

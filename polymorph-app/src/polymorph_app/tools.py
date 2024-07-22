@@ -1,7 +1,7 @@
 import glfw
 import imgui
 from polymorph_app.types import WorldPos
-from polymorph_num.unit import ParamValues
+from polymorph_num.unit import CompiledUnit
 
 from .sketch import (
     Box,
@@ -78,10 +78,11 @@ class CircleGesture:
         self.circle = circle
         self.sketch = sketch
 
-    def mouseup(self, pos: WorldPos, param_values: ParamValues):
+    def mouseup(self, pos: WorldPos, current_unit: CompiledUnit):
         # Lock in the radius at its current value.
         self.sketch.remove_constraint(self.constraint)
-        self.circle.radius.lock_from_computed(param_values)
+        new_radius = current_unit.run(self.circle.radius.as_expr())
+        self.circle.radius.lock(new_radius)
 
 
 class CircleTool(Tool):
@@ -92,7 +93,7 @@ class CircleTool(Tool):
 
     def mouseup(self, pos):
         if self.gesture is not None:
-            self.gesture.mouseup(pos, self.view_model.current_params)
+            self.gesture.mouseup(pos, self.view_model.current_unit)
         self.gesture = None
 
 

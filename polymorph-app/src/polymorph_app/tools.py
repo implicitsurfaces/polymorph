@@ -15,43 +15,30 @@ from .sketch import (
 
 
 class Tool:
-    _mousedown_pos = None
-
     def __init__(self, view_model):
         self.view_model = view_model
 
-    def handle_mouse_button(self, pos, action):
-        if action == glfw.PRESS:
-            self._mousedown_pos = pos
-            self.mousedown(pos)
-        else:
-            self._mousedown_pos = None
-            self.mouseup(pos)
-
-    def handle_key(self, key, action, mods):
-        if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
-            self.escape()
-
     def handle_frame(self):
         mouse_pos = self.view_model.cursor_world
-        if self._mousedown_pos is not None:
+
+        # Handle mouse
+        if imgui.is_mouse_clicked():
+            self.mousedown(mouse_pos)
             self.view_model.sketch.changed()  # TODO: Find a cleaner way to do this.
-            self.mousedrag(mouse_pos, self._mousedown_pos)
-        else:
-            self.mousemove(mouse_pos)
+        elif imgui.is_mouse_released():
+            self.mouseup(mouse_pos)
+            self.view_model.sketch.changed()  # TODO: Find a cleaner way to do this.
+
+        # Handle keyboard events
+        if imgui.is_key_pressed(glfw.KEY_ESCAPE):
+            self.escape()
 
     # Methods that can be implemented by subclasses:
 
     def mousedown(self, pos):
         pass
 
-    def mousedrag(self, pos, start_pos):
-        pass
-
     def mouseup(self, pos):
-        pass
-
-    def mousemove(self, pos):
         pass
 
     def escape(self):
@@ -126,6 +113,7 @@ class PolygonGesture:
         poly = Polygon()
         poly.position.lock()
         poly.rotation.lock()
+        poly.temp_point = PointValue().bind("mouse_x", "mouse_y")
 
         sketch.add(poly)
 
@@ -135,9 +123,6 @@ class PolygonGesture:
     def mousedown(self, pos: WorldPos):
         assert self.poly is not None
         self.poly.points.append(PointValue().lock(pos.x, pos.y))
-
-    def mousemove(self, pos: WorldPos):
-        self.poly.temp_point = PointValue().bind("mouse_x", "mouse_y")
 
     def mouseup(self, pos: WorldPos):
         self.poly.temp_point = None
@@ -161,10 +146,6 @@ class PolygonTool(Tool):
             self.gesture = PolygonGesture(self.view_model.sketch, pos)
         self.gesture.mousedown(pos)
         self.raw_points.append(pos)
-
-    def mousemove(self, pos):
-        if self.gesture:
-            self.gesture.mousemove(pos)
 
     def escape(self):
         if self.gesture:

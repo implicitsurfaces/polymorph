@@ -369,11 +369,14 @@ def render_ui(renderer, vm, params, stats=None):
     renderer.render(imgui.get_draw_data())
 
 
+def handle_hotkeys(vm: ViewModel):
+    for key, tool in TOOL_HOTKEYS.items():
+        if imgui.is_key_pressed(key):
+            vm.tool = tool(vm)
+
+
 class ViewModel:
     def __init__(self, window):
-        glfw.set_key_callback(window, self.on_key)
-        glfw.set_mouse_button_callback(window, self.on_mouse_button)
-
         # Window/rendering stuff
         self.vsync_enabled = True
         self._update_transforms(window)
@@ -407,25 +410,9 @@ class ViewModel:
             scale=jnp.array([1, -1]),
         )
 
-    def on_key(self, window, key, scancode, action, mods):
-        if action == glfw.PRESS and key in TOOL_HOTKEYS:
-            self.tool = TOOL_HOTKEYS[key](self)
-        if self.tool:
-            self.tool.handle_key(key, action, mods)
-
-    def on_mouse_button(self, window, button, action, mods):
-        if imgui.get_io().want_capture_mouse or button != glfw.MOUSE_BUTTON_LEFT:
-            return
-
-        if self.tool:
-            pos = self.screen_to_world(glfw.get_cursor_pos(window))
-            self.tool.handle_mouse_button(pos, action)
-
-    def on_frame(self, window):
+    def handle_frame(self, window):
         self._update_transforms(window)
         self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
-        if self.tool:
-            self.tool.handle_frame()
 
     def world_to_screen(self, pos: WorldPos) -> ScreenPos:
         x, y = (
@@ -510,7 +497,11 @@ def main(solver):
         glfw.poll_events()  # Process event queue & run GLFW callbacks
         imgui_glfw_renderer.process_inputs()  # Update ImGui IO state
 
-        view_model.on_frame(window)
+        handle_hotkeys(view_model)
+
+        view_model.handle_frame(window)
+        if view_model.tool:
+            view_model.tool.handle_frame()
 
         sdfs = view_model.sketch.cached_sdfs
         obs_dict = view_model.current_obs_dict()

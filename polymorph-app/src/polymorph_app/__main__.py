@@ -47,6 +47,8 @@ TOOL_HOTKEYS = {
 
 COLOR_FILL = (255, 255, 255)
 COLOR_OUTLINE = (128, 171, 228)
+COLOR_INSIDE = (203, 195, 227)
+COLOR_OUTSIDE = (144, 238, 144)
 
 Transform = namedtuple("Transform", ["translation", "scale"])
 
@@ -105,22 +107,41 @@ def composite_layers(out: Image.Image, layers: list[Rgb3D]):
 @log_perf(render_log)
 def render_scene(
     fills: tuple[FloatBitmap1D],
+    contour: FloatBitmap1D | None,
     outlines: tuple[FloatBitmap1D] | None,
     viewport_size: tuple[int, int],
 ) -> Rgba3D:
     if len(fills) == 0:
         return empty_rgba3d(viewport_size)
 
-    if outlines is None:
+    if outlines is None and contour is None:
         # Naive (but cheap) rendering — just merge all the bitmaps.
         combined_bitmaps = jnp.max(jnp.array(fills), axis=0)
         return to_rgba3d(combined_bitmaps, viewport_size, COLOR_FILL)
 
     dest = new_render_target(viewport_size)
-    fills_3d = [to_rgba3d(bitmap, viewport_size, COLOR_FILL) for bitmap in fills]
+
+    assert outlines
     outlines_3d = [
         to_rgba3d(bitmap, viewport_size, COLOR_OUTLINE) for bitmap in outlines
     ]
+
+    if contour is not None:
+        c = jnp.asarray(contour)
+        inside = jnp.where(c > 0, c, 0)
+        outside = -jnp.where(c <= 0, c, 0)
+
+        composite_layers(
+            dest,
+            [
+                to_rgba3d(outside, viewport_size, COLOR_INSIDE),
+                to_rgba3d(inside, viewport_size, COLOR_OUTSIDE),
+            ]
+            + outlines_3d,
+        )
+        return jnp.array(np.array(dest))
+
+    fills_3d = [to_rgba3d(bitmap, viewport_size, COLOR_FILL) for bitmap in fills]
     composite_layers(dest, fills_3d + outlines_3d)
     return jnp.array(np.array(dest))
 
@@ -219,6 +240,7 @@ def render_devtools(vm):
         if changed:
             glfw.swap_interval(vm.vsync_enabled)
         _, vm.show_outlines = imgui.checkbox("Outlines", vm.show_outlines)
+        _, vm.show_contour = imgui.checkbox("Contour", vm.show_contour)
 
     imgui.pop_style_var()
 
@@ -319,7 +341,7 @@ def render_vars(vm: ViewModel, width: int):
             vm.vars[name] = float(new_val)
 
 
-def render_overlay(vm, params, centroids=()):
+def render_overlay(vm, params, centroids=(), distance_lines=()):
     # Set the window position and size to cover the entire viewport
     viewport = imgui.get_main_viewport()
     imgui.set_next_window_position(*viewport.pos)
@@ -361,7 +383,12 @@ def render_ui(renderer, vm, params, stats=None):
 
     _, window_height = vm.window_size
 
-    render_overlay(vm, params, centroids=stats.get("centroids", []))
+    render_overlay(
+        vm,
+        params,
+        centroids=stats.get("centroids", []),
+        distance_lines=stats.get("distance_lines", []),
+    )
     render_shapes_tree(vm, (0, 0))
     render_devtools(vm)
     render_shape_stats(vm, **stats)
@@ -382,6 +409,7 @@ class ViewModel:
         self.vsync_enabled = True
         self._update_transforms(window)
         self.show_outlines = False
+        self.show_contour = False
 
         # User-level state
         self.sketch = Sketch()
@@ -474,6 +502,12 @@ def main(solver):
         for i, sdf in enumerate(sdfs):
             unit.register(f"is_inside{i}", sdf.is_inside(*pg))
             unit.register(f"is_on_boundary{i}", sdf.is_on_boundary(*pg))
+            distance = sdf.distance(*pg)
+            mod_distance = (distance % 10) / 10
+            unit.register(
+                f"contour{i}",
+                distance.sign() * (1 - mod_distance * mod_distance * mod_distance),
+            )
             unit.register(f"area{i}", geometric_properties.area_monte_carlo(sdf))
             centroid = geometric_properties.centroid_monte_carlo(sdf)
             unit.register(f"centroid{i}", centroid)
@@ -490,6 +524,11 @@ def main(solver):
         unit: CompiledUnit, window_size: tuple[int, int], count: int
     ) -> tuple[FloatBitmap1D]:
         return tuple(unit.evaluate(f"is_on_boundary{i}") for i in range(count))
+
+    def render_contour(
+        unit: CompiledUnit, window_size: tuple[int, int], index: int
+    ) -> FloatBitmap1D:
+        return unit.evaluate(f"contour{index}")
 
     while not glfw.window_should_close(window):
         ###############
@@ -521,15 +560,21 @@ def main(solver):
         count = len(sdfs)
         bitmaps = render_sdfs(unit, view_model.window_size, count)
 
+        contour = None
+        if view_model.show_contour:
+            contour = render_contour(unit, view_model.window_size, 0) if sdfs else None
+
         outlines = None
-        if view_model.show_outlines:
+        if view_model.show_outlines or view_model.show_contour:
             outlines = render_outlines(unit, view_model.window_size, count)
-        buf = render_scene(bitmaps, outlines, view_model.window_size)
+        buf = render_scene(bitmaps, contour, outlines, view_model.window_size)
 
         texture = get_sdf_texture(view_model.window_size)
         texture.write(jax.device_get(buf))
         texture.use(0)
         render_quad()
+
+        distance_lines = []
 
         # Calculate stats
         areas = tuple(unit.evaluate(f"area{i}") for i in range(len(sdfs)))
@@ -543,7 +588,11 @@ def main(solver):
             imgui_glfw_renderer,
             view_model,
             None,
-            stats={"areas": areas, "centroids": centroids},
+            stats={
+                "areas": areas,
+                "centroids": centroids,
+                "distance_lines": distance_lines,
+            },
         )
 
         glfw.swap_buffers(window)

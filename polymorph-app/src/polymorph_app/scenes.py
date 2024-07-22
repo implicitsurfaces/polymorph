@@ -1,6 +1,6 @@
+import math
 import random
 
-from lineax._solver.misc import math
 from polymorph_app.sketch import (
     Area,
     BottomHalfPlane,

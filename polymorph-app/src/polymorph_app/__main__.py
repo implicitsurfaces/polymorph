@@ -315,7 +315,8 @@ def render_vars(vm: ViewModel, width: int):
             | imgui.INPUT_TEXT_ENTER_RETURNS_TRUE
             | imgui.INPUT_TEXT_AUTO_SELECT_ALL,
         )
-        vm.vars[name] = float(new_val)
+        if changed:
+            vm.vars[name] = float(new_val)
 
 
 def render_overlay(vm, params, centroids=()):

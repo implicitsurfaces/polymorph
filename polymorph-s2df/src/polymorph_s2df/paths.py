@@ -5,6 +5,8 @@ from polymorph_num import ops
 from polymorph_num.expr import PI, TAU, Expr, Num, as_expr
 from polymorph_num.vec import ValVec, Vec2, as_vec2
 
+from polymorph_s2df.bounding_box import BoundingBox, bounding_box_from_points
+
 from .operations import Shape
 from .utils import min_iterable, repr_point, sum_iterable
 
@@ -20,6 +22,9 @@ class PathSegment(Shape):
         raise NotImplementedError()
 
     def winding_number(self, p: Vec2) -> Expr:
+        raise NotImplementedError()
+
+    def bounding_box(self):
         raise NotImplementedError()
 
 
@@ -62,6 +67,14 @@ class LineSegment(PathSegment):
 
         projected_point = self.start + self.segment.scale(clamped_position)
         return (p - projected_point).norm()
+
+    def bounding_box(self):
+        return BoundingBox(
+            ops.min(self.start.x, self.end.x),
+            ops.min(self.start.y, self.end.y),
+            ops.max(self.start.x, self.end.x),
+            ops.max(self.start.y, self.end.y),
+        )
 
 
 def normalize_angle(q):
@@ -214,6 +227,14 @@ class ArcSegment(PathSegment):
             for point in (projected_point, self.first_point, self.last_point)
         )
 
+    def bounding_box(self):
+        return BoundingBox(
+            -self.radius,
+            -self.radius,
+            self.radius,
+            self.radius,
+        )
+
 
 class TranslatedSegment(PathSegment):
     def __init__(self, segment: PathSegment, translation: ValVec):
@@ -241,26 +262,10 @@ class TranslatedSegment(PathSegment):
     def winding_number(self, p):
         return self.segment.winding_number(p - self.translation)
 
-
-class InversedSegment(PathSegment):
-    def __init__(self, segment: PathSegment):
-        super().__init__()
-        self.segment = segment
-
-    def astuple(self):
-        return (self.segment,)
-
-    def __eq__(self, other):
-        return isinstance(other, InversedSegment) and self.astuple() == other.astuple()
-
-    def __hash__(self):
-        return hash(self.astuple())
-
-    def __repr__(self):
-        return f"InversedSegment({self.segment})"
-
-    def winding_number(self, p: Vec2):
-        return -self.segment.winding_number(p)
+    def bounding_box(self):
+        return self.segment.bounding_box().translate(
+            self.translation.x, self.translation.y
+        )
 
 
 class ClosedPath(Shape):
@@ -293,3 +298,12 @@ class ClosedPath(Shape):
         current_sign = 1 - ops.min(self.winding_number(p).abs(), 1) * 2
 
         return minimum_distance * current_sign
+
+    def bounding_box(self):
+        return bounding_box_from_points(
+            [
+                point
+                for segment in self.segments
+                for point in (segment.bounding_box().min, segment.bounding_box().max)
+            ]
+        )

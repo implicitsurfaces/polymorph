@@ -36,3 +36,10 @@ def min_iterable(values: Iterable[Expr]) -> Expr:
     for item in values:
         x = ops.min(x, item)
     return x
+
+
+def max_iterable(values: Iterable[Expr]) -> Expr:
+    x = -Infinity
+    for item in values:
+        x = ops.max(x, item)
+    return x

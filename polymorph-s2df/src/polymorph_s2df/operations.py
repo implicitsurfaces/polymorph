@@ -2,6 +2,8 @@ from polymorph_num import ops
 from polymorph_num.expr import Expr, Num, as_expr
 from polymorph_num.vec import ValVec, as_vec2
 
+from polymorph_s2df.bounding_box import BoundingBox
+
 from .utils import indent_shape
 
 
@@ -19,6 +21,9 @@ class Shape:
         return ops.mean(self.is_inside(sample_xs, sample_ys)) * sample_area
 
     def astuple(self):
+        raise NotImplementedError
+
+    def bounding_box(self):
         raise NotImplementedError
 
     def __hash__(self):
@@ -98,6 +103,9 @@ class Translation(Shape):
     def distance(self, x: Num, y: Num) -> Expr:
         return self.shape.distance(x - self.offset.x, y - self.offset.y)
 
+    def bounding_box(self):
+        return self.shape.bounding_box().translate(self.offset.x, self.offset.y)
+
 
 class Rotation(Shape):
     def __init__(self, angle: Num, shape: Shape):
@@ -131,6 +139,9 @@ class Rotation(Shape):
 
         return self.shape.distance(x2, y2)
 
+    def bounding_box(self):
+        return self.shape.bounding_box().rotate(self.angle)
+
 
 class Intersection(Shape):
     def __init__(self, shape_1: Shape, shape_2: Shape):
@@ -154,6 +165,9 @@ class Intersection(Shape):
 
     def distance(self, x: Num, y: Num) -> Expr:
         return ops.max(self.shape_1.distance(x, y), self.shape_2.distance(x, y))
+
+    def bounding_box(self):
+        return self.shape_1.bounding_box().intersection(self.shape_2.bounding_box())
 
 
 class SmoothIntersection(Shape):
@@ -210,6 +224,9 @@ class Union(Shape):
     def distance(self, x: Num, y: Num) -> Expr:
         return ops.min(self.shape_1.distance(x, y), self.shape_2.distance(x, y))
 
+    def bounding_box(self):
+        return self.shape_1.bounding_box().union(self.shape_2.bounding_box())
+
 
 class SmoothUnion(Shape):
     def __init__(self, k, shape_1: Shape, shape_2: Shape):
@@ -262,6 +279,9 @@ class Substraction(Shape):
 
     def distance(self, x: Num, y: Num) -> Expr:
         return ops.max(self.shape_1.distance(x, y), -self.shape_2.distance(x, y))
+
+    def bounding_box(self):
+        return self.shape_1.bounding_box()
 
 
 class SmoothSubstraction(Shape):
@@ -319,6 +339,15 @@ class Scale(Shape):
             * self.factor
         )
 
+    def bounding_box(self):
+        bb = self.shape.bounding_box()
+        return BoundingBox(
+            bb.min_x * self.factor,
+            bb.min_y * self.factor,
+            bb.max_x * self.factor,
+            bb.max_y * self.factor,
+        )
+
 
 class Inversion(Shape):
     def __init__(self, shape: Shape):
@@ -366,6 +395,15 @@ class Dilate(Shape):
     def distance(self, x: Num, y: Num) -> Expr:
         return self.shape.distance(x, y) - self.offset
 
+    def bounding_box(self):
+        bb = self.shape.bounding_box()
+        return BoundingBox(
+            bb.min_x - self.offset,
+            bb.min_y - self.offset,
+            bb.max_x + self.offset,
+            bb.max_y + self.offset,
+        )
+
 
 class Shell(Shape):
     def __init__(self, thickness: Num, shape: Shape):
@@ -389,6 +427,15 @@ class Shell(Shape):
 
     def distance(self, x: Num, y: Num) -> Expr:
         return self.shape.distance(x, y).abs() - self.thickness
+
+    def bounding_box(self):
+        bb = self.shape.bounding_box()
+        return BoundingBox(
+            bb.min_x - self.thickness,
+            bb.min_y - self.thickness,
+            bb.max_x + self.thickness,
+            bb.max_y + self.thickness,
+        )
 
 
 class Morph(Shape):
@@ -416,6 +463,11 @@ class Morph(Shape):
         return (1 - self.t) * self.shape_1.distance(
             x, y
         ) + self.t * self.shape_2.distance(x, y)
+
+    def bounding_box(self):
+        bb1 = self.shape_1.bounding_box()
+        bb2 = self.shape_2.bounding_box()
+        return bb1.union(bb2)
 
 
 class Taper(Shape):

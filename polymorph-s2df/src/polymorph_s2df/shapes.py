@@ -1,8 +1,12 @@
 from polymorph_num import ops
-from polymorph_num.expr import Expr, Num, as_expr
+from polymorph_num.expr import ZERO, Expr, Num, as_expr
+
+from polymorph_s2df.bounding_box import BoundingBox
 
 from .operations import Shape
 from .utils import norm
+
+NEAR_INFINITY = as_expr(1e9)
 
 
 class BottomHalfPlane(Shape):
@@ -21,6 +25,9 @@ class BottomHalfPlane(Shape):
     def distance(self, x: Num, y: Num) -> Expr:
         return as_expr(y)
 
+    def bounding_box(self):
+        return BoundingBox(-NEAR_INFINITY, -NEAR_INFINITY, NEAR_INFINITY, ZERO)
+
 
 class TopHalfPlane(Shape):
     def __init__(self):
@@ -37,6 +44,9 @@ class TopHalfPlane(Shape):
 
     def distance(self, x: Num, y: Num) -> Expr:
         return as_expr(-y)
+
+    def bounding_box(self):
+        return BoundingBox(-NEAR_INFINITY, ZERO, NEAR_INFINITY, NEAR_INFINITY)
 
 
 class LeftHalfPlane(Shape):
@@ -55,6 +65,9 @@ class LeftHalfPlane(Shape):
     def distance(self, x: Num, y: Num) -> Expr:
         return as_expr(x)
 
+    def bounding_box(self):
+        return BoundingBox(ZERO, -NEAR_INFINITY, NEAR_INFINITY, NEAR_INFINITY)
+
 
 class RightHalfPlane(Shape):
     def __init__(self):
@@ -71,6 +84,9 @@ class RightHalfPlane(Shape):
 
     def distance(self, x: Num, y: Num) -> Expr:
         return as_expr(-x)
+
+    def bounding_box(self):
+        return BoundingBox(-NEAR_INFINITY, -NEAR_INFINITY, ZERO, NEAR_INFINITY)
 
 
 class Circle(Shape):
@@ -98,6 +114,9 @@ class Circle(Shape):
 
         return (x * x + y * y).sqrt() - self.radius
 
+    def bounding_box(self):
+        return BoundingBox(-self.radius, -self.radius, self.radius, self.radius)
+
 
 class Box(Shape):
     def __init__(self, width, height):
@@ -124,3 +143,8 @@ class Box(Shape):
         q_y = as_expr(y).smoothabs() - self.height / 2
 
         return norm(q_x.softplus(), q_y.softplus()) + ops.max(q_x, q_y).softminus()
+
+    def bounding_box(self):
+        return BoundingBox(
+            -self.width / 2, -self.height / 2, self.width / 2, self.height / 2
+        )

@@ -65,7 +65,7 @@ geom_log = logging.getLogger("geom")
 #     POLYMORPH_DEBUG=render,compile
 debug_key = os.environ.get("POLYMORPH_DEBUG", "")
 if debug_key in ["1", "all"]:
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG, force=True)
 elif debug_key != "":
     for k in debug_key.split(","):
         logging.getLogger(k).setLevel(logging.DEBUG)

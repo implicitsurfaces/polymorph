@@ -1,11 +1,13 @@
 from __future__ import annotations  # For forward refs in type annotations
 
+import json
 import logging
 import multiprocessing
 import os
 import sys
-from collections import namedtuple
+from collections import Counter, namedtuple
 from functools import lru_cache
+from pathlib import Path
 
 import glfw
 import imgui
@@ -34,6 +36,51 @@ type FloatBitmap1D = Float[Array, "pix_count"]  # noqa: F821
 
 
 INITIAL_WINDOW_SIZE = (800, 600)
+
+ICON_DIR = Path(__file__).parent.parent.parent.joinpath("fonts")
+ICON_MAP = {
+    icon: chr(int(description["unicode"].strip("&#;")))
+    for icon, description in json.load(
+        ICON_DIR.joinpath("icon_map.json").open()
+    ).items()
+}
+INCONSOLATA_PATH = str(ICON_DIR.joinpath("Inconsolata.ttf"))
+ICON_PATH = str(ICON_DIR.joinpath("lucide.ttf"))
+
+
+class IconRetriever:
+    def __getattr__(self, name):
+        return ICON_MAP[name.lower().replace("_", "-")]
+
+
+# You can search for the icons here: https://lucide.dev/icons/
+Icon = IconRetriever()
+
+
+def fb_to_window_factor(window):
+    win_w, win_h = glfw.get_window_size(window)
+    fb_w, fb_h = glfw.get_framebuffer_size(window)
+
+    return max(float(fb_w) / win_w, float(fb_h) / win_h)
+
+
+def load_fonts(scaling_factor):
+    io = imgui.get_io()
+    io.fonts.clear()
+
+    io.font_global_scale = 1.0 / scaling_factor
+
+    io.fonts.add_font_from_file_ttf(INCONSOLATA_PATH, 12 * scaling_factor)
+
+    icon_min = min(ord(v) for v in ICON_MAP.values())
+    icon_max = max(ord(v) for v in ICON_MAP.values())
+
+    lucid_range = imgui.GlyphRanges((icon_min, icon_max, 0))  # type: ignore
+    lucid_config = imgui.FontConfig(merge_mode=True)
+
+    io.fonts.add_font_from_file_ttf(
+        ICON_PATH, 10 * scaling_factor, lucid_config, lucid_range
+    )
 
 
 # Maps from a glfw key constant (https://www.glfw.org/docs/3.3/group__keys.html)
@@ -109,14 +156,15 @@ def composite_layers(out: Image.Image, layers: list[Rgb3D]):
 @log_perf(render_log)
 def render_scene(
     fills: tuple[FloatBitmap1D],
-    contour: FloatBitmap1D | None,
     outlines: tuple[FloatBitmap1D] | None,
+    contour: FloatBitmap1D | None,
+    metric_aberration: FloatBitmap1D | None,
     viewport_size: tuple[int, int],
 ) -> Rgba3D:
     if len(fills) == 0:
         return empty_rgba3d(viewport_size)
 
-    if outlines is None and contour is None:
+    if outlines is None and contour is None and metric_aberration is None:
         # Naive (but cheap) rendering — just merge all the bitmaps.
         combined_bitmaps = jnp.max(jnp.array(fills), axis=0)
         return to_rgba3d(combined_bitmaps, viewport_size, COLOR_FILL)
@@ -127,6 +175,11 @@ def render_scene(
     outlines_3d = [
         to_rgba3d(bitmap, viewport_size, COLOR_OUTLINE) for bitmap in outlines
     ]
+
+    if metric_aberration is not None:
+        aberration_3d = to_rgba3d(metric_aberration, viewport_size, COLOR_FILL)
+        composite_layers(dest, [aberration_3d] + outlines_3d)
+        return jnp.array(np.array(dest))
 
     if contour is not None:
         c = jnp.asarray(contour)
@@ -236,13 +289,17 @@ def render_devtools(vm):
         | imgui.WINDOW_ALWAYS_AUTO_RESIZE,
     ):
         imgui.text(
-            f"FPS: {imgui.get_io().framerate:.2f}",
+            f"{Icon.zap} FPS: {imgui.get_io().framerate:.2f}",
         )
         changed, vm.vsync_enabled = imgui.checkbox("VSync", vm.vsync_enabled)
         if changed:
             glfw.swap_interval(vm.vsync_enabled)
         _, vm.show_outlines = imgui.checkbox("Outlines", vm.show_outlines)
-        _, vm.show_contour = imgui.checkbox("Contour", vm.show_contour)
+        imgui.separator()
+        _, vm.shape_debug = imgui.checkbox(f"{Icon.waves} Inspect", vm.shape_debug)
+        if vm.shape_debug and vm.sketch.shapes:
+            render_shape_selection(vm, w - 10)
+            _, vm.metric_debug = imgui.checkbox("Show gradient", vm.metric_debug)
 
     imgui.pop_style_var()
 
@@ -326,6 +383,41 @@ def render_scene_selector(vm: ViewModel, width: int):
                     imgui.set_item_default_focus()
 
 
+def render_shape_selection(vm: ViewModel, width: int):
+    imgui.set_next_item_width(width)
+
+    default_label = "No contour"
+    preview_value = (
+        default_label
+        if vm.shape_debug_index is None
+        else vm.sketch.shapes[vm.shape_debug_index].classname()
+    )
+
+    all_names = Counter(shape.classname() for shape in vm.sketch)
+    name_index = {}
+
+    with imgui.begin_combo("", preview_value) as combo:
+        if combo.opened:
+            for i, shape in enumerate(vm.sketch):
+                is_selected = i == vm.shape_debug_index
+                name = shape.classname()
+                if all_names[name] > 1:
+                    if name not in name_index:
+                        name_index[name] = 0
+                    else:
+                        name_index[name] += 1
+                        name = f"{name} {name_index[name]}"
+                if is_selected:
+                    name = f"{Icon.check} {name}"
+
+                _, did_select = imgui.selectable(name, is_selected)
+                if did_select:
+                    vm.shape_debug_index = i
+
+                if is_selected:
+                    imgui.set_item_default_focus()
+
+
 def render_vars_and_actions(vm: ViewModel, width: int):
     col_width = (width - imgui.get_style().item_spacing.x) / 2
 
@@ -348,7 +440,7 @@ def render_vars_and_actions(vm: ViewModel, width: int):
             getattr(vm.scene, name)(vm.sketch)
 
 
-def render_overlay(vm, params, centroids=(), distance_lines=()):
+def render_overlay(vm, params, centroids=()):
     # Set the window position and size to cover the entire viewport
     viewport = imgui.get_main_viewport()
     imgui.set_next_window_position(*viewport.pos)
@@ -394,7 +486,6 @@ def render_ui(renderer, vm, params, stats=None):
         vm,
         params,
         centroids=stats.get("centroids", []),
-        distance_lines=stats.get("distance_lines", []),
     )
     render_shapes_tree(vm, (0, 0))
     render_devtools(vm)
@@ -416,7 +507,10 @@ class ViewModel:
         self.vsync_enabled = True
         self._update_transforms(window)
         self.show_outlines = False
-        self.show_contour = False
+
+        self.shape_debug = False
+        self.shape_debug_index = 0
+        self.metric_debug = False
 
         # User-level state
         self.sketch = Sketch()
@@ -477,6 +571,9 @@ class ViewModel:
         self.actions = list(scene.actions)  # Make a copy
         self.scene = scene
 
+        self.shape_debug = False
+        self.shape_debug_index = 0
+
 
 def main(solver):
     window = create_window()
@@ -488,6 +585,9 @@ def main(solver):
 
     imgui.create_context()
     imgui_glfw_renderer = GlfwRenderer(window)
+
+    load_fonts(fb_to_window_factor(window))
+    imgui_glfw_renderer.refresh_font_texture()
 
     view_model = ViewModel(window)
 
@@ -514,6 +614,17 @@ def main(solver):
             unit.register(f"is_inside{i}", sdf.is_inside(*pg))
             unit.register(f"is_on_boundary{i}", sdf.is_on_boundary(*pg))
             distance = sdf.distance(*pg)
+
+            dist_x = sdf.distance(pg[0] + 1, pg[1])
+            dist_y = sdf.distance(pg[0], pg[1] + 1)
+
+            diff_x = dist_x - distance
+            diff_y = dist_y - distance
+
+            grad = (diff_x * diff_x + diff_y * diff_y).sqrt()
+
+            unit.register(f"grad_distance{i}", grad)
+
             mod_distance = (distance % 10) / 10
             unit.register(
                 f"contour{i}",
@@ -540,6 +651,11 @@ def main(solver):
         unit: CompiledUnit, window_size: tuple[int, int], index: int
     ) -> FloatBitmap1D:
         return unit.evaluate(f"contour{index}")
+
+    def render_metric_aberration(
+        unit: CompiledUnit, window_size: tuple[int, int], index: int
+    ) -> FloatBitmap1D:
+        return unit.evaluate(f"grad_distance{index}")
 
     while not glfw.window_should_close(window):
         ###############
@@ -572,20 +688,39 @@ def main(solver):
         bitmaps = render_sdfs(unit, view_model.window_size, count)
 
         contour = None
-        if view_model.show_contour:
-            contour = render_contour(unit, view_model.window_size, 0) if sdfs else None
+        if (
+            sdfs
+            and view_model.shape_debug
+            and not view_model.metric_debug
+            and view_model.shape_debug_index is not None
+        ):
+            contour = render_contour(
+                unit, view_model.window_size, view_model.shape_debug_index
+            )
+
+        metric_aberration = None
+        if (
+            sdfs
+            and view_model.shape_debug
+            and view_model.metric_debug
+            and view_model.shape_debug_index is not None
+        ):
+            metric_aberration = render_metric_aberration(
+                unit, view_model.window_size, view_model.shape_debug_index
+            )
 
         outlines = None
-        if view_model.show_outlines or view_model.show_contour:
+        if view_model.show_outlines or view_model.shape_debug:
             outlines = render_outlines(unit, view_model.window_size, count)
-        buf = render_scene(bitmaps, contour, outlines, view_model.window_size)
+
+        buf = render_scene(
+            bitmaps, outlines, contour, metric_aberration, view_model.window_size
+        )
 
         texture = get_sdf_texture(view_model.window_size)
         texture.write(jax.device_get(buf))
         texture.use(0)
         render_quad()
-
-        distance_lines = []
 
         # Calculate stats
         with perf_logging(geom_log, "area"):
@@ -605,7 +740,6 @@ def main(solver):
             stats={
                 "areas": areas,
                 "centroids": centroids,
-                "distance_lines": distance_lines,
             },
         )
 

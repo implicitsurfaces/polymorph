@@ -20,6 +20,8 @@ from polymorph_app.sketch import (
     VerticallyAligned,
 )
 
+from .icons import Icon
+
 
 class Scene:
     name: str
@@ -45,7 +47,7 @@ class Scene:
 
 class ChainScene(Scene):
     def __init__(self):
-        super().__init__("Chain", {})
+        super().__init__(f"{Icon.link} Chain", {})
 
     def load(self):
         sketch = Sketch()
@@ -79,7 +81,9 @@ class EmptyScene(Scene):
 
 class MorphScene(Scene):
     def __init__(self):
-        super().__init__("Morph", {"box share": 0.5}, ["toggle_lock_position"])
+        super().__init__(
+            f"{Icon.circle_stop} Morph", {"box share": 0.5}, ["toggle_lock_position"]
+        )
         self.box_locked = False
         self.box: None | CenteredBox = None
 
@@ -124,7 +128,9 @@ class MorphScene(Scene):
 
 class IcebergScene(Scene):
     def __init__(self):
-        super().__init__("Iceberg", {"density": 0.5}, ["run", "reset"])
+        super().__init__(
+            f"{Icon.mountain_snow} Iceberg", {"density": 0.5}, ["run", "reset"]
+        )
 
     def load(self):
         return Sketch()
@@ -204,7 +210,7 @@ class IcebergScene(Scene):
 
 scene_dict = {
     "Empty": EmptyScene(),
-    "Chain": ChainScene(),
-    "Morph": MorphScene(),
-    "Iceberg": IcebergScene(),
+    f"{Icon.link} Chain": ChainScene(),
+    f"{Icon.circle_stop} Morph": MorphScene(),
+    f"{Icon.mountain_snow} Iceberg": IcebergScene(),
 }

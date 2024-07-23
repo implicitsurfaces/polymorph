@@ -1,6 +1,5 @@
 from __future__ import annotations  # For forward refs in type annotations
 
-import json
 import logging
 import multiprocessing
 import os
@@ -23,6 +22,7 @@ from polymorph_num.ops import grid_gen
 from polymorph_num.unit import CompiledUnit, Unit
 from polymorph_s2df import geometric_properties
 
+from .icons import ICON_MAX_VALUE, ICON_MIN_VALUE, ICON_PATH, Icon
 from .scenes import scene_dict
 from .sketch import Sketch
 from .solve import async_solver
@@ -37,24 +37,8 @@ type FloatBitmap1D = Float[Array, "pix_count"]  # noqa: F821
 
 INITIAL_WINDOW_SIZE = (800, 600)
 
-ICON_DIR = Path(__file__).parent.parent.parent.joinpath("fonts")
-ICON_MAP = {
-    icon: chr(int(description["unicode"].strip("&#;")))
-    for icon, description in json.load(
-        ICON_DIR.joinpath("icon_map.json").open()
-    ).items()
-}
-INCONSOLATA_PATH = str(ICON_DIR.joinpath("Inconsolata.ttf"))
-ICON_PATH = str(ICON_DIR.joinpath("lucide.ttf"))
-
-
-class IconRetriever:
-    def __getattr__(self, name):
-        return ICON_MAP[name.lower().replace("_", "-")]
-
-
-# You can search for the icons here: https://lucide.dev/icons/
-Icon = IconRetriever()
+FONTS_DIR = Path(__file__).parent.parent.parent.joinpath("fonts")
+INCONSOLATA_PATH = str(FONTS_DIR.joinpath("Inconsolata.ttf"))
 
 
 def fb_to_window_factor(window):
@@ -72,10 +56,7 @@ def load_fonts(scaling_factor):
 
     io.fonts.add_font_from_file_ttf(INCONSOLATA_PATH, 12 * scaling_factor)
 
-    icon_min = min(ord(v) for v in ICON_MAP.values())
-    icon_max = max(ord(v) for v in ICON_MAP.values())
-
-    lucid_range = imgui.GlyphRanges((icon_min, icon_max, 0))  # type: ignore
+    lucid_range = imgui.GlyphRanges((ICON_MIN_VALUE, ICON_MAX_VALUE, 0))  # type: ignore
     lucid_config = imgui.FontConfig(merge_mode=True)
 
     io.fonts.add_font_from_file_ttf(

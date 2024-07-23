@@ -295,14 +295,14 @@ def render_shapes_tree(vm, pos: tuple[int, int]):
                 imgui.tree_pop()
 
         # Calculate the height required for the stack of widgets at the bottom.
-        num_rows = len(vm.vars) + 1
+        num_rows = len(vm.vars) + len(vm.actions) + 1
         stack_height = num_rows * imgui.get_frame_height() + (num_rows - 1) * spacing.y
         x = imgui.get_cursor_pos_x()
         y = window_height - stack_height - padding.y
         imgui.set_cursor_pos((x, y))
 
         # Render the stack.
-        render_vars(vm, content_width)
+        render_vars_and_actions(vm, content_width)
         render_scene_selector(vm, content_width)
 
 
@@ -310,14 +310,14 @@ def render_scene_selector(vm: ViewModel, width: int):
     imgui.set_next_item_width(width)
 
     default_label = "Load scene"
-    preview_value = vm.selected_scene or default_label
+    preview_value = vm.scene.name if vm.scene else default_label
 
     with imgui.begin_combo("", preview_value) as combo:
         if combo.opened:
             for name in vm.scene_names:
-                is_selected = name == vm.selected_scene
+                is_selected = name == vm.scene.name if vm.scene else False
 
-                _, did_select = imgui.selectable(name, is_selected)
+                did_select, _ = imgui.selectable(name, is_selected)
                 if did_select:
                     vm.load_scene(name)
 
@@ -326,11 +326,11 @@ def render_scene_selector(vm: ViewModel, width: int):
                     imgui.set_item_default_focus()
 
 
-def render_vars(vm: ViewModel, width: int):
+def render_vars_and_actions(vm: ViewModel, width: int):
     col_width = (width - imgui.get_style().item_spacing.x) / 2
+
     for name, value in vm.vars.items():
         imgui.set_next_item_width(col_width)
-        # TODO: Get imgui.INPUT_TEXT_ENTER_RETURNS_TRUE working properly
         changed, new_val = imgui.input_text(
             name,
             str(value),
@@ -341,6 +341,11 @@ def render_vars(vm: ViewModel, width: int):
         )
         if changed:
             vm.vars[name] = float(new_val)
+
+    for name in vm.actions:
+        imgui.set_next_item_width(col_width)
+        if imgui.button(name):
+            getattr(vm.scene, name)(vm.sketch)
 
 
 def render_overlay(vm, params, centroids=(), distance_lines=()):
@@ -420,12 +425,11 @@ class ViewModel:
         self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
 
         self.scene_names = list(scene_dict.keys())
-        self.selected_scene = None
 
-        self.vars = {
-            "var1": 0.0,
-            "var2": 0.0,
-        }
+        # Scene-specific stuff
+        self.scene = None
+        self.vars = {}
+        self.actions = []
 
     def _update_transforms(self, window):
         # About coordinate frames:
@@ -466,7 +470,12 @@ class ViewModel:
         return frozenset(self.current_obs_dict().keys())
 
     def load_scene(self, name: str):
-        self.sketch = scene_dict[name]()
+        scene = scene_dict[name]
+
+        self.sketch = scene.load()
+        self.vars = dict(scene.vars)  # Make a copy
+        self.actions = list(scene.actions)  # Make a copy
+        self.scene = scene
 
 
 def main(solver):
@@ -542,7 +551,7 @@ def main(solver):
         handle_hotkeys(view_model)
 
         view_model.handle_frame(window)
-        if view_model.tool:
+        if view_model.tool and not imgui.get_io().want_capture_mouse:
             view_model.tool.handle_frame()
 
         sdfs = view_model.sketch.cached_sdfs

@@ -122,7 +122,7 @@ class PolygonGesture:
 
     def mousedown(self, pos: WorldPos):
         assert self.poly is not None
-        self.poly.points.append(PointValue().lock(pos.x, pos.y))
+        self.poly.add_point().lock(pos.x, pos.y)
 
     def mouseup(self, pos: WorldPos):
         self.poly.temp_point = None

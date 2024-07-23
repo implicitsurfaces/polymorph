@@ -288,12 +288,15 @@ class Sketch:
     constraints: list[Constraint]
 
     def __init__(self):
-        self.shapes = []
-        self.constraints = []
-        self._sdfs = None
+        self.reset()
 
     def __iter__(self):
         return iter(self.shapes)
+
+    def reset(self):
+        self.shapes = []
+        self.constraints = []
+        self.changed()
 
     @property
     def cached_sdfs(self) -> tuple[s2df.Shape]:
@@ -305,6 +308,7 @@ class Sketch:
         self._sdfs = None
 
     def add(self, shape: Shape) -> None:
+        assert shape not in self.shapes, "Shape already in sketch"
         self.shapes.append(shape)
         self.changed()
 

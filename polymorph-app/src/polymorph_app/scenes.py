@@ -79,7 +79,9 @@ class EmptyScene(Scene):
 
 class MorphScene(Scene):
     def __init__(self):
-        super().__init__("Morph")
+        super().__init__("Morph", {"box share": 0.5}, ["toggle_lock_position"])
+        self.box_locked = False
+        self.box: None | CenteredBox = None
 
     def load(self):
         sketch = Sketch()
@@ -94,10 +96,28 @@ class MorphScene(Scene):
         box.width.lock(300)
         box.height.lock(200)
 
+        self.box = box
+        self.box_locked = False
+
         morph = Morph(circle, box)
-        morph.t.lock(0.5)
+        morph.t.bind("box share")
 
         sketch.add(morph)
+
+        return sketch
+
+    def toggle_lock_position(self, sketch: Sketch):
+        if self.box is None:
+            return sketch
+
+        if not self.box_locked:
+            self.box.position.lock(0, 0)
+            self.box_locked = True
+        else:
+            self.box.position.bind("mouse_x", "mouse_y")
+            self.box_locked = False
+
+        sketch.changed()
 
         return sketch
 

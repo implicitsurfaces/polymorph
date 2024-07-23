@@ -26,7 +26,7 @@ from .sketch import Sketch
 from .solve import async_solver
 from .tools import BoxTool, CircleTool, PolygonTool
 from .types import ScreenPos, WorldPos
-from .util import log_perf
+from .util import log_perf, perf_logging
 
 type Rgb3D = UInt8[Array, "h w 3"]  # noqa: F722
 type Rgba3D = UInt8[Array, "h w 4"]  # noqa: F722
@@ -52,9 +52,11 @@ COLOR_OUTSIDE = (144, 238, 144)
 
 Transform = namedtuple("Transform", ["translation", "scale"])
 
+logging.basicConfig(level=logging.WARNING)
 
 render_log = logging.getLogger("render")
 compile_log = logging.getLogger("compile")
+geom_log = logging.getLogger("geom")
 
 # Turn on logging via the POLYMORPH_DEBUG environment variable.
 # Examples:
@@ -64,7 +66,7 @@ compile_log = logging.getLogger("compile")
 debug_key = os.environ.get("POLYMORPH_DEBUG", "")
 if debug_key in ["1", "all"]:
     logging.basicConfig(level=logging.DEBUG)
-else:
+elif debug_key != "":
     for k in debug_key.split(","):
         logging.getLogger(k).setLevel(logging.DEBUG)
 
@@ -577,10 +579,13 @@ def main(solver):
         distance_lines = []
 
         # Calculate stats
-        areas = tuple(unit.evaluate(f"area{i}") for i in range(len(sdfs)))
-        centroids = tuple(
-            WorldPos(*unit.evaluate(f"centroid{i}")) for i in range(len(sdfs))
-        )
+        with perf_logging(geom_log, "area"):
+            areas = tuple(unit.evaluate(f"area{i}") for i in range(len(sdfs)))
+
+        with perf_logging(geom_log, "centroids"):
+            centroids = tuple(
+                WorldPos(*unit.evaluate(f"centroid{i}")) for i in range(len(sdfs))
+            )
 
         # Render ImGui
 

@@ -660,6 +660,7 @@ def main():
         ###########
         ## Render
 
+        gl_context.viewport = (0, 0, *glfw.get_framebuffer_size(window))
         gl_context.clear()
 
         # Render SDFs

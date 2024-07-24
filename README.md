@@ -23,6 +23,16 @@ To run the Python app UI:
 
     rye run polymorph
 
+
+To run tests / benchmark:
+
+    rye test --package polymorph_num
+
+To check types:
+
+    rye run pyright
+
+
 ## Rust experiments (Apr/May)
 
 To run the iceberg simulation:

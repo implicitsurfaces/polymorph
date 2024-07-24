@@ -112,3 +112,33 @@ def test_is_inside_polygon(benchmark):
         return unit.compile()
 
     benchmark(compile)
+
+
+def construct_and_compile():
+    x = observation("x")
+    return Unit(["x"]).register("2x", x * 2).compile()
+
+
+@pytest.mark.benchmark(
+    group="jit",
+)
+def test_compilation(benchmark):
+    benchmark(construct_and_compile)
+
+
+@pytest.mark.benchmark(
+    group="jit",
+)
+def test_minimzation(benchmark):
+    unit = construct_and_compile()
+
+    # first minimization call is slower than others for some reason
+    # TODO: figure out how to benchmark this nicely.
+    unit = unit.minimize()
+
+    def minimize_and_observe(unit):
+        unit = unit.minimize()
+        unit = unit.observe({"x": 1.0})
+        assert unit.evaluate("2x") == 2.0
+
+    benchmark(minimize_and_observe, unit)

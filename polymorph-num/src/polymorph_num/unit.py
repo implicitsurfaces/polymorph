@@ -3,11 +3,13 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field, replace
+from functools import partial
 from typing import Any, Callable, Sequence
 
 import jax
 import jax.numpy as jnp
-import optimistix
+import optax
+import optax.tree_utils as otu
 
 from polymorph_num.vec import Vec2
 
@@ -43,8 +45,36 @@ class ParamMap:
         return set(self.dict.keys())
 
 
-def _make_bfgs():
-    return optimistix.BFGS(rtol=1e-5, atol=1e-6)
+def _make_lbfgs():
+    return optax.lbfgs()
+
+
+@partial(jax.jit, static_argnames=["fun", "opt"])
+def _run_lbfgs(init_params, fun, opt, max_steps, tolerance, **kwargs):
+    value_and_grad_fun = optax.value_and_grad_from_state(fun)
+
+    def step(carry):
+        params, state = carry
+        value, grad = value_and_grad_fun(params, **kwargs, state=state)
+
+        updates, state = opt.update(
+            grad, state, params, **kwargs, value=value, grad=grad, value_fn=fun
+        )
+        params = optax.apply_updates(params, updates)
+        return params, state
+
+    def continuing_criterion(carry):
+        _, state = carry
+        iter_num = otu.tree_get(state, "count")
+        grad = otu.tree_get(state, "grad")
+        err = otu.tree_l2_norm(grad)
+        return (iter_num == 0) | ((iter_num < max_steps) & (err >= tolerance))
+
+    init_carry = (init_params, opt.init(init_params))
+    final_params, final_state = jax.lax.while_loop(
+        continuing_criterion, step, init_carry
+    )
+    return final_params, final_state
 
 
 def key_generator(start_key=_DEFAULT_PRNG_KEY):
@@ -68,7 +98,7 @@ class CompiledUnit:
     obs_dict: ObsDict
     param_map: ParamMap = field(default_factory=ParamMap)
     _expr_dims: dict[str, int] = field(default_factory=dict)
-    solver: optimistix.AbstractMinimiser = field(default_factory=_make_bfgs)
+    solver: optax.GradientTransformationExtraArgs = field(default_factory=_make_lbfgs)
 
     def run(self, expr: e.Expr | Vec2):
         fun = _compile_expr(expr, self.params, self.param_map, self.obs_dict)
@@ -88,15 +118,15 @@ class CompiledUnit:
         return replace(self, obs_dict=new_obs)
 
     def minimize(self, max_steps=1000):
-        soln = optimistix.minimise(
+        soln, _state = _run_lbfgs(
+            self.params,
             self.loss_fn,
             self.solver,
-            self.params,
-            self.obs_dict,
-            max_steps=max_steps,
-            throw=False,
+            max_steps,
+            tolerance=1e-3,
+            d=self.obs_dict,
         )
-        return replace(self, params=soln.value)
+        return replace(self, params=soln)
 
 
 def eval_expr(expr: e.Expr | Vec2, params_map, params, obs_dict):

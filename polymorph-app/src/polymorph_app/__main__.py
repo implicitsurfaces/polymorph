@@ -576,7 +576,7 @@ def main():
     def get_sdf_texture(size):
         """
         Allocate the texture into which we render the SDF.
-        Memoized to account for changes to the framebuffer size.
+        Memoized to account for changes to the window size.
         """
         return gl_context.texture(size, components=4)
 
@@ -660,6 +660,7 @@ def main():
         ###########
         ## Render
 
+        gl_context.viewport = (0, 0, *view_model.window_size)
         gl_context.clear()
 
         # Render SDFs

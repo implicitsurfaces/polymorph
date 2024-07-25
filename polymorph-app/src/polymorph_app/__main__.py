@@ -554,6 +554,40 @@ class ViewModel:
         self.shape_debug_index = 0
 
 
+@memoize
+@log_perf(compile_log)
+def compile_unit(
+    sdfs: tuple[s2df.Shape], size: tuple[int, int], obs_names: frozenset[str], loss
+) -> CompiledUnit:
+    unit = Unit(obs_names)
+    unit.registerLoss(loss)
+
+    pg = grid_gen(*size)
+    for i, sdf in enumerate(sdfs):
+        unit.register(f"is_inside{i}", sdf.is_inside(*pg))
+        unit.register(f"is_on_boundary{i}", sdf.is_on_boundary(*pg))
+        distance = sdf.distance(*pg)
+
+        dist_x = sdf.distance(pg[0] + 1, pg[1])
+        dist_y = sdf.distance(pg[0], pg[1] + 1)
+
+        diff_x = dist_x - distance
+        diff_y = dist_y - distance
+
+        grad = (diff_x * diff_x + diff_y * diff_y).sqrt()
+
+        unit.register(f"grad_distance{i}", grad)
+
+        mod_distance = (distance % 10) / 10
+        unit.register(
+            f"contour{i}",
+            distance.sign() * (1 - mod_distance * mod_distance * mod_distance),
+        )
+        unit.register(f"area{i}", geometric_properties.area_monte_carlo(sdf))
+        unit.register(f"centroid{i}", geometric_properties.centroid_monte_carlo(sdf))
+    return unit.compile()
+
+
 def main():
     window = create_window()
 
@@ -579,41 +613,6 @@ def main():
         Memoized to account for changes to the framebuffer size.
         """
         return gl_context.texture(size, components=4)
-
-    @memoize
-    @log_perf(compile_log)
-    def compile_unit(
-        sdfs: tuple[s2df.Shape], size: tuple[int, int], obs_names: frozenset[str]
-    ) -> CompiledUnit:
-        unit = Unit(obs_names)
-        unit.registerLoss(view_model.sketch.total_loss(size=size))
-
-        pg = grid_gen(*size)
-        for i, sdf in enumerate(sdfs):
-            unit.register(f"is_inside{i}", sdf.is_inside(*pg))
-            unit.register(f"is_on_boundary{i}", sdf.is_on_boundary(*pg))
-            distance = sdf.distance(*pg)
-
-            dist_x = sdf.distance(pg[0] + 1, pg[1])
-            dist_y = sdf.distance(pg[0], pg[1] + 1)
-
-            diff_x = dist_x - distance
-            diff_y = dist_y - distance
-
-            grad = (diff_x * diff_x + diff_y * diff_y).sqrt()
-
-            unit.register(f"grad_distance{i}", grad)
-
-            mod_distance = (distance % 10) / 10
-            unit.register(
-                f"contour{i}",
-                distance.sign() * (1 - mod_distance * mod_distance * mod_distance),
-            )
-            unit.register(f"area{i}", geometric_properties.area_monte_carlo(sdf))
-            unit.register(
-                f"centroid{i}", geometric_properties.centroid_monte_carlo(sdf)
-            )
-        return unit.compile()
 
     @log_perf(render_log)
     def render_sdfs(
@@ -653,7 +652,10 @@ def main():
         sdfs = view_model.sketch.cached_sdfs
         obs_dict = view_model.current_obs_dict()
         unit = compile_unit(
-            sdfs, view_model.window_size, view_model.observation_names()
+            sdfs,
+            view_model.window_size,
+            view_model.observation_names(),
+            view_model.sketch.total_loss(size=view_model.window_size),
         )
         unit = unit.observe(obs_dict).minimize()
         view_model.current_unit = unit

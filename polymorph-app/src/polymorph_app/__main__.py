@@ -82,7 +82,7 @@ logging.basicConfig(level=logging.WARNING)
 
 render_log = logging.getLogger("render")
 compile_log = logging.getLogger("compile")
-geom_log = logging.getLogger("geom")
+monte_carlo_log = logging.getLogger("monte_carlo")
 
 # Turn on logging via the POLYMORPH_DEBUG environment variable.
 # Examples:
@@ -610,8 +610,9 @@ def main():
                 distance.sign() * (1 - mod_distance * mod_distance * mod_distance),
             )
             unit.register(f"area{i}", geometric_properties.area_monte_carlo(sdf))
-            centroid = geometric_properties.centroid_monte_carlo(sdf)
-            unit.register(f"centroid{i}", centroid)
+            unit.register(
+                f"centroid{i}", geometric_properties.centroid_monte_carlo(sdf)
+            )
         return unit.compile()
 
     @log_perf(render_log)
@@ -703,10 +704,10 @@ def main():
         render_quad()
 
         # Calculate stats
-        with perf_logging(geom_log, "area"):
+        with perf_logging(monte_carlo_log, "area"):
             areas = tuple(unit.evaluate(f"area{i}") for i in range(len(sdfs)))
 
-        with perf_logging(geom_log, "centroids"):
+        with perf_logging(monte_carlo_log, "centroids"):
             centroids = tuple(
                 WorldPos(*unit.evaluate(f"centroid{i}")) for i in range(len(sdfs))
             )

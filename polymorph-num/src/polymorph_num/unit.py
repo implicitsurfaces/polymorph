@@ -117,13 +117,15 @@ class CompiledUnit:
 
     @log_perf(lbfgs_log)
     def minimize(self, max_steps=1000):
-        soln, _state = _run_lbfgs(
+        soln, state = _run_lbfgs(
             self.params,
             self.loss_fn,
             max_steps,
             tolerance=1e-3,
             d=self.obs_dict,
         )
+        iter_num = otu.tree_get(state, "count")
+        lbfgs_log.debug(f"Minimization used {iter_num} steps")
         return replace(self, params=soln)
 
 

@@ -45,19 +45,18 @@ class ParamMap:
         return set(self.dict.keys())
 
 
-def _make_lbfgs():
-    return optax.lbfgs()
+_lbfgs = optax.lbfgs()
 
 
-@partial(jax.jit, static_argnames=["fun", "opt"])
-def _run_lbfgs(init_params, fun, opt, max_steps, tolerance, **kwargs):
+@partial(jax.jit, static_argnames=["fun"])
+def _run_lbfgs(init_params, fun, max_steps, tolerance, **kwargs):
     value_and_grad_fun = optax.value_and_grad_from_state(fun)
 
     def step(carry):
         params, state = carry
         value, grad = value_and_grad_fun(params, **kwargs, state=state)
 
-        updates, state = opt.update(
+        updates, state = _lbfgs.update(
             grad, state, params, **kwargs, value=value, grad=grad, value_fn=fun
         )
         params = optax.apply_updates(params, updates)
@@ -70,7 +69,7 @@ def _run_lbfgs(init_params, fun, opt, max_steps, tolerance, **kwargs):
         err = otu.tree_l2_norm(grad)
         return (iter_num == 0) | ((iter_num < max_steps) & (err >= tolerance))
 
-    init_carry = (init_params, opt.init(init_params))
+    init_carry = (init_params, _lbfgs.init(init_params))
     final_params, final_state = jax.lax.while_loop(
         continuing_criterion, step, init_carry
     )
@@ -98,7 +97,6 @@ class CompiledUnit:
     obs_dict: ObsDict
     param_map: ParamMap = field(default_factory=ParamMap)
     _expr_dims: dict[str, int] = field(default_factory=dict)
-    solver: optax.GradientTransformationExtraArgs = field(default_factory=_make_lbfgs)
 
     def run(self, expr: e.Expr | Vec2):
         fun = _compile_expr(expr, self.params, self.param_map, self.obs_dict)
@@ -121,7 +119,6 @@ class CompiledUnit:
         soln, _state = _run_lbfgs(
             self.params,
             self.loss_fn,
-            self.solver,
             max_steps,
             tolerance=1e-3,
             d=self.obs_dict,

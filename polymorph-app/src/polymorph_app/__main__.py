@@ -19,6 +19,7 @@ from jaxtyping import Array, Float, UInt8
 from PIL import Image
 from polymorph_num.ops import grid_gen
 from polymorph_num.unit import CompiledUnit, Unit
+from polymorph_num.util import log_perf, perf_logging
 from polymorph_s2df import geometric_properties
 
 from .icons import ICON_MAX_VALUE, ICON_MIN_VALUE, ICON_PATH, Icon
@@ -26,7 +27,6 @@ from .scenes import scene_dict
 from .sketch import Sketch
 from .tools import BoxTool, CircleTool, PolygonTool
 from .types import ScreenPos, WorldPos
-from .util import log_perf, perf_logging
 
 type Rgb3D = UInt8[Array, "h w 3"]  # noqa: F722
 type Rgba3D = UInt8[Array, "h w 4"]  # noqa: F722

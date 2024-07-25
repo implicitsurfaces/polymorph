@@ -11,6 +11,7 @@ import jax.numpy as jnp
 import optax
 import optax.tree_utils as otu
 
+from polymorph_num.util import log_perf
 from polymorph_num.vec import Vec2
 
 from . import expr as e
@@ -21,8 +22,7 @@ from .types import ObsDict
 _DEFAULT_PRNG_KEY = jax.random.PRNGKey(0)
 
 logger = logging.getLogger(__name__)
-
-# logging.basicConfig(level=logging.DEBUG)
+lbfgs_log = logging.getLogger("lbfgs")
 
 
 class ParamMap:
@@ -115,6 +115,7 @@ class CompiledUnit:
         new_obs = {k: jnp.asarray(v) for k, v in obs_dict.items()}
         return replace(self, obs_dict=new_obs)
 
+    @log_perf(lbfgs_log)
     def minimize(self, max_steps=1000):
         soln, _state = _run_lbfgs(
             self.params,

@@ -1,3 +1,4 @@
+import random
 from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Callable, Self
@@ -286,6 +287,7 @@ class AngleConstraint(Constraint):
 class Sketch:
     shapes: list[Shape]
     constraints: list[Constraint]
+    last_changed_time: int
 
     def __init__(self):
         self.reset()
@@ -296,6 +298,9 @@ class Sketch:
     def reset(self):
         self.shapes = []
         self.constraints = []
+        self.last_changed_time = random.randint(
+            0, 100000
+        )  # seed with random integer to distingush different new Sketches.
         self.changed()
 
     @property
@@ -306,6 +311,7 @@ class Sketch:
 
     def changed(self):
         self._sdfs = None
+        self.last_changed_time += 1
 
     def add(self, shape: Shape) -> None:
         assert shape not in self.shapes, "Shape already in sketch"

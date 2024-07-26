@@ -491,18 +491,21 @@ class ViewModel:
         self.shape_debug_index = 0
         self.metric_debug = False
 
-        # User-level state
-        self.sketch = Sketch()
-        self.tool = None
-        self.current_unit: None | CompiledUnit = None
-        self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
-
-        self.scene_names = list(scene_dict.keys())
+        self._last_sketch_change_time = -1
 
         # Scene-specific stuff
         self.scene = None
         self.vars = {}
         self.actions = []
+
+        # User-level state
+        self.sketch = Sketch()
+        self.tool = None
+        self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
+        self.current_unit: CompiledUnit
+        self._compile_unit()
+
+        self.scene_names = list(scene_dict.keys())
 
     def _update_transforms(self, window):
         # About coordinate frames:
@@ -518,9 +521,34 @@ class ViewModel:
             scale=jnp.array([1, -1]),
         )
 
+    def _compile_unit(self):
+        self.current_unit = compile_unit(
+            self.sketch.cached_sdfs,
+            self.window_size,
+            self.observation_names(),
+            self.sketch.total_loss(size=self.window_size),
+        )
+
     def handle_frame(self, window):
+        last_window_size = self.window_size
         self._update_transforms(window)
         self.cursor_world = self.screen_to_world(glfw.get_cursor_pos(window))
+
+        # Have to run tool's frame handler first, in case it changes the sketch
+        if self.tool and not imgui.get_io().want_capture_mouse:
+            self.tool.handle_frame()
+
+        # Recompile if necessary
+        if (
+            self._last_sketch_change_time != self.sketch.last_changed_time
+        ) or last_window_size != self.window_size:
+            self._last_sketch_change_time = self.sketch.last_changed_time
+            self._compile_unit()
+
+        # Minimize
+        self.current_unit = self.current_unit.observe(
+            self.current_obs_dict()
+        ).minimize()
 
     def world_to_screen(self, pos: WorldPos) -> ScreenPos:
         x, y = (
@@ -554,7 +582,6 @@ class ViewModel:
         self.shape_debug_index = 0
 
 
-@memoize
 @log_perf(compile_log)
 def compile_unit(
     sdfs: tuple[s2df.Shape], size: tuple[int, int], obs_names: frozenset[str], loss
@@ -646,19 +673,9 @@ def main():
         handle_hotkeys(view_model)
 
         view_model.handle_frame(window)
-        if view_model.tool and not imgui.get_io().want_capture_mouse:
-            view_model.tool.handle_frame()
 
         sdfs = view_model.sketch.cached_sdfs
-        obs_dict = view_model.current_obs_dict()
-        unit = compile_unit(
-            sdfs,
-            view_model.window_size,
-            view_model.observation_names(),
-            view_model.sketch.total_loss(size=view_model.window_size),
-        )
-        unit = unit.observe(obs_dict).minimize()
-        view_model.current_unit = unit
+        unit = view_model.current_unit
 
         ###########
         ## Render

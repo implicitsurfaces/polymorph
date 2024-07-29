@@ -1,12 +1,23 @@
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+import polyscope as ps
 from polymorph_num.expr import Expr
-from polymorph_num.ops import grid_gen
+from polymorph_num.ops import grid_gen, grid_gen_3d
 from polymorph_num.unit import Unit
 from polymorph_num.vec import Vec2
+from polymorph_num.vec3 import ORIGIN, X_AXIS, Y_AXIS, Z_AXIS
+
+from polymorph_s2df.embed import Solid
+from polymorph_s2df.plane import Plane
 
 from .operations import Shape
 from .paths import PathSegment
+
+# Helpers for working for 3D axes
+X_AXIS = X_AXIS
+Y_AXIS = Y_AXIS
+Z_AXIS = Z_AXIS
+ORIGIN = ORIGIN
 
 
 def p(x, y):
@@ -96,3 +107,51 @@ def render_winding_number(segment: PathSegment, bounds=(-3, 3), n=500):
         extent=(bounds[0], bounds[1], bounds[0], bounds[1]),
     )
     plt.colorbar()
+
+
+def render_solid(solid: Solid, bounds=(-3, 3), n=100):
+    def rescale_grid(b):
+        diff = bounds[1] - bounds[0]
+        return (b / n + 0.5) * diff + bounds[0]
+
+    (grid_x, grid_y, grid_z) = grid_gen_3d(n, n, n)
+
+    dims = (n, n, n)
+    bound_low = (bounds[0], bounds[0], bounds[0])
+    bound_high = (bounds[1], bounds[1], bounds[1])
+
+    distance = eval_expr(
+        solid.distance(rescale_grid(grid_x), rescale_grid(grid_y), rescale_grid(grid_z))
+    ).reshape(dims)
+
+    ps.set_up_dir("z_up")
+
+    # register the grid
+    ps_grid = ps.register_volume_grid("sample grid", dims, bound_low, bound_high)
+
+    # add a scalar function on the grid
+    ps_grid.add_scalar_quantity(
+        "distance",
+        distance,
+        defined_on="nodes",
+        vminmax=(-5.0, 5.0),
+        isosurface_level=0.0,
+        cmap="coolwarm",
+        enabled=True,
+        enable_isosurface_viz=True,
+        enable_gridcube_viz=False,
+        isolines_enabled=True,
+        slice_planes_affect_isosurface=False,
+    )
+
+
+class SolidSlice(Shape):
+    def __init__(self, solid: Solid, plane: Plane):
+        self.solid = solid
+        self.plane = plane
+
+    def distance(self, x, y):
+        projected_point = self.plane.global_coordinates(Vec2(x, y))
+        return self.solid.distance(
+            projected_point.x, projected_point.y, projected_point.z
+        )

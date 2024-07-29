@@ -94,6 +94,14 @@ def grid_gen(width: int, height: int):
     return (expr.GridX(width, height), expr.GridY(width, height))
 
 
+def grid_gen_3d(width: int, height: int, depth: int):
+    return (
+        expr.GridX3d(width, height, depth),
+        expr.GridY3d(width, height, depth),
+        expr.GridZ3d(width, height, depth),
+    )
+
+
 def regular_grid(
     min_x: expr.Num, max_x: expr.Num, min_y: expr.Num, max_y: expr.Num, n: int
 ):

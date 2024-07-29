@@ -286,6 +286,36 @@ class GridY(Expr):
 
 
 @dataclass(frozen=True)
+class GridX3d(Expr):
+    width: int
+    height: int
+    depth: int
+
+    def __post_init__(self):
+        super().__init__(self.width * self.height * self.depth)
+
+
+@dataclass(frozen=True)
+class GridY3d(Expr):
+    width: int
+    height: int
+    depth: int
+
+    def __post_init__(self):
+        super().__init__(self.width * self.height * self.depth)
+
+
+@dataclass(frozen=True)
+class GridZ3d(Expr):
+    width: int
+    height: int
+    depth: int
+
+    def __post_init__(self):
+        super().__init__(self.width * self.height * self.depth)
+
+
+@dataclass(frozen=True)
 class Random(Expr):
     dim: int
     low: Expr

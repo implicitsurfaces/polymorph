@@ -32,6 +32,36 @@ def _eval(expr: e.Expr, params, param_map, obs_dict, random_key, memo) -> jax.Ar
             yy, xx = jnp.mgrid[-half_height:half_height, -half_width:half_width]
             result = yy.ravel()
 
+        case e.GridX3d(width, height, depth):
+            half_width = width / 2
+            half_height = height / 2
+            half_depth = depth / 2
+
+            yy, xx, zz = jnp.mgrid[
+                -half_height:half_height, -half_width:half_width, -half_depth:half_depth
+            ]
+            result = xx.ravel()
+
+        case e.GridY3d(width, height, depth):
+            half_width = width / 2
+            half_height = height / 2
+            half_depth = depth / 2
+
+            yy, xx, zz = jnp.mgrid[
+                -half_height:half_height, -half_width:half_width, -half_depth:half_depth
+            ]
+            result = yy.ravel()
+
+        case e.GridZ3d(width, height, depth):
+            half_width = width / 2
+            half_height = height / 2
+            half_depth = depth / 2
+
+            yy, xx, zz = jnp.mgrid[
+                -half_height:half_height, -half_width:half_width, -half_depth:half_depth
+            ]
+            result = zz.ravel()
+
         case e.Random(dim, low, high):
             min_ = _eval(low, params, param_map, obs_dict, random_key, memo)
             max_ = _eval(high, params, param_map, obs_dict, random_key, memo)

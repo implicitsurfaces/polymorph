@@ -21,6 +21,7 @@ from .shapes import Circle as Circle
 from .shapes import LeftHalfPlane as LeftHalfPlane
 from .shapes import RightHalfPlane as RightHalfPlane
 from .shapes import TopHalfPlane as TopHalfPlane
+from .solids import Sphere as Sphere
 
 
 def center_and_point_circle(center: ValVec, point: ValVec):

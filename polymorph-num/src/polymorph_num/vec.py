@@ -47,6 +47,9 @@ class Vec2:
     def norm_squared(self):
         return self.x * self.x + self.y * self.y
 
+    def normalized(self):
+        return self / self.norm()
+
     def rotate(self, angle):
         c = angle.cos()
         s = angle.sin()

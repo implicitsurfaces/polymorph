@@ -3,6 +3,7 @@ from polymorph_num import ops
 from polymorph_num.expr import Expr, Num, as_expr
 from polymorph_num.vec import ValVec, Vec2, as_vec2
 
+from .embed import EmbeddedShape as EmbeddedShape
 from .operations import Intersection as Intersection
 from .operations import Shape as Shape
 from .operations import SmoothIntersection as SmoothIntersection
@@ -15,6 +16,10 @@ from .paths import (
     PathSegment,
     TranslatedSegment,
 )
+from .plane import XY_PLANE as XY_PLANE
+from .plane import XZ_PLANE as XZ_PLANE
+from .plane import YZ_PLANE as YZ_PLANE
+from .plane import Plane
 from .shapes import BottomHalfPlane as BottomHalfPlane
 from .shapes import Box as Box
 from .shapes import Circle as Circle
@@ -22,6 +27,10 @@ from .shapes import LeftHalfPlane as LeftHalfPlane
 from .shapes import RightHalfPlane as RightHalfPlane
 from .shapes import TopHalfPlane as TopHalfPlane
 from .solids import Sphere as Sphere
+
+
+def embed_in_3d(shape: Shape, plane: Plane = XY_PLANE):
+    return EmbeddedShape(shape, plane)
 
 
 def center_and_point_circle(center: ValVec, point: ValVec):

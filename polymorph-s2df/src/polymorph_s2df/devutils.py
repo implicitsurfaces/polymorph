@@ -109,7 +109,7 @@ def render_winding_number(segment: PathSegment, bounds=(-3, 3), n=500):
     plt.colorbar()
 
 
-def render_solid(solid: Solid, bounds=(-3, 3), n=100):
+def render_solid(solid: Solid, bounds=(-3, 3), n=100, show_distances=False):
     def rescale_grid(b):
         diff = bounds[1] - bounds[0]
         return (b / n + 0.5) * diff + bounds[0]
@@ -125,6 +125,7 @@ def render_solid(solid: Solid, bounds=(-3, 3), n=100):
     ).reshape(dims)
 
     ps.set_up_dir("z_up")
+    ps.set_front_dir("neg_x_front")
 
     # register the grid
     ps_grid = ps.register_volume_grid("sample grid", dims, bound_low, bound_high)
@@ -139,10 +140,16 @@ def render_solid(solid: Solid, bounds=(-3, 3), n=100):
         cmap="coolwarm",
         enabled=True,
         enable_isosurface_viz=True,
-        enable_gridcube_viz=False,
+        enable_gridcube_viz=show_distances,
         isolines_enabled=True,
         slice_planes_affect_isosurface=False,
     )
+
+    if show_distances:
+        ps_plane = ps.add_scene_slice_plane()
+        ps_plane.set_draw_plane(False)  # render the semi-transparent gridded plane
+        ps_plane.set_draw_widget(False)
+        ps_plane.set_pose((0, 0, 0), (1, 0, 0))
 
 
 class SolidSlice(Shape):

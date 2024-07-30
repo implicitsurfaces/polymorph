@@ -49,7 +49,7 @@ _lbfgs = optax.lbfgs()
 
 
 @partial(jax.jit, static_argnames=["fun"])
-def _run_lbfgs(init_params, fun, max_steps, tolerance, **kwargs):
+def _run_lbfgs(init_params, lbfgs_state, fun, max_steps, tolerance, **kwargs):
     value_and_grad_fun = optax.value_and_grad_from_state(fun)
 
     def step(carry):
@@ -69,7 +69,13 @@ def _run_lbfgs(init_params, fun, max_steps, tolerance, **kwargs):
         err = otu.tree_l2_norm(grad)
         return (iter_num == 0) | ((iter_num < max_steps) & (err >= tolerance))
 
-    init_carry = (init_params, _lbfgs.init(init_params))
+    if lbfgs_state is None:
+        state = _lbfgs.init(init_params)
+    else:
+        # reset iteration count leftover from previous solve
+        state = otu.tree_set(lbfgs_state, count=0)
+
+    init_carry = (init_params, state)
     final_params, final_state = jax.lax.while_loop(
         continuing_criterion, step, init_carry
     )
@@ -97,6 +103,7 @@ class CompiledUnit:
     obs_dict: ObsDict
     param_map: ParamMap = field(default_factory=ParamMap)
     _expr_dims: dict[str, int] = field(default_factory=dict)
+    _minimizer_state: None | optax.OptState = None
 
     def run(self, expr: e.Expr | Vec2):
         fun = _compile_expr(expr, self.params, self.param_map, self.obs_dict)
@@ -113,12 +120,17 @@ class CompiledUnit:
         # Passing float observations (as opposed to a JAX scalar) causes
         # recompilation, so make sure everything is a JAX array.
         new_obs = {k: jnp.asarray(v) for k, v in obs_dict.items()}
-        return replace(self, obs_dict=new_obs)
+        if self.obs_dict == new_obs:
+            return self
+        else:
+            # if obs have changed, we also need to reset the internal minimizer state.
+            return replace(self, obs_dict=new_obs, _minimizer_state=None)
 
     @log_perf(lbfgs_log)
     def minimize(self, max_steps=1000):
         soln, state = _run_lbfgs(
             self.params,
+            self._minimizer_state,
             self.loss_fn,
             max_steps,
             tolerance=1e-3,
@@ -126,7 +138,7 @@ class CompiledUnit:
         )
         iter_num = otu.tree_get(state, "count")
         lbfgs_log.debug(f"Minimization used {iter_num} steps")
-        return replace(self, params=soln)
+        return replace(self, params=soln, _minimizer_state=state)
 
 
 def eval_expr(expr: e.Expr | Vec2, params_map, params, obs_dict):

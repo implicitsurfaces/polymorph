@@ -8,7 +8,13 @@ from polymorph_num.vec import ValVec, Vec2, as_vec2
 from polymorph_s2df.bounding_box import BoundingBox, bounding_box_from_points
 
 from .operations import Shape
-from .utils import min_iterable, repr_point, sum_iterable
+from .utils import (
+    angular_distance,
+    min_iterable,
+    normalize_angle,
+    repr_point,
+    sum_iterable,
+)
 
 
 class PathSegment(Shape):
@@ -77,10 +83,6 @@ class LineSegment(PathSegment):
         )
 
 
-def normalize_angle(q):
-    return ((q % TAU) + TAU) % TAU
-
-
 def winding_number_indefinite_integral(t, radius, x, y):
     R2 = radius * radius
     half_t = t / 2
@@ -96,11 +98,6 @@ def winding_number_indefinite_integral(t, radius, x, y):
     arctan_term = ops.atan2(denominator, numerator)
 
     return radius * (arctan_term / radius + t / (radius * 2))
-
-
-def angular_distance(start_angle, end_angle, orientation_sign):
-    raw_distance = orientation_sign * (end_angle - start_angle)
-    return (raw_distance + TAU) % TAU
 
 
 class ArcSegment(PathSegment):

@@ -73,6 +73,9 @@ class Vec3:
             + axis.cross(self).scale(s)
         )
 
+    def translateTo(self, other: "Vec3"):
+        return self - other
+
     @property
     def dim(self):
         return self.x.dim

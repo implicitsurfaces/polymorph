@@ -2,7 +2,7 @@ import textwrap
 from typing import Iterable
 
 from polymorph_num import ops
-from polymorph_num.expr import ZERO, Expr, Infinity
+from polymorph_num.expr import TAU, ZERO, Expr, Infinity
 
 
 def indent_shape(shape):
@@ -43,3 +43,22 @@ def max_iterable(values: Iterable[Expr]) -> Expr:
     for item in values:
         x = ops.max(x, item)
     return x
+
+
+def normalize_angle(q):
+    return ((q % TAU) + TAU) % TAU
+
+
+def angular_distance(start_angle, end_angle, orientation_sign):
+    raw_distance = orientation_sign * (end_angle - start_angle)
+    return (raw_distance + TAU) % TAU
+
+
+def min_non_zero(a: Expr, b: Expr):
+    min_value = ops.min(a, b)
+    return ops.if_eq(min_value, ZERO, ops.max(a, b), min_value)
+
+
+def max_non_zero(a: Expr, b: Expr):
+    max_value = ops.max(a, b)
+    return ops.if_eq(max_value, ZERO, ops.min(a, b), max_value)

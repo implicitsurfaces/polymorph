@@ -21,7 +21,8 @@ from .types import ObsDict
 
 _DEFAULT_PRNG_KEY = jax.random.PRNGKey(0)
 
-logger = logging.getLogger(__name__)
+compile_log = logging.getLogger("compile")
+jaxpr_log = logging.getLogger("jaxpr")
 lbfgs_log = logging.getLogger("lbfgs")
 
 
@@ -159,6 +160,13 @@ def _compile_expr(expr, params, param_map, obs_dict):
     )
 
 
+def _make_jaxpr(expr, params, param_map, obs_dict):
+    # This should always mirror the structure in `_compile_expr`.
+    return (jax.make_jaxpr(eval_expr, static_argnums=(0, 1)))(
+        expr, param_map, params, obs_dict
+    )
+
+
 class Unit:
     """A unit is family of `Exprs` that share parameters and observations."""
 
@@ -202,7 +210,11 @@ class Unit:
         for name, expr in self._exprs.items():
             start_time = time.time()
             compiled_exprs[name] = _compile_expr(expr, params, self.param_map, obs)
-            logger.debug(f"Compiled {name} in {time.time() - start_time:.2f}s")
+            compile_log.debug(f"Compiled {name} in {time.time() - start_time:.2f}s")
+
+            if jaxpr_log.isEnabledFor(logging.DEBUG):
+                jaxpr = _make_jaxpr(expr, params, self.param_map, obs)
+                jaxpr_log.debug(f"{name} ↓\n{jaxpr}")
         dims = {n: e.dim for n, e in self._exprs.items()}
 
         def eval_loss(p, d: ObsDict):
@@ -210,7 +222,7 @@ class Unit:
 
         loss_fn = jax.jit(eval_loss)
 
-        logger.debug(f"Unit compilation: {time.time() - start_time:.2f}s")
+        compile_log.debug(f"Unit compilation: {time.time() - start_time:.2f}s")
 
         return CompiledUnit(loss_fn, compiled_exprs, params, obs, self.param_map, dims)
 

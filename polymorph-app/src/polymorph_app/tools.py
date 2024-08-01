@@ -1,7 +1,11 @@
+import logging
+import time
+
 import glfw
 import imgui
 from polymorph_app.types import WorldPos
 from polymorph_num.unit import CompiledUnit
+from polymorph_num.util import log_perf
 
 from .sketch import (
     Box,
@@ -13,25 +17,52 @@ from .sketch import (
     Sketch,
 )
 
+ui_event_log = logging.getLogger("ui_event")
+gesture_start_time = time.monotonic()
+
 
 class Tool:
     def __init__(self, view_model):
         self.view_model = view_model
 
     def handle_frame(self):
+        global gesture_start_time
+
+        delta_ms = imgui.get_io().delta_time * 1000
+        if delta_ms > 500:
+            ui_event_log.debug(f"Frame delta: {delta_ms:.3f}ms")
+
         mouse_pos = self.view_model.cursor_world
+        time_ms = (time.monotonic() - gesture_start_time) * 1000
+
+        # These are defined as functions just to allow for easy logging.
+        @log_perf(ui_event_log)
+        def dispatch_mousedown():
+            self.mousedown(mouse_pos)
+
+        @log_perf(ui_event_log)
+        def dispatch_mouseup():
+            self.mouseup(mouse_pos)
+
+        @log_perf(ui_event_log)
+        def dispatch_escape():
+            self.escape()
 
         # Handle mouse
         if imgui.is_mouse_clicked():
-            self.mousedown(mouse_pos)
-            self.view_model.sketch.changed()  # TODO: Find a cleaner way to do this.
+            gesture_start_time = time.monotonic()
+            ui_event_log.debug("Dispatching mousedown t=0ms")
+            dispatch_mousedown()
+            self.view_model.sketch.changed()
         elif imgui.is_mouse_released():
-            self.mouseup(mouse_pos)
-            self.view_model.sketch.changed()  # TODO: Find a cleaner way to do this.
+            ui_event_log.debug(f"Dispatching mouseup at t={time_ms:.3f}ms")
+            dispatch_mouseup()
+            self.view_model.sketch.changed()
 
         # Handle keyboard events
         if imgui.is_key_pressed(glfw.KEY_ESCAPE):
-            self.escape()
+            ui_event_log.debug(f"Dispatching escape at t={time_ms:.3f}ms")
+            dispatch_escape()
 
     # Methods that can be implemented by subclasses:
 

@@ -642,25 +642,19 @@ def main():
         return gl_context.texture(size, components=4)
 
     @log_perf(render_log)
-    def render_sdfs(
-        unit: CompiledUnit, window_size: tuple[int, int], count: int
-    ) -> tuple[FloatBitmap1D]:
+    def render_sdfs(unit: CompiledUnit, count: int) -> tuple[FloatBitmap1D]:
         return tuple(unit.evaluate(f"is_inside{i}") for i in range(count))
 
     @log_perf(render_log)
-    def render_outlines(
-        unit: CompiledUnit, window_size: tuple[int, int], count: int
-    ) -> tuple[FloatBitmap1D]:
+    def render_outlines(unit: CompiledUnit, count: int) -> tuple[FloatBitmap1D]:
         return tuple(unit.evaluate(f"is_on_boundary{i}") for i in range(count))
 
-    def render_contour(
-        unit: CompiledUnit, window_size: tuple[int, int], index: int
-    ) -> FloatBitmap1D:
+    @log_perf(render_log)
+    def render_contour(unit: CompiledUnit, index: int) -> FloatBitmap1D:
         return unit.evaluate(f"contour{index}")
 
-    def render_metric_aberration(
-        unit: CompiledUnit, window_size: tuple[int, int], index: int
-    ) -> FloatBitmap1D:
+    @log_perf(render_log)
+    def render_metric_aberration(unit: CompiledUnit, index: int) -> FloatBitmap1D:
         return unit.evaluate(f"grad_distance{index}")
 
     while not glfw.window_should_close(window):
@@ -685,7 +679,7 @@ def main():
 
         # Render SDFs
         count = len(sdfs)
-        bitmaps = render_sdfs(unit, view_model.window_size, count)
+        bitmaps = render_sdfs(unit, count)
 
         contour = None
         if (
@@ -694,9 +688,7 @@ def main():
             and not view_model.metric_debug
             and view_model.shape_debug_index is not None
         ):
-            contour = render_contour(
-                unit, view_model.window_size, view_model.shape_debug_index
-            )
+            contour = render_contour(unit, view_model.shape_debug_index)
 
         metric_aberration = None
         if (
@@ -706,12 +698,12 @@ def main():
             and view_model.shape_debug_index is not None
         ):
             metric_aberration = render_metric_aberration(
-                unit, view_model.window_size, view_model.shape_debug_index
+                unit, view_model.shape_debug_index
             )
 
         outlines = None
         if view_model.show_outlines or view_model.shape_debug:
-            outlines = render_outlines(unit, view_model.window_size, count)
+            outlines = render_outlines(unit, count)
 
         buf = render_scene(
             bitmaps, outlines, contour, metric_aberration, view_model.window_size

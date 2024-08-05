@@ -132,7 +132,9 @@ class ArcExtrusion(Solid):
         # For the end, we do the same, but on the rotated plane
         rotated_plane = self.plane.pivot(-self.angle, self.plane.yAxis)
         translation = rotated_plane.xAxis.scale(self.radius)
-        rotated_plane = rotated_plane.translateTo(translation)
+        rotated_plane = rotated_plane.translate(
+            translation.x, translation.y, translation.z
+        )
         rotated_p = rotated_plane.local_coordinates(coords)
 
         end_xy_distance = self.shape.distance(rotated_p.x, rotated_p.y)

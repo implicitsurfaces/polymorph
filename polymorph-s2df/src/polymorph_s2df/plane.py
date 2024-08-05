@@ -9,8 +9,8 @@ class Plane:
 
     def __init__(self, zAxis=Z_AXIS, origin=ORIGIN, xAxis=X_AXIS):
         self.origin = origin
-        self.zAxis = zAxis.normalize()
-        self.xAxis = xAxis.normalize()
+        self.zAxis = zAxis
+        self.xAxis = xAxis
 
     @property
     def yAxis(self):

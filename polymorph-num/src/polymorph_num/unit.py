@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import time
 from dataclasses import dataclass, field, replace
 from functools import partial
@@ -138,8 +139,28 @@ class CompiledUnit:
             d=self.obs_dict,
         )
         iter_num = otu.tree_get(state, "count")
-        lbfgs_log.debug(f"Minimization used {iter_num} steps")
+        lbfgs_log.debug(f"Minimization used {iter_num} of max {max_steps} steps")
         return replace(self, params=soln, _minimizer_state=state)
+
+    def minimize_within_time_limit(self, time_limit_ms=10.0):
+        start_time = time.time()
+        single_step_result = self.minimize(max_steps=1)
+        single_step_ms = (time.time() - start_time) * 1000
+        remaining_time_ms = time_limit_ms - single_step_ms
+        if remaining_time_ms < 0:
+            lbfgs_log.error(
+                f"Minimization time limit of {time_limit_ms} exceeded by {-remaining_time_ms}ms"
+            )
+            return single_step_result
+        else:
+            max_steps = math.floor(remaining_time_ms / single_step_ms)
+            result = single_step_result.minimize(max_steps=max_steps)
+            time_used_ms = (time.time() - start_time) * 1000
+            if time_used_ms > time_limit_ms:
+                lbfgs_log.error(
+                    f"Minimization time limit of {time_limit_ms} exceeded by {time_used_ms - time_limit_ms}ms"
+                )
+            return result
 
 
 def eval_expr(expr: e.Expr | Vec2, params_map, params, obs_dict):

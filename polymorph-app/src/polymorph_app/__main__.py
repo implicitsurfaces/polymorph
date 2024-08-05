@@ -548,7 +548,7 @@ class ViewModel:
         # Minimize
         self.current_unit = self.current_unit.observe(
             self.current_obs_dict()
-        ).minimize()
+        ).minimize_within_time_limit(time_limit_ms=10.0)
 
     def world_to_screen(self, pos: WorldPos) -> ScreenPos:
         x, y = (

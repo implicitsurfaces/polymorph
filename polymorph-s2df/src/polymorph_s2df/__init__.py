@@ -4,7 +4,7 @@ from polymorph_num.expr import Expr, Num, as_expr
 from polymorph_num.vec import ValVec, Vec2, as_vec2
 
 from .embed import EmbeddedShape as EmbeddedShape
-from .embed import ModulatedExtrusion
+from .embed import ModulatedExtrusion, SweepWand
 from .operations import Intersection as Intersection
 from .operations import Shape as Shape
 from .operations import SmoothIntersection as SmoothIntersection
@@ -162,3 +162,7 @@ def bulging_polygon(points):
             previous_bulge = 0
 
     return ClosedPath(segments)
+
+
+def sweep(shape: Shape, plane: Plane = XY_PLANE):
+    return SweepWand(shape, plane)

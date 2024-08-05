@@ -1,4 +1,6 @@
 from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Optional
 
 from polymorph_num import ops
 from polymorph_num.expr import TAU, ZERO, Expr, Num, as_expr
@@ -332,3 +334,147 @@ class EmbeddedShape:
     def twist_arc_extrude(self, angle: Num, twist_angle: Num, radius: Num = 0):
         modulation = Modulation(self.shape, twist_angle=twist_angle)
         return ModulatedArcExtrusion(modulation, self.plane, angle, radius)
+
+
+@dataclass
+class ExtrusionStep:
+    start_shape: Shape
+
+    plane: Plane = XY_PLANE
+    depth: Num = 0
+
+    modulation: Optional[Modulation] = None
+
+    @property
+    def end_shape(self) -> Shape:
+        if self.modulation is not None:
+            return self.modulation.end_shape
+
+        return self.start_shape
+
+    @property
+    def end_plane(self) -> Plane:
+        translation = self.plane.zAxis.scale(self.depth)
+        return self.plane.translate(translation.x, translation.y, translation.z)
+
+    def to_solid(self) -> Solid:
+        translation = self.plane.zAxis.scale(self.depth / 2)
+        if self.modulation is None:
+            return ExtrudedShape(
+                self.start_shape, self.plane, self.depth / 2
+            ).translate(translation)
+
+        return ModulatedExtrusion(
+            self.modulation, self.plane, self.depth / 2
+        ).translate(translation)
+
+
+@dataclass
+class ArcExtrusionStep:
+    start_shape: Shape
+
+    plane: Plane = XY_PLANE
+    angle: Num = 0
+    radius: Num = 0
+
+    modulation: Optional[Modulation] = None
+
+    @property
+    def end_shape(self) -> Shape:
+        if self.modulation is not None:
+            return self.modulation.end_shape
+
+        return self.start_shape
+
+    @property
+    def _rad_angle(self) -> Num:
+        return self.angle * TAU / 180
+
+    @property
+    def end_plane(self) -> Plane:
+        alpha = self.angle * TAU / 180
+        rotated_plane = self.plane.pivot(-alpha, self.plane.yAxis)
+        translation = rotated_plane.xAxis.scale(self.radius) - self.plane.xAxis.scale(
+            self.radius
+        )
+        return rotated_plane.translate(translation.x, translation.y, translation.z)
+
+    def to_solid(self) -> Solid:
+        if self.modulation is None:
+            return ArcExtrusion(
+                self.start_shape, self.plane, self._rad_angle, self.radius
+            )
+
+        return ModulatedArcExtrusion(
+            self.modulation, self.plane, self._rad_angle, self.radius
+        )
+
+
+class SweepWand:
+    def __init__(self, shape: Shape, plane: Plane = XY_PLANE):
+        self.start_shape = shape
+        self.start_plane = plane
+
+        self.steps = []
+
+        self.next_rotation = None
+
+    @property
+    def current_plane(self) -> Plane:
+        if not self.steps:
+            return self.start_plane
+
+        return self.steps[-1].end_plane
+
+    @property
+    def previous_shape(self) -> Shape:
+        if not self.steps:
+            return self.start_shape
+
+        return self.steps[-1].end_shape
+
+    @property
+    def current_shape(self) -> Shape:
+        return self.previous_shape
+
+    def _add_step(self, step):
+        self.steps.append(step)
+        self.next_rotation = None
+        return self
+
+    def extrude(self, depth: Num):
+        step = ExtrusionStep(self.current_shape, self.current_plane, depth)
+        return self._add_step(step)
+
+    def arc_extrude(self, angle: Num, radius: Num = 0):
+        step = ArcExtrusionStep(self.current_shape, self.current_plane, angle, radius)
+        return self._add_step(step)
+
+    def morph(self, end_shape: Shape):
+        step = self.steps[-1]
+        if step.modulation is not None:
+            step.modulation = step.modulation.morph(end_shape)
+        else:
+            step.modulation = Modulation(step.end_shape, end_shape)
+
+        return self
+
+    def twist(self, angle: Num):
+        step = self.steps[-1]
+        if step.modulation is not None:
+            step.modulation = step.modulation.twist(angle)
+        else:
+            step.modulation = Modulation(step.end_shape, twist_angle=angle)
+
+        return self
+
+    def rotate(self, angle: Num):
+        self.next_rotation = angle
+        return self
+
+    def to_solid(self) -> Solid:
+        solid = self.steps[0].to_solid()
+        for step in self.steps[1:]:
+            solid = solid.union(step.to_solid())
+
+        return solid

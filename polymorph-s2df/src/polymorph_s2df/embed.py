@@ -268,6 +268,41 @@ class ModulatedArcExtrusion(Solid):
         return inside_distance + outside_distance
 
 
+@dataclass(frozen=True)
+class Modulation:
+    shape: Shape
+
+    morph_into: Optional[Shape] = None
+    twist_angle: Optional[Num] = None
+
+    def twist(self, angle: Num):
+        return Modulation(self.shape, self.morph_into, angle)
+
+    def morph(self, end_shape: Shape):
+        return Modulation(self.shape, end_shape, self.twist_angle)
+
+    @property
+    def end_shape(self) -> Shape:
+        shape = self.shape
+        if self.morph_into is not None:
+            shape = self.morph_into
+
+        if self.twist_angle is not None:
+            shape = shape.rotate(self.twist_angle * TAU / 180)
+
+        return shape
+
+    def __call__(self, x: Expr, y: Expr, t: Expr) -> Expr:
+        current_shape = self.shape
+        if self.morph_into is not None:
+            current_shape = current_shape.morph(t, self.morph_into)
+
+        if self.twist_angle is not None:
+            current_shape = current_shape.rotate(self.twist_angle * TAU * t / 180)
+
+        return current_shape.distance(x, y)
+
+
 class EmbeddedShape:
     def __init__(self, shape: Shape, plane: Plane = XY_PLANE):
         self.shape = shape
@@ -280,28 +315,20 @@ class EmbeddedShape:
         return ExtrudedShape(self.shape, self.plane, depth / 2)
 
     def morph_extrude(self, end_shape: Shape, depth: Num):
-        def morph_modulation(x: Expr, y: Expr, t: Expr):
-            return self.shape.morph(t, end_shape).distance(x, y)
-
-        return ModulatedExtrusion(morph_modulation, self.plane, depth / 2)
+        modulation = Modulation(self.shape, morph_into=end_shape)
+        return ModulatedExtrusion(modulation, self.plane, depth / 2)
 
     def twist_extrude(self, depth: Num, twist_angle: Num):
-        def twist_modulation(x: Expr, y: Expr, t: Expr):
-            return self.shape.rotate(twist_angle * TAU * t).distance(x, y)
-
-        return ModulatedExtrusion(twist_modulation, self.plane, depth / 2)
+        modulation = Modulation(self.shape, twist_angle=twist_angle)
+        return ModulatedExtrusion(modulation, self.plane, depth / 2)
 
     def arc_extrude(self, angle: Num, radius: Num = 0):
         return ArcExtrusion(self.shape, self.plane, angle, radius)
 
     def morph_arc_extrude(self, end_shape: Shape, angle: Num, radius: Num = 0):
-        def morph_modulation(x: Expr, y: Expr, t: Expr):
-            return self.shape.morph(t, end_shape).distance(x, y)
-
-        return ModulatedArcExtrusion(morph_modulation, self.plane, angle, radius)
+        modulation = Modulation(self.shape, morph_into=end_shape)
+        return ModulatedArcExtrusion(modulation, self.plane, angle, radius)
 
     def twist_arc_extrude(self, angle: Num, twist_angle: Num, radius: Num = 0):
-        def twist_modulation(x: Expr, y: Expr, t: Expr):
-            return self.shape.rotate(twist_angle * TAU * t).distance(x, y)
-
-        return ModulatedArcExtrusion(twist_modulation, self.plane, angle, radius)
+        modulation = Modulation(self.shape, twist_angle=twist_angle)
+        return ModulatedArcExtrusion(modulation, self.plane, angle, radius)

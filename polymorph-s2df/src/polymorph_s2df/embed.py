@@ -17,6 +17,22 @@ from .utils import (
 )
 
 
+class RevolvedShape(Solid):
+    def __init__(self, shape: Shape, plane: Plane):
+        self.shape = shape
+        self.plane = plane
+
+    def distance(self, x: Num, y: Num, z: Num):
+        # We project the point in the base plane coordinates
+        p = self.plane.local_coordinates(Vec3(x, y, z))
+
+        # We rotate around the y axis. This means that we have the full rotational
+        # symmetry around the y axis. The value we are interested in for the base
+        # plane is the radius of the xz point
+        r = norm(p.x, p.z)
+        return self.shape.distance(r, p.y)
+
+
 class ExtrudedShape(Solid):
     def __init__(self, shape: Shape, base: Plane, depth: Num):
         self.shape = shape
@@ -42,22 +58,6 @@ class ExtrudedShape(Solid):
         outside_distance = norm(xy_outside_distance, z_outside_distance)
 
         return inside_distance + outside_distance
-
-
-class RevolvedShape(Solid):
-    def __init__(self, shape: Shape, plane: Plane):
-        self.shape = shape
-        self.plane = plane
-
-    def distance(self, x: Num, y: Num, z: Num):
-        # We project the point in the base plane coordinates
-        p = self.plane.local_coordinates(Vec3(x, y, z))
-
-        # We rotate around the y axis. This means that we have the full rotational
-        # symmetry around the y axis. The value we are interested in for the base
-        # plane is the radius of the xz point
-        r = norm(p.x, p.z)
-        return self.shape.distance(r, p.y)
 
 
 class ModulatedExtrusion(Solid):

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from polymorph_num import ops
-from polymorph_num.expr import TAU, ZERO, Expr, Num, as_expr
+from polymorph_num.expr import ONE, ZERO, Expr, Num, as_expr
 from polymorph_num.vec3 import Vec3
 
 from polymorph_s2df.solid_operations import Solid
@@ -290,7 +290,7 @@ class Modulation:
             shape = self.morph_into
 
         if self.twist_angle is not None:
-            shape = shape.rotate(self.twist_angle * TAU / 180)
+            shape = shape.rotate(self.twist_angle)
 
         return shape
 
@@ -300,7 +300,7 @@ class Modulation:
             current_shape = current_shape.morph(t, self.morph_into)
 
         if self.twist_angle is not None:
-            current_shape = current_shape.rotate(self.twist_angle * TAU * t / 180)
+            current_shape = current_shape.rotate(self.twist_angle * t)
 
         return current_shape.distance(x, y)
 
@@ -336,14 +336,55 @@ class EmbeddedShape:
         return ModulatedArcExtrusion(modulation, self.plane, angle, radius)
 
 
-@dataclass
-class ExtrusionStep:
-    start_shape: Shape
+def parametric_position_mask(t: Expr):
+    param_bigger_than_0 = ops.if_ge(t, 0, 1, 0)
+    param_smaller_than_1 = ops.if_lt(t, 1, 1, 0)
+    return param_bigger_than_0 * param_smaller_than_1
 
-    plane: Plane = XY_PLANE
-    depth: Num = 0
 
-    modulation: Optional[Modulation] = None
+class OrientedProfile:
+    def __init__(self, shape: Shape, plane: Plane, parametric_position: Expr):
+        self.shape = shape
+        self.plane = plane
+
+        self.parametric_position = parametric_position
+
+    def distances(self, x: Num, y: Num, z: Num):
+        # We project the point in the base plane coordinates
+        p = self.plane.local_coordinates(Vec3(x, y, z))
+
+        xy_distance = self.shape.distance(p.x, p.y)
+        z_distance = p.z
+
+        # This is the distance to the 2D profile outside - where everywhere is considered outside
+        positive_distance = norm(ops.max(xy_distance, 0), z_distance.abs())
+
+        # Within a sweep, we need to consider the inner distance to the profile
+        same_side = ((xy_distance * z_distance).sign() + 1) / 2
+        negative_distance = same_side * ops.min(z_distance, 0)
+
+        # We cannot recombine both, as they do overlap. The extrusion mask defines where we are in the sweep
+        return (positive_distance, negative_distance)
+
+
+class LineExtrusionStep:
+    modulation: Modulation
+
+    def __init__(
+        self,
+        start_shape: Shape,
+        plane: Plane,
+        depth: Num,
+        modulation: Optional[Modulation] = None,
+    ):
+        self.start_shape = start_shape
+        self.plane = plane
+        self.depth = depth
+
+        if modulation is not None:
+            self.modulation = modulation
+        else:
+            self.modulation = Modulation(self.start_shape)
 
     @property
     def end_shape(self) -> Shape:
@@ -357,19 +398,18 @@ class ExtrusionStep:
         translation = self.plane.zAxis.scale(self.depth)
         return self.plane.translate(translation.x, translation.y, translation.z)
 
-    def to_solid(self) -> Solid:
-        translation = self.plane.zAxis.scale(self.depth / 2)
-        if self.modulation is None:
-            return ExtrudedShape(
-                self.start_shape, self.plane, self.depth / 2
-            ).translate(translation)
+    def distance_and_mask(self, x: Num, y: Num, z: Num):
+        # We project the point in the base plane coordinates
+        p = self.plane.local_coordinates(Vec3(x, y, z))
 
-        return ModulatedExtrusion(
-            self.modulation, self.plane, self.depth / 2
-        ).translate(translation)
+        parametric_position = p.z / self.depth
+
+        in_extrusion = parametric_position_mask(parametric_position)
+        xy_distance = self.modulation(p.x, p.y, parametric_position)
+
+        return xy_distance * in_extrusion, in_extrusion
 
 
-@dataclass
 class ArcExtrusionStep:
     start_shape: Shape
 
@@ -377,7 +417,27 @@ class ArcExtrusionStep:
     angle: Num = 0
     radius: Num = 0
 
-    modulation: Optional[Modulation] = None
+    modulation: Modulation
+
+    def __init__(
+        self,
+        start_shape: Shape,
+        plane: Plane,
+        angle: Num,
+        radius: Num = 0,
+        modulation: Optional[Modulation] = None,
+    ):
+        self.start_shape = start_shape
+        self.plane = plane
+        self.angle = angle
+        self.radius = radius
+
+        self.orientation_sign = 1
+
+        if modulation is not None:
+            self.modulation = modulation
+        else:
+            self.modulation = Modulation(self.start_shape)
 
     @property
     def end_shape(self) -> Shape:
@@ -387,27 +447,94 @@ class ArcExtrusionStep:
         return self.start_shape
 
     @property
-    def _rad_angle(self) -> Num:
-        return self.angle * TAU / 180
-
-    @property
     def end_plane(self) -> Plane:
-        alpha = self.angle * TAU / 180
-        rotated_plane = self.plane.pivot(-alpha, self.plane.yAxis)
+        rotated_plane = self.plane.pivot(-self.angle, self.plane.yAxis)
         translation = rotated_plane.xAxis.scale(self.radius) - self.plane.xAxis.scale(
             self.radius
         )
         return rotated_plane.translate(translation.x, translation.y, translation.z)
 
-    def to_solid(self) -> Solid:
-        if self.modulation is None:
-            return ArcExtrusion(
-                self.start_shape, self.plane, self._rad_angle, self.radius
+    def distance_and_mask(self, x: Num, y: Num, z: Num):
+        # We want to be centered on the plane - but we will rotate around the radius
+        translation = self.plane.xAxis.scale(-self.radius)
+        coords = Vec3(x, y, z).translateTo(translation)
+
+        # We project the point in the base plane coordinates
+        p = self.plane.local_coordinates(coords)
+
+        # The angle is between 0 and 2 PI (TAU)
+        angle_position = normalize_angle(ops.atan2(p.z, p.x))
+
+        # The parametric position, between 0 and 1, of the point on the arc
+        parametric_position = (
+            angular_distance(0, angle_position, self.orientation_sign) / self.angle
+        )
+
+        in_extrusion = parametric_position_mask(parametric_position)
+
+        # We compute the distance to the full revolution, but only use it if we are within the 0, 1 parameter range
+        distance_to_extruded = self.modulation(
+            norm(p.x, p.z) - self.radius, p.y, ops.clamp(parametric_position, 0, 1)
+        )
+
+        return (distance_to_extruded * in_extrusion, in_extrusion)
+
+
+ExtrusionStep = LineExtrusionStep | ArcExtrusionStep
+
+
+class Sweep(Solid):
+    def __init__(self, steps: list[ExtrusionStep]):
+        self.steps = steps
+
+    def distance(self, x: Num, y: Num, z: Num):
+        all_extrusions = [step.distance_and_mask(x, y, z) for step in self.steps]
+
+        # We build the distance to the main body by combining all the extrusions
+        body_distance, body_mask = all_extrusions[0]
+        for distance, mask in all_extrusions[1:]:
+            # When we are within both masks, we take the smallest distance
+            # TODO: Check that we don't need to do some more work to combine inside and outside differently
+            dist_within_both = body_mask * mask * ops.min(body_distance, distance)
+
+            # When only one mask is active, we take the distance within that extrusion
+            dist_within_current_only = (1.0 - body_mask) * mask * distance
+            dist_within_previous_only = body_mask * (1.0 - mask) * body_distance
+
+            # As only one of the three distances is non zero, we can add them
+            body_distance = (
+                dist_within_both + dist_within_current_only + dist_within_previous_only
             )
 
-        return ModulatedArcExtrusion(
-            self.modulation, self.plane, self._rad_angle, self.radius
+            # The common body mask is the union of the two masks
+            body_mask = 1.0 - ((1.0 - body_mask) * (1.0 - mask))
+
+        inside_body_mask = ops.if_lt(body_distance, 0.0, 1.0, 0.0)
+
+        start_profile = OrientedProfile(
+            self.steps[0].start_shape, self.steps[0].plane.reverse(), ZERO
         )
+        end_profile = OrientedProfile(
+            self.steps[-1].end_shape, self.steps[-1].end_plane, ONE
+        )
+
+        start_outside_distance, start_inside_distance = start_profile.distances(x, y, z)
+        end_outside_distance, end_inside_distance = end_profile.distances(x, y, z)
+
+        # First, we combine the external distances
+        extremity_distances = ops.min(start_outside_distance, end_outside_distance)
+        outside_distance = (1.0 - inside_body_mask) * body_mask * ops.min(
+            body_distance, extremity_distances
+        ) + (1.0 - body_mask) * extremity_distances
+
+        extremity_inside_distance = max_non_zero(
+            start_inside_distance * inside_body_mask,
+            end_inside_distance * inside_body_mask,
+        )
+        body_inside_distance = inside_body_mask * body_distance
+        inside_distance = max_non_zero(body_inside_distance, extremity_inside_distance)
+
+        return (1.0 - body_inside_distance) * outside_distance + inside_distance
 
 
 class SweepWand:
@@ -420,11 +547,17 @@ class SweepWand:
         self.next_rotation = None
 
     @property
-    def current_plane(self) -> Plane:
+    def previous_plane(self) -> Plane:
         if not self.steps:
             return self.start_plane
 
         return self.steps[-1].end_plane
+
+    @property
+    def current_plane(self) -> Plane:
+        if self.next_rotation is not None:
+            return self.previous_plane.rotate2DAxes(self.next_rotation)
+        return self.previous_plane
 
     @property
     def previous_shape(self) -> Shape:
@@ -435,6 +568,8 @@ class SweepWand:
 
     @property
     def current_shape(self) -> Shape:
+        if self.next_rotation is not None:
+            return self.previous_shape.rotate(-self.next_rotation)
         return self.previous_shape
 
     def _add_step(self, step):
@@ -442,8 +577,12 @@ class SweepWand:
         self.next_rotation = None
         return self
 
+    def rotate_next(self, angle: Num):
+        self.next_rotation = angle
+        return self
+
     def extrude(self, depth: Num):
-        step = ExtrusionStep(self.current_shape, self.current_plane, depth)
+        step = LineExtrusionStep(self.current_shape, self.current_plane, depth)
         return self._add_step(step)
 
     def arc_extrude(self, angle: Num, radius: Num = 0):
@@ -473,8 +612,4 @@ class SweepWand:
         return self
 
     def to_solid(self) -> Solid:
-        solid = self.steps[0].to_solid()
-        for step in self.steps[1:]:
-            solid = solid.union(step.to_solid())
-
-        return solid
+        return Sweep(self.steps)

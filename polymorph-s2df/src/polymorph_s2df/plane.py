@@ -30,6 +30,9 @@ class Plane:
             self.xAxis.rotate(angle, ax),
         )
 
+    def reverse(self):
+        return Plane(-self.zAxis, self.origin, self.xAxis)
+
     def rotate2DAxes(self, angle: Num):
         return Plane(self.zAxis, self.origin, self.xAxis.rotate(angle, self.zAxis))
 

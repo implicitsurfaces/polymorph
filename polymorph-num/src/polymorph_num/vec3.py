@@ -61,8 +61,14 @@ class Vec3:
         return self / self.norm()
 
     def rotate(self, angle: Num, axis: "Vec3"):
+        """
+        Uses the Rodrigues' rotation formula. See:
+        https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
+
+        :param angle: The angle to rotate by.
+        :param axis: The axis to rotate around. Note that this vector should be normalized.
+        """
         angle = as_expr(angle)
-        axis = axis.normalize()
 
         c = angle.cos()
         s = angle.sin()

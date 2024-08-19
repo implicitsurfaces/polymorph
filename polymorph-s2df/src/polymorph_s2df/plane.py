@@ -1,3 +1,5 @@
+from functools import cached_property
+
 from polymorph_num.expr import ZERO, Num
 from polymorph_num.vec3 import ORIGIN, X_AXIS, Y_AXIS, Z_AXIS, ValVec3, Vec3, as_vec3
 
@@ -12,7 +14,7 @@ class Plane:
         self.zAxis = zAxis
         self.xAxis = xAxis
 
-    @property
+    @cached_property
     def yAxis(self):
         return self.zAxis.cross(self.xAxis)
 

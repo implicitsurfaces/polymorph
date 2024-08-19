@@ -59,6 +59,12 @@ class Shape:
     def rotate_around(self, angle: Num, center: ValVec):
         return Translation(center, Rotation(angle, Translation(-as_vec2(center), self)))
 
+    def flip_horizontal(self):
+        return HorizontalFlip(self)
+
+    def flip_vertical(self):
+        return VerticalFlip(self)
+
     def scale(self, factor: Num):
         return Scale(factor, self)
 
@@ -141,6 +147,60 @@ class Rotation(Shape):
 
     def bounding_box(self):
         return self.shape.bounding_box().rotate(self.angle)
+
+
+class HorizontalFlip(Shape):
+    def __init__(self, shape: Shape):
+        super().__init__()
+        self.shape = shape
+
+    def astuple(self):
+        return (self.shape,)
+
+    def __hash__(self):
+        return hash(self.astuple())
+
+    def __eq__(self, other):
+        if not isinstance(other, HorizontalFlip):
+            return False
+        return self.astuple() == other.astuple()
+
+    def __repr__(self):
+        return f"HorizontalFlip(\n{indent_shape(self.shape)}\n)"
+
+    def distance(self, x: Num, y: Num) -> Expr:
+        return self.shape.distance(-x, y)
+
+    def bounding_box(self):
+        bb = self.shape.bounding_box()
+        return BoundingBox(-bb.max_x, bb.min_y, -bb.min_x, bb.max_y)
+
+
+class VerticalFlip(Shape):
+    def __init__(self, shape: Shape):
+        super().__init__()
+        self.shape = shape
+
+    def astuple(self):
+        return (self.shape,)
+
+    def __hash__(self):
+        return hash(self.astuple())
+
+    def __eq__(self, other):
+        if not isinstance(other, VerticalFlip):
+            return False
+        return self.astuple() == other.astuple()
+
+    def __repr__(self):
+        return f"VerticalFlip(\n{indent_shape(self.shape)}\n)"
+
+    def distance(self, x: Num, y: Num) -> Expr:
+        return self.shape.distance(x, -y)
+
+    def bounding_box(self):
+        bb = self.shape.bounding_box()
+        return BoundingBox(bb.min_x, -bb.max_y, bb.max_x, -bb.min_y)
 
 
 class Intersection(Shape):

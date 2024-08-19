@@ -37,8 +37,8 @@ def _eval(expr: e.Expr, params, param_map, obs_dict, random_key, memo) -> jax.Ar
             half_height = height / 2
             half_depth = depth / 2
 
-            yy, xx, zz = jnp.mgrid[
-                -half_height:half_height, -half_width:half_width, -half_depth:half_depth
+            xx, yy, zz = jnp.mgrid[
+                -half_width:half_width, -half_height:half_height, -half_depth:half_depth
             ]
             result = xx.ravel()
 
@@ -47,8 +47,8 @@ def _eval(expr: e.Expr, params, param_map, obs_dict, random_key, memo) -> jax.Ar
             half_height = height / 2
             half_depth = depth / 2
 
-            yy, xx, zz = jnp.mgrid[
-                -half_height:half_height, -half_width:half_width, -half_depth:half_depth
+            xx, yy, zz = jnp.mgrid[
+                -half_width:half_width, -half_height:half_height, -half_depth:half_depth
             ]
             result = yy.ravel()
 
@@ -57,8 +57,8 @@ def _eval(expr: e.Expr, params, param_map, obs_dict, random_key, memo) -> jax.Ar
             half_height = height / 2
             half_depth = depth / 2
 
-            yy, xx, zz = jnp.mgrid[
-                -half_height:half_height, -half_width:half_width, -half_depth:half_depth
+            xx, yy, zz = jnp.mgrid[
+                -half_width:half_width, -half_height:half_height, -half_depth:half_depth
             ]
             result = zz.ravel()
 

@@ -2,7 +2,7 @@ import textwrap
 from typing import Iterable
 
 from polymorph_num import ops
-from polymorph_num.expr import TAU, ZERO, Expr, Infinity
+from polymorph_num.expr import PI, TAU, ZERO, Expr, Infinity
 
 
 def indent_shape(shape):
@@ -46,7 +46,17 @@ def max_iterable(values: Iterable[Expr]) -> Expr:
 
 
 def normalize_angle(q):
+    """
+    Normalize an angle to the range [0, 2π)
+    """
     return ((q % TAU) + TAU) % TAU
+
+
+def normalize_angle_signed(q):
+    """
+    Normalize an angle to the range [-π, π)
+    """
+    return ((q + PI) % TAU) - PI
 
 
 def angular_distance(start_angle, end_angle, orientation_sign):

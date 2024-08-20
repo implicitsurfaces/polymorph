@@ -16,6 +16,7 @@ from .utils import (
     min_non_zero,
     norm,
     normalize_angle,
+    normalize_angle_signed,
 )
 
 
@@ -454,22 +455,22 @@ class ArcExtrusionStep:
 
     @property
     def end_plane(self) -> Plane:
-        rotated_plane = self.plane.pivot(self.angle, self.plane.yAxis)
-        translation = rotated_plane.xAxis.scale(-self.radius) + self.plane.xAxis.scale(
-            self.radius
+        rotated_plane = self.plane.pivot(-self.angle, self.plane.yAxis)
+        translation = rotated_plane.xAxis.scale(self.radius) + self.plane.xAxis.scale(
+            -self.radius
         )
         return rotated_plane.translate(translation.x, translation.y, translation.z)
 
     def distance_and_mask(self, x: Num, y: Num, z: Num):
         # We want to be centered on the plane - but we will rotate around the radius
-        translation = self.plane.xAxis.scale(self.radius)
+        translation = self.plane.xAxis.scale(-self.radius)
         coords = Vec3(x, y, z).translateTo(translation)
 
         # We project the point in the base plane coordinates
         p = self.plane.local_coordinates(coords)
 
         # The angle is between 0 and 2 PI (TAU)
-        angle_position = normalize_angle(ops.atan2(p.z, -p.x))
+        angle_position = normalize_angle(ops.atan2(p.z, p.x))
 
         # The parametric position, between 0 and 1, of the point on the arc
         parametric_position = (
@@ -577,7 +578,7 @@ class SweepWand:
     def current_shape(self) -> Shape:
         shape = self.previous_shape
         if self.current_rotation is not None:
-            return shape.rotate(self.current_rotation)
+            return shape.rotate(-self.current_rotation)
         return shape
 
     def _clear_rotation(self):
@@ -629,9 +630,9 @@ class SweepWand:
         self.next_rotation = angle
         return self
 
-    def to_point(self, point: ValVec3, keep_rotation: bool = False):
+    def to_point(self, point: ValVec3, maintain_axis_alignment: bool = False):
         projected_point = self.current_plane.local_coordinates(point)
-        rotation = ops.atan2(projected_point.y, projected_point.x)
+        rotation = PI + ops.atan2(projected_point.y, projected_point.x)
 
         x2 = (
             projected_point.x * projected_point.x
@@ -644,9 +645,9 @@ class SweepWand:
         angle = PI - 2 * ops.atan2(projected_point.z, x)
 
         out = self.rotate_next(rotation).arc_extrude(angle, radius)
-        if keep_rotation:
-            correction_factor = rotation * angle / PI
-            out.twist(-2 * correction_factor).rotate_next(correction_factor)
+        if maintain_axis_alignment:
+            correction_factor = normalize_angle_signed(2 * rotation * angle / PI)
+            out.twist(correction_factor).rotate_next(correction_factor / 2)
 
         return out
 

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from .expr import Expr, Num, as_expr
+from .ops import atan2
 
 
 @dataclass(init=False, frozen=True)
@@ -58,6 +59,12 @@ class Vec2:
     @property
     def dim(self):
         return self.x.dim
+
+    def atan2(self):
+        return atan2(self.y, self.x)
+
+    def perp(self):
+        return Vec2(-self.y, self.x)
 
 
 type ValVec = tuple[Num, Num] | Vec2

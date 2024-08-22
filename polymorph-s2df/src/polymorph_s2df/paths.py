@@ -24,6 +24,9 @@ class PathSegment(Shape):
     def __hash__(self):
         return hash(self.astuple())
 
+    def end_tangent(self) -> Expr:
+        raise NotImplementedError()
+
     def distance(self, x: Num, y: Num) -> Expr:
         raise NotImplementedError()
 
@@ -55,6 +58,9 @@ class LineSegment(PathSegment):
     @cached_property
     def segment(self):
         return self.end - self.start
+
+    def end_tangent(self):
+        return self.segment.atan2()
 
     def winding_number(self, p: Vec2) -> Expr:
         a = self.start - p
@@ -126,6 +132,9 @@ class ArcSegment(PathSegment):
         return Vec2(
             self.radius * self.start_angle.cos(), self.radius * self.start_angle.sin()
         )
+
+    def end_tangent(self) -> Expr:
+        return self.end_angle
 
     @cached_property
     def last_point(self) -> Vec2:
@@ -241,6 +250,9 @@ class TranslatedSegment(PathSegment):
 
     def astuple(self):
         return (self.segment, self.translation)
+
+    def end_tangent(self) -> Expr:
+        return self.segment.end_tangent()
 
     def __eq__(self, other):
         return (

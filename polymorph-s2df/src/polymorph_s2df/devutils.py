@@ -29,10 +29,6 @@ def eval_expr(expr: Expr):
     return Unit().register("result", expr).compile().evaluate("result")
 
 
-def eval_distance(shape, x, y):
-    return eval_expr(shape.distance(x, y))
-
-
 def grids(n, bounds):
     def rescale_grid(b):
         diff = bounds[1] - bounds[0]
@@ -51,10 +47,10 @@ def grids(n, bounds):
     )
 
 
-def render_distance(shape: Shape, bounds=(-3, 3), n=500):
+def render_distance(shape: Shape, bounds=(-3, 3), n=500, eval_fn=eval_expr):
     (grid_x, grid_y), (X, Y) = grids(n, bounds)
 
-    values = eval_distance(shape, grid_x, grid_y).reshape(n, n)
+    values = eval_fn(shape.distance(grid_x, grid_y)).reshape(n, n)
 
     _, ax2 = plt.subplots(layout="constrained")
 
@@ -81,10 +77,10 @@ def render_distance(shape: Shape, bounds=(-3, 3), n=500):
     )
 
 
-def render(shape: Shape, bounds=(-3, 3), n=500):
+def render(shape: Shape, bounds=(-3, 3), n=500, eval_fn=eval_expr):
     (grid_x, grid_y), (X, Y) = grids(n, bounds)
 
-    values = eval_distance(shape, grid_x, grid_y).reshape(n, n)
+    values = eval_fn(shape.distance(grid_x, grid_y)).reshape(n, n)
 
     plt.imshow(
         values > 0,

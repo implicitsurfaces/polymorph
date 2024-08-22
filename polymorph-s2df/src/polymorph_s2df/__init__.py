@@ -1,7 +1,10 @@
 from jax.numpy import isscalar
-from polymorph_num import ops
-from polymorph_num.expr import Expr, Num, as_expr
+from polymorph_num import ops as ops
+from polymorph_num.expr import ZERO, Num, as_expr
+from polymorph_num.expr import Expr as Expr
 from polymorph_num.vec import ValVec, Vec2, as_vec2
+
+from polymorph_s2df.geom_helpers import biarc, bulge_arc, extrema_points_and_tangent
 
 from .embed import EmbeddedShape as EmbeddedShape
 from .embed import ModulatedExtrusion, SweepWand
@@ -11,11 +14,15 @@ from .operations import SmoothIntersection as SmoothIntersection
 from .operations import SmoothUnion as SmoothUnion
 from .operations import Union as Union
 from .paths import (
-    ArcSegment,
+    ArcSegment as ArcSegment,
+)
+from .paths import (
     ClosedPath,
     LineSegment,
     PathSegment,
-    TranslatedSegment,
+)
+from .paths import (
+    TranslatedSegment as TranslatedSegment,
 )
 from .plane import XY_PLANE as XY_PLANE
 from .plane import XZ_PLANE as XZ_PLANE
@@ -62,40 +69,21 @@ def polygon(vertices: list[ValVec]):
     return ClosedPath(segments)
 
 
-def bulge_arc(point1: ValVec, point2: ValVec, bulge: Num):
-    point1 = as_vec2(point1)
-    point2 = as_vec2(point2)
-    bulge = as_expr(bulge)
-
-    half_chord = (point2 - point1).norm() / 2
-
-    # the sagitta is the perpendicular distance from the midpoint of the chord to the arc
-    sagitta: Expr = bulge.abs() * half_chord
-
-    midpoint = (point1 + point2) / 2
-
-    radius = (half_chord * half_chord + sagitta * sagitta) / (sagitta * 2)
-
-    # Calculate the direction vector perpendicular to the chord
-    direction = Vec2(point2.y - point1.y, point1.x - point2.x)
-    direction = direction / direction.norm()
-
-    center = midpoint + direction.scale((radius - sagitta) * bulge.sign())
-
-    # Calculate the angles
-    diff1 = point1 - center
-    angle1 = ops.atan2(diff1.y, diff1.x)
-    diff2 = point2 - center
-    angle2 = ops.atan2(diff2.y, diff2.x)
-
-    return TranslatedSegment(ArcSegment(angle1, angle2, radius, -bulge.sign()), center)
-
-
 class DrawingPen:
+    current_point: tuple[float, float]
+    first_point: tuple[float, float]
+    segments: list[PathSegment]
+
     def __init__(self, start_point: tuple[float, float] = (0, 0)):
         self.current_point = start_point
         self.first_point = start_point
         self.segments: list[PathSegment] = []
+
+    def _current_angle(self):
+        if len(self.segments) == 0:
+            return ZERO
+        last_segment = self.segments[-1]
+        return last_segment.end_tangent()
 
     def move_to(self, point: tuple[float, float]):
         if len(self.segments) > 0:
@@ -127,6 +115,50 @@ class DrawingPen:
     def arc(self, x: float, y: float, bulge: float):
         x0, y0 = self.current_point
         return self.arc_to((x + x0, y + y0), bulge)
+
+    def tangent_arc_to(
+        self,
+        point: tuple[float, float],
+        angle: float | None = None,
+        tangent_at_end: bool = False,
+    ):
+        first = as_vec2(self.current_point)
+        second = as_vec2(point)
+
+        self.segments.append(
+            extrema_points_and_tangent(
+                first if not tangent_at_end else second,
+                second if not tangent_at_end else first,
+                self._current_angle() if angle is None else as_expr(angle),
+                tangent_at_end,
+            )
+        )
+        self.current_point = point
+        return self
+
+    def biarc_to(
+        self,
+        end: tuple[float, float],
+        angle: float,
+        start_angle: float | None = None,
+        param: float = 0.5,
+    ):
+        x0, y0 = self.current_point
+        x1, y1 = end
+
+        self.segments.extend(
+            biarc(
+                as_expr(x0),
+                as_expr(y0),
+                self._current_angle() if start_angle is None else as_expr(start_angle),
+                as_expr(x1),
+                as_expr(y1),
+                as_expr(angle),
+                as_expr(param),
+            )
+        )
+        self.current_point = (x1, y1)
+        return self
 
     def close(self) -> ClosedPath:
         if len(self.segments) == 0:

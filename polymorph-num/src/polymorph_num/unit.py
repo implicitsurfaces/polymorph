@@ -248,17 +248,25 @@ class Unit:
         return CompiledUnit(loss_fn, compiled_exprs, params, obs, self.param_map, dims)
 
 
-def _find_params(expr, params: ParamMap, obs_names: frozenset[str]):
+def _find_params(expr, params: ParamMap, obs_names: frozenset[str], seen: set[Expr] = None):
+    if seen is None:
+        seen = set()
+    
+    if expr in seen:
+        return
+
+    seen.add(expr)
+
     match expr:
         case e.Broadcast(orig, _dim):
-            _find_params(orig, params, obs_names)
+            _find_params(orig, params, obs_names, seen)
 
         case e.Unary(orig, _op):
-            _find_params(orig, params, obs_names)
+            _find_params(orig, params, obs_names, seen)
 
         case e.Binary(left, right, _op):
-            _find_params(left, params, obs_names)
-            _find_params(right, params, obs_names)
+            _find_params(left, params, obs_names, seen)
+            _find_params(right, params, obs_names, seen)
 
         case e.Param(_id):
             params.add(expr)
@@ -268,4 +276,4 @@ def _find_params(expr, params: ParamMap, obs_names: frozenset[str]):
                 raise ValueError(f"Observation '{name}' not found in {obs_names}")
 
         case e.Sum(orig):
-            _find_params(orig, params, obs_names)
+            _find_params(orig, params, obs_names, seen)

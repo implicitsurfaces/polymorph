@@ -6,8 +6,6 @@
 #   features: []
 #   all-features: false
 #   with-sources: false
-#   generate-hashes: false
-#   universal: false
 
 -e file:.
 -e file:polymorph-app
@@ -185,6 +183,8 @@ jupyterlab-widgets==3.0.10
     # via ipywidgets
 kiwisolver==1.4.5
     # via matplotlib
+manifold3d==2.5.1
+    # via polymorph
 markupsafe==2.1.5
     # via jinja2
     # via nbconvert
@@ -225,6 +225,7 @@ numpy==1.26.4
     # via contourpy
     # via jax
     # via jaxlib
+    # via manifold3d
     # via matplotlib
     # via ml-dtypes
     # via opt-einsum
@@ -233,6 +234,7 @@ numpy==1.26.4
     # via polymorph
     # via polyscope
     # via scipy
+    # via trimesh
 opt-einsum==3.3.0
     # via jax
 optax==0.2.3
@@ -391,6 +393,8 @@ traitlets==5.14.3
     # via nbconvert
     # via nbformat
     # via qtconsole
+trimesh==4.4.7
+    # via polymorph
 typeguard==2.13.3
     # via jaxtyping
 types-python-dateutil==2.9.0.20240316

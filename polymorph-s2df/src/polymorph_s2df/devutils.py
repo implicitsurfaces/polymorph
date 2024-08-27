@@ -1,8 +1,11 @@
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import polyscope as ps
+import trimesh
+from IPython.display import display
+from manifold3d import Mesh
 from polymorph_num.expr import Expr
-from polymorph_num.ops import grid_gen, grid_gen_3d
+from polymorph_num.ops import grid_gen, grid_gen_3d, observation
 from polymorph_num.unit import Unit
 from polymorph_num.vec import Vec2
 from polymorph_num.vec3 import ORIGIN, X_AXIS, Y_AXIS, Z_AXIS
@@ -161,3 +164,40 @@ class SolidSlice(Shape):
         return self.solid.distance(
             projected_point.x, projected_point.y, projected_point.z
         )
+
+
+# Helper to display interactive mesh preview with trimesh
+def show_mesh(manifold_mesh):
+    mesh = trimesh.Trimesh(
+        vertices=manifold_mesh.vert_properties, faces=manifold_mesh.tri_verts
+    )
+
+    scene = trimesh.Scene()
+    scene.add_geometry(mesh)
+    # scene.add_geometry(trimesh.creation.axis())
+    display(scene.show())
+
+
+def display_solid(solid: Solid, bounds=(-3, 3), n=100):
+    unit = (
+        Unit(set("xyz"))
+        .register(
+            "distance",
+            -solid.distance(observation("x"), observation("y"), observation("z")),
+        )
+        .compile()
+    )
+
+    def distance_fn(x, y, z):
+        return unit.observe({"x": x, "y": y, "z": z}).evaluate("distance")
+
+    print("Rendering solid")
+
+    mesh = Mesh.level_set(
+        distance_fn,
+        [bounds[0], bounds[0], bounds[0], bounds[1], bounds[1], bounds[1]],
+        (bounds[1] - bounds[0]) / n,
+        0,
+    )
+    show_mesh(mesh)
+    return mesh

@@ -248,10 +248,12 @@ class Unit:
         return CompiledUnit(loss_fn, compiled_exprs, params, obs, self.param_map, dims)
 
 
-def _find_params(expr, params: ParamMap, obs_names: frozenset[str], seen: set[Expr] = None):
+def _find_params(
+    expr, params: ParamMap, obs_names: frozenset[str], seen: set[Expr] = None
+):
     if seen is None:
         seen = set()
-    
+
     if expr in seen:
         return
 

@@ -29,6 +29,8 @@ dependencies = [
     "pyright>=1.1.372",
     "polyscope>=2.2.1",
     "interactive-polyscope @ git+https://github.com/ugogon/interactive_polyscope.git",
+    "manifold3d>=2.5.1",
+    "trimesh>=4.4.7",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"

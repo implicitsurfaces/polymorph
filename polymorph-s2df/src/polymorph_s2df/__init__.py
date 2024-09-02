@@ -24,9 +24,12 @@ from .paths import (
 from .paths import (
     TranslatedSegment as TranslatedSegment,
 )
+from .plane import X_AXIS as X_AXIS
 from .plane import XY_PLANE as XY_PLANE
 from .plane import XZ_PLANE as XZ_PLANE
+from .plane import Y_AXIS as Y_AXIS
 from .plane import YZ_PLANE as YZ_PLANE
+from .plane import Z_AXIS as Z_AXIS
 from .plane import Plane
 from .shapes import BottomHalfPlane as BottomHalfPlane
 from .shapes import Box as Box

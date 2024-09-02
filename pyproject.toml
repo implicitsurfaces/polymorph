@@ -29,6 +29,7 @@ dependencies = [
     "pyright>=1.1.372",
     "polyscope>=2.2.1",
     "interactive-polyscope @ git+https://github.com/ugogon/interactive_polyscope.git",
+    "hypothesis>=6.111.2",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"

@@ -91,7 +91,13 @@ def key_generator(start_key=_DEFAULT_PRNG_KEY):
         yield subkey
 
 
-def _return_val(val, dim: int) -> Any:
+def _return_val(val, dim: int, grad=False) -> Any:
+    if grad:
+        p, o = val
+        return (
+            [_return_val(param, dim) for param in p],
+            {k: _return_val(v, dim) for k, v in o.items()},
+        )
     if isinstance(val, tuple):
         return (_return_val(val[0], dim), _return_val(val[1], dim))
     return val.item() if dim == 1 else val
@@ -104,6 +110,7 @@ class CompiledUnit:
     params: jax.Array
     obs_dict: ObsDict
     param_map: ParamMap = field(default_factory=ParamMap)
+    grad_fns: set[str] = field(default_factory=set)
     _expr_dims: dict[str, int] = field(default_factory=dict)
     _minimizer_state: None | optax.OptState = None
 
@@ -116,7 +123,7 @@ class CompiledUnit:
         ans = self.compiled_exprs[exprName](self.params, self.obs_dict)
         dim = self._expr_dims[exprName]
 
-        return _return_val(ans, dim)
+        return _return_val(ans, dim, grad=exprName in self.grad_fns)
 
     def observe(self, obs_dict: ObsDict | dict[str, float]) -> CompiledUnit:
         # Passing float observations (as opposed to a JAX scalar) causes
@@ -173,9 +180,10 @@ def eval_expr(expr: e.Expr | Vec2, params_map, params, obs_dict):
     return _eval(expr, params, params_map, obs_dict, random_key, {})
 
 
-def _compile_expr(expr, params, param_map, obs_dict):
+def _compile_expr(expr, params, param_map, obs_dict, grad=False):
+    fn = eval_expr if not grad else jax.grad(eval_expr, argnums=(2, 3))
     return (
-        jax.jit(eval_expr, static_argnums=(0, 1))
+        jax.jit(fn, static_argnums=(0, 1))
         .lower(expr, param_map, params, obs_dict)
         .compile()
     )
@@ -195,6 +203,7 @@ class Unit:
     observations: frozenset[str]
 
     _exprs: dict[str, e.Expr | Vec2]
+    _grad: set[str]
     lossExpr: e.Expr = e.ZERO
 
     def __init__(
@@ -203,8 +212,11 @@ class Unit:
         self.param_map = ParamMap()
         self.observations = frozenset(obs_names)
         self._exprs = dict()
+        self._grad = set()
 
-    def register(self, name: str, expr: e.Expr | Vec2) -> Unit:
+    def register(self, name: str, expr: e.Expr | Vec2, grad=False) -> Unit:
+        if grad:
+            self._grad.add(name)
         params = ParamMap()
         _find_params(expr, params, self.observations)
 
@@ -230,7 +242,9 @@ class Unit:
         compiled_exprs = {}
         for name, expr in self._exprs.items():
             start_time = time.time()
-            compiled_exprs[name] = _compile_expr(expr, params, self.param_map, obs)
+            compiled_exprs[name] = _compile_expr(
+                expr, params, self.param_map, obs, grad=name in self._grad
+            )
             compile_log.debug(f"Compiled {name} in {time.time() - start_time:.2f}s")
 
             if jaxpr_log.isEnabledFor(logging.DEBUG):
@@ -245,13 +259,23 @@ class Unit:
 
         compile_log.debug(f"Unit compilation: {time.time() - start_time:.2f}s")
 
-        return CompiledUnit(loss_fn, compiled_exprs, params, obs, self.param_map, dims)
+        return CompiledUnit(
+            loss_fn,
+            compiled_exprs,
+            params,
+            obs,
+            self.param_map,
+            self._grad,
+            dims,
+        )
 
 
-def _find_params(expr, params: ParamMap, obs_names: frozenset[str], seen: set[Expr] = None):
+def _find_params(
+    expr, params: ParamMap, obs_names: frozenset[str], seen: set[e.Expr] | None = None
+):
     if seen is None:
         seen = set()
-    
+
     if expr in seen:
         return
 

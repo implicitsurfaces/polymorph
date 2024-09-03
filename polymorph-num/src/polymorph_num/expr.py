@@ -35,6 +35,7 @@ class BinOp(Enum):
     Min = "min"
     Mod = "mod"
     ArcTan2 = "arctan2"
+    RMS = "rms"
 
 
 class UnOp(Enum):
@@ -51,6 +52,7 @@ class UnOp(Enum):
     ArcTan = "arctan"
     Sign = "sign"
     Boxcar = "boxcar"
+    Sqr = "sqr"
 
 
 class ComparisonOp(Enum):

@@ -5,6 +5,7 @@ import math
 import time
 import dataclasses
 import collections
+import sys
 
 before = time.perf_counter()
 profile = (
@@ -21,16 +22,16 @@ space = 0.2
 solid = (
     sweep(profile, plane)
     .to_point((1, space, 0), enable_rotation_mode)
-    .to_point((-1, 2 * space, 0), enable_rotation_mode)
-    .to_point((1, 3 * space, 0), enable_rotation_mode)
-    .to_point((-1, 4 * space, 0), enable_rotation_mode)
+    # .to_point((-1, 2 * space, 0), enable_rotation_mode)
+    # .to_point((1, 3 * space, 0), enable_rotation_mode)
+    # .to_point((-1, 4 * space, 0), enable_rotation_mode)
     .to_solid()
 )
 
 grid_x, grid_y, grid_z = grid_gen_3d(100, 100, 100)
 expr = solid.distance(grid_x, grid_y, grid_z)
 after = time.perf_counter()
-print(f"Build IR: {after - before:.2f}s")
+print(f"Build IR: {after - before:.2f}s", file=sys.stderr)
 
 
 expr_id = {}
@@ -140,6 +141,11 @@ class Optimizer:
                 expr.make_equal_to(x.find())
                 return True
             case (
+                ir.Binary(x, ir.Scalar(0), ir.BinOp.Sub)
+            ):
+                expr.make_equal_to(x.find())
+                return True
+            case (
                 ir.Binary(ir.Scalar(0), x, ir.BinOp.Mul)
                 | ir.Binary(x, ir.Scalar(0), ir.BinOp.Mul)
             ):
@@ -169,9 +175,12 @@ class Optimizer:
             case ir.Binary(ir.Scalar(l), ir.Scalar(r), ir.BinOp.ArcTan2):
                 expr.make_equal_to(ir.Scalar(math.atan2(l, r)))
                 return True
-            case ir.Binary(left, right, op):
-                if isinstance(left, ir.Scalar) and isinstance(right, ir.Scalar):
-                    raise ValueError(f"Binary scalar: {left} {op} {right}")
+            case ir.Binary(l, r, ir.BinOp.Mul) if l is r:
+                expr.make_equal_to(ir.Unary(l, ir.UnOp.Sqr))
+                return True
+            case ir.Binary(ir.Scalar(_), ir.Scalar(_), op):
+                raise ValueError(f"Binary scalar: {left} {op} {right}")
+            case ir.Binary(_, _, _):
                 return False
             case ir.Unary(ir.Scalar(x), ir.UnOp.Sqrt, _):
                 expr.make_equal_to(ir.Scalar(math.sqrt(x)))
@@ -182,9 +191,20 @@ class Optimizer:
             case ir.Unary(ir.Scalar(x), ir.UnOp.Sin, _):
                 expr.make_equal_to(ir.Scalar(math.sin(x)))
                 return True
+            case ir.Unary(ir.Scalar(x), ir.UnOp.Sqr, _):
+                expr.make_equal_to(ir.Scalar(x * x))
+                return True
+            case ir.Unary(
+                    ir.Binary(
+                        ir.Unary(l, ir.UnOp.Sqr, _),
+                        ir.Unary(r, ir.UnOp.Sqr, _),
+                        ir.BinOp.Add),
+                    ir.UnOp.Sqrt):
+                expr.make_equal_to(ir.Binary(l, r, ir.BinOp.RMS))
+                return True
+            case ir.Unary(ir.Scalar(_), op, consts):
+                raise ValueError(f"Unary scalar: {op} {orig}")
             case ir.Unary(orig, op, consts):
-                if isinstance(orig, ir.Scalar):
-                    raise ValueError(f"Unary scalar: {op} {orig}")
                 return False
             case ir.Broadcast(orig, dim):
                 # TODO(max): This is slow
@@ -209,7 +229,7 @@ class Optimizer:
                 changed |= self.opt(e.find())
             expr_opt = expr.find()
             if not changed:
-                print(f"Optimization cycles: {cycles}")
+                print(f"Optimization cycles: {cycles}", file=sys.stderr)
                 return expr_opt
             expr = expr_opt
             cycles += 1
@@ -218,19 +238,19 @@ class Optimizer:
 kinds = collections.Counter()
 for e in topo(expr):
     kinds[type(e)] += 1
-print(kinds)
+print(kinds, file=sys.stderr)
 
 before = time.perf_counter()
 optimizer = Optimizer()
 expr_opt = optimizer.spin_opt(expr)
 after = time.perf_counter()
-print(f"Optimize IR: {after - before:.2f}s")
+print(f"Optimize IR: {after - before:.2f}s", file=sys.stderr)
 
 kinds = collections.Counter()
 for e in topo(expr_opt):
     kinds[type(e)] += 1
-print(kinds)
+print(kinds, file=sys.stderr)
 # print(optimizer.cse_hits)
 # print(optimizer.kinds)
 
-# print(draw_dot(expr_opt))
+print(draw_dot(expr_opt))

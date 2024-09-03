@@ -1,4 +1,6 @@
+from __future__ import annotations
 import math
+import dataclasses
 from dataclasses import dataclass
 from enum import Enum
 from functools import cached_property
@@ -83,9 +85,28 @@ def broacast_args(*args):
 
 class Expr:
     dim: int
+    forwarded: Expr | None
+
+    def find(self):
+        expr = self
+        while expr is not None:
+            next = expr.forwarded
+            if next is None:
+                return expr
+            expr = next
+        return expr
+
+    def make_equal_to(self, other):
+        found = self.find()
+        if found is not other:
+            found.set_forwarded(other)
+
+    def set_forwarded(self, other):
+        object.__setattr__(self, "forwarded", other)
 
     def __init__(self, dim: int):
         object.__setattr__(self, "dim", dim)
+        object.__setattr__(self, "forwarded", None)
 
     def __mul__(self, other: Num):
         return broadcast_binary(self, as_expr(other), BinOp.Mul)
@@ -213,9 +234,17 @@ class Binary(Expr):
     right: Expr
     op: BinOp
 
+    __match_args__ = ("left_found", "right_found", "op")
+
     @cached_property
     def hash_value(self) -> int:
         return hash((self.dim, self.left, self.right, self.op))
+
+    @property
+    def left_found(self): return self.left.find()
+
+    @property
+    def right_found(self): return self.right.find()
 
     def __hash__(self):
         return self.hash_value
@@ -232,6 +261,11 @@ class Unary(Expr):
     orig: Expr
     op: UnOp
     constants: tuple = ()
+
+    __match_args__ = ("orig_found", "op", "constants")
+
+    @property
+    def orig_found(self): return self.orig.find()
 
     @cached_property
     def hash_value(self) -> int:
@@ -257,6 +291,9 @@ class Debug(Expr):
 class Broadcast(Expr):
     orig: Expr
     dim: int
+
+    def __post_init__(self):
+        super().__init__(self.dim)
 
 
 @dataclass(frozen=True)
@@ -335,6 +372,20 @@ class ComparisonIf(Expr):
     condition_true: Expr
     condition_false: Expr
     op: ComparisonOp
+
+    __match_args__ = ("a_found", "b_found", "condition_true_found", "condition_false_found", "op")
+
+    @property
+    def a_found(self): return self.a.find()
+
+    @property
+    def b_found(self): return self.b.find()
+
+    @property
+    def condition_true_found(self): return self.condition_true.find()
+
+    @property
+    def condition_false_found(self): return self.condition_false.find()
 
     @cached_property
     def hash_value(self):

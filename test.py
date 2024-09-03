@@ -21,22 +21,16 @@ space = 0.2
 solid = (
     sweep(profile, plane)
     .to_point((1, space, 0), enable_rotation_mode)
-    # .to_point((-1, 2 * space, 0), enable_rotation_mode)
-    # .to_point((1, 3 * space, 0), enable_rotation_mode)
-    # .to_point((-1, 4 * space, 0), enable_rotation_mode)
+    .to_point((-1, 2 * space, 0), enable_rotation_mode)
+    .to_point((1, 3 * space, 0), enable_rotation_mode)
+    .to_point((-1, 4 * space, 0), enable_rotation_mode)
     .to_solid()
 )
 
 grid_x, grid_y, grid_z = grid_gen_3d(100, 100, 100)
 expr = solid.distance(grid_x, grid_y, grid_z)
 after = time.perf_counter()
-# print(f"Build IR: {after - before:.2f}s")
-
-# @dataclasses.dataclass(frozen=True)
-# class Dist(ir.Expr):
-#     dim: int
-#     a: ir.Expr
-#     b: ir.Expr
+print(f"Build IR: {after - before:.2f}s")
 
 
 expr_id = {}
@@ -121,34 +115,16 @@ def draw_dot(root, format='svg', rankdir='LR'):
 
 @dataclasses.dataclass
 class Optimizer:
-    cse_cache: dict[tuple[type, tuple[object, ...]], ir.Expr] = dataclasses.field(
-        default_factory=dict
-    )
-    cse_hits: collections.Counter = dataclasses.field(
-        default_factory=collections.Counter
-    )
-    visited: set[ir.Expr] = dataclasses.field(default_factory=set)
-    kinds: collections.Counter = dataclasses.field(default_factory=collections.Counter)
-
-    def construct(self, type_: type, *args) -> ir.Expr:
-        key = (type_, args)
-        result = self.cse_cache.get(key)
-        if result is not None:
-            self.cse_hits[type_] += 1
-            return result
-        result = type_(*args)
-        self.cse_cache[key] = result
-        # self.visited.add(result)
-        return result
+    cse: list[ir.Expr] = dataclasses.field(default_factory=list)
 
     def opt(self, expr: ir.Expr) -> ir.Expr:
-        if expr in self.visited:
-            return expr
-        self.kinds[type(expr)] += 1
-        self.visited.add(expr)
         match expr:
             case ir.Param(_) | ir.Observation(_) | ir.Scalar(_) | ir.Arr(_):
-                return expr
+                return False
+            case ir.ComparisonIf(ir.Scalar(_), ir.Scalar(_), ctrue, cfalse, _):
+                raise ValueError("ComparisonIf scalar")
+            case ir.ComparisonIf(_):
+                return False
             case (
                 ir.GridX(_, _)
                 | ir.GridY(_, _)
@@ -156,92 +132,105 @@ class Optimizer:
                 | ir.GridY3d(_, _, _)
                 | ir.GridZ3d(_, _, _)
             ):
-                return expr
+                return False
             case (
                 ir.Binary(ir.Scalar(0), x, ir.BinOp.Add)
                 | ir.Binary(x, ir.Scalar(0), ir.BinOp.Add)
             ):
-                return self.opt(x)
+                expr.make_equal_to(x.find())
+                return True
             case (
                 ir.Binary(ir.Scalar(0), x, ir.BinOp.Mul)
                 | ir.Binary(x, ir.Scalar(0), ir.BinOp.Mul)
             ):
-                return ir.Scalar(0)
+                expr.make_equal_to(ir.Scalar(0))
+                return True
             case (
                 ir.Binary(ir.Scalar(1), x, ir.BinOp.Mul)
                 | ir.Binary(x, ir.Scalar(1), ir.BinOp.Mul)
             ):
-                return self.opt(x)
+                expr.make_equal_to(x.find())
+                return True
             case ir.Binary(ir.Scalar(l), ir.Scalar(r), ir.BinOp.Add):
-                return self.construct(ir.Scalar, l + r)
+                expr.make_equal_to(ir.Scalar(l + r))
+                return True
             case ir.Binary(ir.Scalar(l), ir.Scalar(r), ir.BinOp.Mul):
-                return self.construct(ir.Scalar, l * r)
+                expr.make_equal_to(ir.Scalar(l * r))
+                return True
+            case ir.Binary(ir.Scalar(l), ir.Scalar(r), ir.BinOp.Div):
+                expr.make_equal_to(ir.Scalar(l / r))
+                return True
+            case ir.Binary(ir.Scalar(l), ir.Scalar(r), ir.BinOp.Mod):
+                expr.make_equal_to(ir.Scalar(l % r))
+                return True
             case ir.Binary(ir.Scalar(l), ir.Scalar(r), ir.BinOp.Sub):
-                return self.construct(ir.Scalar, l - r)
+                expr.make_equal_to(ir.Scalar(l - r))
+                return True
+            case ir.Binary(ir.Scalar(l), ir.Scalar(r), ir.BinOp.ArcTan2):
+                expr.make_equal_to(ir.Scalar(math.atan2(l, r)))
+                return True
             case ir.Binary(left, right, op):
                 if isinstance(left, ir.Scalar) and isinstance(right, ir.Scalar):
                     raise ValueError(f"Binary scalar: {left} {op} {right}")
-                return self.construct(ir.Binary, self.opt(left), self.opt(right), op)
+                return False
             case ir.Unary(ir.Scalar(x), ir.UnOp.Sqrt, _):
-                return self.construct(ir.Scalar, math.sqrt(x))
+                expr.make_equal_to(ir.Scalar(math.sqrt(x)))
+                return True
             case ir.Unary(ir.Scalar(x), ir.UnOp.Cos, _):
-                return self.construct(ir.Scalar, math.cos(x))
+                expr.make_equal_to(ir.Scalar(math.cos(x)))
+                return True
             case ir.Unary(ir.Scalar(x), ir.UnOp.Sin, _):
-                return self.construct(ir.Scalar, math.sin(x))
-            case ir.Unary(ir.Binary(ir.Binary(a, b, ir.BinOp.Mul), ir.Binary(c,
-                                                                             d,
-                                                                             ir.BinOp.Mul), ir.BinOp.Add) as orig, ir.UnOp.Sqrt as op, consts):
-                # print("Sqrt of add of mul", type(a), type(b), type(c), type(d))
-                # if a is b and c is d:
-                #     assert a.dim == c.dim
-                #     return self.construct(Dist, a.dim, self.opt(a), self.opt(b))
-                return self.construct(ir.Unary, self.opt(orig), op, consts)
+                expr.make_equal_to(ir.Scalar(math.sin(x)))
+                return True
             case ir.Unary(orig, op, consts):
                 if isinstance(orig, ir.Scalar):
                     raise ValueError(f"Unary scalar: {op} {orig}")
-                return self.construct(ir.Unary, self.opt(orig), op, consts)
+                return False
             case ir.Broadcast(orig, dim):
-                if isinstance(orig, ir.Scalar):
-                    return ir.Arr([orig] * dim)
-                return self.construct(ir.Broadcast, self.opt(orig), dim)
+                # TODO(max): This is slow
+                # if isinstance(orig, ir.Scalar):
+                #     expr.make_equal_to(ir.Arr([orig] * dim))
+                #     return True
+                return False
             case ir.Sum(orig):
                 if isinstance(orig, ir.Scalar):
                     raise ValueError(f"Sum scalar: {orig}")
                 if isinstance(orig, ir.Arr):
                     raise ValueError(f"Sum arr: {orig}")
-                return self.construct(ir.Sum, self.opt(orig))
-            case ir.Random(dim, low, high):
-                return self.construct(ir.Random, dim, self.opt(low), self.opt(high))
-            case ir.ComparisonIf(a, b, ctrue, cfalse, op):
-                if isinstance(a, ir.Scalar) and isinstance(b, ir.Scalar):
-                    raise ValueError(f"Comparison scalar: {a} {op} {b}")
-                return self.construct(
-                    ir.ComparisonIf,
-                    self.opt(a),
-                    self.opt(b),
-                    self.opt(ctrue),
-                    self.opt(cfalse),
-                    op,
-                )
-            # case Dist(dim, a, b):
-            #     return self.construct(Dist, dim, self.opt(a), self.opt(b))
+                return False
             case _:
                 raise ValueError(f"Unknown IR type: {type(expr)}")
 
     def spin_opt(self, expr: ir.Expr) -> ir.Expr:
         cycles = 0
         while True:
-            expr_opt = self.opt(expr)
-            if expr_opt == expr:
-                # print(f"Optimization cycles: {cycles}")
+            changed = False
+            for e in topo(expr.find()):
+                changed |= self.opt(e.find())
+            expr_opt = expr.find()
+            if not changed:
+                print(f"Optimization cycles: {cycles}")
                 return expr_opt
             expr = expr_opt
             cycles += 1
 
 
+kinds = collections.Counter()
+for e in topo(expr):
+    kinds[type(e)] += 1
+print(kinds)
+
+before = time.perf_counter()
 optimizer = Optimizer()
 expr_opt = optimizer.spin_opt(expr)
+after = time.perf_counter()
+print(f"Optimize IR: {after - before:.2f}s")
+
+kinds = collections.Counter()
+for e in topo(expr_opt):
+    kinds[type(e)] += 1
+print(kinds)
 # print(optimizer.cse_hits)
 # print(optimizer.kinds)
 
-print(draw_dot(expr_opt))
+# print(draw_dot(expr_opt))

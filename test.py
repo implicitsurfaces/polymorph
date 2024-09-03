@@ -66,7 +66,7 @@ def topo(expr: ir.Expr) -> list[ir.Expr]:
             return
         visited.add(expr)
         for edge in edges(expr):
-            visit(edge)
+            visit(edge.find())
         result.append(expr)
     visit(expr)
     return result

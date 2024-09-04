@@ -10,6 +10,8 @@ from polymorph_s2df.bounding_box import BoundingBox, bounding_box_from_points
 from .operations import Shape
 from .utils import (
     angular_distance,
+    diamond_atan,
+    max_iterable,
     min_iterable,
     normalize_angle,
     repr_point,
@@ -239,6 +241,89 @@ class ArcSegment(PathSegment):
             -self.radius,
             self.radius,
             self.radius,
+        )
+
+
+class BulgingSegment(PathSegment):
+    start: Vec2
+    end: Vec2
+    bulge: Expr
+
+    def __init__(self, start: ValVec, end: ValVec, bulge: Num):
+        super().__init__()
+        self.start = as_vec2(start)
+        self.end = as_vec2(end)
+        self.bulge = as_expr(bulge)
+
+    def astuple(self):
+        return (self.start, self.end, self.bulge)
+
+    def __eq__(self, other):
+        return isinstance(other, BulgingSegment) and self.astuple() == other.astuple()
+
+    def __hash__(self):
+        return hash(self.astuple())
+
+    @cached_property
+    def chord(self):
+        return self.end - self.start
+
+    @cached_property
+    def center(self):
+        chord_center = (self.start + self.end) / 2
+        bb = (self.bulge - (1 / self.bulge)) / 4
+        return chord_center - self.chord.perp().scale(bb)
+
+    @cached_property
+    def radius(self):
+        return self.chord.norm() / 4 * (self.bulge + (1 / self.bulge)).abs()
+
+    @cached_property
+    def s_value(self):
+        return 2 * self.bulge / (1 + self.bulge**2)
+
+    @cached_property
+    def c_value(self):
+        return (1 - self.bulge**2) / (1 + self.bulge**2)
+
+    @cached_property
+    def start_diangle(self):
+        return diamond_atan(self.start.x - self.center.x, self.start.y - self.center.y)
+
+    @cached_property
+    def end_diangle(self):
+        return diamond_atan(self.end.x - self.center.x, self.end.y - self.center.y)
+
+    def distance(self, x: Num, y: Num) -> Expr:
+        p = Vec2(x, y)
+
+        in_sector_distance = ((p - self.center).norm() - self.radius).abs()
+        out_sector_distance = ops.min((p - self.start).norm(), (p - self.end).norm())
+
+        center_to_p = p - self.center
+
+        sign = self.bulge.sign()
+
+        p_diangle = sign * diamond_atan(center_to_p.x, center_to_p.y)
+        s_diangle = sign * self.start_diangle
+        e_diangle = sign * self.end_diangle
+
+        min_diangle = min_iterable((s_diangle, e_diangle, p_diangle))
+        max_diangle = max_iterable((s_diangle, e_diangle, p_diangle))
+
+        def if_not_extrema(value, if_extrema, if_not_extrema):
+            return ops.if_eq(
+                value,
+                min_diangle,
+                if_extrema,
+                ops.if_eq(value, max_diangle, if_extrema, if_not_extrema),
+            )
+
+        return ops.if_lt(
+            s_diangle,
+            p_diangle,
+            if_not_extrema(e_diangle, in_sector_distance, out_sector_distance),
+            if_not_extrema(e_diangle, out_sector_distance, in_sector_distance),
         )
 
 

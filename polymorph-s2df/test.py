@@ -153,3 +153,57 @@ def test_sweeped_solid_inside_gradient(x, y, z):
     assert not math.isnan(grad["x"])
     assert not math.isnan(grad["y"])
     assert not math.isnan(grad["z"])
+
+
+def test_distance_to_arc_segment(benchmark):
+    unit = (
+        Unit(["x", "y"])
+        .register(
+            "distance",
+            s2df.ArcSegment(0.5, 2.2, 0.5, 1).distance(
+                observation("x"), observation("y")
+            ),
+        )
+        .compile()
+    )
+
+    def arc_segment_distance():
+        return unit.observe({"x": 1.2, "y": 1.3}).evaluate("distance")
+
+    benchmark(arc_segment_distance)
+
+
+def test_distance_to_bulding_arc_segment(benchmark):
+    unit = (
+        Unit(["x", "y"])
+        .register(
+            "distance",
+            s2df.bulge_arc((0.5, 0.5), (-1, 0.2), 0.8).distance(
+                observation("x"), observation("y")
+            ),
+        )
+        .compile()
+    )
+
+    def arc_segment_distance():
+        return unit.observe({"x": 1.2, "y": 1.3}).evaluate("distance")
+
+    benchmark(arc_segment_distance)
+
+
+def test_distance_to_bulging_segment(benchmark):
+    unit = (
+        Unit(["x", "y"])
+        .register(
+            "distance",
+            s2df.BulgingSegment((0.5, 0.5), (-1, 0.2), 0.8).distance(
+                observation("x"), observation("y")
+            ),
+        )
+        .compile()
+    )
+
+    def arc_segment_distance():
+        return unit.observe({"x": 1.2, "y": 1.3}).evaluate("distance")
+
+    benchmark(arc_segment_distance)

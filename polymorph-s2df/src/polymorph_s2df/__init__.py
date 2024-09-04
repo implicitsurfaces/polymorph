@@ -17,6 +17,9 @@ from .paths import (
     ArcSegment as ArcSegment,
 )
 from .paths import (
+    BulgingSegment as BulgingSegment,
+)
+from .paths import (
     ClosedPath,
     LineSegment,
     PathSegment,

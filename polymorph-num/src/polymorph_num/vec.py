@@ -30,6 +30,15 @@ class Vec2:
     def __truediv__(self, other):
         return Vec2(self.x / as_expr(other), self.y / as_expr(other))
 
+    def __rtruediv__(self, other):
+        return Vec2(as_expr(other) / self.x, as_expr(other) / self.y)
+
+    def __mul__(self, other):
+        return Vec2(self.x * as_expr(other), self.y * as_expr(other))
+
+    def __rmul__(self, other):
+        return Vec2(self.x * as_expr(other), self.y * as_expr(other))
+
     def __neg__(self):
         return Vec2(-self.x, -self.y)
 

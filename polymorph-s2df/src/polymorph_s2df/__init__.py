@@ -35,7 +35,7 @@ from .shapes import LeftHalfPlane as LeftHalfPlane
 from .shapes import RightHalfPlane as RightHalfPlane
 from .shapes import TopHalfPlane as TopHalfPlane
 from .solids import Sphere as Sphere
-
+from .turtle import Turtle as Turtle
 
 def embed_in_3d(shape: Shape, plane: Plane = XY_PLANE):
     return EmbeddedShape(shape, plane)

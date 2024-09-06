@@ -47,6 +47,7 @@ class UnOp(Enum):
     Sin = "sin"
     Tanh = "tanh"
     ArcTan = "arctan"
+    ArcCos = "arccos"
     Sign = "sign"
     Boxcar = "boxcar"
 
@@ -158,6 +159,9 @@ class Expr:
 
     def atan(self):
         return Unary(self, UnOp.ArcTan)
+
+    def acos(self):
+        return Unary(self, UnOp.ArcCos)
 
     def sign(self):
         return Unary(self, UnOp.Sign)
@@ -409,3 +413,5 @@ PI = Scalar(math.pi)
 TAU = Scalar(2 * math.pi)
 ZERO = Scalar(0.0)
 ONE = Scalar(1.0)
+SQRT2 = Scalar(math.sqrt(2))
+SQRT2_INV = Scalar(1 / math.sqrt(2))

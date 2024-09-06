@@ -2,6 +2,7 @@ from functools import cached_property
 from typing import Sequence
 
 from polymorph_num import ops
+from polymorph_num.angle import Angle, polar_angle, polar_diamond_angle
 from polymorph_num.expr import PI, TAU, Expr, Num, as_expr
 from polymorph_num.vec import ValVec, Vec2, as_vec2
 
@@ -10,7 +11,6 @@ from polymorph_s2df.bounding_box import BoundingBox, bounding_box_from_points
 from .operations import Shape
 from .utils import (
     angular_distance,
-    diamond_atan,
     max_iterable,
     min_iterable,
     normalize_angle,
@@ -26,7 +26,7 @@ class PathSegment(Shape):
     def __hash__(self):
         return hash(self.astuple())
 
-    def end_tangent(self) -> Expr:
+    def end_tangent(self) -> Angle:
         raise NotImplementedError()
 
     def distance(self, x: Num, y: Num) -> Expr:
@@ -62,7 +62,7 @@ class LineSegment(PathSegment):
         return self.end - self.start
 
     def end_tangent(self):
-        return self.segment.atan2()
+        return polar_angle(self.segment.x, self.segment.y)
 
     def winding_number(self, p: Vec2) -> Expr:
         a = self.start - p
@@ -288,11 +288,21 @@ class BulgingSegment(PathSegment):
 
     @cached_property
     def start_diangle(self):
-        return diamond_atan(self.start.x - self.center.x, self.start.y - self.center.y)
+        return polar_diamond_angle(
+            self.start.x - self.center.x, self.start.y - self.center.y
+        )
 
     @cached_property
     def end_diangle(self):
-        return diamond_atan(self.end.x - self.center.x, self.end.y - self.center.y)
+        return polar_diamond_angle(
+            self.end.x - self.center.x, self.end.y - self.center.y
+        )
+
+    def end_tangent(self) -> Angle:
+        vec = (self.end - self.start) * self.c_value + (
+            self.end - self.start
+        ).perp() * self.s_value
+        return polar_angle(vec.x, vec.y)
 
     def distance(self, x: Num, y: Num) -> Expr:
         p = Vec2(x, y)
@@ -304,7 +314,7 @@ class BulgingSegment(PathSegment):
 
         sign = self.bulge.sign()
 
-        p_diangle = sign * diamond_atan(center_to_p.x, center_to_p.y)
+        p_diangle = sign * polar_diamond_angle(center_to_p.x, center_to_p.y)
         s_diangle = sign * self.start_diangle
         e_diangle = sign * self.end_diangle
 

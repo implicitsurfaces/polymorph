@@ -100,6 +100,8 @@ def _eval(expr: e.Expr, params, param_map, obs_dict, random_key, memo) -> jax.Ar
                     result = jnp.tanh(o)
                 case e.UnOp.ArcTan:
                     result = jnp.atan(o)
+                case e.UnOp.ArcCos:
+                    result = jnp.acos(o)
                 case e.UnOp.Boxcar:
                     min, max = constants
                     result = jnp.where((o >= min) & (o <= max), 1.0, 0.0)

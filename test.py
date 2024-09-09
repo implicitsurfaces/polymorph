@@ -259,6 +259,7 @@ class Optimizer:
             changed = False
             for e in topo(expr.find()):
                 changed |= self.opt(e.find())
+                absint_range_one(e.find())
             expr_opt = expr.find()
             if not changed:
                 print(f"Optimization cycles: {cycles}", file=sys.stderr)
@@ -320,8 +321,6 @@ kinds = collections.Counter()
 for e in topo(expr):
     kinds[type(e)] += 1
 print(kinds, file=sys.stderr)
-
-absint_range(expr)
 
 before = time.perf_counter()
 optimizer = Optimizer()

@@ -122,6 +122,8 @@ class Expr:
         return self.find()._range
 
     def update_range(self, low: float, high: float):
+        assert not math.isnan(low), "Invalid range: low is NaN"
+        assert not math.isnan(high), "Invalid range: high is NaN"
         assert low <= high, f"Invalid range: {low} > {high}"
         found = self.find()
         object.__setattr__(found, "_range", (low, high))

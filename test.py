@@ -275,6 +275,13 @@ def absint_sqrt(x: float) -> float:
     return math.sqrt(x)
 
 
+def absint_mul(x: float, y: float) -> float:
+    if x == 0 or y == 0:
+        # Handle 0*inf, 0*-inf
+        return 0
+    return x * y
+
+
 def absint_range_one(expr: ir.Expr) -> None:
     match expr:
         case ir.Scalar(v):
@@ -289,14 +296,14 @@ def absint_range_one(expr: ir.Expr) -> None:
             left_min, left_max = left.range
             right_min, right_max = right.range
             expr.update_range(
-                    min(left_min * right_min,
-                        left_min * right_max,
-                        left_max * right_min,
-                        left_max * right_max),
-                    max(left_min * right_min,
-                        left_min * right_max,
-                        left_max * right_min,
-                        left_max * right_max))
+                    min(absint_mul(left_min, right_min),
+                        absint_mul(left_min, right_max),
+                        absint_mul(left_max, right_min),
+                        absint_mul(left_max, right_max)),
+                    max(absint_mul(left_min, right_min),
+                        absint_mul(left_min, right_max),
+                        absint_mul(left_max, right_min),
+                        absint_mul(left_max, right_max)))
         case ir.Binary(left, right, ir.BinOp.Sub):
             left_min, left_max = left.range
             right_min, right_max = right.range
@@ -307,7 +314,7 @@ def absint_range_one(expr: ir.Expr) -> None:
         case ir.Unary(orig, ir.UnOp.Sqr, _):
             _, orig_max = orig.range
             # TODO(max): Improve min; could be higher
-            expr.update_range(0, orig_max * orig_max)
+            expr.update_range(0, absint_mul(orig_max, orig_max))
         case ir.Unary(orig, ir.UnOp.Abs, _):
             _, orig_max = orig.range
             # TODO(max): Improve min; could be higher

@@ -88,6 +88,7 @@ def broacast_args(*args):
 class Expr:
     dim: int
     forwarded: Expr | None
+    range: tuple[float, float] | None
 
     def find(self):
         expr = self
@@ -109,6 +110,16 @@ class Expr:
     def __init__(self, dim: int):
         object.__setattr__(self, "dim", dim)
         object.__setattr__(self, "forwarded", None)
+        self.update_range(float("-inf"), float("inf"))
+
+    def update_range(self, low: float, high: float):
+        object.__setattr__(self, "range", (low, high))
+
+    def range_min(self) -> float:
+        return self.range[0]
+
+    def range_max(self) -> float:
+        return self.range[1]
 
     def __mul__(self, other: Num):
         return broadcast_binary(self, as_expr(other), BinOp.Mul)
@@ -293,6 +304,11 @@ class Debug(Expr):
 class Broadcast(Expr):
     orig: Expr
     dim: int
+
+    __match_args__ = ("orig_found", "dim")
+
+    @property
+    def orig_found(self): return self.orig.find()
 
     def __post_init__(self):
         super().__init__(self.dim)

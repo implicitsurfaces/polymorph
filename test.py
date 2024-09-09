@@ -8,28 +8,57 @@ import collections
 import sys
 
 before = time.perf_counter()
-profile = (
-    draw((-0.1, 0))
-    .horizontal_line(0.2)
-    .line_to((0.05, 0.3))
-    .close()
-    .rotate(math.pi / 2)
-)
+# profile = (
+#     draw((-0.1, 0))
+#     .horizontal_line(0.2)
+#     .line_to((0.05, 0.3))
+#     .close()
+#     .rotate(math.pi / 2)
+# )
+# 
+# plane = XY_PLANE.translateTo((-1, 0, 0))
+# enable_rotation_mode = True
+# space = 0.2
+# solid = (
+#     sweep(profile, plane)
+#     .to_point((1, space, 0), enable_rotation_mode)
+#     # .to_point((-1, 2 * space, 0), enable_rotation_mode)
+#     # .to_point((1, 3 * space, 0), enable_rotation_mode)
+#     # .to_point((-1, 4 * space, 0), enable_rotation_mode)
+#     .to_solid()
+# )
+# 
+# grid_x, grid_y, grid_z = grid_gen_3d(100, 100, 100)
+# expr = solid.distance(grid_x, grid_y, grid_z)
+side_length = ir.Param(0)
+corners = [
+    [ir.Scalar(0), ir.Scalar(0)],
+    [ir.Scalar(0), side_length],
+    [side_length, side_length],
+    [side_length, ir.Scalar(0)],
+]
+def distance(p0, p1):
+    return ir.Unary(
+            ir.Binary(
+                ir.Binary(
+                    ir.Binary(p0[0], p1[0], ir.BinOp.Sub),
+                    ir.Binary(p0[0], p1[0], ir.BinOp.Sub),
+                    ir.BinOp.Mul),
+                ir.Binary(
+                    ir.Binary(p0[1], p1[1], ir.BinOp.Sub),
+                    ir.Binary(p0[1], p1[1], ir.BinOp.Sub),
+                    ir.BinOp.Mul),
+                ir.BinOp.Add),
+        ir.UnOp.Sqrt,
+        (),
+    )
+expr = distance(corners[0], corners[1]) + \
+        distance(corners[1], corners[2]) + \
+        distance(corners[2], corners[3]) + \
+        distance(corners[3], corners[0]) + \
+        distance(corners[0], corners[2]) + \
+        distance(corners[1], corners[3])
 
-plane = XY_PLANE.translateTo((-1, 0, 0))
-enable_rotation_mode = True
-space = 0.2
-solid = (
-    sweep(profile, plane)
-    .to_point((1, space, 0), enable_rotation_mode)
-    # .to_point((-1, 2 * space, 0), enable_rotation_mode)
-    # .to_point((1, 3 * space, 0), enable_rotation_mode)
-    # .to_point((-1, 4 * space, 0), enable_rotation_mode)
-    .to_solid()
-)
-
-grid_x, grid_y, grid_z = grid_gen_3d(100, 100, 100)
-expr = solid.distance(grid_x, grid_y, grid_z)
 after = time.perf_counter()
 print(f"Build IR: {after - before:.2f}s", file=sys.stderr)
 
@@ -68,7 +97,7 @@ def topo(expr: ir.Expr) -> list[ir.Expr]:
         for edge in edges(expr):
             visit(edge.find())
         result.append(expr)
-    visit(expr)
+    visit(expr.find())
     return result
 
 def edges(expr: ir.Expr) -> list[ir.Expr]:
@@ -107,7 +136,7 @@ def draw_dot(root, format='svg', rankdir='LR'):
 
     for v in topo(root):
         name = node_name(v)
-        dot.node(name=name, label = "{ type %s }" % (node_type(v), ), shape='record')
+        dot.node(name=name, label = "{ type %s | range [%s,%s] }" % (node_type(v), v.range[0], v.range[1]), shape='record')
         for to in edges(v):
             dot.edge(name, node_name(to))
 
@@ -116,8 +145,6 @@ def draw_dot(root, format='svg', rankdir='LR'):
 
 @dataclasses.dataclass
 class Optimizer:
-    cse: list[ir.Expr] = dataclasses.field(default_factory=list)
-
     def opt(self, expr: ir.Expr) -> ir.Expr:
         match expr:
             case ir.Param(_) | ir.Observation(_) | ir.Scalar(_) | ir.Arr(_):
@@ -144,6 +171,9 @@ class Optimizer:
                 ir.Binary(x, ir.Scalar(0), ir.BinOp.Sub)
             ):
                 expr.make_equal_to(x.find())
+                return True
+            case ir.Binary(x, y, ir.BinOp.Sub) if x is y:
+                expr.make_equal_to(ir.Scalar(0))
                 return True
             case (
                 ir.Binary(ir.Scalar(0), x, ir.BinOp.Mul)
@@ -180,6 +210,8 @@ class Optimizer:
                 return True
             case ir.Binary(ir.Scalar(_), ir.Scalar(_), op):
                 raise ValueError(f"Binary scalar: {left} {op} {right}")
+            case ir.Binary(ir.Arr(_), ir.Arr(_), op):
+                raise ValueError(f"Binary arr: {left} {op} {right}")
             case ir.Binary(_, _, _):
                 return False
             case ir.Unary(ir.Scalar(x), ir.UnOp.Sqrt, _):
@@ -194,20 +226,24 @@ class Optimizer:
             case ir.Unary(ir.Scalar(x), ir.UnOp.Sqr, _):
                 expr.make_equal_to(ir.Scalar(x * x))
                 return True
-            case ir.Unary(
-                    ir.Binary(
-                        ir.Unary(l, ir.UnOp.Sqr, _),
-                        ir.Unary(r, ir.UnOp.Sqr, _),
-                        ir.BinOp.Add),
-                    ir.UnOp.Sqrt):
-                expr.make_equal_to(ir.Binary(l, r, ir.BinOp.RMS))
-                return True
+            # case ir.Unary(ir.Unary(x, ir.UnOp.Sqr, _), ir.UnOp.Sqrt, _):
+            #     raise ValueError(f"Unary unary sqr sqrt: {x}")
+            # case ir.Unary(
+            #         ir.Binary(
+            #             ir.Unary(l, ir.UnOp.Sqr, _),
+            #             ir.Unary(r, ir.UnOp.Sqr, _),
+            #             ir.BinOp.Add),
+            #         ir.UnOp.Sqrt):
+            #     expr.make_equal_to(ir.Binary(l, r, ir.BinOp.RMS))
+            #     return True
             case ir.Unary(ir.Scalar(_), op, consts):
                 raise ValueError(f"Unary scalar: {op} {orig}")
             case ir.Unary(orig, op, consts):
                 return False
+            case ir.Broadcast(ir.Scalar(x), dim):
+                return False
             case ir.Broadcast(orig, dim):
-                # TODO(max): This is slow
+                # # TODO(max): This is slow
                 # if isinstance(orig, ir.Scalar):
                 #     expr.make_equal_to(ir.Arr([orig] * dim))
                 #     return True
@@ -235,10 +271,61 @@ class Optimizer:
             cycles += 1
 
 
+def absint_sqrt(x: float) -> float:
+    if x < 0:
+        return -math.inf
+    return math.sqrt(x)
+
+
+def absint_range_one(expr: ir.Expr) -> None:
+    match expr:
+        case ir.Scalar(v):
+            expr.update_range(v, v)
+        case ir.Param(_):
+            expr.update_range(-math.inf, math.inf)
+        case ir.Binary(left, right, ir.BinOp.Add):
+            left_min, left_max = left.range
+            right_min, right_max = right.range
+            expr.update_range(left_min + right_min, left_max + right_max)
+        case ir.Binary(left, right, ir.BinOp.Mul) if left == right:
+            left_min, left_max = left.range
+            expr.update_range(0, left_max * left_max)
+        case ir.Binary(left, right, ir.BinOp.Mul):
+            left_min, left_max = left.range
+            right_min, right_max = right.range
+            expr.update_range(
+                    min(left_min * right_min,
+                        left_min * right_max,
+                        left_max * right_min,
+                        left_max * right_max),
+                    max(left_min * right_min,
+                        left_min * right_max,
+                        left_max * right_min,
+                        left_max * right_max))
+        case ir.Binary(left, right, ir.BinOp.Sub):
+            left_min, left_max = left.range
+            right_min, right_max = right.range
+            expr.update_range(left_min - right_max, left_max - right_min)
+        case ir.Unary(orig, ir.UnOp.Sqrt, _):
+            orig_min, orig_max = orig.range
+            expr.update_range(absint_sqrt(orig_min), absint_sqrt(orig_max))
+        case ir.Binary(left, right, op):
+            raise ValueError(f"Binary: {op}")
+        case _:
+            raise ValueError(f"Unknown IR type: {type(expr)}")
+
+
+def absint_range(expr: ir.Expr) -> None:
+    for e in topo(expr):
+        absint_range_one(e)
+
+
 kinds = collections.Counter()
 for e in topo(expr):
     kinds[type(e)] += 1
 print(kinds, file=sys.stderr)
+
+absint_range(expr)
 
 before = time.perf_counter()
 optimizer = Optimizer()
@@ -250,7 +337,6 @@ kinds = collections.Counter()
 for e in topo(expr_opt):
     kinds[type(e)] += 1
 print(kinds, file=sys.stderr)
-# print(optimizer.cse_hits)
 # print(optimizer.kinds)
 
 print(draw_dot(expr_opt))

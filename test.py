@@ -260,6 +260,7 @@ class Optimizer:
             for e in topo(expr.find()):
                 changed |= self.opt(e.find())
                 absint_range_one(e.find())
+            changed |= cse(expr)
             expr_opt = expr.find()
             if not changed:
                 print(f"Optimization cycles: {cycles}", file=sys.stderr)
@@ -324,6 +325,18 @@ def absint_range(expr: ir.Expr) -> None:
         absint_range_one(e)
 
 
+def cse(expr: ir.Expr) -> bool:
+    seen = {}
+    changed = False
+    for e in topo(expr):
+        if e in seen:
+            e.make_equal_to(seen[e])
+            changed = True
+        else:
+            seen[e] = e
+    return changed
+
+
 kinds = collections.Counter()
 for e in topo(expr):
     kinds[type(e)] += 1
@@ -331,12 +344,12 @@ print(kinds, file=sys.stderr)
 
 before = time.perf_counter()
 optimizer = Optimizer()
-expr_opt = optimizer.spin_opt(expr)
+expr = optimizer.spin_opt(expr)
 after = time.perf_counter()
 print(f"Optimize IR: {after - before:.2f}s", file=sys.stderr)
 
 kinds = collections.Counter()
-for e in topo(expr_opt):
+for e in topo(expr):
     kinds[type(e)] += 1
 print(kinds, file=sys.stderr)
-print(draw_dot(expr_opt))
+print(draw_dot(expr))

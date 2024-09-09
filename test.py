@@ -207,6 +207,9 @@ class Optimizer:
                 raise ValueError(f"Binary arr: {left} {op} {right}")
             case ir.Binary(_, _, _):
                 return False
+            case ir.Unary(ir.Unary(x, ir.UnOp.Sqr, _), ir.UnOp.Sqrt, _):
+                expr.make_equal_to(ir.Unary(x, ir.UnOp.Abs, ()))
+                return True
             case ir.Unary(ir.Scalar(x), ir.UnOp.Sqrt, _):
                 expr.make_equal_to(ir.Scalar(math.sqrt(x)))
                 return True

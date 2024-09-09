@@ -284,9 +284,6 @@ def absint_range_one(expr: ir.Expr) -> None:
             left_min, left_max = left.range
             right_min, right_max = right.range
             expr.update_range(left_min + right_min, left_max + right_max)
-        case ir.Binary(left, right, ir.BinOp.Mul) if left == right:
-            left_min, left_max = left.range
-            expr.update_range(0, left_max * left_max)
         case ir.Binary(left, right, ir.BinOp.Mul):
             left_min, left_max = left.range
             right_min, right_max = right.range

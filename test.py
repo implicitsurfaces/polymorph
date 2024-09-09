@@ -306,8 +306,18 @@ def absint_range_one(expr: ir.Expr) -> None:
         case ir.Unary(orig, ir.UnOp.Sqrt, _):
             orig_min, orig_max = orig.range
             expr.update_range(absint_sqrt(orig_min), absint_sqrt(orig_max))
+        case ir.Unary(orig, ir.UnOp.Sqr, _):
+            _, orig_max = orig.range
+            # TODO(max): Improve min; could be higher
+            expr.update_range(0, orig_max * orig_max)
+        case ir.Unary(orig, ir.UnOp.Abs, _):
+            _, orig_max = orig.range
+            # TODO(max): Improve min; could be higher
+            expr.update_range(0, orig_max)
         case ir.Binary(left, right, op):
             raise ValueError(f"Binary: {op}")
+        case ir.Unary(_, op, _):
+            raise ValueError(f"Unary: {op}")
         case _:
             raise ValueError(f"Unknown IR type: {type(expr)}")
 

@@ -122,6 +122,7 @@ class Expr:
         return self.find()._range
 
     def update_range(self, low: float, high: float):
+        assert low <= high, f"Invalid range: {low} > {high}"
         found = self.find()
         object.__setattr__(found, "_range", (low, high))
 

@@ -251,6 +251,9 @@ class Arr(Expr):
     def __hash__(self):
         return id(self)
 
+    def __eq__(self, other):
+        return self.value == other.value
+
 
 @dataclass(frozen=True)
 class Binary(Expr):
@@ -272,6 +275,9 @@ class Binary(Expr):
 
     def __hash__(self):
         return self.hash_value
+
+    def __eq__(self, other):
+        return self.op == other.op and self.left_found == other.left_found and self.right_found == other.right_found
 
     def __post_init__(self):
         if self.left.dim == self.right.dim:
@@ -297,6 +303,9 @@ class Unary(Expr):
 
     def __hash__(self):
         return self.hash_value
+
+    def __eq__(self, other):
+        return self.op == other.op and self.orig_found == other.orig_found and self.constants == other.constants
 
     def __post_init__(self):
         super().__init__(self.orig.dim)
@@ -391,6 +400,9 @@ class Random(Expr):
         return hash(id(self))
 
     def __eq__(self, other):
+        return self is other
+
+    def __eq__(self, other):
         return id(self) == id(other)
 
 
@@ -431,6 +443,15 @@ class ComparisonIf(Expr):
 
     def __hash__(self):
         return self.hash_value
+
+    def __eq__(self, other):
+        return (
+            self.op == other.op
+            and self.a_found == other.a_found
+            and self.b_found == other.b_found
+            and self.condition_true_found == other.condition_true_found
+            and self.condition_false_found == other.condition_false_found
+            )
 
     def __post_init__(self):
         if (

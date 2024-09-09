@@ -85,10 +85,14 @@ def broacast_args(*args):
     return [Broadcast(arg, big_dim) if arg.dim == 1 else arg for arg in args]
 
 
+expr_id = iter(range(100_000))
+
+
 class Expr:
     dim: int
     forwarded: Expr | None
-    range: tuple[float, float] | None
+    _range: tuple[float, float] | None
+    id: int
 
     def find(self):
         expr = self
@@ -111,9 +115,15 @@ class Expr:
         object.__setattr__(self, "dim", dim)
         object.__setattr__(self, "forwarded", None)
         self.update_range(float("-inf"), float("inf"))
+        object.__setattr__(self, "id", next(expr_id))
+
+    @property
+    def range(self) -> tuple[float, float]:
+        return self.find()._range
 
     def update_range(self, low: float, high: float):
-        object.__setattr__(self, "range", (low, high))
+        found = self.find()
+        object.__setattr__(found, "_range", (low, high))
 
     def range_min(self) -> float:
         return self.range[0]

@@ -63,15 +63,8 @@ after = time.perf_counter()
 print(f"Build IR: {after - before:.2f}s", file=sys.stderr)
 
 
-expr_id = {}
-
-
 def node_name(expr: ir.Expr) -> str:
-    assert isinstance(expr, ir.Expr)
-    if expr not in expr_id:
-        val = len(expr_id)
-        expr_id[expr] = str(val)
-    return expr_id[expr]
+    return f"v{expr.id}"
 
 
 def node_type(expr: ir.Expr) -> str:
@@ -91,9 +84,9 @@ def topo(expr: ir.Expr) -> list[ir.Expr]:
     visited = set()
     result = []
     def visit(expr: ir.Expr):
-        if expr in visited:
+        if expr.id in visited:
             return
-        visited.add(expr)
+        visited.add(expr.id)
         for edge in edges(expr):
             visit(edge.find())
         result.append(expr)

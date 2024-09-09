@@ -337,6 +337,4 @@ kinds = collections.Counter()
 for e in topo(expr_opt):
     kinds[type(e)] += 1
 print(kinds, file=sys.stderr)
-# print(optimizer.kinds)
-
 print(draw_dot(expr_opt))

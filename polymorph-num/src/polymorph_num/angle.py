@@ -1,4 +1,4 @@
-from polymorph_num.expr import ONE, SQRT2_INV, ZERO, Expr
+from polymorph_num.expr import ONE, PI, SQRT2_INV, ZERO, Expr
 from polymorph_num.vec import Vec2
 
 
@@ -58,8 +58,8 @@ class Angle:
 
     def half(self) -> "Angle":
         return Angle(
-            self._sin.sign() * ((1 + self._cos * self._cos) / 2).sqrt(),
-            ((1 - self._cos * self._cos) / 2).sqrt(),
+            self._sin.sign() * ((1 + self._cos) / 2).sqrt(),
+            ((1 - self._cos) / 2).sqrt(),
         )
 
     def double(self) -> "Angle":
@@ -71,7 +71,10 @@ class Angle:
         return Vec2(self._cos, self._sin)
 
     def as_rad(self) -> Expr:
-        return self._cos.acos()
+        return self._cos.acos() * self._sin.sign()
+
+    def as_deg(self) -> Expr:
+        return self.as_rad() * 180 / PI
 
     def as_diamond_angle(self) -> Expr:
         return polar_diamond_angle(self._cos, self._sin)
@@ -94,6 +97,10 @@ def polar_angle(x: Expr, y: Expr) -> Angle:
 
 def angle_from_rad(rad: Expr) -> Angle:
     return Angle(rad.cos(), rad.sin())
+
+
+def angle_from_deg(deg: Expr) -> Angle:
+    return angle_from_rad(deg * PI / 180)
 
 
 def two_vectors_angle(u: Vec2, v: Vec2) -> Angle:

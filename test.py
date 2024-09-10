@@ -145,8 +145,10 @@ class Optimizer:
             case ir.Param(_) | ir.Observation(_) | ir.Scalar(_) | ir.Arr(_):
                 return False
             case ir.Binary(_) if expr.range[0] == expr.range[1]:
-                expr.make_equal_to(ir.Scalar(expr.range[0]))
-                return True
+                # TODO(max): Differentiate between scalar and arrays of known
+                # range
+                # expr.make_equal_to(ir.Scalar(expr.range[0]))
+                return False
             case ir.ComparisonIf(ir.Scalar(_), ir.Scalar(_), ctrue, cfalse, _):
                 raise ValueError("ComparisonIf scalar")
             case (
@@ -396,6 +398,8 @@ def absint_range_one(expr: ir.Expr) -> None:
         case ir.Unary(orig, ir.UnOp.Sign, _):
             expr.update_range(-1, 1)
         case ir.Broadcast(orig, _):
+            # TODO(max): More complex value that indicates that this is an
+            # array
             expr.update_range(*orig.range)
         case ir.ComparisonIf(a, b, ctrue, cfalse, _):
             ctrue_min, ctrue_max = ctrue.range

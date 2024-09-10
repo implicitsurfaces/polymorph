@@ -210,6 +210,26 @@ class Optimizer:
                 raise ValueError(f"Binary scalar: {left} {op} {right}")
             case ir.Binary(ir.Arr(_), ir.Arr(_), op):
                 raise ValueError(f"Binary arr: {left} {op} {right}")
+            case ir.Binary(left, right, ir.BinOp.Min):
+                left_min, left_max = left.range
+                right_min, right_max = right.range
+                if left_max < right_min:
+                    expr.make_equal_to(left)
+                    return True
+                if right_max < left_min:
+                    expr.make_equal_to(right)
+                    return True
+                return False
+            case ir.Binary(left, right, ir.BinOp.Max):
+                left_min, left_max = left.range
+                right_min, right_max = right.range
+                if left_min > right_max:
+                    expr.make_equal_to(left)
+                    return True
+                if right_min > left_max:
+                    expr.make_equal_to(right)
+                    return True
+                return False
             case ir.Binary(_, _, _):
                 return False
             case ir.Unary(ir.Unary(x, ir.UnOp.Sqr, _), ir.UnOp.Sqrt, _):

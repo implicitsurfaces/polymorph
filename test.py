@@ -144,11 +144,11 @@ class Optimizer:
         match expr:
             case ir.Param(_) | ir.Observation(_) | ir.Scalar(_) | ir.Arr(_):
                 return False
-            case ir.Binary(_) if expr.range[0] == expr.range[1]:
-                # TODO(max): Differentiate between scalar and arrays of known
-                # range
-                # expr.make_equal_to(ir.Scalar(expr.range[0]))
-                return False
+            # case ir.Binary(_) if expr.range[0] == expr.range[1]:
+            #     # TODO(max): Differentiate between scalar and arrays of known
+            #     # range
+            #     expr.make_equal_to(ir.Scalar(expr.range[0]))
+            #     return False
             case ir.ComparisonIf(ir.Scalar(_), ir.Scalar(_), ctrue, cfalse, _):
                 raise ValueError("ComparisonIf scalar")
             case (

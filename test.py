@@ -146,8 +146,23 @@ def const(val, dim):
     return ir.Broadcast(scalar, dim)
 
 
+class Timer:
+    def __init__(self, opt, name):
+        self.name = name
+        self.opt = opt
+
+    def __enter__(self):
+        self.start = time.perf_counter()
+
+    def __exit__(self, *args):
+        self.end = time.perf_counter()
+        self.opt.timers[self.name] += self.end - self.start
+
+
 @dataclasses.dataclass
 class Optimizer:
+    timers: dict[str, float] = dataclasses.field(default_factory=collections.Counter)
+
     def opt(self, expr: ir.Expr) -> ir.Expr:
         match expr:
             case ir.Param(_) | ir.Observation(_) | ir.Scalar(_) | ir.Arr(_):
@@ -356,23 +371,31 @@ class Optimizer:
         cycles = 0
         while True:
             changed = False
-            for e in topo(expr.find()):
+            with self.timer("topo"):
+                exprs = topo(expr.find())
+            for e in exprs:
                 dim_before = e.dim
                 range_before = e.range
-                changed |= self.opt(e.find())
+                with self.timer("opt"):
+                    changed |= self.opt(e.find())
                 dim_after = e.find().dim
                 assert dim_before == dim_after, f"dim changed in optimization; was {dim_before}, now {dim_after}"
-                absint_range_one(e.find())
+                with self.timer("absint_range"):
+                    absint_range_one(e.find())
                 range_after = e.find().range
                 assert range_before[0] <= range_after[0], f"range min decreased in optimization; was {range_before[0]}, now {range_after[0]}"
                 assert range_before[1] >= range_after[1], f"range max increased in optimization; was {range_before[1]}, now {range_after[1]}"
-            changed |= cse(expr)
+            with self.timer("cse"):
+                changed |= cse(expr)
             expr_opt = expr.find()
             if not changed:
                 print(f"Optimization cycles: {cycles}", file=sys.stderr)
                 return expr_opt
             expr = expr_opt
             cycles += 1
+
+    def timer(self, name):
+        return Timer(self, name)
 
 
 def absint_sqrt(x: float) -> float:
@@ -515,6 +538,9 @@ before = time.perf_counter()
 optimizer = Optimizer()
 expr = optimizer.spin_opt(expr)
 after = time.perf_counter()
+print("Timers:", file=sys.stderr)
+for measure, time in sorted(optimizer.timers.items(), key=lambda x: x[1], reverse=True):
+    print(f"  {measure:15}: {time:.2f}s", file=sys.stderr)
 print(f"Optimize IR: {after - before:.2f}s", file=sys.stderr)
 
 kinds = collections.Counter()

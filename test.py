@@ -221,6 +221,24 @@ class Optimizer:
                 assert left_dim == right_dim
                 expr.make_equal_to(ir.Broadcast(ir.Scalar(left - right), left_dim))
                 return True
+            case ir.Binary(ir.Broadcast(ir.Scalar(left), left_dim),
+                           ir.Broadcast(ir.Scalar(right), right_dim),
+                           ir.BinOp.Add):
+                assert left_dim == right_dim
+                expr.make_equal_to(ir.Broadcast(ir.Scalar(left + right), left_dim))
+                return True
+            case ir.Binary(ir.Broadcast(ir.Scalar(left), left_dim),
+                           ir.Broadcast(ir.Scalar(right), right_dim),
+                           ir.BinOp.Max):
+                assert left_dim == right_dim
+                expr.make_equal_to(ir.Broadcast(ir.Scalar(max(left, right)), left_dim))
+                return True
+            case ir.Binary(ir.Broadcast(ir.Scalar(left), left_dim),
+                           ir.Broadcast(ir.Scalar(right), right_dim),
+                           ir.BinOp.Mul):
+                assert left_dim == right_dim
+                expr.make_equal_to(ir.Broadcast(ir.Scalar(left * right), left_dim))
+                return True
             case ir.Binary(ir.Broadcast(ir.Scalar(left), _),
                            ir.Broadcast(ir.Scalar(right), _), op):
                 raise ValueError(f"Binary broadcast: {left} {op} {right}")
@@ -231,6 +249,12 @@ class Optimizer:
                     expr.make_equal_to(left)
                     return True
                 if right_max < left_min:
+                    expr.make_equal_to(right)
+                    return True
+                if math.isinf(right_min) and math.isinf(right_max):
+                    expr.make_equal_to(left)
+                    return True
+                if math.isinf(left_min) and math.isinf(left_max):
                     expr.make_equal_to(right)
                     return True
                 return False

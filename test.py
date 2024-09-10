@@ -138,6 +138,14 @@ def draw_dot(root, format='svg', rankdir='LR'):
     return dot
 
 
+def const(val, dim):
+    assert isinstance(val, (int, float))
+    scalar = ir.Scalar(val)
+    if dim == 1:
+        return scalar
+    return ir.Broadcast(scalar, dim)
+
+
 @dataclasses.dataclass
 class Optimizer:
     def opt(self, expr: ir.Expr) -> ir.Expr:
@@ -145,11 +153,7 @@ class Optimizer:
             case ir.Param(_) | ir.Observation(_) | ir.Scalar(_) | ir.Arr(_):
                 return False
             case ir.Binary(_) if expr.range[0] == expr.range[1]:
-                val = ir.Scalar(expr.range[0])
-                if expr.dim == 1:
-                    expr.make_equal_to(val)
-                    return True
-                expr.make_equal_to(ir.Broadcast(val, expr.dim))
+                expr.make_equal_to(const(expr.range[0], expr.dim))
                 return True
             case ir.ComparisonIf(ir.Scalar(_), ir.Scalar(_), ctrue, cfalse, _):
                 raise ValueError("ComparisonIf scalar")
@@ -173,13 +177,13 @@ class Optimizer:
                 expr.make_equal_to(x.find())
                 return True
             case ir.Binary(x, y, ir.BinOp.Sub) if x is y:
-                expr.make_equal_to(ir.Scalar(0))
+                expr.make_equal_to(const(0, expr.dim))
                 return True
             case (
                 ir.Binary(ir.Scalar(0), x, ir.BinOp.Mul)
                 | ir.Binary(x, ir.Scalar(0), ir.BinOp.Mul)
             ):
-                expr.make_equal_to(ir.Scalar(0))
+                expr.make_equal_to(const(0, expr.dim))
                 return True
             case (
                 ir.Binary(ir.Scalar(1), x, ir.BinOp.Mul)
@@ -318,6 +322,7 @@ class Optimizer:
             changed = False
             for e in topo(expr.find()):
                 changed |= self.opt(e.find())
+                assert e.dim == e.find().dim, f"dim changed in optimization; was {e.dim}, now {e.find().dim}"
                 absint_range_one(e.find())
             # TODO(max): Figure out if you can actually do structural sharing
             # with range-based abstract interpretation... might not be legal

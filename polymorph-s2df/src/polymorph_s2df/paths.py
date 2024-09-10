@@ -6,7 +6,7 @@ from polymorph_num.angle import (
     Angle,
     angle_from_rad,
     polar_angle,
-    polar_diamond_angle,
+    polar_angle_from_vec,
     two_vectors_angle,
 )
 from polymorph_num.expr import PI, TAU, ZERO, Expr, Num, as_expr
@@ -64,7 +64,7 @@ class PathSegment(Shape):
         raise NotImplementedError()
 
     def winding_number(self, p: Vec2) -> Expr:
-        raise NotImplementedError()
+        return self.solid_angle(p).turns()
 
     def solid_angle(self, p: Vec2) -> SolidAngle:
         raise NotImplementedError()
@@ -103,9 +103,6 @@ class LineSegment(PathSegment):
         b = self.end - p
 
         return SolidAngle([two_vectors_angle(a, b)])
-
-    def winding_number(self, p: Vec2) -> Expr:
-        return self.solid_angle(p).turns()
 
     def distance(self, x: Num, y: Num) -> Expr:
         p = Vec2(x, y)
@@ -177,8 +174,8 @@ class ArcSegment(PathSegment):
             self.radius * self.start_angle.cos(), self.radius * self.start_angle.sin()
         )
 
-    def end_tangent(self) -> Expr:
-        return self.end_angle
+    def end_tangent(self) -> Angle:
+        return angle_from_rad(self.end_angle)
 
     @cached_property
     def last_point(self) -> Vec2:
@@ -254,9 +251,6 @@ class ArcSegment(PathSegment):
 
         return start_angle_integral - end_angle_integral + correction_solid_angle
 
-    def winding_number(self, p: Vec2) -> Expr:
-        return self.solid_angle(p).turns()
-
     def distance(self, x: Num, y: Num) -> Expr:
         p = Vec2(x, y)
         angle_position = normalize_angle(ops.atan2(y, x))
@@ -331,16 +325,16 @@ class BulgingSegment(PathSegment):
         return (1 - self.bulge**2) / (1 + self.bulge**2)
 
     @cached_property
-    def start_diangle(self):
-        return polar_diamond_angle(
+    def start_sort_angle(self):
+        return polar_angle(
             self.start.x - self.center.x, self.start.y - self.center.y
-        )
+        ).as_sort_value()
 
     @cached_property
-    def end_diangle(self):
-        return polar_diamond_angle(
+    def end_sort_angle(self):
+        return polar_angle(
             self.end.x - self.center.x, self.end.y - self.center.y
-        )
+        ).as_sort_value()
 
     def end_tangent(self) -> Angle:
         vec = (self.end - self.start) * self.c_value + (
@@ -356,28 +350,117 @@ class BulgingSegment(PathSegment):
 
         center_to_p = p - self.center
 
-        sign = self.bulge.sign()
+        orientation = self.bulge.sign()
 
-        p_diangle = sign * polar_diamond_angle(center_to_p.x, center_to_p.y)
-        s_diangle = sign * self.start_diangle
-        e_diangle = sign * self.end_diangle
+        # We want to decide if we return the in_sector_distance or the out_sector_distance
+        # We can do this by comparing the angles of the start, end and the point
+        #
+        # The gist of it is that if the sort order of the points is a even permutation of
+        # start-point-end (i.e. the point is in the sector), we return the in_sector_distance
+        # otherwise we return the out_sector_distance
 
-        min_diangle = min_iterable((s_diangle, e_diangle, p_diangle))
-        max_diangle = max_iterable((s_diangle, e_diangle, p_diangle))
+        p_sort_val = (
+            orientation * polar_angle(center_to_p.x, center_to_p.y).as_sort_value()
+        )
+        s_sort_val = orientation * self.start_sort_angle
+        e_sort_val = orientation * self.end_sort_angle
+
+        min_sort_val = min_iterable((s_sort_val, e_sort_val, p_sort_val))
+        max_sort_val = max_iterable((s_sort_val, e_sort_val, p_sort_val))
 
         def if_not_extrema(value, if_extrema, if_not_extrema):
             return ops.if_eq(
                 value,
-                min_diangle,
+                min_sort_val,
                 if_extrema,
-                ops.if_eq(value, max_diangle, if_extrema, if_not_extrema),
+                ops.if_eq(value, max_sort_val, if_extrema, if_not_extrema),
             )
 
         return ops.if_lt(
-            s_diangle,
-            p_diangle,
-            if_not_extrema(e_diangle, in_sector_distance, out_sector_distance),
-            if_not_extrema(e_diangle, out_sector_distance, in_sector_distance),
+            s_sort_val,
+            p_sort_val,
+            if_not_extrema(e_sort_val, in_sector_distance, out_sector_distance),
+            if_not_extrema(e_sort_val, out_sector_distance, in_sector_distance),
+        )
+
+    def solid_angle(self, p: Vec2) -> SolidAngle:
+        start_angle = polar_angle_from_vec(self.center - self.start)
+        end_angle = polar_angle_from_vec(self.center - self.end)
+        p_vec = self.center - p
+
+        end_angle_integral = winding_number_indefinite_integral(
+            end_angle, self.radius, p_vec.x, p_vec.y
+        )
+        start_angle_integral = winding_number_indefinite_integral(
+            start_angle, self.radius, p_vec.x, p_vec.y
+        )
+
+        # First, we consider the case where the angles are oriented counter
+        # clockwise
+        #
+        # We need to consider three cases: - both angles are smaller than pi
+        # - both angles are greater than pi - one angle is smaller than pi and
+        # the other is greater than pi
+        #
+        # If the angles are on the same side of pi, we cross the pi line if end
+        # angle is small than the start angle. This is the same for when they
+        # are both bigger and small than pi - so we really only have two cases,
+        # either the angles are on the same side of pi or not.
+        #
+        # We can use the sign of the product of the differences to determine if
+        # the angles are on the same side of pi.
+        #
+        # Then, as the cases are the inverse of each other, we can use the sign
+        # of the product of the differences
+        #
+        # An angle is smaller than pi if the difference between the angle and
+        # pi is positive and greater than pi if the difference is negative
+        #
+        # When the angles are on different sides of pi, we cross pi if the end
+        # angles is bigger than the start angle.
+        # As this is the opposite of the case where the angles are on the same
+        # side of pi, we can use the sign of the product of the differences to
+        # determine if the angles are on the same side of pi.
+
+        is_crossing_pi = (
+            start_angle.sin()
+            * end_angle.sin()
+            * (end_angle.as_sort_value() - start_angle.as_sort_value())
+        )
+
+        orientation_sign = self.bulge.sign()
+
+        # We then need to take into account the case where the angles are
+        # clockwise. In that case we need to make two changes:
+        #
+        # - the angles are inverted (i.e. the is_crossing_pi needs to invert
+        # its sign)
+        #
+        # - the integral needs to be inverted (i.e. we need to subtract the
+        # integral from the start to the end)
+
+        pi_crossing_correction_turns = (
+            ops.if_lt(
+                is_crossing_pi * orientation_sign,
+                0,
+                winding_number_at_pi(self.radius, p_vec.x, p_vec.y),
+                0,
+            )
+            * orientation_sign
+        )
+
+        # Note that the correction is either 0 or 2π, so we create a solid angle
+        # with a known number of turns
+        correction_solid_angle = SolidAngle([], pi_crossing_correction_turns)
+
+        return start_angle_integral - end_angle_integral + correction_solid_angle
+
+    def bounding_box(self):
+        return BoundingBox(
+            self.center.x - self.radius,
+            self.center.y - self.radius,
+            self.center.x + self.radius,
+            self.center.y + self.radius,
         )
 
 
@@ -390,7 +473,7 @@ class TranslatedSegment(PathSegment):
     def astuple(self):
         return (self.segment, self.translation)
 
-    def end_tangent(self) -> Expr:
+    def end_tangent(self) -> Angle:
         return self.segment.end_tangent()
 
     def __eq__(self, other):
@@ -409,9 +492,6 @@ class TranslatedSegment(PathSegment):
 
     def solid_angle(self, p: Vec2) -> SolidAngle:
         return self.segment.solid_angle(p - self.translation)
-
-    def winding_number(self, p):
-        return self.segment.winding_number(p - self.translation)
 
     def bounding_box(self):
         return self.segment.bounding_box().translate(

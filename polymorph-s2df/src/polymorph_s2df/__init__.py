@@ -1,7 +1,8 @@
 from jax.numpy import isscalar
 from polymorph_num import ops as ops
-from polymorph_num.expr import ZERO, Num, as_expr
+from polymorph_num.angle import NO_TURN, angle_from_rad
 from polymorph_num.expr import Expr as Expr
+from polymorph_num.expr import Num, as_expr
 from polymorph_num.vec import ValVec, Vec2, as_vec2
 
 from polymorph_s2df.geom_helpers import biarc, bulge_arc, extrema_points_and_tangent
@@ -87,7 +88,7 @@ class DrawingPen:
 
     def _current_angle(self):
         if len(self.segments) == 0:
-            return ZERO
+            return NO_TURN
         last_segment = self.segments[-1]
         return last_segment.end_tangent()
 
@@ -114,7 +115,9 @@ class DrawingPen:
         return self.line(0, y)
 
     def arc_to(self, point: tuple[float, float], bulge: float):
-        self.segments.append(bulge_arc(Vec2(*self.current_point), Vec2(*point), bulge))
+        self.segments.append(
+            BulgingSegment(Vec2(*self.current_point), Vec2(*point), bulge)
+        )
         self.current_point = point
         return self
 
@@ -135,7 +138,9 @@ class DrawingPen:
             extrema_points_and_tangent(
                 first if not tangent_at_end else second,
                 second if not tangent_at_end else first,
-                self._current_angle() if angle is None else as_expr(angle),
+                self._current_angle()
+                if angle is None
+                else angle_from_rad(as_expr(angle)),
                 tangent_at_end,
             )
         )
@@ -156,10 +161,12 @@ class DrawingPen:
             biarc(
                 as_expr(x0),
                 as_expr(y0),
-                self._current_angle() if start_angle is None else as_expr(start_angle),
+                self._current_angle()
+                if start_angle is None
+                else angle_from_rad(as_expr(start_angle)),
                 as_expr(x1),
                 as_expr(y1),
-                as_expr(angle),
+                angle_from_rad(as_expr(angle)),
                 as_expr(param),
             )
         )

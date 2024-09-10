@@ -1,4 +1,5 @@
 from polymorph_num import ops
+from polymorph_num.angle import HALF_TURN, Angle, angle_from_rad
 from polymorph_num.expr import PI, Expr, Num, as_expr
 from polymorph_num.vec import ValVec, Vec2, as_vec2
 
@@ -35,7 +36,7 @@ def bulge_arc(point1: ValVec, point2: ValVec, bulge: Num):
 
 
 def extrema_points_and_tangent(
-    start_point: Vec2, end_point: Vec2, tangent: Expr, reverse: bool = False
+    start_point: Vec2, end_point: Vec2, tangent: Angle, reverse: bool = False
 ):
     chord_direction = Vec2(end_point.y - start_point.y, start_point.x - end_point.x)
     chord_midpoint = (start_point + end_point) / 2
@@ -58,7 +59,7 @@ def extrema_points_and_tangent(
     normal_vector = start_point - center
 
     orientation_sign = normal_vector.cross(tangent_vector).sign()
-    normal_angle = tangent - orientation_sign * PI / 2
+    normal_angle = tangent.as_rad() - orientation_sign * PI / 2
 
     start_angle = normal_angle if not reverse else angle2
     end_angle = angle2 if not reverse else normal_angle
@@ -80,7 +81,7 @@ def line_line_intersection(p0: Vec2, v0: Vec2, p1: Vec2, v1: Vec2):
 
 
 def biarc(
-    x0: Expr, y0: Expr, theta0: Expr, x1: Expr, y1: Expr, theta1: Expr, param: Expr
+    x0: Expr, y0: Expr, theta0: Angle, x1: Expr, y1: Expr, theta1: Angle, param: Expr
 ):
     p0 = Vec2(x0, y0)
     p1 = Vec2(x1, y1)
@@ -97,12 +98,12 @@ def biarc(
     center = line_line_intersection(m0, v0, m1, v1)
     radius = (center - p0).norm()
 
-    mid_angle = (theta0 + theta1) / 2
-    angle = (param - 0.5) % 1 * 2 * PI + mid_angle
+    mid_angle = (theta0 + theta1).half()
+    angle = angle_from_rad((param - 0.5) % 1 * 2 * PI) + mid_angle
 
     j = center + Vec2(angle.cos(), angle.sin()).scale(radius)
 
     return [
         extrema_points_and_tangent(p0, j, theta0),
-        extrema_points_and_tangent(p1, j, PI + theta1, reverse=True),
+        extrema_points_and_tangent(p1, j, HALF_TURN + theta1, reverse=True),
     ]

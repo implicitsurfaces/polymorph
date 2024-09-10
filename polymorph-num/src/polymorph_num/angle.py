@@ -1,27 +1,6 @@
+from polymorph_num import ops
 from polymorph_num.expr import ONE, PI, SQRT2_INV, ZERO, Expr
 from polymorph_num.vec import Vec2
-
-
-def polar_diamond_angle(x, y):
-    sign_x = x.sign()
-    sign_y = y.sign()
-
-    x = x.abs()
-    y = y.abs()
-
-    denom = x + y
-
-    q1 = y / denom
-    q2 = 1 + x / denom
-    q3 = 2 + y / denom
-    q4 = 3 + x / denom
-
-    is_q1 = (1 + sign_y) * (1 + sign_x)
-    is_q2 = (1 + sign_y) * (1 - sign_x)
-    is_q3 = (1 - sign_y) * (1 - sign_x)
-    is_q4 = (1 - sign_y) * (1 + sign_x)
-
-    return 0.25 * (q1 * is_q1 + q2 * is_q2 + q3 * is_q3 + q4 * is_q4)
 
 
 class Angle:
@@ -71,16 +50,25 @@ class Angle:
         return Vec2(self._cos, self._sin)
 
     def as_rad(self) -> Expr:
-        return self._cos.acos() * self._sin.sign()
+        # I have tried to use acos, but this is more nurmerically stable
+        return ops.atan2(self._sin, self._cos)
 
     def as_deg(self) -> Expr:
         return self.as_rad() * 180 / PI
 
-    def as_diamond_angle(self) -> Expr:
-        return polar_diamond_angle(self._cos, self._sin)
+    def as_sort_value(self) -> Expr:
+        return ops.if_lt(self._sin.sign(), 0, 3 + self._cos, 1 - self._cos) / 2
 
     def perp(self) -> "Angle":
         return Angle(-self._sin, self._cos)
+
+    def flip_sign(self, orientation_sign: Expr) -> "Angle":
+        """Changes the angle to the opposite direction depending on the orientation sign.
+
+        Note that the orientation sign must be 1 or -1.
+        """
+
+        return Angle(self._cos, self._sin * orientation_sign)
 
     def quarter_turn(self) -> Expr:
         # There should be an issue with this function when the angle is exactly 0
@@ -95,6 +83,10 @@ def polar_angle(x: Expr, y: Expr) -> Angle:
     return Angle(x / r, y / r)
 
 
+def polar_angle_from_vec(v: Vec2) -> Angle:
+    return polar_angle(v.x, v.y)
+
+
 def angle_from_rad(rad: Expr) -> Angle:
     return Angle(rad.cos(), rad.sin())
 
@@ -106,14 +98,17 @@ def angle_from_deg(deg: Expr) -> Angle:
 def two_vectors_angle(u: Vec2, v: Vec2) -> Angle:
     norm_u = u.norm()
     norm_v = v.norm()
-    norm = norm_u * norm_v
 
-    sin = u.cross(v) / norm
-    cos = u.dot(v) / norm
+    unit_u = u / norm_u
+    unit_v = v / norm_v
+
+    sin = unit_u.cross(unit_v)
+    cos = unit_u.dot(unit_v)
 
     return Angle(cos, sin)
 
 
+NO_TURN = Angle(ONE, ZERO)
 HALF_TURN = Angle(-ONE, ZERO)
 FULL_TURN = Angle(ONE, ZERO)
 QUARTER_TURN = Angle(ZERO, ONE)

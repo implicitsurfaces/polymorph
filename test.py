@@ -170,6 +170,9 @@ class Optimizer:
             case ir.Binary(_) if expr.range[0] == expr.range[1]:
                 expr.make_equal_to(const(expr.range[0], expr.dim))
                 return True
+            case ir.Unary(_) if expr.range[0] == expr.range[1]:
+                expr.make_equal_to(const(expr.range[0], expr.dim))
+                return True
             case ir.ComparisonIf(ir.Scalar(_), ir.Scalar(_), ctrue, cfalse, _):
                 raise ValueError("ComparisonIf scalar")
             case (

@@ -330,6 +330,37 @@ def absint_range_one(expr: ir.Expr) -> None:
             left_min, left_max = left.range
             right_min, right_max = right.range
             expr.update_range(left_min - right_max, left_max - right_min)
+        case ir.Binary(left, right, ir.BinOp.ArcTan2):
+            left_min, left_max = left.range
+            right_min, right_max = right.range
+            expr.update_range(math.atan2(left_min, right_min), math.atan2(left_max, right_max))
+        case ir.Binary(left, right, ir.BinOp.Mod):
+            left_min, left_max = left.range
+            right_min, right_max = right.range
+            expr.update_range(0, right_max)
+        case ir.Binary(left, right, ir.BinOp.Div):
+            left_min, left_max = left.range
+            right_min, right_max = right.range
+            if right_min <= 0 and right_max >= 0:
+                expr.update_range(-math.inf, math.inf)
+            else:
+                expr.update_range(
+                        min(absint_mul(left_min, 1 / right_min),
+                            absint_mul(left_min, 1 / right_max),
+                            absint_mul(left_max, 1 / right_min),
+                            absint_mul(left_max, 1 / right_max)),
+                        max(absint_mul(left_min, 1 / right_min),
+                            absint_mul(left_min, 1 / right_max),
+                            absint_mul(left_max, 1 / right_min),
+                            absint_mul(left_max, 1 / right_max)))
+        case ir.Binary(left, right, ir.BinOp.Min):
+            left_min, left_max = left.range
+            right_min, right_max = right.range
+            expr.update_range(min(left_min, right_min), min(left_max, right_max))
+        case ir.Binary(left, right, ir.BinOp.Max):
+            left_min, left_max = left.range
+            right_min, right_max = right.range
+            expr.update_range(max(left_min, right_min), max(left_max, right_max))
         case ir.Unary(orig, ir.UnOp.Sqrt, _):
             orig_min, orig_max = orig.range
             expr.update_range(absint_sqrt(orig_min), absint_sqrt(orig_max))
@@ -341,10 +372,26 @@ def absint_range_one(expr: ir.Expr) -> None:
             _, orig_max = orig.range
             # TODO(max): Improve min; could be higher
             expr.update_range(0, orig_max)
+        case ir.Unary(orig, ir.UnOp.Cos, _):
+            orig_min, orig_max = orig.range
+            expr.update_range(-1, 1)
+        case ir.Unary(orig, ir.UnOp.Sin, _):
+            orig_min, orig_max = orig.range
+            expr.update_range(-1, 1)
+        case ir.Unary(orig, ir.UnOp.Sign, _):
+            expr.update_range(-1, 1)
+        case ir.Broadcast(orig, _):
+            expr.update_range(*orig.range)
         case ir.ComparisonIf(a, b, ctrue, cfalse, _):
             ctrue_min, ctrue_max = ctrue.range
             cfalse_min, cfalse_max = cfalse.range
             expr.update_range(min(ctrue_min, cfalse_min), max(ctrue_max, cfalse_max))
+        case ir.GridX3d(_, _, _):
+            pass
+        case ir.GridY3d(_, _, _):
+            pass
+        case ir.GridZ3d(_, _, _):
+            pass
         case ir.Binary(left, right, op):
             raise ValueError(f"Binary: {op}")
         case ir.Unary(_, op, _):

@@ -336,16 +336,6 @@ class Optimizer:
                 return False
             case ir.ComparisonIf(_):
                 return False
-            # case ir.Unary(ir.Unary(x, ir.UnOp.Sqr, _), ir.UnOp.Sqrt, _):
-            #     raise ValueError(f"Unary unary sqr sqrt: {x}")
-            # case ir.Unary(
-            #         ir.Binary(
-            #             ir.Unary(l, ir.UnOp.Sqr, _),
-            #             ir.Unary(r, ir.UnOp.Sqr, _),
-            #             ir.BinOp.Add),
-            #         ir.UnOp.Sqrt):
-            #     expr.make_equal_to(ir.Binary(l, r, ir.BinOp.RMS))
-            #     return True
             case ir.Unary(ir.Scalar(_), op, consts):
                 raise ValueError(f"Unary scalar: {op} {orig}")
             case ir.Unary(orig, op, consts):

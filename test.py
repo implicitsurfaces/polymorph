@@ -341,6 +341,10 @@ def absint_range_one(expr: ir.Expr) -> None:
             _, orig_max = orig.range
             # TODO(max): Improve min; could be higher
             expr.update_range(0, orig_max)
+        case ir.ComparisonIf(a, b, ctrue, cfalse, _):
+            ctrue_min, ctrue_max = ctrue.range
+            cfalse_min, cfalse_max = cfalse.range
+            expr.update_range(min(ctrue_min, cfalse_min), max(ctrue_max, cfalse_max))
         case ir.Binary(left, right, op):
             raise ValueError(f"Binary: {op}")
         case ir.Unary(_, op, _):

@@ -224,6 +224,26 @@ class Optimizer:
             case ir.Unary(ir.Scalar(x), ir.UnOp.Sqr, _):
                 expr.make_equal_to(ir.Scalar(x * x))
                 return True
+            case ir.ComparisonIf(a, b, ctrue, cfalse, ir.CompOp.Gt):
+                a_min, a_max = a.range
+                b_min, b_max = b.range
+                if a_min > b_max:
+                    expr.make_equal_to(ctrue)
+                    return True
+                if a_max <= b_min:
+                    expr.make_equal_to(cfalse)
+                    return True
+                return False
+            case ir.ComparisonIf(a, b, ctrue, cfalse, ir.CompOp.Ge):
+                a_min, a_max = a.range
+                b_min, b_max = b.range
+                if a_min >= b_max:
+                    expr.make_equal_to(ctrue)
+                    return True
+                if a_max < b_min:
+                    expr.make_equal_to(cfalse)
+                    return True
+                return False
             # case ir.Unary(ir.Unary(x, ir.UnOp.Sqr, _), ir.UnOp.Sqrt, _):
             #     raise ValueError(f"Unary unary sqr sqrt: {x}")
             # case ir.Unary(

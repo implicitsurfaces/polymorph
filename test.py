@@ -292,7 +292,9 @@ class Optimizer:
             for e in topo(expr.find()):
                 changed |= self.opt(e.find())
                 absint_range_one(e.find())
-            changed |= cse(expr)
+            # TODO(max): Figure out if you can actually do structural sharing
+            # with range-based abstract interpretation... might not be legal
+            # changed |= cse(expr)
             expr_opt = expr.find()
             if not changed:
                 print(f"Optimization cycles: {cycles}", file=sys.stderr)

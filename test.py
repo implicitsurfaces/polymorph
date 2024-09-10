@@ -8,56 +8,56 @@ import collections
 import sys
 
 before = time.perf_counter()
-# profile = (
-#     draw((-0.1, 0))
-#     .horizontal_line(0.2)
-#     .line_to((0.05, 0.3))
-#     .close()
-#     .rotate(math.pi / 2)
-# )
-# 
-# plane = XY_PLANE.translateTo((-1, 0, 0))
-# enable_rotation_mode = True
-# space = 0.2
-# solid = (
-#     sweep(profile, plane)
-#     .to_point((1, space, 0), enable_rotation_mode)
-#     # .to_point((-1, 2 * space, 0), enable_rotation_mode)
-#     # .to_point((1, 3 * space, 0), enable_rotation_mode)
-#     # .to_point((-1, 4 * space, 0), enable_rotation_mode)
-#     .to_solid()
-# )
-# 
-# grid_x, grid_y, grid_z = grid_gen_3d(100, 100, 100)
-# expr = solid.distance(grid_x, grid_y, grid_z)
-side_length = ir.Param(0)
-corners = [
-    [ir.Scalar(0), ir.Scalar(0)],
-    [ir.Scalar(0), side_length],
-    [side_length, side_length],
-    [side_length, ir.Scalar(0)],
-]
-def distance(p0, p1):
-    return ir.Unary(
-            ir.Binary(
-                ir.Binary(
-                    ir.Binary(p0[0], p1[0], ir.BinOp.Sub),
-                    ir.Binary(p0[0], p1[0], ir.BinOp.Sub),
-                    ir.BinOp.Mul),
-                ir.Binary(
-                    ir.Binary(p0[1], p1[1], ir.BinOp.Sub),
-                    ir.Binary(p0[1], p1[1], ir.BinOp.Sub),
-                    ir.BinOp.Mul),
-                ir.BinOp.Add),
-        ir.UnOp.Sqrt,
-        (),
-    )
-expr = distance(corners[0], corners[1]) + \
-        distance(corners[1], corners[2]) + \
-        distance(corners[2], corners[3]) + \
-        distance(corners[3], corners[0]) + \
-        distance(corners[0], corners[2]) + \
-        distance(corners[1], corners[3])
+profile = (
+    draw((-0.1, 0))
+    .horizontal_line(0.2)
+    .line_to((0.05, 0.3))
+    .close()
+    .rotate(math.pi / 2)
+)
+
+plane = XY_PLANE.translateTo((-1, 0, 0))
+enable_rotation_mode = True
+space = 0.2
+solid = (
+    sweep(profile, plane)
+    .to_point((1, space, 0), enable_rotation_mode)
+    # .to_point((-1, 2 * space, 0), enable_rotation_mode)
+    # .to_point((1, 3 * space, 0), enable_rotation_mode)
+    # .to_point((-1, 4 * space, 0), enable_rotation_mode)
+    .to_solid()
+)
+
+grid_x, grid_y, grid_z = grid_gen_3d(100, 100, 100)
+expr = solid.distance(grid_x, grid_y, grid_z)
+# side_length = ir.Param(0)
+# corners = [
+#     [ir.Scalar(0), ir.Scalar(0)],
+#     [ir.Scalar(0), side_length],
+#     [side_length, side_length],
+#     [side_length, ir.Scalar(0)],
+# ]
+# def distance(p0, p1):
+#     return ir.Unary(
+#             ir.Binary(
+#                 ir.Binary(
+#                     ir.Binary(p0[0], p1[0], ir.BinOp.Sub),
+#                     ir.Binary(p0[0], p1[0], ir.BinOp.Sub),
+#                     ir.BinOp.Mul),
+#                 ir.Binary(
+#                     ir.Binary(p0[1], p1[1], ir.BinOp.Sub),
+#                     ir.Binary(p0[1], p1[1], ir.BinOp.Sub),
+#                     ir.BinOp.Mul),
+#                 ir.BinOp.Add),
+#         ir.UnOp.Sqrt,
+#         (),
+#     )
+# expr = distance(corners[0], corners[1]) + \
+#         distance(corners[1], corners[2]) + \
+#         distance(corners[2], corners[3]) + \
+#         distance(corners[3], corners[0]) + \
+#         distance(corners[0], corners[2]) + \
+#         distance(corners[1], corners[3])
 
 after = time.perf_counter()
 print(f"Build IR: {after - before:.2f}s", file=sys.stderr)

@@ -71,15 +71,15 @@ def node_type(expr: ir.Expr) -> str:
     assert isinstance(expr, ir.Expr)
     match expr:
         case ir.Binary(_, _, op):
-            return f"Binary{op.name}"
+            return f"Binary{op.name}[{expr.dim}]"
         case ir.Unary(_, op, _):
-            return f"Unary{op.name}"
+            return f"Unary{op.name}[{expr.dim}]"
         case ir.Scalar(v):
             return f"Scalar {v}"
-        case ir.ComparisonIf(_, _, _, _, op):
-            return f"ComparisonIf {op.name}"
+        case ir.ComparisonIf(a, b, _, _, op):
+            return f"ComparisonIf[{expr.dim}] {a.range} {op.name} {b.range}"
         case _:
-            return type(expr).__name__
+            return f"{type(expr).__name__}[{expr.dim}]"
 
 
 def topo(expr: ir.Expr) -> list[ir.Expr]:

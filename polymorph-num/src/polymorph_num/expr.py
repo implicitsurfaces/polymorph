@@ -113,19 +113,23 @@ class Expr:
     def __init__(self, dim: int):
         object.__setattr__(self, "dim", dim)
         object.__setattr__(self, "forwarded", None)
-        self.update_range(float("-inf"), float("inf"))
+        object.__setattr__(self, "_range", (float("-inf"), float("inf")))
         object.__setattr__(self, "id", next(expr_id))
 
     @property
     def range(self) -> tuple[float, float]:
         return self.find()._range
 
-    def update_range(self, low: float, high: float):
+    def update_range(self, low: float, high: float) -> bool:
         assert not math.isnan(low), "Invalid range: low is NaN"
         assert not math.isnan(high), "Invalid range: high is NaN"
         assert low <= high, f"Invalid range: {low} > {high}"
         found = self.find()
+        new = (low, high)
+        if found._range == new:
+            return False
         object.__setattr__(found, "_range", (low, high))
+        return True
 
     def range_min(self) -> float:
         return self.range[0]

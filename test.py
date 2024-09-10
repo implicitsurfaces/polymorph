@@ -368,7 +368,7 @@ class Optimizer:
                 dim_after = e.find().dim
                 assert dim_before == dim_after, f"dim changed in optimization; was {dim_before}, now {dim_after}"
                 with self.timer("absint_range"):
-                    absint_range_one(e.find())
+                    changed |= absint_range_one(e.find())
                 range_after = e.find().range
                 assert range_before[0] <= range_after[0], f"range min decreased in optimization; was {range_before[0]}, now {range_after[0]}"
                 assert range_before[1] >= range_after[1], f"range max increased in optimization; was {range_before[1]}, now {range_after[1]}"
@@ -401,21 +401,21 @@ def absint_mul(x: float, y: float) -> float:
 def absint_range_one(expr: ir.Expr) -> None:
     match expr:
         case ir.Scalar(v):
-            expr.update_range(v, v)
+            return expr.update_range(v, v)
         case ir.Param(_):
-            expr.update_range(-math.inf, math.inf)
+            return expr.update_range(-math.inf, math.inf)
         case ir.GridX(width, height) | ir.GridY(width, height):
-            expr.update_range(0, max(width, height))
+            return expr.update_range(0, max(width, height))
         case ir.GridX3d(width, height, depth)|ir.GridY3d(width, height, depth)|ir.GridZ3d(width, height, depth):
-            expr.update_range(0, max(width, height, depth))
+            return expr.update_range(0, max(width, height, depth))
         case ir.Binary(left, right, ir.BinOp.Add):
             left_min, left_max = left.range
             right_min, right_max = right.range
-            expr.update_range(left_min + right_min, left_max + right_max)
+            return expr.update_range(left_min + right_min, left_max + right_max)
         case ir.Binary(left, right, ir.BinOp.Mul):
             left_min, left_max = left.range
             right_min, right_max = right.range
-            expr.update_range(
+            return expr.update_range(
                     min(absint_mul(left_min, right_min),
                         absint_mul(left_min, right_max),
                         absint_mul(left_max, right_min),
@@ -427,21 +427,21 @@ def absint_range_one(expr: ir.Expr) -> None:
         case ir.Binary(left, right, ir.BinOp.Sub):
             left_min, left_max = left.range
             right_min, right_max = right.range
-            expr.update_range(left_min - right_max, left_max - right_min)
+            return expr.update_range(left_min - right_max, left_max - right_min)
         case ir.Binary(left, right, ir.BinOp.ArcTan2):
             # TODO(max): Improve range if left/right ranges known
-            expr.update_range(-math.pi, math.pi)
+            return expr.update_range(-math.pi, math.pi)
         case ir.Binary(left, right, ir.BinOp.Mod):
             left_min, left_max = left.range
             right_min, right_max = right.range
-            expr.update_range(0, right_max)
+            return expr.update_range(0, right_max)
         case ir.Binary(left, right, ir.BinOp.Div):
             left_min, left_max = left.range
             right_min, right_max = right.range
             if right_min <= 0 and right_max >= 0:
-                expr.update_range(-math.inf, math.inf)
+                return expr.update_range(-math.inf, math.inf)
             else:
-                expr.update_range(
+                return expr.update_range(
                         min(absint_mul(left_min, 1 / right_min),
                             absint_mul(left_min, 1 / right_max),
                             absint_mul(left_max, 1 / right_min),
@@ -453,24 +453,24 @@ def absint_range_one(expr: ir.Expr) -> None:
         case ir.Binary(left, right, ir.BinOp.Min):
             left_min, left_max = left.range
             right_min, right_max = right.range
-            expr.update_range(min(left_min, right_min), min(left_max, right_max))
+            return expr.update_range(min(left_min, right_min), min(left_max, right_max))
         case ir.Binary(left, right, ir.BinOp.Max):
             left_min, left_max = left.range
             right_min, right_max = right.range
-            expr.update_range(max(left_min, right_min), max(left_max, right_max))
+            return expr.update_range(max(left_min, right_min), max(left_max, right_max))
         case ir.Unary(orig, ir.UnOp.Sqrt, _):
             orig_min, orig_max = orig.range
-            expr.update_range(absint_sqrt(orig_min), absint_sqrt(orig_max))
+            return expr.update_range(absint_sqrt(orig_min), absint_sqrt(orig_max))
         case ir.Unary(orig, ir.UnOp.Sqr, _):
             _, orig_max = orig.range
             # TODO(max): Improve min; could be higher
-            expr.update_range(0, absint_mul(orig_max, orig_max))
+            return expr.update_range(0, absint_mul(orig_max, orig_max))
         case ir.Unary(orig, ir.UnOp.Abs, _):
             orig_min, orig_max = orig.range
             abs_min = min(abs(orig_min), abs(orig_max))
             abs_max = max(abs(orig_min), abs(orig_max))
             assert abs_min >= 0
-            expr.update_range(abs_min, abs_max)
+            return expr.update_range(abs_min, abs_max)
         case ir.Unary(orig, ir.UnOp.Cos, _):
             orig_min, orig_max = orig.range
             # TODO(max): This is wrong; check actual range because it might
@@ -479,9 +479,9 @@ def absint_range_one(expr: ir.Expr) -> None:
             if False and orig_max-orig_min < 2*math.pi:
                 # Tighter bound within period
                 new_range = [math.cos(orig_min), math.cos(orig_max)]
-                expr.update_range(*sorted(new_range))
+                return expr.update_range(*sorted(new_range))
             else:
-                expr.update_range(-1, 1)
+                return expr.update_range(-1, 1)
         case ir.Unary(orig, ir.UnOp.Sin, _):
             orig_min, orig_max = orig.range
             # TODO(max): This is wrong; check actual range because it might
@@ -489,30 +489,25 @@ def absint_range_one(expr: ir.Expr) -> None:
             if False and orig_max-orig_min < 2*math.pi:
                 # Tighter bound within period
                 new_range = [math.sin(orig_min), math.sin(orig_max)]
-                expr.update_range(*sorted(new_range))
+                return expr.update_range(*sorted(new_range))
             else:
-                expr.update_range(-1, 1)
+                return expr.update_range(-1, 1)
         case ir.Unary(orig, ir.UnOp.Sign, _):
-            expr.update_range(-1, 1)
+            return expr.update_range(-1, 1)
         case ir.Broadcast(orig, _):
             # TODO(max): More complex value that indicates that this is an
             # array
-            expr.update_range(*orig.range)
+            return expr.update_range(*orig.range)
         case ir.ComparisonIf(a, b, ctrue, cfalse, _):
             ctrue_min, ctrue_max = ctrue.range
             cfalse_min, cfalse_max = cfalse.range
-            expr.update_range(min(ctrue_min, cfalse_min), max(ctrue_max, cfalse_max))
+            return expr.update_range(min(ctrue_min, cfalse_min), max(ctrue_max, cfalse_max))
         case ir.Binary(left, right, op):
             raise ValueError(f"Binary: {op}")
         case ir.Unary(_, op, _):
             raise ValueError(f"Unary: {op}")
         case _:
             raise ValueError(f"Unknown IR type: {type(expr)}")
-
-
-def absint_range(expr: ir.Expr) -> None:
-    for e in topo(expr):
-        absint_range_one(e)
 
 
 def cse(expr: ir.Expr) -> bool:

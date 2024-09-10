@@ -357,9 +357,15 @@ class Optimizer:
         while True:
             changed = False
             for e in topo(expr.find()):
+                dim_before = e.dim
+                range_before = e.range
                 changed |= self.opt(e.find())
-                assert e.dim == e.find().dim, f"dim changed in optimization; was {e.dim}, now {e.find().dim}"
+                dim_after = e.find().dim
+                assert dim_before == dim_after, f"dim changed in optimization; was {dim_before}, now {dim_after}"
                 absint_range_one(e.find())
+                range_after = e.find().range
+                assert range_before[0] <= range_after[0], f"range min decreased in optimization; was {range_before[0]}, now {range_after[0]}"
+                assert range_before[1] >= range_after[1], f"range max increased in optimization; was {range_before[1]}, now {range_after[1]}"
             # TODO(max): Figure out if you can actually do structural sharing
             # with range-based abstract interpretation... might not be legal
             # changed |= cse(expr)

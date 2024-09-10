@@ -238,6 +238,7 @@ class Scalar(Expr):
 
     def __post_init__(self):
         super().__init__(1)
+        self.update_range(self.value, self.value)
 
 
 @dataclass(frozen=True)

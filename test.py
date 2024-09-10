@@ -171,6 +171,10 @@ class Optimizer:
             ):
                 expr.make_equal_to(x.find())
                 return True
+            case ir.Binary(ir.Broadcast(ir.Scalar(0), dim), x, ir.BinOp.Add) | ir.Binary(x, ir.Broadcast(ir.Scalar(0), dim), ir.BinOp.Add):
+                assert x.dim == dim
+                expr.make_equal_to(x.find())
+                return True
             case (
                 ir.Binary(x, ir.Scalar(0), ir.BinOp.Sub)
             ):

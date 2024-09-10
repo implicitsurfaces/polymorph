@@ -145,10 +145,11 @@ class Optimizer:
             case ir.Param(_) | ir.Observation(_) | ir.Scalar(_) | ir.Arr(_):
                 return False
             case ir.Binary(_) if expr.range[0] == expr.range[1]:
+                val = ir.Scalar(expr.range[0])
                 if expr.dim == 1:
-                    expr.make_equal_to(ir.Scalar(expr.range[0]))
+                    expr.make_equal_to(val)
                     return True
-                expr.make_equal_to(ir.Broadcast(ir.Scalar(expr.range[0]), expr.dim))
+                expr.make_equal_to(ir.Broadcast(val, expr.dim))
                 return True
             case ir.ComparisonIf(ir.Scalar(_), ir.Scalar(_), ctrue, cfalse, _):
                 raise ValueError("ComparisonIf scalar")

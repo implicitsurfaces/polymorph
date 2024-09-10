@@ -366,9 +366,7 @@ class Optimizer:
                 range_after = e.find().range
                 assert range_before[0] <= range_after[0], f"range min decreased in optimization; was {range_before[0]}, now {range_after[0]}"
                 assert range_before[1] >= range_after[1], f"range max increased in optimization; was {range_before[1]}, now {range_after[1]}"
-            # TODO(max): Figure out if you can actually do structural sharing
-            # with range-based abstract interpretation... might not be legal
-            # changed |= cse(expr)
+            changed |= cse(expr)
             expr_opt = expr.find()
             if not changed:
                 print(f"Optimization cycles: {cycles}", file=sys.stderr)

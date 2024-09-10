@@ -417,6 +417,10 @@ def absint_range_one(expr: ir.Expr) -> None:
             expr.update_range(v, v)
         case ir.Param(_):
             expr.update_range(-math.inf, math.inf)
+        case ir.GridX(width, height) | ir.GridY(width, height):
+            expr.update_range(0, max(width, height))
+        case ir.GridX3d(width, height, depth)|ir.GridY3d(width, height, depth)|ir.GridZ3d(width, height, depth):
+            expr.update_range(0, max(width, height, depth))
         case ir.Binary(left, right, ir.BinOp.Add):
             left_min, left_max = left.range
             right_min, right_max = right.range
@@ -438,9 +442,8 @@ def absint_range_one(expr: ir.Expr) -> None:
             right_min, right_max = right.range
             expr.update_range(left_min - right_max, left_max - right_min)
         case ir.Binary(left, right, ir.BinOp.ArcTan2):
-            left_min, left_max = left.range
-            right_min, right_max = right.range
-            expr.update_range(math.atan2(left_min, right_min), math.atan2(left_max, right_max))
+            # TODO(max): Improve range if left/right ranges known
+            expr.update_range(-math.pi, math.pi)
         case ir.Binary(left, right, ir.BinOp.Mod):
             left_min, left_max = left.range
             right_min, right_max = right.range
@@ -497,12 +500,6 @@ def absint_range_one(expr: ir.Expr) -> None:
             ctrue_min, ctrue_max = ctrue.range
             cfalse_min, cfalse_max = cfalse.range
             expr.update_range(min(ctrue_min, cfalse_min), max(ctrue_max, cfalse_max))
-        case ir.GridX3d(_, _, _):
-            pass
-        case ir.GridY3d(_, _, _):
-            pass
-        case ir.GridZ3d(_, _, _):
-            pass
         case ir.Binary(left, right, op):
             raise ValueError(f"Binary: {op}")
         case ir.Unary(_, op, _):

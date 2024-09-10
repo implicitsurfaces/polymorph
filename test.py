@@ -216,6 +216,14 @@ class Optimizer:
                 raise ValueError(f"Binary scalar: {left} {op} {right}")
             case ir.Binary(ir.Arr(_), ir.Arr(_), op):
                 raise ValueError(f"Binary arr: {left} {op} {right}")
+            case ir.Binary(ir.Broadcast(ir.Scalar(left), left_dim),
+                           ir.Broadcast(ir.Scalar(right), right_dim), ir.BinOp.Sub):
+                assert left_dim == right_dim
+                expr.make_equal_to(ir.Broadcast(ir.Scalar(left - right), left_dim))
+                return True
+            case ir.Binary(ir.Broadcast(ir.Scalar(left), _),
+                           ir.Broadcast(ir.Scalar(right), _), op):
+                raise ValueError(f"Binary broadcast: {left} {op} {right}")
             case ir.Binary(left, right, ir.BinOp.Min):
                 left_min, left_max = left.range
                 right_min, right_max = right.range

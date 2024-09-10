@@ -146,8 +146,6 @@ class Optimizer:
                 return False
             case ir.ComparisonIf(ir.Scalar(_), ir.Scalar(_), ctrue, cfalse, _):
                 raise ValueError("ComparisonIf scalar")
-            case ir.ComparisonIf(_):
-                return False
             case (
                 ir.GridX(_, _)
                 | ir.GridY(_, _)
@@ -243,6 +241,18 @@ class Optimizer:
                 if a_max < b_min:
                     expr.make_equal_to(cfalse)
                     return True
+                return False
+            case ir.ComparisonIf(a, b, ctrue, cfalse, ir.ComparisonOp.Eq):
+                a_min, a_max = a.range
+                b_min, b_max = b.range
+                if a_min == b_max and a_max == b_min:
+                    expr.make_equal_to(ctrue)
+                    return True
+                if a_max < b_min or a_min > b_max:
+                    expr.make_equal_to(cfalse)
+                    return True
+                return False
+            case ir.ComparisonIf(_):
                 return False
             # case ir.Unary(ir.Unary(x, ir.UnOp.Sqr, _), ir.UnOp.Sqrt, _):
             #     raise ValueError(f"Unary unary sqr sqrt: {x}")

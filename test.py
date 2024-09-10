@@ -508,6 +508,7 @@ def cse(expr: ir.Expr) -> bool:
 kinds = collections.Counter()
 for e in topo(expr):
     kinds[type(e)] += 1
+print("Total nodes:", sum(kinds.values()), file=sys.stderr)
 print(kinds, file=sys.stderr)
 
 before = time.perf_counter()
@@ -519,5 +520,6 @@ print(f"Optimize IR: {after - before:.2f}s", file=sys.stderr)
 kinds = collections.Counter()
 for e in topo(expr):
     kinds[type(e)] += 1
+print("Total nodes:", sum(kinds.values()), file=sys.stderr)
 print(kinds, file=sys.stderr)
 print(draw_dot(expr))

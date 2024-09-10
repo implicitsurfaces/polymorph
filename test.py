@@ -513,7 +513,12 @@ def absint_range_one(expr: ir.Expr) -> None:
 def cse(expr: ir.Expr) -> bool:
     seen = {}
     changed = False
-    for e in topo(expr):
+    exprs = topo(expr)
+    for e in exprs:
+        # Force recomputation of hash_value because forwarded nodes might have
+        # changed; gets more aggressive CSE
+        e.__dict__.pop("hash_value", None)
+    for e in exprs:
         if e in seen:
             e.make_equal_to(seen[e])
             changed = True

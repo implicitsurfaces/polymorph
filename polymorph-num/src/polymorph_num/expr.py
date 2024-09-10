@@ -243,6 +243,12 @@ class Scalar(Expr):
         super().__init__(1)
         self.update_range(self.value, self.value)
 
+    def __hash__(self):
+        return hash((self.dim, self.value))
+
+    def __eq__(self, other):
+        return self.value == other.value and self.dim == other.dim
+
 
 @dataclass(frozen=True)
 class Arr(Expr):
@@ -271,7 +277,7 @@ class Binary(Expr):
 
     @cached_property
     def hash_value(self) -> int:
-        return hash((self.dim, self.left, self.right, self.op))
+        return hash((self.dim, self.left_found, self.right_found, self.op))
 
     @property
     def left_found(self): return self.left.find()
@@ -283,7 +289,7 @@ class Binary(Expr):
         return self.hash_value
 
     def __eq__(self, other):
-        return self.op == other.op and self.left_found == other.left_found and self.right_found == other.right_found
+        return self.dim == other.dim and self.op == other.op and self.left_found == other.left_found and self.right_found == other.right_found
 
     def __post_init__(self):
         if self.left.dim == self.right.dim:
@@ -305,13 +311,13 @@ class Unary(Expr):
 
     @cached_property
     def hash_value(self) -> int:
-        return hash((self.dim, self.orig, self.op, self.constants))
+        return hash((self.dim, self.orig_found, self.op, self.constants))
 
     def __hash__(self):
         return self.hash_value
 
     def __eq__(self, other):
-        return self.op == other.op and self.orig_found == other.orig_found and self.constants == other.constants
+        return self.dim == other.dim and self.op == other.op and self.orig_found == other.orig_found and self.constants == other.constants
 
     def __post_init__(self):
         super().__init__(self.orig.dim)
@@ -338,6 +344,16 @@ class Broadcast(Expr):
 
     def __post_init__(self):
         super().__init__(self.dim)
+
+    @property
+    def hash_value(self):
+        return hash((self.orig_found, self.dim))
+
+    def __hash__(self):
+        return self.hash_value
+
+    def __eq__(self, other):
+        return self.orig_found == other.orig_found and self.dim == other.dim
 
 
 @dataclass(frozen=True)
@@ -439,10 +455,10 @@ class ComparisonIf(Expr):
         return hash(
             (
                 self.dim,
-                self.a,
-                self.b,
-                self.condition_true,
-                self.condition_false,
+                self.a_found,
+                self.b_found,
+                self.condition_true_found,
+                self.condition_false_found,
                 self.op,
             )
         )
@@ -452,7 +468,8 @@ class ComparisonIf(Expr):
 
     def __eq__(self, other):
         return (
-            self.op == other.op
+            self.dim == other.dim
+            and self.op == other.op
             and self.a_found == other.a_found
             and self.b_found == other.b_found
             and self.condition_true_found == other.condition_true_found

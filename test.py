@@ -470,7 +470,9 @@ def absint_range_one(expr: ir.Expr) -> None:
             expr.update_range(abs_min, abs_max)
         case ir.Unary(orig, ir.UnOp.Cos, _):
             orig_min, orig_max = orig.range
-            if orig_max-orig_min < 2*math.pi:
+            # TODO(max): This is wrong; check actual range because it might
+            # cross a period
+            if False and orig_max-orig_min < 2*math.pi:
                 # Tighter bound within period
                 new_range = [math.cos(orig_min), math.cos(orig_max)]
                 expr.update_range(*sorted(new_range))
@@ -478,7 +480,9 @@ def absint_range_one(expr: ir.Expr) -> None:
                 expr.update_range(-1, 1)
         case ir.Unary(orig, ir.UnOp.Sin, _):
             orig_min, orig_max = orig.range
-            if orig_max-orig_min < 2*math.pi:
+            # TODO(max): This is wrong; check actual range because it might
+            # cross a period
+            if False and orig_max-orig_min < 2*math.pi:
                 # Tighter bound within period
                 new_range = [math.sin(orig_min), math.sin(orig_max)]
                 expr.update_range(*sorted(new_range))

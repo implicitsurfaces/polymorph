@@ -445,9 +445,11 @@ def absint_range_one(expr: ir.Expr) -> None:
             # TODO(max): Improve min; could be higher
             expr.update_range(0, absint_mul(orig_max, orig_max))
         case ir.Unary(orig, ir.UnOp.Abs, _):
-            _, orig_max = orig.range
-            # TODO(max): Improve min; could be higher
-            expr.update_range(0, orig_max)
+            orig_min, orig_max = orig.range
+            abs_min = min(abs(orig_min), abs(orig_max))
+            abs_max = max(abs(orig_min), abs(orig_max))
+            assert abs_min >= 0
+            expr.update_range(abs_min, abs_max)
         case ir.Unary(orig, ir.UnOp.Cos, _):
             orig_min, orig_max = orig.range
             expr.update_range(-1, 1)

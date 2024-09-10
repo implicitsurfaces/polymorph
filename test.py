@@ -22,9 +22,9 @@ space = 0.2
 solid = (
     sweep(profile, plane)
     .to_point((1, space, 0), enable_rotation_mode)
-    # .to_point((-1, 2 * space, 0), enable_rotation_mode)
-    # .to_point((1, 3 * space, 0), enable_rotation_mode)
-    # .to_point((-1, 4 * space, 0), enable_rotation_mode)
+    .to_point((-1, 2 * space, 0), enable_rotation_mode)
+    .to_point((1, 3 * space, 0), enable_rotation_mode)
+    .to_point((-1, 4 * space, 0), enable_rotation_mode)
     .to_solid()
 )
 

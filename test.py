@@ -472,6 +472,7 @@ def absint_range_one(expr: ir.Expr) -> None:
             orig_min, orig_max = orig.range
             # TODO(max): This is wrong; check actual range because it might
             # cross a period
+            # Check if a multiple of pi is in the middle?
             if False and orig_max-orig_min < 2*math.pi:
                 # Tighter bound within period
                 new_range = [math.cos(orig_min), math.cos(orig_max)]

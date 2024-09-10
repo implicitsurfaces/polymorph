@@ -224,7 +224,7 @@ class Optimizer:
             case ir.Unary(ir.Scalar(x), ir.UnOp.Sqr, _):
                 expr.make_equal_to(ir.Scalar(x * x))
                 return True
-            case ir.ComparisonIf(a, b, ctrue, cfalse, ir.CompOp.Gt):
+            case ir.ComparisonIf(a, b, ctrue, cfalse, ir.ComparisonOp.Gt):
                 a_min, a_max = a.range
                 b_min, b_max = b.range
                 if a_min > b_max:
@@ -234,7 +234,7 @@ class Optimizer:
                     expr.make_equal_to(cfalse)
                     return True
                 return False
-            case ir.ComparisonIf(a, b, ctrue, cfalse, ir.CompOp.Ge):
+            case ir.ComparisonIf(a, b, ctrue, cfalse, ir.ComparisonOp.Ge):
                 a_min, a_max = a.range
                 b_min, b_max = b.range
                 if a_min >= b_max:

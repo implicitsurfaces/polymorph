@@ -352,12 +352,6 @@ class Optimizer:
                 return False
             case ir.Broadcast(ir.Scalar(x), dim):
                 return False
-            case ir.Broadcast(orig, dim):
-                # # TODO(max): This is slow
-                # if isinstance(orig, ir.Scalar):
-                #     expr.make_equal_to(ir.Arr([orig] * dim))
-                #     return True
-                return False
             case ir.Sum(orig):
                 if isinstance(orig, ir.Scalar):
                     raise ValueError(f"Sum scalar: {orig}")

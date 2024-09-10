@@ -76,6 +76,8 @@ def node_type(expr: ir.Expr) -> str:
             return f"Unary{op.name}"
         case ir.Scalar(v):
             return f"Scalar {v}"
+        case ir.ComparisonIf(_, _, _, _, op):
+            return f"ComparisonIf {op.name}"
         case _:
             return type(expr).__name__
 

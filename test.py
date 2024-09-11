@@ -85,6 +85,7 @@ def node_type(expr: ir.Expr) -> str:
 def topo(expr: ir.Expr) -> list[ir.Expr]:
     visited = set()
     result = []
+
     def visit(expr: ir.Expr):
         if expr.id in visited:
             return
@@ -92,8 +93,10 @@ def topo(expr: ir.Expr) -> list[ir.Expr]:
         for edge in edges(expr):
             visit(edge.find())
         result.append(expr)
+
     visit(expr.find())
     return result
+
 
 def edges(expr: ir.Expr) -> list[ir.Expr]:
     match expr:
@@ -120,18 +123,26 @@ def edges(expr: ir.Expr) -> list[ir.Expr]:
         case _:
             raise ValueError(f"Unknown IR type: {type(expr)}")
 
+
 from graphviz import Digraph
-def draw_dot(root, format='svg', rankdir='LR'):
+
+
+def draw_dot(root, format="svg", rankdir="LR"):
     """
     format: png | svg | ...
     rankdir: TB (top to bottom graph) | LR (left to right)
     """
-    assert rankdir in ['LR', 'TB']
-    dot = Digraph(format=format, graph_attr={'rankdir': rankdir})
+    assert rankdir in ["LR", "TB"]
+    dot = Digraph(format=format, graph_attr={"rankdir": rankdir})
 
     for v in topo(root):
         name = node_name(v)
-        dot.node(name=name, label = "{ type %s | range [%.2f,%.2f] }" % (node_type(v), v.range[0], v.range[1]), shape='record')
+        dot.node(
+            name=name,
+            label="{ type %s | range [%.2f,%.2f] }"
+            % (node_type(v), v.range[0], v.range[1]),
+            shape="record",
+        )
         for to in edges(v):
             dot.edge(name, node_name(to))
 
@@ -189,13 +200,14 @@ class Optimizer:
             ):
                 expr.make_equal_to(x.find())
                 return True
-            case ir.Binary(ir.Broadcast(ir.Scalar(0), dim), x, ir.BinOp.Add) | ir.Binary(x, ir.Broadcast(ir.Scalar(0), dim), ir.BinOp.Add):
+            case (
+                ir.Binary(ir.Broadcast(ir.Scalar(0), dim), x, ir.BinOp.Add)
+                | ir.Binary(x, ir.Broadcast(ir.Scalar(0), dim), ir.BinOp.Add)
+            ):
                 assert x.dim == dim
                 expr.make_equal_to(x.find())
                 return True
-            case (
-                ir.Binary(x, ir.Scalar(0), ir.BinOp.Sub)
-            ):
+            case ir.Binary(x, ir.Scalar(0), ir.BinOp.Sub):
                 expr.make_equal_to(x.find())
                 return True
             case ir.Binary(x, y, ir.BinOp.Sub) if x is y:
@@ -238,31 +250,41 @@ class Optimizer:
                 raise ValueError(f"Binary scalar: {left} {op} {right}")
             case ir.Binary(ir.Arr(_), ir.Arr(_), op):
                 raise ValueError(f"Binary arr: {left} {op} {right}")
-            case ir.Binary(ir.Broadcast(ir.Scalar(left), left_dim),
-                           ir.Broadcast(ir.Scalar(right), right_dim), ir.BinOp.Sub):
+            case ir.Binary(
+                ir.Broadcast(ir.Scalar(left), left_dim),
+                ir.Broadcast(ir.Scalar(right), right_dim),
+                ir.BinOp.Sub,
+            ):
                 assert left_dim == right_dim
                 expr.make_equal_to(ir.Broadcast(ir.Scalar(left - right), left_dim))
                 return True
-            case ir.Binary(ir.Broadcast(ir.Scalar(left), left_dim),
-                           ir.Broadcast(ir.Scalar(right), right_dim),
-                           ir.BinOp.Add):
+            case ir.Binary(
+                ir.Broadcast(ir.Scalar(left), left_dim),
+                ir.Broadcast(ir.Scalar(right), right_dim),
+                ir.BinOp.Add,
+            ):
                 assert left_dim == right_dim
                 expr.make_equal_to(ir.Broadcast(ir.Scalar(left + right), left_dim))
                 return True
-            case ir.Binary(ir.Broadcast(ir.Scalar(left), left_dim),
-                           ir.Broadcast(ir.Scalar(right), right_dim),
-                           ir.BinOp.Max):
+            case ir.Binary(
+                ir.Broadcast(ir.Scalar(left), left_dim),
+                ir.Broadcast(ir.Scalar(right), right_dim),
+                ir.BinOp.Max,
+            ):
                 assert left_dim == right_dim
                 expr.make_equal_to(ir.Broadcast(ir.Scalar(max(left, right)), left_dim))
                 return True
-            case ir.Binary(ir.Broadcast(ir.Scalar(left), left_dim),
-                           ir.Broadcast(ir.Scalar(right), right_dim),
-                           ir.BinOp.Mul):
+            case ir.Binary(
+                ir.Broadcast(ir.Scalar(left), left_dim),
+                ir.Broadcast(ir.Scalar(right), right_dim),
+                ir.BinOp.Mul,
+            ):
                 assert left_dim == right_dim
                 expr.make_equal_to(ir.Broadcast(ir.Scalar(left * right), left_dim))
                 return True
-            case ir.Binary(ir.Broadcast(ir.Scalar(left), _),
-                           ir.Broadcast(ir.Scalar(right), _), op):
+            case ir.Binary(
+                ir.Broadcast(ir.Scalar(left), _), ir.Broadcast(ir.Scalar(right), _), op
+            ):
                 raise ValueError(f"Binary broadcast: {left} {op} {right}")
             case ir.Binary(left, right, ir.BinOp.Min):
                 left_min, left_max = left.range
@@ -366,12 +388,18 @@ class Optimizer:
                 with self.timer("opt"):
                     changed |= self.opt(e.find())
                 dim_after = e.find().dim
-                assert dim_before == dim_after, f"dim changed in optimization; was {dim_before}, now {dim_after}"
+                assert (
+                    dim_before == dim_after
+                ), f"dim changed in optimization; was {dim_before}, now {dim_after}"
                 with self.timer("absint_range"):
                     changed |= absint_range_one(e.find())
                 range_after = e.find().range
-                assert range_before[0] <= range_after[0], f"range min decreased in optimization; was {range_before[0]}, now {range_after[0]}"
-                assert range_before[1] >= range_after[1], f"range max increased in optimization; was {range_before[1]}, now {range_after[1]}"
+                assert (
+                    range_before[0] <= range_after[0]
+                ), f"range min decreased in optimization; was {range_before[0]}, now {range_after[0]}"
+                assert (
+                    range_before[1] >= range_after[1]
+                ), f"range max increased in optimization; was {range_before[1]}, now {range_after[1]}"
             with self.timer("cse"):
                 changed |= cse(expr)
             expr_opt = expr.find()
@@ -406,7 +434,11 @@ def absint_range_one(expr: ir.Expr) -> None:
             return expr.update_range(-math.inf, math.inf)
         case ir.GridX(width, height) | ir.GridY(width, height):
             return expr.update_range(0, max(width, height))
-        case ir.GridX3d(width, height, depth)|ir.GridY3d(width, height, depth)|ir.GridZ3d(width, height, depth):
+        case (
+            ir.GridX3d(width, height, depth)
+            | ir.GridY3d(width, height, depth)
+            | ir.GridZ3d(width, height, depth)
+        ):
             return expr.update_range(0, max(width, height, depth))
         case ir.Binary(left, right, ir.BinOp.Add):
             left_min, left_max = left.range
@@ -416,14 +448,19 @@ def absint_range_one(expr: ir.Expr) -> None:
             left_min, left_max = left.range
             right_min, right_max = right.range
             return expr.update_range(
-                    min(absint_mul(left_min, right_min),
-                        absint_mul(left_min, right_max),
-                        absint_mul(left_max, right_min),
-                        absint_mul(left_max, right_max)),
-                    max(absint_mul(left_min, right_min),
-                        absint_mul(left_min, right_max),
-                        absint_mul(left_max, right_min),
-                        absint_mul(left_max, right_max)))
+                min(
+                    absint_mul(left_min, right_min),
+                    absint_mul(left_min, right_max),
+                    absint_mul(left_max, right_min),
+                    absint_mul(left_max, right_max),
+                ),
+                max(
+                    absint_mul(left_min, right_min),
+                    absint_mul(left_min, right_max),
+                    absint_mul(left_max, right_min),
+                    absint_mul(left_max, right_max),
+                ),
+            )
         case ir.Binary(left, right, ir.BinOp.Sub):
             left_min, left_max = left.range
             right_min, right_max = right.range
@@ -442,14 +479,19 @@ def absint_range_one(expr: ir.Expr) -> None:
                 return expr.update_range(-math.inf, math.inf)
             else:
                 return expr.update_range(
-                        min(absint_mul(left_min, 1 / right_min),
-                            absint_mul(left_min, 1 / right_max),
-                            absint_mul(left_max, 1 / right_min),
-                            absint_mul(left_max, 1 / right_max)),
-                        max(absint_mul(left_min, 1 / right_min),
-                            absint_mul(left_min, 1 / right_max),
-                            absint_mul(left_max, 1 / right_min),
-                            absint_mul(left_max, 1 / right_max)))
+                    min(
+                        absint_mul(left_min, 1 / right_min),
+                        absint_mul(left_min, 1 / right_max),
+                        absint_mul(left_max, 1 / right_min),
+                        absint_mul(left_max, 1 / right_max),
+                    ),
+                    max(
+                        absint_mul(left_min, 1 / right_min),
+                        absint_mul(left_min, 1 / right_max),
+                        absint_mul(left_max, 1 / right_min),
+                        absint_mul(left_max, 1 / right_max),
+                    ),
+                )
         case ir.Binary(left, right, ir.BinOp.Min):
             left_min, left_max = left.range
             right_min, right_max = right.range
@@ -476,7 +518,7 @@ def absint_range_one(expr: ir.Expr) -> None:
             # TODO(max): This is wrong; check actual range because it might
             # cross a period
             # Check if a multiple of pi is in the middle?
-            if False and orig_max-orig_min < 2*math.pi:
+            if False and orig_max - orig_min < 2 * math.pi:
                 # Tighter bound within period
                 new_range = [math.cos(orig_min), math.cos(orig_max)]
                 return expr.update_range(*sorted(new_range))
@@ -486,7 +528,7 @@ def absint_range_one(expr: ir.Expr) -> None:
             orig_min, orig_max = orig.range
             # TODO(max): This is wrong; check actual range because it might
             # cross a period
-            if False and orig_max-orig_min < 2*math.pi:
+            if False and orig_max - orig_min < 2 * math.pi:
                 # Tighter bound within period
                 new_range = [math.sin(orig_min), math.sin(orig_max)]
                 return expr.update_range(*sorted(new_range))
@@ -501,7 +543,9 @@ def absint_range_one(expr: ir.Expr) -> None:
         case ir.ComparisonIf(a, b, ctrue, cfalse, _):
             ctrue_min, ctrue_max = ctrue.range
             cfalse_min, cfalse_max = cfalse.range
-            return expr.update_range(min(ctrue_min, cfalse_min), max(ctrue_max, cfalse_max))
+            return expr.update_range(
+                min(ctrue_min, cfalse_min), max(ctrue_max, cfalse_max)
+            )
         case ir.Binary(left, right, op):
             raise ValueError(f"Binary: {op}")
         case ir.Unary(_, op, _):

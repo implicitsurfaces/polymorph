@@ -139,7 +139,7 @@ def draw_dot(root, format="svg", rankdir="LR"):
         name = node_name(v)
         dot.node(
             name=name,
-            label="{ type %s | range [%.2f,%.2f] }"
+            label="{ type %s | range [%s,%s] }"
             % (node_type(v), v.range[0], v.range[1]),
             shape="record",
         )

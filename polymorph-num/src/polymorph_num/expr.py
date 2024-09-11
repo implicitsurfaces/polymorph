@@ -51,7 +51,6 @@ class UnOp(Enum):
     ArcTan = "arctan"
     Sign = "sign"
     Boxcar = "boxcar"
-    Sqr = "sqr"
 
 
 class ComparisonOp(Enum):

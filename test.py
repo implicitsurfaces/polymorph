@@ -215,9 +215,6 @@ class Optimizer:
             case ir.Binary(ir.Scalar(l), ir.Scalar(r), ir.BinOp.ArcTan2):
                 expr.make_equal_to(ir.Scalar(math.atan2(l, r)))
                 return True
-            case ir.Binary(l, r, ir.BinOp.Mul) if l is r:
-                expr.make_equal_to(ir.Unary(l, ir.UnOp.Sqr))
-                return True
             case ir.Binary(ir.Scalar(_), ir.Scalar(_), op):
                 raise ValueError(f"Binary scalar: {left} {op} {right}")
             case ir.Binary(ir.Arr(_), ir.Arr(_), op):
@@ -286,9 +283,6 @@ class Optimizer:
                 return False
             case ir.Binary(_, _, _):
                 return False
-            case ir.Unary(ir.Unary(x, ir.UnOp.Sqr, _), ir.UnOp.Sqrt, _):
-                expr.make_equal_to(ir.Unary(x, ir.UnOp.Abs, ()))
-                return True
             case ir.Unary(ir.Scalar(x), ir.UnOp.Sqrt, _):
                 expr.make_equal_to(ir.Scalar(math.sqrt(x)))
                 return True
@@ -297,9 +291,6 @@ class Optimizer:
                 return True
             case ir.Unary(ir.Scalar(x), ir.UnOp.Sin, _):
                 expr.make_equal_to(ir.Scalar(math.sin(x)))
-                return True
-            case ir.Unary(ir.Scalar(x), ir.UnOp.Sqr, _):
-                expr.make_equal_to(ir.Scalar(x * x))
                 return True
             case ir.ComparisonIf(a, b, ctrue, cfalse, ir.ComparisonOp.Gt):
                 a_min, a_max = a.range
@@ -475,16 +466,6 @@ def absint_range_one(expr: ir.Expr) -> None:
         case ir.Unary(orig, ir.UnOp.Sqrt, _):
             orig_min, orig_max = orig.range
             return expr.update_range(absint_sqrt(orig_min), absint_sqrt(orig_max))
-        case ir.Unary(orig, ir.UnOp.Sqr, _):
-            orig_min, orig_max = orig.range
-            sqr_min = min(
-                absint_mul(orig_min, orig_min), absint_mul(orig_max, orig_max)
-            )
-            sqr_max = max(
-                absint_mul(orig_min, orig_min), absint_mul(orig_max, orig_max)
-            )
-            assert sqr_min >= 0
-            return expr.update_range(sqr_min, sqr_max)
         case ir.Unary(orig, ir.UnOp.Abs, _):
             orig_min, orig_max = orig.range
             abs_min = min(abs(orig_min), abs(orig_max))

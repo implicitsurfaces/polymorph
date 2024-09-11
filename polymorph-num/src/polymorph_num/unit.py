@@ -252,10 +252,10 @@ def _find_params(expr, params: ParamMap, obs_names: frozenset[str], seen: set[Ex
     if seen is None:
         seen = set()
     
-    if expr in seen:
+    if expr.id in seen:
         return
 
-    seen.add(expr)
+    seen.add(expr.id)
 
     match expr:
         case e.Broadcast(orig, _dim):

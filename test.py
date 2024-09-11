@@ -1,5 +1,6 @@
 from polymorph_s2df import draw, XY_PLANE, sweep
 from polymorph_num.ops import grid_gen_3d
+from polymorph_num.unit import Unit
 import polymorph_num.expr as ir
 import math
 import time
@@ -559,8 +560,8 @@ optimizer = Optimizer()
 expr = optimizer.spin_opt(expr)
 after = time.perf_counter()
 print("Timers:", file=sys.stderr)
-for measure, time in sorted(optimizer.timers.items(), key=lambda x: x[1], reverse=True):
-    print(f"  {measure:15}: {time:.2f}s", file=sys.stderr)
+for measure, duration in sorted(optimizer.timers.items(), key=lambda x: x[1], reverse=True):
+    print(f"  {measure:15}: {duration:.2f}s", file=sys.stderr)
 print(f"Optimize IR: {after - before:.2f}s", file=sys.stderr)
 
 kinds = collections.Counter()
@@ -568,4 +569,9 @@ for e in topo(expr):
     kinds[type(e)] += 1
 print("Total nodes:", sum(kinds.values()), file=sys.stderr)
 print(kinds, file=sys.stderr)
-print(draw_dot(expr))
+# print(draw_dot(expr))
+before = time.perf_counter()
+unit = Unit()
+compiled_unit = unit.registerLoss(expr).compile()
+after = time.perf_counter()
+print(f"JAX Compile: {after - before:.2f}s", file=sys.stderr)

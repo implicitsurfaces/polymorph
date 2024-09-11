@@ -149,35 +149,12 @@ class Optimizer:
             case ir.Binary(
                 ir.Broadcast(ir.Scalar(left), left_dim),
                 ir.Broadcast(ir.Scalar(right), right_dim),
-                ir.BinOp.Sub,
-            ):
-            # TODO(max): Just push all binary operations through broadcast
-                assert left_dim == right_dim
-                expr.make_equal_to(ir.Broadcast(ir.Scalar(left - right), left_dim))
-                return True
-            case ir.Binary(
-                ir.Broadcast(ir.Scalar(left), left_dim),
-                ir.Broadcast(ir.Scalar(right), right_dim),
-                ir.BinOp.Add,
+                op,
             ):
                 assert left_dim == right_dim
-                expr.make_equal_to(ir.Broadcast(ir.Scalar(left + right), left_dim))
-                return True
-            case ir.Binary(
-                ir.Broadcast(ir.Scalar(left), left_dim),
-                ir.Broadcast(ir.Scalar(right), right_dim),
-                ir.BinOp.Max,
-            ):
-                assert left_dim == right_dim
-                expr.make_equal_to(ir.Broadcast(ir.Scalar(max(left, right)), left_dim))
-                return True
-            case ir.Binary(
-                ir.Broadcast(ir.Scalar(left), left_dim),
-                ir.Broadcast(ir.Scalar(right), right_dim),
-                ir.BinOp.Mul,
-            ):
-                assert left_dim == right_dim
-                expr.make_equal_to(ir.Broadcast(ir.Scalar(left * right), left_dim))
+                expr.make_equal_to(ir.Broadcast(
+                    ir.Binary(ir.Scalar(left), ir.Scalar(right), op), left_dim
+                ))
                 return True
             # case ir.Binary(
             #     ir.Broadcast(ir.Scalar(left), _), ir.Broadcast(ir.Scalar(right), _), op

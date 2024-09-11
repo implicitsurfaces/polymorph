@@ -77,22 +77,22 @@ class Optimizer:
         match expr:
             case ir.Param(_) | ir.Observation(_) | ir.Scalar(_) | ir.Arr(_):
                 return False
-            case ir.Binary(_) if expr.range[0] == expr.range[1]:
-                expr.make_equal_to(const(expr.range[0], expr.dim))
-                return True
-            case ir.Unary(_) if expr.range[0] == expr.range[1]:
-                expr.make_equal_to(const(expr.range[0], expr.dim))
-                return True
-            case ir.ComparisonIf(ir.Scalar(_), ir.Scalar(_), ctrue, cfalse, _):
-                raise ValueError("ComparisonIf scalar")
-            case (
-                ir.GridX(_, _)
-                | ir.GridY(_, _)
-                | ir.GridX3d(_, _, _)
-                | ir.GridY3d(_, _, _)
-                | ir.GridZ3d(_, _, _)
-            ):
-                return False
+            # case ir.Binary(_) if expr.range[0] == expr.range[1]:
+            #     expr.make_equal_to(const(expr.range[0], expr.dim))
+            #     return True
+            # case ir.Unary(_) if expr.range[0] == expr.range[1]:
+            #     expr.make_equal_to(const(expr.range[0], expr.dim))
+            #     return True
+            # case ir.ComparisonIf(ir.Scalar(_), ir.Scalar(_), ctrue, cfalse, _):
+            #     raise ValueError("ComparisonIf scalar")
+            # case (
+            #     ir.GridX(_, _)
+            #     | ir.GridY(_, _)
+            #     | ir.GridX3d(_, _, _)
+            #     | ir.GridY3d(_, _, _)
+            #     | ir.GridZ3d(_, _, _)
+            # ):
+            #     return False
             case (
                 ir.Binary(ir.Scalar(0), x, ir.BinOp.Add)
                 | ir.Binary(x, ir.Scalar(0), ir.BinOp.Add)
@@ -142,15 +142,16 @@ class Optimizer:
             case ir.Binary(ir.Scalar(l), ir.Scalar(r), ir.BinOp.ArcTan2):
                 expr.make_equal_to(ir.Scalar(math.atan2(l, r)))
                 return True
-            case ir.Binary(ir.Scalar(_), ir.Scalar(_), op):
-                raise ValueError(f"Binary scalar: {left} {op} {right}")
-            case ir.Binary(ir.Arr(_), ir.Arr(_), op):
-                raise ValueError(f"Binary arr: {left} {op} {right}")
+            # case ir.Binary(ir.Scalar(_), ir.Scalar(_), op):
+            #     raise ValueError(f"Binary scalar: {left} {op} {right}")
+            # case ir.Binary(ir.Arr(_), ir.Arr(_), op):
+            #     raise ValueError(f"Binary arr: {left} {op} {right}")
             case ir.Binary(
                 ir.Broadcast(ir.Scalar(left), left_dim),
                 ir.Broadcast(ir.Scalar(right), right_dim),
                 ir.BinOp.Sub,
             ):
+            # TODO(max): Just push all binary operations through broadcast
                 assert left_dim == right_dim
                 expr.make_equal_to(ir.Broadcast(ir.Scalar(left - right), left_dim))
                 return True
@@ -178,39 +179,40 @@ class Optimizer:
                 assert left_dim == right_dim
                 expr.make_equal_to(ir.Broadcast(ir.Scalar(left * right), left_dim))
                 return True
-            case ir.Binary(
-                ir.Broadcast(ir.Scalar(left), _), ir.Broadcast(ir.Scalar(right), _), op
-            ):
-                raise ValueError(f"Binary broadcast: {left} {op} {right}")
-            case ir.Binary(left, right, ir.BinOp.Min):
-                left_min, left_max = left.range
-                right_min, right_max = right.range
-                if left_max < right_min:
-                    expr.make_equal_to(left)
-                    return True
-                if right_max < left_min:
-                    expr.make_equal_to(right)
-                    return True
-                if math.isinf(right_min) and math.isinf(right_max):
-                    expr.make_equal_to(left)
-                    return True
-                if math.isinf(left_min) and math.isinf(left_max):
-                    expr.make_equal_to(right)
-                    return True
-                return False
-            case ir.Binary(left, right, ir.BinOp.Max):
-                left_min, left_max = left.range
-                right_min, right_max = right.range
-                if left_min > right_max:
-                    expr.make_equal_to(left)
-                    return True
-                if right_min > left_max:
-                    expr.make_equal_to(right)
-                    return True
-                return False
-            case ir.Binary(_, _, _):
-                return False
+            # case ir.Binary(
+            #     ir.Broadcast(ir.Scalar(left), _), ir.Broadcast(ir.Scalar(right), _), op
+            # ):
+            #     raise ValueError(f"Binary broadcast: {left} {op} {right}")
+            # case ir.Binary(left, right, ir.BinOp.Min):
+            #     left_min, left_max = left.range
+            #     right_min, right_max = right.range
+            #     if left_max < right_min:
+            #         expr.make_equal_to(left)
+            #         return True
+            #     if right_max < left_min:
+            #         expr.make_equal_to(right)
+            #         return True
+            #     if math.isinf(right_min) and math.isinf(right_max):
+            #         expr.make_equal_to(left)
+            #         return True
+            #     if math.isinf(left_min) and math.isinf(left_max):
+            #         expr.make_equal_to(right)
+            #         return True
+            #     return False
+            # case ir.Binary(left, right, ir.BinOp.Max):
+            #     left_min, left_max = left.range
+            #     right_min, right_max = right.range
+            #     if left_min > right_max:
+            #         expr.make_equal_to(left)
+            #         return True
+            #     if right_min > left_max:
+            #         expr.make_equal_to(right)
+            #         return True
+            #     return False
+            # case ir.Binary(_, _, _):
+            #     return False
             case ir.Unary(ir.Scalar(x), ir.UnOp.Sqrt, _):
+                # TODO(max): Push all unary operations through broadcast
                 expr.make_equal_to(ir.Scalar(math.sqrt(x)))
                 return True
             case ir.Unary(ir.Scalar(x), ir.UnOp.Cos, _):
@@ -249,24 +251,27 @@ class Optimizer:
                     expr.make_equal_to(cfalse)
                     return True
                 return False
-            case ir.ComparisonIf(_):
-                return False
-            case ir.Unary(ir.Scalar(_), op, consts):
-                raise ValueError(f"Unary scalar: {op} {orig}")
-            case ir.Unary(orig, op, consts):
-                return False
-            case ir.Broadcast(ir.Scalar(x), dim):
-                return False
-            case ir.Sum(orig):
-                if isinstance(orig, ir.Scalar):
-                    raise ValueError(f"Sum scalar: {orig}")
-                if isinstance(orig, ir.Arr):
-                    raise ValueError(f"Sum arr: {orig}")
-                return False
+            # case ir.ComparisonIf(_):
+            #     return False
+            # case ir.Unary(ir.Scalar(_), op, consts):
+            #     raise ValueError(f"Unary scalar: {op} {orig}")
+            # case ir.Unary(orig, op, consts):
+            #     return False
+            # case ir.Broadcast(ir.Scalar(x), dim):
+            #     return False
+            # case ir.Sum(orig):
+            #     if isinstance(orig, ir.Scalar):
+            #         raise ValueError(f"Sum scalar: {orig}")
+            #     if isinstance(orig, ir.Arr):
+            #         raise ValueError(f"Sum arr: {orig}")
+            #     return False
+            # case _:
+            #     raise ValueError(f"Unknown IR type: {type(expr)}")
             case _:
-                raise ValueError(f"Unknown IR type: {type(expr)}")
+                return False
 
     def spin_opt(self, expr: ir.Expr) -> ir.Expr:
+        print("Before:", len(topo(expr.find())))
         cycles = 0
         while True:
             changed = False
@@ -290,11 +295,12 @@ class Optimizer:
                 assert (
                     range_before[1] >= range_after[1]
                 ), f"range max increased in optimization; was {range_before[1]}, now {range_after[1]}"
-            with self.timer("cse"):
-                changed |= cse(expr)
+            # with self.timer("cse"):
+            #     changed |= cse(expr)
             expr_opt = expr.find()
             if not changed:
                 self.cycles = cycles
+                print("After:", len(topo(expr.find())))
                 return expr_opt
             expr = expr_opt
             cycles += 1

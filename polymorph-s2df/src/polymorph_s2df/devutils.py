@@ -2,6 +2,7 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import polyscope as ps
 from polymorph_num.expr import Expr
+from polymorph_num.optimizer import Optimizer
 from polymorph_num.ops import grid_gen, grid_gen_3d
 from polymorph_num.unit import Unit
 from polymorph_num.vec import Vec2
@@ -26,6 +27,7 @@ def p(x, y):
 
 
 def eval_expr(expr: Expr):
+    expr = Optimizer().spin_opt(expr)
     return Unit().register("result", expr).compile().evaluate("result")
 
 

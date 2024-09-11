@@ -18,6 +18,7 @@ from imgui.integrations.glfw import GlfwRenderer
 from jaxtyping import Array, Float, UInt8
 from PIL import Image
 from polymorph_num.ops import grid_gen
+from polymorph_num.optimizer import Optimizer
 from polymorph_num.unit import CompiledUnit, Unit
 from polymorph_num.util import log_perf, perf_logging
 from polymorph_s2df import geometric_properties
@@ -582,6 +583,10 @@ class ViewModel:
         self.shape_debug_index = 0
 
 
+def opt(expr):
+    return Optimizer().spin_opt(expr)
+
+
 @log_perf(compile_log)
 def compile_unit(
     sdfs: tuple[s2df.Shape], size: tuple[int, int], obs_names: frozenset[str], loss
@@ -591,8 +596,8 @@ def compile_unit(
 
     pg = grid_gen(*size)
     for i, sdf in enumerate(sdfs):
-        unit.register(f"is_inside{i}", sdf.is_inside(*pg))
-        unit.register(f"is_on_boundary{i}", sdf.is_on_boundary(*pg))
+        unit.register(f"is_inside{i}", opt(sdf.is_inside(*pg)))
+        unit.register(f"is_on_boundary{i}", opt(sdf.is_on_boundary(*pg)))
         distance = sdf.distance(*pg)
 
         dist_x = sdf.distance(pg[0] + 1, pg[1])
@@ -603,15 +608,15 @@ def compile_unit(
 
         grad = (diff_x * diff_x + diff_y * diff_y).sqrt()
 
-        unit.register(f"grad_distance{i}", grad)
+        unit.register(f"grad_distance{i}", opt(grad))
 
         mod_distance = (distance % 10) / 10
         unit.register(
             f"contour{i}",
-            distance.sign() * (1 - mod_distance * mod_distance * mod_distance),
+            opt(distance.sign() * (1 - mod_distance * mod_distance * mod_distance)),
         )
-        unit.register(f"area{i}", geometric_properties.area_monte_carlo(sdf))
-        unit.register(f"centroid{i}", geometric_properties.centroid_monte_carlo(sdf))
+        unit.register(f"area{i}", opt(geometric_properties.area_monte_carlo(sdf)))
+        unit.register(f"centroid{i}", opt(geometric_properties.centroid_monte_carlo(sdf)))
     return unit.compile()
 
 

@@ -80,32 +80,74 @@ def draw_dot(root, format="svg", rankdir="LR"):
     return dot
 
 
-kinds = collections.Counter()
-for e in topo(expr):
-    kinds[type(e)] += 1
-print("Total nodes:", sum(kinds.values()), file=sys.stderr)
-print(kinds, file=sys.stderr)
+# kinds = collections.Counter()
+# for e in topo(expr):
+#     kinds[type(e)] += 1
+# print("Total nodes:", sum(kinds.values()), file=sys.stderr)
+# print(kinds, file=sys.stderr)
+# 
+# before = time.perf_counter()
+# optimizer = Optimizer()
+# expr = optimizer.spin_opt(expr)
+# print(f"Optimization cycles: {optimizer.cycles}", file=sys.stderr)
+# after = time.perf_counter()
+# print("Timers:", file=sys.stderr)
+# for measure, duration in sorted(
+#     optimizer.timers.items(), key=lambda x: x[1], reverse=True
+# ):
+#     print(f"  {measure:15}: {duration:.2f}s", file=sys.stderr)
+# print(f"Optimize IR: {after - before:.2f}s", file=sys.stderr)
+# 
+# kinds = collections.Counter()
+# for e in topo(expr):
+#     kinds[type(e)] += 1
+# print("Total nodes:", sum(kinds.values()), file=sys.stderr)
+# print(kinds, file=sys.stderr)
+# print(draw_dot(expr))
+# before = time.perf_counter()
+# unit = Unit()
+# compiled_unit = unit.register("expr", expr).compile()
+# after = time.perf_counter()
+# print(f"JAX Compile: {after - before:.2f}s", file=sys.stderr)
 
-before = time.perf_counter()
-optimizer = Optimizer()
-expr = optimizer.spin_opt(expr)
-print(f"Optimization cycles: {optimizer.cycles}", file=sys.stderr)
-after = time.perf_counter()
-print("Timers:", file=sys.stderr)
-for measure, duration in sorted(
-    optimizer.timers.items(), key=lambda x: x[1], reverse=True
-):
-    print(f"  {measure:15}: {duration:.2f}s", file=sys.stderr)
-print(f"Optimize IR: {after - before:.2f}s", file=sys.stderr)
+import polyscope as ps
+import interactive_polyscope
+import polymorph_s2df as sdf
+from polymorph_s2df.devutils import *
+from polymorph_s2df import *
+from polymorph_num.expr import to_str
+import math
 
-kinds = collections.Counter()
-for e in topo(expr):
-    kinds[type(e)] += 1
-print("Total nodes:", sum(kinds.values()), file=sys.stderr)
-print(kinds, file=sys.stderr)
-print(draw_dot(expr))
+ps.init()
+
+profile = (
+    draw((-0.1, 0))
+    .horizontal_line(0.2)
+    .line_to((0.05, 0.3))
+    .close()
+    .rotate(math.pi / 2)
+)
+
+plane = XY_PLANE.translateTo((-1, 0, 0))
+enable_rotation_mode = True
+space = 0.2
+solid = (
+	sweep(profile, plane)
+    .to_point((1, space, 0), enable_rotation_mode)
+    .to_point((-1, 2*space, 0), enable_rotation_mode)
+    .to_point((1, 3*space, 0), enable_rotation_mode)
+    .to_point((-1, 4*space, 0), enable_rotation_mode)
+    .to_solid()
+)
+
+print("Rendering", file=sys.stderr)
 before = time.perf_counter()
-unit = Unit()
-compiled_unit = unit.register("expr", expr).compile()
+render_solid(
+    solid, 
+    bounds=(-1.5, 2), 
+    n=100, 
+    show_distances=False, 
+    eval_fn=eval_expr)
 after = time.perf_counter()
-print(f"JAX Compile: {after - before:.2f}s", file=sys.stderr)
+print(f"Rendered ({after - before:.2f}s)", file=sys.stderr)
+ps.show()

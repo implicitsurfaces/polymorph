@@ -193,6 +193,18 @@ def _eval(expr: e.Expr, params, param_map, obs_dict, random_key, memo) -> jax.Ar
                     ),
                 )
 
+        case e.Select(matches, values, input, default):
+            matches_ = [
+                _eval(m, params, param_map, obs_dict, random_key, memo) for m in matches
+            ]
+            values_ = [
+                _eval(v, params, param_map, obs_dict, random_key, memo) for v in values
+            ]
+            input_ = _eval(input, params, param_map, obs_dict, random_key, memo)
+            default_ = _eval(default, params, param_map, obs_dict, random_key, memo)
+
+            result = jnp.select([m == input_ for m in matches_], values_, default_)
+
         case e.Param():
             result = param_map.get(expr, params)
 

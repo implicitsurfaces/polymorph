@@ -3,6 +3,7 @@ from typing import Sequence
 
 from polymorph_num import ops
 from polymorph_num.angle import (
+    NO_TURN,
     Angle,
     angle_from_rad,
     polar_angle,
@@ -21,7 +22,6 @@ from .utils import (
     min_iterable,
     normalize_angle,
     repr_point,
-    sum_iterable,
 )
 
 
@@ -42,8 +42,39 @@ class SolidAngle:
     def __sub__(self, other: "SolidAngle"):
         return self + (-other)
 
-    def turns(self):
-        return sum_iterable(a.as_rad() for a in self._angles) / TAU + self._turns
+    def as_rad(self):
+        return sum(angle.as_rad() for angle in self._angles) + self._turns * TAU
+
+    def end_angle(self):
+        return sum(self._angles, NO_TURN)
+
+    def _sum_angle_turns(self):
+        total_angle = self._angles[0]
+        total_turns = ZERO
+
+        for angle in self._angles[1:]:
+            new_angle = total_angle + angle
+            changes = new_angle.quadrant() - total_angle.quadrant()
+            total_turns += ops.select(
+                changes,
+                [-3, -2, 3, 2],
+                [1, is_positive(angle.sin()) * 1, -1, is_negative(angle.sin()) * -1],
+                ZERO,
+            )
+            total_angle = new_angle
+
+        return total_turns
+
+    def full_turns(self):
+        return self._turns + self._sum_angle_turns()
+
+
+def is_negative(x: Expr):
+    return ops.if_lt(x, 0, 1, 0)
+
+
+def is_positive(x: Expr):
+    return ops.if_gt(x, 0, 1, 0)
 
 
 def as_solid_angle(angle: Angle):
@@ -64,7 +95,7 @@ class PathSegment(Shape):
         raise NotImplementedError()
 
     def winding_number(self, p: Vec2) -> Expr:
-        return self.solid_angle(p).turns()
+        return self.solid_angle(p).full_turns()
 
     def solid_angle(self, p: Vec2) -> SolidAngle:
         raise NotImplementedError()
@@ -102,7 +133,7 @@ class LineSegment(PathSegment):
         a = self.start - p
         b = self.end - p
 
-        return SolidAngle([two_vectors_angle(a, b)])
+        return as_solid_angle(two_vectors_angle(a, b))
 
     def distance(self, x: Num, y: Num) -> Expr:
         p = Vec2(x, y)
@@ -139,7 +170,7 @@ def winding_number_indefinite_integral(t: Angle, radius: Expr, x: Expr, y: Expr)
     angle_x = (term1 + term2) * cos_sign
     angle_y = (R2 - x * x - y * y) * cos_t * cos_sign
 
-    return SolidAngle([polar_angle(angle_x, angle_y), half_t])
+    return as_solid_angle(polar_angle(angle_x, angle_y)) + as_solid_angle(half_t)
 
 
 def winding_number_at_pi(radius: Expr, x: Expr, y: Expr):
@@ -513,10 +544,14 @@ class ClosedPath(Shape):
     def __eq__(self, other):
         return isinstance(other, ClosedPath) and self.astuple() == other.astuple()
 
-    def winding_number(self, p: Vec2) -> Expr:
+    def solid_angle(self, p: Vec2) -> SolidAngle:
         return sum(
             (segment.solid_angle(p) for segment in self.segments), SolidAngle([])
-        ).turns()
+        )
+
+    def winding_number(self, p: Vec2) -> Expr:
+        # return self.solid_angle(p).as_rad() / TAU
+        return self.solid_angle(p).full_turns()
 
     def distance(self, x: Num, y: Num) -> Expr:
         minimum_distance = min_iterable(

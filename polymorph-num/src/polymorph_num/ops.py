@@ -1,3 +1,5 @@
+from typing import Sequence
+
 from . import expr
 from .trace import maybe_trace_param
 
@@ -88,6 +90,20 @@ def if_ne(a: expr.Num, b: expr.Num, if_a_ne_b: expr.Num, if_a_eq_b: expr.Num):
 
 def clamp(value: expr.Num, min_value: expr.Num, max_value: expr.Num):
     return max(min(value, max_value), min_value)
+
+
+def select(
+    value: expr.Num,
+    match_value: Sequence[expr.Num],
+    match_result: Sequence[expr.Num],
+    default: expr.Num,
+):
+    return expr.Select(
+        tuple(expr.as_expr(m) for m in match_value),
+        tuple(expr.broacast_args(*[expr.as_expr(m) for m in match_result])),
+        expr.as_expr(value),
+        expr.as_expr(default),
+    )
 
 
 def grid_gen(width: int, height: int):

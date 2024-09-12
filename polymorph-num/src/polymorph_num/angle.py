@@ -77,6 +77,15 @@ class Angle:
 
         return (ONE - sign_sin) + (ONE - sign_cos) * (ONE + sign_sin) / 2
 
+    def quadrant(self):
+        q1_q3 = (self._sin * self._cos).sign()
+        q1_q2 = self._sin.sign()
+
+        correction_sin_0 = ops.if_eq(self._sin, 0, ops.if_gt(self._cos, 0, -3, 1), 0)
+        correction_cos_0 = ops.if_eq(self._cos, 0, 1, 0)
+
+        return (3 - 2 * q1_q2 - q1_q3 + correction_sin_0 + correction_cos_0) / 2
+
 
 def polar_angle(x: Expr, y: Expr) -> Angle:
     r = (x * x + y * y).sqrt()

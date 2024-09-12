@@ -373,6 +373,30 @@ class ComparisonIf(Expr):
         super().__init__(self.a.dim)
 
 
+@dataclass(frozen=True)
+class Select(Expr):
+    matches: Sequence[Expr]
+    values: Sequence[Expr]
+    input: Expr
+    default: Expr
+
+    @cached_property
+    def hash_value(self):
+        return hash((self.dim, self.matches, self.values, self.input, self.default))
+
+    def __hash__(self):
+        return self.hash_value
+
+    def __post_init__(self):
+        if len({v.dim for v in self.values} & {self.input.dim, self.default.dim}) != 1:
+            raise ValueError("Dimension mismatch")
+
+        if len(self.matches) != len(self.values):
+            raise ValueError("Length mismatch")
+
+        super().__init__(self.input.dim)
+
+
 def to_str(expr: Expr, indent: str = "") -> str:
     if isinstance(expr, Scalar):
         return f"{indent}Scalar({expr.value})"

@@ -95,6 +95,7 @@ class PathSegment(Shape):
         raise NotImplementedError()
 
     def winding_number(self, p: Vec2) -> Expr:
+        return self.solid_angle(p).as_rad() / TAU
         return self.solid_angle(p).full_turns()
 
     def solid_angle(self, p: Vec2) -> SolidAngle:
@@ -156,26 +157,31 @@ class LineSegment(PathSegment):
         )
 
 
+def negative_sign(x: Expr):
+    return ops.if_lt(x, 0, -1, 1)
+
+
 def winding_number_indefinite_integral(t: Angle, radius: Expr, x: Expr, y: Expr):
     R2 = radius * radius
     half_t = t.half()
     sin_t = half_t.sin()
     cos_t = half_t.cos()
 
-    term1 = R2 * sin_t + 2 * radius * (x * sin_t - y * cos_t)
-    term2 = (x * x + y * y) * sin_t
+    term1 = 2 * radius * y * cos_t
+    x_r = x + radius
+    term2 = (x_r * x_r + y * y) * sin_t
 
-    cos_sign = cos_t.sign()
+    cos_sign = negative_sign(cos_t)
 
-    angle_x = (term1 + term2) * cos_sign
-    angle_y = (R2 - x * x - y * y) * cos_t * cos_sign
+    angle_x = (term1 - term2) * cos_sign
+    angle_y = (R2 - x * x - y * y) * cos_t.abs()
 
-    return as_solid_angle(polar_angle(angle_x, angle_y)) + as_solid_angle(half_t)
+    return as_solid_angle(polar_angle(-angle_x, -angle_y)) + as_solid_angle(half_t)
 
 
 def winding_number_at_pi(radius: Expr, x: Expr, y: Expr):
     dist_to_center = radius * radius - (x * x + y * y)
-    return (dist_to_center.sign() + 1) / 2
+    return (dist_to_center.sign()) / 2
 
 
 class ArcSegment(PathSegment):
@@ -280,7 +286,7 @@ class ArcSegment(PathSegment):
 
         correction_solid_angle = SolidAngle([], pi_crossing_correction_turns)
 
-        return start_angle_integral - end_angle_integral + correction_solid_angle
+        return end_angle_integral - start_angle_integral + correction_solid_angle
 
     def distance(self, x: Num, y: Num) -> Expr:
         p = Vec2(x, y)
@@ -484,7 +490,7 @@ class BulgingSegment(PathSegment):
         # with a known number of turns
         correction_solid_angle = SolidAngle([], pi_crossing_correction_turns)
 
-        return start_angle_integral - end_angle_integral + correction_solid_angle
+        return end_angle_integral - start_angle_integral + correction_solid_angle
 
     def bounding_box(self):
         return BoundingBox(
@@ -550,7 +556,7 @@ class ClosedPath(Shape):
         )
 
     def winding_number(self, p: Vec2) -> Expr:
-        # return self.solid_angle(p).as_rad() / TAU
+        return self.solid_angle(p).as_rad() / TAU
         return self.solid_angle(p).full_turns()
 
     def distance(self, x: Num, y: Num) -> Expr:

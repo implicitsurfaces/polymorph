@@ -3,6 +3,10 @@ from polymorph_num.expr import ONE, PI, SQRT2_INV, ZERO, Expr
 from polymorph_num.vec import Vec2
 
 
+def negative_sign(val: Expr) -> Expr:
+    return ops.if_lt(val, 0, -1, 1)
+
+
 class Angle:
     _cos: Expr
     _sin: Expr
@@ -37,7 +41,7 @@ class Angle:
 
     def half(self) -> "Angle":
         return Angle(
-            self._sin.sign() * ((1 + self._cos) / 2).sqrt(),
+            negative_sign(self._sin) * ((1 + self._cos) / 2).sqrt(),
             ((1 - self._cos) / 2).sqrt(),
         )
 

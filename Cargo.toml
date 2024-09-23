@@ -2,6 +2,7 @@
 
 resolver = "2"
 members = ["crates/*"]
+exclude = ["pat/"]
 
 # Profile stuff from https://github.com/emilk/eframe_template
 # but it has to live in the root Cargo.toml.

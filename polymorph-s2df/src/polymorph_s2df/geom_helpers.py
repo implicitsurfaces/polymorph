@@ -1,74 +1,36 @@
-from polymorph_num import ops
-from polymorph_num.angle import HALF_TURN, Angle, angle_from_rad
-from polymorph_num.expr import PI, Expr, Num, as_expr
-from polymorph_num.vec import ValVec, Vec2, as_vec2
+from polymorph_num.angle import Angle, angle_from_rad
+from polymorph_num.expr import PI, Expr
+from polymorph_num.vec import Vec2
 
-from polymorph_s2df.paths import ArcSegment, TranslatedSegment
-
-
-def bulge_arc(point1: ValVec, point2: ValVec, bulge: Num):
-    point1 = as_vec2(point1)
-    point2 = as_vec2(point2)
-    bulge = as_expr(bulge)
-
-    half_chord = (point2 - point1).norm() / 2
-
-    # the sagitta is the perpendicular distance from the midpoint of the chord to the arc
-    sagitta: Expr = bulge.abs() * half_chord
-
-    midpoint = (point1 + point2) / 2
-
-    radius = (half_chord * half_chord + sagitta * sagitta) / (sagitta * 2)
-
-    # Calculate the direction vector perpendicular to the chord
-    direction = Vec2(point2.y - point1.y, point1.x - point2.x)
-    direction = direction / direction.norm()
-
-    center = midpoint + direction.scale((radius - sagitta) * bulge.sign())
-
-    # Calculate the angles
-    diff1 = point1 - center
-    angle1 = ops.atan2(diff1.y, diff1.x)
-    diff2 = point2 - center
-    angle2 = ops.atan2(diff2.y, diff2.x)
-
-    return TranslatedSegment(ArcSegment(angle1, angle2, radius, -bulge.sign()), center)
+from polymorph_s2df.paths import BulgingSegment
 
 
-def extrema_points_and_tangent(
-    start_point: Vec2, end_point: Vec2, tangent: Angle, reverse: bool = False
+def bulging_segment_from_start_tangent(
+    start_point: Vec2, end_point: Vec2, tangent: Angle
 ):
-    chord_direction = Vec2(end_point.y - start_point.y, start_point.x - end_point.x)
-    chord_midpoint = (start_point + end_point) / 2
+    chord = end_point - start_point
 
-    tangent_vector = Vec2(tangent.cos(), tangent.sin())
-    # We do not care about the orientation here - as we are interested in the direction
-    # in order to compute the intersection point
-    tgt_normal = tangent_vector.perp()
+    tgt = tangent.as_vec()
 
-    center = line_line_intersection(
-        start_point, tgt_normal, chord_midpoint, chord_direction
-    )
-    radius = (start_point - center).norm()
+    s = chord.cross(tgt)
+    c = chord.dot(tgt)
 
-    # Calculate the angles
-    diff = end_point - center
-    angle2 = ops.atan2(diff.y, diff.x)
+    bulge = -s / (c + (c * c + s * s).sqrt())
+    return BulgingSegment(start_point, end_point, bulge)
 
-    # This is not a unit vector, but we are only interested in the direction
-    normal_vector = start_point - center
 
-    orientation_sign = normal_vector.cross(tangent_vector).sign()
-    normal_angle = tangent.as_rad() - orientation_sign * PI / 2
+def bulging_segment_from_end_tangent(
+    start_point: Vec2, end_point: Vec2, tangent: Angle
+):
+    chord = end_point - start_point
 
-    start_angle = normal_angle if not reverse else angle2
-    end_angle = angle2 if not reverse else normal_angle
+    tgt = tangent.as_vec()
 
-    orientation_sign = (-1 if reverse else 1) * orientation_sign
+    s = tgt.cross(chord)
+    c = tgt.dot(chord)
 
-    arc = ArcSegment(start_angle, end_angle, radius, orientation_sign)
-
-    return TranslatedSegment(arc, center)
+    bulge = -s / (c + (c * c + s * s).sqrt())
+    return BulgingSegment(start_point, end_point, bulge)
 
 
 def line_line_intersection(p0: Vec2, v0: Vec2, p1: Vec2, v1: Vec2):
@@ -104,6 +66,6 @@ def biarc(
     j = center + Vec2(angle.cos(), angle.sin()).scale(radius)
 
     return [
-        extrema_points_and_tangent(p0, j, theta0),
-        extrema_points_and_tangent(p1, j, HALF_TURN + theta1, reverse=True),
+        bulging_segment_from_start_tangent(p0, j, theta0),
+        bulging_segment_from_end_tangent(j, p1, theta1),
     ]

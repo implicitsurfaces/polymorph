@@ -5,22 +5,19 @@ from polymorph_num import ops
 from polymorph_num.angle import (
     NO_TURN,
     Angle,
-    angle_from_rad,
     polar_angle,
     polar_angle_from_vec,
     two_vectors_angle,
 )
-from polymorph_num.expr import PI, TAU, ZERO, Expr, Num, as_expr
+from polymorph_num.expr import TAU, ZERO, Expr, Num, as_expr
 from polymorph_num.vec import ValVec, Vec2, as_vec2
 
 from polymorph_s2df.bounding_box import BoundingBox, bounding_box_from_points
 
 from .operations import Shape
 from .utils import (
-    angular_distance,
     max_iterable,
     min_iterable,
-    normalize_angle,
     repr_point,
 )
 
@@ -176,147 +173,12 @@ def winding_number_indefinite_integral(t: Angle, radius: Expr, x: Expr, y: Expr)
     angle_x = (term1 - term2) * cos_sign
     angle_y = (R2 - x * x - y * y) * cos_t.abs()
 
-    return as_solid_angle(polar_angle(-angle_x, -angle_y)) + as_solid_angle(half_t)
+    return as_solid_angle(polar_angle(angle_x, angle_y)) + as_solid_angle(half_t)
 
 
 def winding_number_at_pi(radius: Expr, x: Expr, y: Expr):
     dist_to_center = radius * radius - (x * x + y * y)
     return (dist_to_center.sign()) / 2
-
-
-class ArcSegment(PathSegment):
-    start_angle: Expr
-    end_angle: Expr
-    radius: Expr
-
-    def __init__(self, start_angle, end_angle, radius, orientation_sign):
-        super().__init__()
-        self.start_angle = normalize_angle(as_expr(start_angle))
-        self.end_angle = normalize_angle(as_expr(end_angle))
-        self.radius = as_expr(radius)
-        self.orientation_sign = as_expr(orientation_sign)
-
-    def astuple(self):
-        return (self.start_angle, self.end_angle, self.radius, self.orientation_sign)
-
-    def __eq__(self, other):
-        return isinstance(other, ArcSegment) and self.astuple() == other.astuple()
-
-    def __hash__(self):
-        return hash(self.astuple())
-
-    @cached_property
-    def first_point(self) -> Vec2:
-        return Vec2(
-            self.radius * self.start_angle.cos(), self.radius * self.start_angle.sin()
-        )
-
-    def end_tangent(self) -> Angle:
-        return angle_from_rad(self.end_angle)
-
-    @cached_property
-    def last_point(self) -> Vec2:
-        return Vec2(
-            self.radius * self.end_angle.cos(), self.radius * self.end_angle.sin()
-        )
-
-    @cached_property
-    def angular_length(self):
-        return angular_distance(self.start_angle, self.end_angle, self.orientation_sign)
-
-    def solid_angle(self, p: Vec2) -> SolidAngle:
-        end_angle_integral = winding_number_indefinite_integral(
-            angle_from_rad(self.end_angle), self.radius, p.x, p.y
-        )
-        start_angle_integral = winding_number_indefinite_integral(
-            angle_from_rad(self.start_angle), self.radius, p.x, p.y
-        )
-
-        # First, we consider the case where the angles are oriented counter
-        # clockwise
-        #
-        # We need to consider three cases: - both angles are smaller than pi
-        # - both angles are greater than pi - one angle is smaller than pi and
-        # the other is greater than pi
-        #
-        # If the angles are on the same side of pi, we cross the pi line if end
-        # angle is small than the start angle. This is the same for when they
-        # are both bigger and small than pi - so we really only have two cases,
-        # either the angles are on the same side of pi or not.
-        #
-        # We can use the sign of the product of the differences to determine if
-        # the angles are on the same side of pi.
-        #
-        # Then, as the cases are the inverse of each other, we can use the sign
-        # of the product of the differences
-        #
-        # An angle is smaller than pi if the difference between the angle and
-        # pi is positive and greater than pi if the difference is negative
-        #
-        # When the angles are on different sides of pi, we cross pi if the end
-        # angles is bigger than the start angle.
-        # As this is the opposite of the case where the angles are on the same
-        # side of pi, we can use the sign of the product of the differences to
-        # determine if the angles are on the same side of pi.
-
-        is_crossing_pi = (
-            (PI - self.start_angle)
-            * (PI - self.end_angle)
-            * (self.end_angle - self.start_angle)
-        )
-
-        # We then need to take into account the case where the angles are
-        # clockwise. In that case we need to make two changes:
-        #
-        # - the angles are inverted (i.e. the is_crossing_pi needs to invert
-        # its sign)
-        #
-        # - the integral needs to be inverted (i.e. we need to subtract the
-        # integral from the start to the end)
-
-        pi_crossing_correction_turns = (
-            ops.if_lt(
-                is_crossing_pi * self.orientation_sign,
-                0,
-                winding_number_at_pi(self.radius, p.x, p.y),
-                0,
-            )
-            * self.orientation_sign
-        )
-
-        correction_solid_angle = SolidAngle([], pi_crossing_correction_turns)
-
-        return end_angle_integral - start_angle_integral + correction_solid_angle
-
-    def distance(self, x: Num, y: Num) -> Expr:
-        p = Vec2(x, y)
-        angle_position = normalize_angle(ops.atan2(y, x))
-
-        parametric_position = (
-            angular_distance(self.start_angle, angle_position, self.orientation_sign)
-            / self.angular_length
-        )
-
-        clamped_position = self.orientation_sign * ops.clamp(parametric_position, 0, 1)
-        clamped_angle = normalize_angle(
-            self.start_angle + clamped_position * self.angular_length
-        )
-        projected_point = Vec2(
-            self.radius * clamped_angle.cos(), self.radius * clamped_angle.sin()
-        )
-
-        return min_iterable(
-            (p - point).norm()
-            for point in (projected_point, self.first_point, self.last_point)
-        )
-
-    def bounding_box(self):
-        return BoundingBox(
-            -self.radius,
-            -self.radius,
-            self.radius,
-            self.radius,
-        )
 
 
 class BulgingSegment(PathSegment):
@@ -373,19 +235,21 @@ class BulgingSegment(PathSegment):
             self.end.x - self.center.x, self.end.y - self.center.y
         ).as_sort_value()
 
+    def start_tangent(self) -> Angle:
+        return polar_angle_from_vec(
+            self.chord.scale(self.c_value) - self.chord.perp().scale(self.s_value)
+        )
+
     def end_tangent(self) -> Angle:
-        vec = (self.end - self.start) * self.c_value + (
-            self.end - self.start
-        ).perp() * self.s_value
-        return polar_angle(vec.x, vec.y)
+        return polar_angle_from_vec(
+            self.chord.scale(self.c_value) + self.chord.perp().scale(self.s_value)
+        )
 
     def distance(self, x: Num, y: Num) -> Expr:
         p = Vec2(x, y)
 
         in_sector_distance = ((p - self.center).norm() - self.radius).abs()
         out_sector_distance = ops.min((p - self.start).norm(), (p - self.end).norm())
-
-        center_to_p = p - self.center
 
         orientation = self.bulge.sign()
 
@@ -396,9 +260,7 @@ class BulgingSegment(PathSegment):
         # start-point-end (i.e. the point is in the sector), we return the in_sector_distance
         # otherwise we return the out_sector_distance
 
-        p_sort_val = (
-            orientation * polar_angle(center_to_p.x, center_to_p.y).as_sort_value()
-        )
+        p_sort_val = orientation * polar_angle_from_vec(p - self.center).as_sort_value()
         s_sort_val = orientation * self.start_sort_angle
         e_sort_val = orientation * self.end_sort_angle
 
@@ -439,14 +301,16 @@ class BulgingSegment(PathSegment):
         # - both angles are greater than pi - one angle is smaller than pi and
         # the other is greater than pi
         #
-        # If the angles are on the same side of pi, we cross the pi line if end
-        # angle is small than the start angle. This is the same for when they
-        # are both bigger and small than pi - so we really only have two cases,
-        # either the angles are on the same side of pi or not.
+        # If the angles are on the same side of pi, we cross the pi line if the
+        # end angle is smaller than the start angle. This is the same for when
+        # they are both bigger and small than pi - so we really only have two
+        # cases, either the angles are on the same side of pi or not.
         #
-        # We can use the sign of the product of the differences to determine if
-        # the angles are on the same side of pi.
-        #
+        # We can use the sign of the product of the sin of the angles to check
+        # if the angles are on the same side of pi.
+
+        same_side_of_pi_sign = start_angle.sin() * end_angle.sin()
+
         # Then, as the cases are the inverse of each other, we can use the sign
         # of the product of the differences
         #
@@ -454,18 +318,12 @@ class BulgingSegment(PathSegment):
         # pi is positive and greater than pi if the difference is negative
         #
         # When the angles are on different sides of pi, we cross pi if the end
-        # angles is bigger than the start angle.
-        # As this is the opposite of the case where the angles are on the same
-        # side of pi, we can use the sign of the product of the differences to
-        # determine if the angles are on the same side of pi.
+        # angles is bigger than the start angle. As this is the opposite of the
+        # case where the angles are on the same side of pi, we can use the sign
+        # of the product of the differences to determine if the angles are on
+        # the same side of pi.
 
-        is_crossing_pi = (
-            start_angle.sin()
-            * end_angle.sin()
-            * (end_angle.as_sort_value() - start_angle.as_sort_value())
-        )
-
-        orientation_sign = self.bulge.sign()
+        span_sign = end_angle.as_sort_value() - start_angle.as_sort_value()
 
         # We then need to take into account the case where the angles are
         # clockwise. In that case we need to make two changes:
@@ -476,17 +334,18 @@ class BulgingSegment(PathSegment):
         # - the integral needs to be inverted (i.e. we need to subtract the
         # integral from the start to the end)
 
-        pi_crossing_correction_turns = (
-            ops.if_lt(
-                is_crossing_pi * orientation_sign,
-                0,
-                winding_number_at_pi(self.radius, p_vec.x, p_vec.y),
-                0,
-            )
-            * orientation_sign
+        orientation_sign = self.bulge.sign()
+
+        is_crossing_pi = same_side_of_pi_sign * span_sign * orientation_sign
+
+        pi_crossing_correction_turns = ops.if_lt(
+            is_crossing_pi,
+            0,
+            orientation_sign * winding_number_at_pi(self.radius, p_vec.x, p_vec.y),
+            0,
         )
 
-        # Note that the correction is either 0 or 2π, so we create a solid angle
+        # Note that the correction is either 0, π or -, so we create a solid angle
         # with a known number of turns
         correction_solid_angle = SolidAngle([], pi_crossing_correction_turns)
 

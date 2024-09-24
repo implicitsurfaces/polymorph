@@ -5,7 +5,10 @@ from polymorph_num.expr import Expr as Expr
 from polymorph_num.expr import Num, as_expr
 from polymorph_num.vec import ValVec, Vec2, as_vec2
 
-from polymorph_s2df.geom_helpers import biarc, bulge_arc, extrema_points_and_tangent
+from polymorph_s2df.geom_helpers import (
+    biarc,
+    bulging_segment_from_start_tangent,
+)
 
 from .embed import EmbeddedShape as EmbeddedShape
 from .embed import ModulatedExtrusion, SweepWand
@@ -14,9 +17,6 @@ from .operations import Shape as Shape
 from .operations import SmoothIntersection as SmoothIntersection
 from .operations import SmoothUnion as SmoothUnion
 from .operations import Union as Union
-from .paths import (
-    ArcSegment as ArcSegment,
-)
 from .paths import (
     BulgingSegment as BulgingSegment,
 )
@@ -129,23 +129,25 @@ class DrawingPen:
         self,
         point: tuple[float, float],
         angle: float | None = None,
-        tangent_at_end: bool = False,
     ):
         first = as_vec2(self.current_point)
         second = as_vec2(point)
 
         self.segments.append(
-            extrema_points_and_tangent(
-                first if not tangent_at_end else second,
-                second if not tangent_at_end else first,
+            bulging_segment_from_start_tangent(
+                first,
+                second,
                 self._current_angle()
                 if angle is None
                 else angle_from_rad(as_expr(angle)),
-                tangent_at_end,
             )
         )
         self.current_point = point
         return self
+
+    def tangent_arc(self, x: float, y: float, angle: float | None = None):
+        x0, y0 = self.current_point
+        return self.tangent_arc_to((x + x0, y + y0), angle)
 
     def biarc_to(
         self,
@@ -198,7 +200,7 @@ def bulging_polygon(points):
             previous_bulge = point_or_bulge
         else:
             segment = (
-                bulge_arc(previous_point, point_or_bulge, previous_bulge)
+                BulgingSegment(previous_point, point_or_bulge, previous_bulge)
                 if previous_bulge != 0
                 else LineSegment(previous_point, point_or_bulge)
             )

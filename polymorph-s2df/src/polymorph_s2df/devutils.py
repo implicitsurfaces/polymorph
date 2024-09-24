@@ -1,7 +1,9 @@
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import polyscope as ps
-from polymorph_num.expr import Expr
+from IPython.core.getipython import get_ipython
+from polymorph_num.angle import Angle
+from polymorph_num.expr import Binary, Expr
 from polymorph_num.ops import grid_gen, grid_gen_3d
 from polymorph_num.unit import Unit
 from polymorph_num.vec import Vec2
@@ -19,6 +21,33 @@ X_AXIS = X_AXIS
 Y_AXIS = Y_AXIS
 Z_AXIS = Z_AXIS
 ORIGIN = ORIGIN
+
+
+# Declare some helpers to automatically display the results of the expressions
+
+ip = get_ipython()
+
+formatter = ip.display_formatter.formatters["text/plain"]  # type: ignore
+
+
+def display_angle(obj, p, _):
+    degs = eval_expr(obj.as_deg())
+    return p.text(f"{round(degs, 4)}°")
+
+
+def display_expr(obj, p, _):
+    return p.text(f"{round(eval_expr(obj), 4)}")
+
+
+def display_vec(obj, p, _):
+    x, y = eval_expr(obj)
+    p.text(f"[{round(x, 4)}, {round(y, 4)}]")
+
+
+formatter.for_type(Angle, display_angle)
+formatter.for_type(Vec2, display_vec)
+formatter.for_type(Expr, display_expr)
+formatter.for_type(Binary, display_expr)
 
 
 def p(x, y):
@@ -103,6 +132,7 @@ def render_winding_number(segment: PathSegment, bounds=(-3, 3), n=500):
         cmap="coolwarm",
         extent=(bounds[0], bounds[1], bounds[0], bounds[1]),
     )
+    plt.clim(-1, 1)
     plt.colorbar()
 
 

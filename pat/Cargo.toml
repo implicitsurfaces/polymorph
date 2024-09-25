@@ -1,14 +1,6 @@
-[package]
-name = "wgpu_fun"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+resolver = "2"
 
-[dependencies]
-env_logger = "0.11.5"
-pollster = "0.3.0"
-wgpu = "22.1.0"
-winit = "0.29"
-
-[[bin]]
-name = "wgpu_fun"
-path = "src/main.rs"
+members = [
+  "wgpu_fun"
+]

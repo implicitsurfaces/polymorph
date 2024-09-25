@@ -6,6 +6,7 @@ struct FragmentOutput {
     @location(0) FragColor: vec4<f32>,
 }
 
+const OP_NOP: u32 = 0u;
 const OP_ADD: u32 = 1u;
 const OP_SUB: u32 = 2u;
 const OP_MUL: u32 = 3u;
@@ -40,17 +41,17 @@ fn execute_bytecode() -> f32 {
         switch (op) {
             case OP_ADD: {
                 sp--;
-                stack[sp] = stack[sp + 1] + stack[sp + 2];
+                stack[sp - 1] = stack[sp - 1] + stack[sp];
                 break;
             }
             case OP_SUB: {
                 sp--;
-                stack[sp] = stack[sp + 1] - stack[sp + 2];
+                stack[sp - 1] = stack[sp - 1] - stack[sp];
                 break;
             }
             case OP_MUL: {
                 sp--;
-                stack[sp] = stack[sp + 1] * stack[sp + 2];
+                stack[sp - 1] = stack[sp - 1] - stack[sp];
                 break;
             }
             case OP_PUSH_I32: {
@@ -69,11 +70,10 @@ fn execute_bytecode() -> f32 {
                 break;
             }
             default: {
-              return f32(op);
             }
         }
     }
-    return stack[sp];
+    return stack[sp-1];
 }
 
 @compute

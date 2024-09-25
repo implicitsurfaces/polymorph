@@ -4,14 +4,11 @@
 use std::{borrow::Cow, mem::size_of_val, str::FromStr};
 use wgpu::util::DeviceExt;
 
-// Indicates a u32 overflow in an intermediate Collatz value
-const OVERFLOW: u32 = 0xffffffff;
-
 #[cfg_attr(test, allow(dead_code))]
 async fn run() {
     let numbers = if std::env::args().len() <= 2 {
-        let default = vec![4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        println!("No numbers were provided, defaulting to {default:?}");
+        let default = vec![4, 4, 4, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        println!("No bytecode was provided, defaulting to {default:?}");
         default
     } else {
         std::env::args()
@@ -68,14 +65,23 @@ async fn execute_gpu_inner(
     let size = size_of_val(bytecode) as wgpu::BufferAddress;
     println!("Size: {}", size);
 
-    // Instantiates buffer with data (`bytecode`).
-    let storage_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Storage Buffer"),
-        contents: bytemuck::cast_slice(bytecode),
-        usage: wgpu::BufferUsages::STORAGE
-            | wgpu::BufferUsages::COPY_DST
-            | wgpu::BufferUsages::COPY_SRC,
-    });
+    // Instantiates buffer with data (`bytecode`), ensuring at least 64 bytes.
+    let storage_buffer = {
+        let min_size = 64;
+        let data_size = std::mem::size_of_val(bytecode);
+        let buffer_size = std::cmp::max(data_size, min_size);
+
+        let mut contents = vec![0u8; buffer_size];
+        contents[..data_size].copy_from_slice(bytemuck::cast_slice(bytecode));
+
+        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Storage Buffer"),
+            contents: &contents,
+            usage: wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::COPY_DST
+                | wgpu::BufferUsages::COPY_SRC,
+        })
+    };
 
     // Create a buffer to hold the uniform data (bytecode length)
     let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

@@ -3,7 +3,6 @@ from typing import Sequence
 
 from polymorph_num import ops
 from polymorph_num.angle import (
-    NO_TURN,
     Angle,
     polar_angle,
     polar_angle_from_vec,
@@ -23,47 +22,31 @@ from .utils import (
 
 
 class SolidAngle:
-    _angles: list[Angle]
-    _turns: Expr
+    _val: Expr
 
-    def __init__(self, angles: list[Angle], turns: Expr = ZERO):
-        self._angles = angles
-        self._turns = turns
+    def __init__(self, value: Expr):
+        self._val = value
 
     def __add__(self, other: "SolidAngle"):
-        return SolidAngle(self._angles + other._angles, self._turns + other._turns)
+        return SolidAngle(self._val + other._val)
 
     def __neg__(self):
-        return SolidAngle([-a for a in self._angles], -self._turns)
+        return SolidAngle(-self._val)
 
     def __sub__(self, other: "SolidAngle"):
-        return self + (-other)
+        return SolidAngle(self._val - other._val)
+
+    def half(self):
+        return SolidAngle(self._val / 2)
+
+    def flip_sign(self, sign):
+        return SolidAngle(self._val * sign)
 
     def as_rad(self):
-        return sum(angle.as_rad() for angle in self._angles) + self._turns * TAU
-
-    def end_angle(self):
-        return sum(self._angles, NO_TURN)
-
-    def _sum_angle_turns(self):
-        total_angle = self._angles[0]
-        total_turns = ZERO
-
-        for angle in self._angles[1:]:
-            new_angle = total_angle + angle
-            changes = new_angle.quadrant() - total_angle.quadrant()
-            total_turns += ops.select(
-                changes,
-                [-3, -2, 3, 2],
-                [1, is_positive(angle.sin()) * 1, -1, is_negative(angle.sin()) * -1],
-                ZERO,
-            )
-            total_angle = new_angle
-
-        return total_turns
+        return self._val * TAU
 
     def full_turns(self):
-        return self._turns + self._sum_angle_turns()
+        return self._val
 
 
 def is_negative(x: Expr):
@@ -75,7 +58,7 @@ def is_positive(x: Expr):
 
 
 def as_solid_angle(angle: Angle):
-    return SolidAngle([angle])
+    return SolidAngle(angle.as_rad() / TAU)
 
 
 class PathSegment(Shape):
@@ -92,7 +75,6 @@ class PathSegment(Shape):
         raise NotImplementedError()
 
     def winding_number(self, p: Vec2) -> Expr:
-        return self.solid_angle(p).as_rad() / TAU
         return self.solid_angle(p).full_turns()
 
     def solid_angle(self, p: Vec2) -> SolidAngle:
@@ -164,21 +146,19 @@ def winding_number_indefinite_integral(t: Angle, radius: Expr, x: Expr, y: Expr)
     sin_t = half_t.sin()
     cos_t = half_t.cos()
 
-    term1 = 2 * radius * y * cos_t
+    term1 = 2 * radius * y
     x_r = x + radius
-    term2 = (x_r * x_r + y * y) * sin_t
+    term2 = (x_r * x_r + y * y) * sin_t / cos_t
 
-    cos_sign = negative_sign(cos_t)
+    angle_x = term2 - term1
+    angle_y = R2 - x * x - y * y
 
-    angle_x = (term1 - term2) * cos_sign
-    angle_y = (R2 - x * x - y * y) * cos_t.abs()
-
-    return as_solid_angle(polar_angle(angle_x, angle_y)) + as_solid_angle(half_t)
+    return as_solid_angle(polar_angle(angle_x, angle_y)) + as_solid_angle(t).half()
 
 
 def winding_number_at_pi(radius: Expr, x: Expr, y: Expr):
     dist_to_center = radius * radius - (x * x + y * y)
-    return (dist_to_center.sign()) / 2
+    return dist_to_center.sign() / 2
 
 
 class BulgingSegment(PathSegment):
@@ -283,9 +263,9 @@ class BulgingSegment(PathSegment):
         )
 
     def solid_angle(self, p: Vec2) -> SolidAngle:
-        start_angle = polar_angle_from_vec(self.center - self.start)
-        end_angle = polar_angle_from_vec(self.center - self.end)
-        p_vec = self.center - p
+        start_angle = polar_angle_from_vec(self.start - self.center)
+        end_angle = polar_angle_from_vec(self.end - self.center)
+        p_vec = p - self.center
 
         end_angle_integral = winding_number_indefinite_integral(
             end_angle, self.radius, p_vec.x, p_vec.y
@@ -347,9 +327,10 @@ class BulgingSegment(PathSegment):
 
         # Note that the correction is either 0, π or -, so we create a solid angle
         # with a known number of turns
-        correction_solid_angle = SolidAngle([], pi_crossing_correction_turns)
+        correction_solid_angle = SolidAngle(pi_crossing_correction_turns)
 
-        return end_angle_integral - start_angle_integral + correction_solid_angle
+        # This seems reversed, but it is correct. The sign convention needs this
+        return start_angle_integral - end_angle_integral + correction_solid_angle
 
     def bounding_box(self):
         return BoundingBox(
@@ -411,11 +392,10 @@ class ClosedPath(Shape):
 
     def solid_angle(self, p: Vec2) -> SolidAngle:
         return sum(
-            (segment.solid_angle(p) for segment in self.segments), SolidAngle([])
+            (segment.solid_angle(p) for segment in self.segments), SolidAngle(ZERO)
         )
 
     def winding_number(self, p: Vec2) -> Expr:
-        return self.solid_angle(p).as_rad() / TAU
         return self.solid_angle(p).full_turns()
 
     def distance(self, x: Num, y: Num) -> Expr:

@@ -4,6 +4,10 @@
 use std::{borrow::Cow, str::FromStr};
 use wgpu::util::DeviceExt;
 
+const WORKGROUP_SIZE: u32 = 16;
+
+include!(concat!(env!("OUT_DIR"), "/opcodes.rs"));
+
 #[cfg_attr(test, allow(dead_code))]
 async fn run() {
     let numbers = if std::env::args().len() <= 2 {
@@ -85,14 +89,14 @@ async fn execute_gpu_inner(
 
     let output_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Output Buffer"),
-        size: (bytecode.len() * std::mem::size_of::<f32>()) as wgpu::BufferAddress,
+        size: (WORKGROUP_SIZE * std::mem::size_of::<f32>() as u32) as wgpu::BufferAddress,
         usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
         mapped_at_creation: false,
     });
 
     let output_staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Output Staging Buffer"),
-        size: (bytecode.len() * std::mem::size_of::<f32>()) as wgpu::BufferAddress,
+        size: (WORKGROUP_SIZE * std::mem::size_of::<f32>() as u32) as wgpu::BufferAddress,
         usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
     });
@@ -101,7 +105,7 @@ async fn execute_gpu_inner(
         label: None,
         layout: None,
         module: &cs_module,
-        entry_point: "main",
+        entry_point: "compute_main",
         compilation_options: Default::default(),
         cache: None,
     });
@@ -136,7 +140,7 @@ async fn execute_gpu_inner(
         cpass.set_pipeline(&compute_pipeline);
         cpass.set_bind_group(0, &bind_group, &[]);
         cpass.insert_debug_marker("execute bytecode");
-        cpass.dispatch_workgroups(bytecode.len() as u32, 1, 1);
+        cpass.dispatch_workgroups(1, 1, 1);
     }
     // Copy the result from the output buffer to the staging buffer
     encoder.copy_buffer_to_buffer(
@@ -144,7 +148,7 @@ async fn execute_gpu_inner(
         0,
         &output_staging_buffer,
         0,
-        (bytecode.len() * std::mem::size_of::<f32>()) as wgpu::BufferAddress,
+        (WORKGROUP_SIZE * std::mem::size_of::<f32>() as u32) as wgpu::BufferAddress,
     );
 
     // Submits command encoder for processing
@@ -177,15 +181,18 @@ async fn execute_gpu_inner(
 }
 
 pub fn main() {
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        env_logger::init();
-        pollster::block_on(run());
-    }
-    #[cfg(target_arch = "wasm32")]
-    {
-        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-        console_log::init().expect("could not initialize logger");
-        wasm_bindgen_futures::spawn_local(run());
+    env_logger::init();
+    pollster::block_on(run());
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_basic() {
+        let bytecode: Vec<u32> = vec![OP_PUSH_I32, 4, OP_PUSH_I32, 4, OP_ADD];
+        let result = pollster::block_on(execute_gpu(&bytecode));
+        assert_eq!(result, Some(vec![8.0; WORKGROUP_SIZE as usize]));
     }
 }

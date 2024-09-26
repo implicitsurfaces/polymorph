@@ -78,6 +78,12 @@ fn execute_bytecode() -> f32 {
 
 @compute
 @workgroup_size(16)
-fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     output[global_id.x] = execute_bytecode();
+}
+
+@fragment
+fn fragment_main(@builtin(position) pos: vec4<f32>) -> FragmentOutput {
+    var result = execute_bytecode();
+    return FragmentOutput(vec4<f32>(result, result, result, 1.0));
 }

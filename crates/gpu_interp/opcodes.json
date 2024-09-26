@@ -1,0 +1,11 @@
+[
+  "OP_NOP",
+  "OP_ADD",
+  "OP_SUB",
+  "OP_MUL",
+  "OP_PUSH_I32",
+  "OP_PUSH_F64",
+  "OP_SIGMOID",
+  "OP_SQRT",
+  "OP_PARAM"
+]

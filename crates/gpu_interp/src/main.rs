@@ -1,13 +1,13 @@
 // Based on the hello_compute example from the wgpu repo.
 // See https://github.com/gfx-rs/wgpu/tree/trunk/examples/src/hello_compute
 
-use std::{borrow::Cow, mem::size_of_val, str::FromStr};
+use std::{borrow::Cow, str::FromStr};
 use wgpu::util::DeviceExt;
 
 #[cfg_attr(test, allow(dead_code))]
 async fn run() {
     let numbers = if std::env::args().len() <= 2 {
-        let default = vec![4, 4, 4, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let default = vec![4, 4, 4, 4, 1];
         println!("No bytecode was provided, defaulting to {default:?}");
         default
     } else {
@@ -55,19 +55,13 @@ async fn execute_gpu_inner(
     queue: &wgpu::Queue,
     bytecode: &[u32],
 ) -> Option<Vec<f32>> {
-    // Loads the shader from WGSL
     let cs_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
         source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("shader.wgsl"))),
     });
 
-    // Gets the size in bytes of the buffer.
-    let size = size_of_val(bytecode) as wgpu::BufferAddress;
-    println!("Size: {}", size);
-
-    // Instantiates buffer with data (`bytecode`), ensuring at least 64 bytes.
     let storage_buffer = {
-        let min_size = 64;
+        let min_size = 64; // wgpu enforces a min size of 64 bytes.
         let data_size = std::mem::size_of_val(bytecode);
         let buffer_size = std::cmp::max(data_size, min_size);
 
@@ -83,14 +77,12 @@ async fn execute_gpu_inner(
         })
     };
 
-    // Create a buffer to hold the uniform data (bytecode length)
     let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Uniform Buffer"),
         contents: bytemuck::cast_slice(&[bytecode.len() as u32]),
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
 
-    // Create an output buffer for f32 data
     let output_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Output Buffer"),
         size: (bytecode.len() * std::mem::size_of::<f32>()) as wgpu::BufferAddress,
@@ -98,7 +90,6 @@ async fn execute_gpu_inner(
         mapped_at_creation: false,
     });
 
-    // Create a staging buffer for reading output
     let output_staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Output Staging Buffer"),
         size: (bytecode.len() * std::mem::size_of::<f32>()) as wgpu::BufferAddress,
@@ -106,7 +97,6 @@ async fn execute_gpu_inner(
         mapped_at_creation: false,
     });
 
-    // Instantiates the pipeline.
     let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
         label: None,
         layout: None,
@@ -116,7 +106,6 @@ async fn execute_gpu_inner(
         cache: None,
     });
 
-    // Instantiates the bind group, specifying the binding of buffers.
     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: None,
         layout: &compute_pipeline.get_bind_group_layout(0),

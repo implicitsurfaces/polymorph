@@ -189,6 +189,3 @@ pub fn main() {
         wasm_bindgen_futures::spawn_local(run());
     }
 }
-
-#[cfg(test)]
-mod tests;

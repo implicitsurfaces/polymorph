@@ -5,6 +5,7 @@ use std::{borrow::Cow, str::FromStr};
 use wgpu::util::DeviceExt;
 
 const WORKGROUP_SIZE: u32 = 16;
+const MAX_BYTECODE_LEN: u32 = 1024;
 
 include!(concat!(env!("OUT_DIR"), "/opcodes.rs"));
 
@@ -61,20 +62,20 @@ async fn execute_gpu_inner(
 ) -> Option<Vec<f32>> {
     let cs_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
-        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("shader.wgsl"))),
+        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!(concat!(
+            env!("OUT_DIR"),
+            "/shader.wgsl"
+        )))),
     });
 
     let storage_buffer = {
-        let min_size = 64; // wgpu enforces a min size of 64 bytes.
-        let data_size = std::mem::size_of_val(bytecode);
-        let buffer_size = std::cmp::max(data_size, min_size);
-
-        let mut contents = vec![0u8; buffer_size];
-        contents[..data_size].copy_from_slice(bytemuck::cast_slice(bytecode));
+        assert!(bytecode.len() as u32 <= MAX_BYTECODE_LEN);
+        let mut contents = vec![0u32; MAX_BYTECODE_LEN as usize];
+        contents[..bytecode.len()].copy_from_slice(bytecode);
 
         device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Storage Buffer"),
-            contents: &contents,
+            contents: bytemuck::cast_slice(&contents),
             usage: wgpu::BufferUsages::STORAGE
                 | wgpu::BufferUsages::COPY_DST
                 | wgpu::BufferUsages::COPY_SRC,
@@ -84,6 +85,12 @@ async fn execute_gpu_inner(
     let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Uniform Buffer"),
         contents: bytemuck::cast_slice(&[bytecode.len() as u32]),
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+    });
+
+    let dimensions_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Dimensions Buffer"),
+        contents: bytemuck::cast_slice(&[4u32, 4u32]),
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
 
@@ -125,6 +132,10 @@ async fn execute_gpu_inner(
             wgpu::BindGroupEntry {
                 binding: 2,
                 resource: output_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: dimensions_buffer.as_entire_binding(),
             },
         ],
     });
@@ -190,9 +201,57 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_basic() {
-        let bytecode: Vec<u32> = vec![OP_PUSH_I32, 4, OP_PUSH_I32, 4, OP_ADD];
+    fn test_add() {
+        let bytecode: Vec<u32> = vec![OP_PUSH_I32, 5, OP_PUSH_I32, 7, OP_ADD];
         let result = pollster::block_on(execute_gpu(&bytecode));
-        assert_eq!(result, Some(vec![8.0; WORKGROUP_SIZE as usize]));
+        assert_eq!(result, Some(vec![12.0; WORKGROUP_SIZE as usize]));
+
+        #[rustfmt::skip]
+        let bytecode: Vec<u32> = vec![
+            OP_PUSH_I32, 5,
+            OP_PUSH_I32, 7,
+            OP_PUSH_I32, 11,
+            OP_ADD,
+            OP_ADD,
+        ];
+        let result = pollster::block_on(execute_gpu(&bytecode));
+        assert_eq!(result, Some(vec![23.0; WORKGROUP_SIZE as usize]));
+    }
+
+    #[test]
+    fn test_sub() {
+        let bytecode: Vec<u32> = vec![OP_PUSH_I32, 5, OP_PUSH_I32, 7, OP_SUB];
+        let result = pollster::block_on(execute_gpu(&bytecode));
+        assert_eq!(result, Some(vec![-2.0; WORKGROUP_SIZE as usize]));
+    }
+
+    #[test]
+    fn test_is_inside_circle() {
+        #[rustfmt::skip]
+        // is_inside for circle with radius 1, center at (0, 0)
+        let bytecode: Vec<u32> = vec![
+          OP_PUSH_I32, 1,
+          OP_PARAM, 0,
+          OP_PARAM, 0,
+          OP_MUL,
+          OP_PARAM, 1,
+          OP_PARAM, 1,
+          OP_MUL,
+          OP_ADD,
+          OP_SQRT,
+          OP_PUSH_I32, 2,
+          OP_SUB,
+          OP_PUSH_I32, 100,
+          OP_MUL,
+          OP_SIGMOID,
+          OP_SUB
+        ];
+        let result = pollster::block_on(execute_gpu(&bytecode));
+        assert_eq!(
+            result,
+            Some(vec![
+                1.0, 1.0, 0.5, 0.0, 1.0, 1.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+            ])
+        );
     }
 }

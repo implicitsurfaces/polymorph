@@ -22,31 +22,41 @@ from .utils import (
 
 
 class SolidAngle:
-    _val: Expr
+    """
+    The SolidAngle class represents a solid angle in 2D space.
 
-    def __init__(self, value: Expr):
-        self._val = value
+    The solid angle is a number of turns around the unit circle.
+    """
+
+    _turns: Expr
+
+    def __init__(self, turns: Expr):
+        self._turns = turns
 
     def __add__(self, other: "SolidAngle"):
-        return SolidAngle(self._val + other._val)
+        return SolidAngle(self._turns + other._turns)
 
     def __neg__(self):
-        return SolidAngle(-self._val)
+        return SolidAngle(-self._turns)
 
     def __sub__(self, other: "SolidAngle"):
-        return SolidAngle(self._val - other._val)
+        return SolidAngle(self._turns - other._turns)
 
     def half(self):
-        return SolidAngle(self._val / 2)
+        return SolidAngle(self._turns / 2)
 
     def flip_sign(self, sign):
-        return SolidAngle(self._val * sign)
+        return SolidAngle(self._turns * sign)
 
     def as_rad(self):
-        return self._val * TAU
+        return self._turns * TAU
 
     def full_turns(self):
-        return self._val
+        return self._turns
+
+
+def as_solid_angle(angle: Angle):
+    return SolidAngle(angle.as_rad() / TAU)
 
 
 def is_negative(x: Expr):
@@ -55,10 +65,6 @@ def is_negative(x: Expr):
 
 def is_positive(x: Expr):
     return ops.if_gt(x, 0, 1, 0)
-
-
-def as_solid_angle(angle: Angle):
-    return SolidAngle(angle.as_rad() / TAU)
 
 
 class PathSegment(Shape):
@@ -141,6 +147,36 @@ def negative_sign(x: Expr):
 
 
 def winding_number_indefinite_integral(t: Angle, radius: Expr, x: Expr, y: Expr):
+    """
+    Computes the indefinite integral of the winding number of an arc of circle.
+
+    """
+
+    # The general formula for the winding number of a circle is the integral of
+    # the following function:
+
+    # w(x, y) = (x dy - y dx) / (x^2 + y^2)
+
+    # In the case of an arc of circle, we can express the parametric equation as:
+
+    # x = a + r cos(t)
+    # y = b + r sin(t)
+
+    # Where (a, b) is the center of the circle and r is the radius. We can then
+    # plug this into the winding number formula and integrate it with respect to t.
+
+    # With the help of wolfram alpha, we can find the following indefinite integral:
+
+    # https://www.wolframalpha.com/input?i=1*integral+from+t0+to+t1+of+%28%28a+%2B+R*cos%28t%29+-+x%29*%28R*cos%28t%29%29+%2B+%28b+%2B+R*sin%28t%29+-+y%29*%28R*sin%28t%29%29%29+%2F+%28%28a+%2B+R*cos%28t%29+-+x%29%5E2+%2B+%28b+%2B+R*sin%28t%29+-+y%29%5E2%29+dt
+
+    # As we can see, the integral is quite complex. However, we can simplify it,
+    # first we can center the circle at the origin by subtracting and set a,
+    # b and to zero, then we can simplify the integral with wolfram alpha again:
+
+    # https://www.wolframalpha.com/input?i=%28+%28tan%5E%28-1%29%28+%28sec%28t%2F2%29+%28+R%5E2+sin%28t%2F2%29+%2B+2+R+x+sin%28t%2F2%29+-+2+R+y+cos%28t%2F2%29+%2B+x%5E2+sin%28t%2F2%29+%2B+y%5E2+sin%28t%2F2%29%29%29%2F%28R%5E2+-+x%5E2+-+y%5E2%29%29%29+%2B+t%2F%282%29%29+
+
+    # This gives use the formula used here.
+
     R2 = radius * radius
     half_t = t.half()
     sin_t = half_t.sin()

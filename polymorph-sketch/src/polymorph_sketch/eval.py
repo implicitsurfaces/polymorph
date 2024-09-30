@@ -1,0 +1,143 @@
+from polymorph_num.angle import HALF_TURN, angle_from_deg, polar_angle_from_vec
+from polymorph_num.expr import as_expr
+from polymorph_num.ops import param
+from polymorph_num.vec import Vec2
+from polymorph_s2df.geom_helpers import (
+    bulging_segment_from_center,
+    bulging_segment_from_end_tangent,
+    bulging_segment_from_start_tangent,
+)
+from polymorph_s2df.paths import BulgingSegment, ClosedPath, LineSegment
+
+from .nodes import (
+    AngleBisection,
+    AngleDifference,
+    AngleLiteral,
+    AngleParam,
+    AngleSum,
+    ArcBulge,
+    ArcCenter,
+    ArcTangentEnd,
+    ArcTangentStart,
+    CartesianPoint,
+    DistanceLiteral,
+    DistanceParam,
+    DistanceScaled,
+    DistanceSum,
+    Line,
+    Node,
+    OppositeAngle,
+    PathClose,
+    PathEdge,
+    PathStart,
+    PerpendicularAngle,
+    PolarAngle,
+    PolarPoint,
+    PolarRadius,
+    PositiveFloat,
+    VectorDifference,
+    VectorSum,
+)
+
+
+def is_positive_float(x: float) -> PositiveFloat:
+    if x <= 0:
+        raise ValueError(f"Expected positive float, got {x}")
+    return x
+
+
+class EdgeList:
+    def __init__(self, first_point: Vec2):
+        self.first_point = first_point
+        self._edges = []
+
+    @property
+    def current_point(self):
+        if not len(self._edges):
+            return self.first_point
+        return self._edges[-1].end
+
+    def append(self, edge):
+        self._edges.append(edge)
+
+    def finalize(self):
+        return self._edges
+
+
+def sketch(node: Node):
+    match node:
+        case DistanceLiteral(length):
+            return as_expr(length)
+        case DistanceParam():
+            return param()
+        case DistanceSum(left, right):
+            return sketch(left) + sketch(right)
+        case DistanceScaled(distance, scale):
+            return scale * sketch(distance)
+        case PolarRadius(point):
+            p = sketch(point)
+            return p.norm()
+        case AngleLiteral(degrees):
+            return angle_from_deg(as_expr(is_positive_float(degrees)))
+        case AngleParam():
+            return param()
+        case AngleSum(left, right):
+            return sketch(left) + sketch(right)
+        case AngleDifference(left, right):
+            return sketch(left) - sketch(right)
+        case AngleBisection(angle):
+            return sketch(angle).half()
+        case PolarAngle(point):
+            p = sketch(point)
+            return polar_angle_from_vec(p)
+        case PerpendicularAngle(angle):
+            return sketch(angle).perp()
+        case OppositeAngle(angle):
+            return HALF_TURN + sketch(angle)
+        case CartesianPoint(x, y):
+            return Vec2(x, y)
+        case PolarPoint(angle, radius):
+            r = sketch(radius)
+            a = sketch(angle)
+            return a.as_vec().scale(r)
+        case VectorSum(left, right):
+            return sketch(left) + sketch(right)
+        case VectorDifference(left, right):
+            return sketch(left) - sketch(right)
+        case PathClose(path, edge):
+            edges_list = sketch(path)
+            first_point = edges_list.first_point
+            last_point = edges_list.current_point
+
+            last_edge = sketch(edge)(last_point, first_point)
+            edges_list.append(last_edge)
+            return ClosedPath(edges_list.finalize())
+        case PathStart(point):
+            p = sketch(point)
+            return EdgeList(p)
+        case PathEdge(path, point, edge):
+            edges_list = sketch(path)
+            p = sketch(point)
+            e = sketch(edge)(edges_list.current_point, p)
+
+            edges_list.append(e)
+            return edges_list
+        case Line():
+            return lambda p0, p1: LineSegment(p0, p1)
+
+        case ArcBulge(bulge):
+            return lambda p0, p1: BulgingSegment(p0, p1, bulge)
+
+        case ArcTangentStart(angle):
+            return lambda p0, p1: bulging_segment_from_start_tangent(
+                p0, p1, sketch(angle)
+            )
+
+        case ArcTangentEnd(angle):
+            return lambda p0, p1: bulging_segment_from_end_tangent(
+                p0, p1, sketch(angle)
+            )
+
+        case ArcCenter(center):
+            c = sketch(center)
+            return lambda p0, p1: bulging_segment_from_center(p0, p1, c)

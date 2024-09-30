@@ -33,6 +33,35 @@ def bulging_segment_from_end_tangent(
     return BulgingSegment(start_point, end_point, bulge)
 
 
+def bulging_segment_from_center(start_point: Vec2, end_point: Vec2, center: Vec2):
+    chord = end_point - start_point
+    radius = center - start_point
+
+    s = radius.cross(chord)
+    c = radius.dot(chord)
+
+    bulge = -s / (c + (c * c + s * s).sqrt())
+    return BulgingSegment(start_point, end_point, bulge)
+
+
+def bulging_segement_from_radius_small_arc(
+    start_point: Vec2, end_point: Vec2, radius: Expr
+):
+    d = (end_point - start_point).norm()
+    f = (d / (2 * radius)) ** 2
+    bulge = (2 * radius / d) * (1 - (1 - f * f).sqrt())
+    return BulgingSegment(start_point, end_point, bulge)
+
+
+def bulging_segement_from_radius_large_arc(
+    start_point: Vec2, end_point: Vec2, radius: Expr
+):
+    d = (end_point - start_point).norm()
+    f = (d / (2 * radius)) ** 2
+    bulge = (2 * radius / d) * (1 + (1 - f * f).sqrt())
+    return BulgingSegment(start_point, end_point, bulge)
+
+
 def line_line_intersection(p0: Vec2, v0: Vec2, p1: Vec2, v1: Vec2):
     cross_dir = v0.cross(v1)
     diff_point = p1 - p0

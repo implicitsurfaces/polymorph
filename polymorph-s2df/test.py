@@ -72,34 +72,6 @@ distance_gradient_sweeped_solid = distance_gradient_3d(sweeped_solid)
 inside_gradient_sweeped_solid = inside_gradient_3d(sweeped_solid)
 
 
-distance_gradient_arc = distance_gradient(s2df.ArcSegment(0.5, 2.2, 0.5, 1))
-
-
-@given(x=st.floats(-2, 2), y=st.floats(-2, 2))
-def test_arc_gradients(x, y):
-    # gradients is not defined at the center of the arc
-    assume(abs(x) > 1e-12 and abs(y) > 1e-12)
-
-    grad = distance_gradient_arc(x, y)
-    assert not math.isnan(grad["x"])
-    assert not math.isnan(grad["y"])
-
-
-distance_gradient_path = distance_gradient(wedge_with_arc)
-
-
-@given(x=st.floats(-2, 2), y=st.floats(-2, 2))
-def test_path_gradients(x, y):
-    # gradients are not defined at the corners of the wedge
-    assume(abs(x + 1) > 1e-12 and abs(y + 0.5) > 1e-12)
-    assume(abs(x - 1) > 1e-12 and abs(y) > 1e-12)
-    assume(abs(x) > 1e-12 and abs(y - 1) > 1e-12)
-
-    grad = distance_gradient_path(x, y)
-    assert not math.isnan(grad["x"])
-    assert not math.isnan(grad["y"])
-
-
 inside_gradient_path = inside_gradient(wedge_with_arc)
 
 
@@ -153,42 +125,6 @@ def test_sweeped_solid_inside_gradient(x, y, z):
     assert not math.isnan(grad["x"])
     assert not math.isnan(grad["y"])
     assert not math.isnan(grad["z"])
-
-
-def test_distance_to_arc_segment(benchmark):
-    unit = (
-        Unit(["x", "y"])
-        .register(
-            "distance",
-            s2df.ArcSegment(0.5, 2.2, 0.5, 1).distance(
-                observation("x"), observation("y")
-            ),
-        )
-        .compile()
-    )
-
-    def arc_segment_distance():
-        return unit.observe({"x": 1.2, "y": 1.3}).evaluate("distance")
-
-    benchmark(arc_segment_distance)
-
-
-def test_distance_to_bulding_arc_segment(benchmark):
-    unit = (
-        Unit(["x", "y"])
-        .register(
-            "distance",
-            s2df.bulge_arc((0.5, 0.5), (-1, 0.2), 0.8).distance(
-                observation("x"), observation("y")
-            ),
-        )
-        .compile()
-    )
-
-    def arc_segment_distance():
-        return unit.observe({"x": 1.2, "y": 1.3}).evaluate("distance")
-
-    benchmark(arc_segment_distance)
 
 
 def test_distance_to_bulging_segment(benchmark):

@@ -186,7 +186,7 @@ def winding_number_indefinite_integral(t: Angle, radius: Expr, x: Expr, y: Expr)
     x_r = x + radius
     term2 = (x_r * x_r + y * y) * sin_t / cos_t
 
-    angle_x = term2 - term1
+    angle_x = term1 - term2
     angle_y = R2 - x * x - y * y
 
     return as_solid_angle(polar_angle(angle_x, angle_y)) + as_solid_angle(t).half()
@@ -194,7 +194,7 @@ def winding_number_indefinite_integral(t: Angle, radius: Expr, x: Expr, y: Expr)
 
 def winding_number_at_pi(radius: Expr, x: Expr, y: Expr):
     dist_to_center = radius * radius - (x * x + y * y)
-    return dist_to_center.sign() / 2
+    return (dist_to_center.sign() + 1) / 2
 
 
 class BulgingSegment(PathSegment):
@@ -365,8 +365,7 @@ class BulgingSegment(PathSegment):
         # with a known number of turns
         correction_solid_angle = SolidAngle(pi_crossing_correction_turns)
 
-        # This seems reversed, but it is correct. The sign convention needs this
-        return start_angle_integral - end_angle_integral + correction_solid_angle
+        return end_angle_integral - start_angle_integral + correction_solid_angle
 
     def bounding_box(self):
         return BoundingBox(

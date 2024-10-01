@@ -1,3 +1,5 @@
+from typing import TypeGuard
+
 from polymorph_num.angle import HALF_TURN, angle_from_deg, polar_angle_from_vec
 from polymorph_num.expr import as_expr
 from polymorph_num.ops import param
@@ -7,7 +9,7 @@ from polymorph_s2df.geom_helpers import (
     bulging_segment_from_end_tangent,
     bulging_segment_from_start_tangent,
 )
-from polymorph_s2df.paths import BulgingSegment, ClosedPath, LineSegment
+from polymorph_s2df.paths import BulgingSegment, ClosedPath, LineSegment, PathSegment
 
 from .nodes import (
     AngleBisection,
@@ -19,6 +21,8 @@ from .nodes import (
     ArcCenter,
     ArcTangentEnd,
     ArcTangentStart,
+    ArcWithSmoothEnd,
+    ArcWithSmoothStart,
     CartesianPoint,
     DistanceLiteral,
     DistanceParam,
@@ -46,10 +50,52 @@ def is_positive_float(x: float) -> PositiveFloat:
     return x
 
 
+class IncompleteEdge:
+    start: Vec2
+    end: Vec2
+
+    def fix(self, i, edges):
+        raise NotImplementedError
+
+
+class IncompleteArcSmoothStart(IncompleteEdge):
+    def __init__(self, start, end):
+        self.start = start
+        self.end = end
+
+    def fix(self, i, edges: list[IncompleteEdge | PathSegment]):
+        previous = edges[i - 1]
+        if isinstance(previous, IncompleteEdge):
+            return self
+
+        return bulging_segment_from_start_tangent(
+            self.start, self.end, previous.end_tangent()
+        )
+
+
+class IncompleteArcSmoothEnd(IncompleteEdge):
+    def __init__(self, start, end):
+        self.start = start
+        self.end = end
+
+    def fix(self, i, edges: list[IncompleteEdge | PathSegment]):
+        next = edges[(i + 1) % len(edges)]
+        if isinstance(next, IncompleteEdge):
+            return self
+
+        return bulging_segment_from_end_tangent(
+            self.start, self.end, next.start_tangent()
+        )
+
+
+def is_incomplete(edge) -> TypeGuard[IncompleteEdge]:
+    return isinstance(edge, IncompleteEdge)
+
+
 class EdgeList:
     def __init__(self, first_point: Vec2):
         self.first_point = first_point
-        self._edges = []
+        self._edges: list[IncompleteEdge | PathSegment] = []
 
     @property
     def current_point(self):
@@ -57,11 +103,23 @@ class EdgeList:
             return self.first_point
         return self._edges[-1].end
 
-    def append(self, edge):
+    def append(self, edge: PathSegment | IncompleteEdge):
         self._edges.append(edge)
 
     def finalize(self):
-        return self._edges
+        edges = self._edges
+        incomplete_count = len([e for e in edges if is_incomplete(e)])
+
+        while incomplete_count > 0:
+            edges = [
+                e.fix(i, edges) if is_incomplete(e) else e for i, e in enumerate(edges)
+            ]
+            new_incomplete_count = len([e for e in edges if is_incomplete(e)])
+            if new_incomplete_count == incomplete_count:
+                raise ValueError("Failed to finalize path - incomplete edges remain")
+            incomplete_count = new_incomplete_count
+
+        return edges
 
 
 def sketch(node: Node):
@@ -137,6 +195,12 @@ def sketch(node: Node):
             return lambda p0, p1: bulging_segment_from_end_tangent(
                 p0, p1, sketch(angle)
             )
+
+        case ArcWithSmoothStart():
+            return IncompleteArcSmoothStart
+
+        case ArcWithSmoothEnd():
+            return IncompleteArcSmoothEnd
 
         case ArcCenter(center):
             c = sketch(center)

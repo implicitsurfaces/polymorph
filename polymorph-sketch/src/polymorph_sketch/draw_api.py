@@ -4,6 +4,8 @@ from .nodes import (
     ArcBulge,
     ArcTangentEnd,
     ArcTangentStart,
+    ArcWithSmoothEnd,
+    ArcWithSmoothStart,
     CartesianPoint,
     Distance,
     DistanceLiteral,
@@ -87,8 +89,9 @@ class PointCreator:
 
 
 class LineCreator:
-    def __init__(self, done):
+    def __init__(self, current_point: Point, done):
         self._done = done
+        self.current_point = current_point
 
     def line(self):
         return self._done(Line())
@@ -101,6 +104,12 @@ class LineCreator:
 
     def arc_tangent_end(self, angle):
         return self._done(ArcTangentEnd(as_angle(angle)))
+
+    def arc_smooth_start(self):
+        return self._done(ArcWithSmoothStart())
+
+    def arc_smooth_end(self):
+        return self._done(ArcWithSmoothEnd())
 
 
 def draw(origin: tuple[float, float] = (0, 0)):
@@ -116,9 +125,9 @@ def draw(origin: tuple[float, float] = (0, 0)):
             nonlocal current_point
             current_point = point
             path = PathEdge(path, point, line)
-            return LineCreator(line_done)
+            return LineCreator(current_point, line_done)
 
         nonlocal current_point
         return PointCreator(current_point, point_done)
 
-    return LineCreator(line_done)
+    return LineCreator(current_point, line_done)

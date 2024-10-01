@@ -25,9 +25,6 @@ from .paths import (
     LineSegment,
     PathSegment,
 )
-from .paths import (
-    TranslatedSegment as TranslatedSegment,
-)
 from .plane import X_AXIS as X_AXIS
 from .plane import XY_PLANE as XY_PLANE
 from .plane import XZ_PLANE as XZ_PLANE

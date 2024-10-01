@@ -68,6 +68,9 @@ def is_positive(x: Expr):
 
 
 class PathSegment(Shape):
+    start: Vec2
+    end: Vec2
+
     def astuple(self):
         raise NotImplementedError()
 
@@ -373,41 +376,6 @@ class BulgingSegment(PathSegment):
             self.center.y - self.radius,
             self.center.x + self.radius,
             self.center.y + self.radius,
-        )
-
-
-class TranslatedSegment(PathSegment):
-    def __init__(self, segment: PathSegment, translation: ValVec):
-        super().__init__()
-        self.segment = segment
-        self.translation = as_vec2(translation)
-
-    def astuple(self):
-        return (self.segment, self.translation)
-
-    def end_tangent(self) -> Angle:
-        return self.segment.end_tangent()
-
-    def __eq__(self, other):
-        return (
-            isinstance(other, TranslatedSegment) and self.astuple() == other.astuple()
-        )
-
-    def __hash__(self):
-        return hash(self.astuple())
-
-    def __repr__(self):
-        return f"TranslatedSegment({self.segment}, {repr_point(self.translation)})"
-
-    def distance(self, x, y):
-        return self.segment.distance(x - self.translation.x, y - self.translation.y)
-
-    def solid_angle(self, p: Vec2) -> SolidAngle:
-        return self.segment.solid_angle(p - self.translation)
-
-    def bounding_box(self):
-        return self.segment.bounding_box().translate(
-            self.translation.x, self.translation.y
         )
 
 

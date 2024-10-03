@@ -421,3 +421,41 @@ class ClosedPath(Shape):
                 for point in (segment.bounding_box().min, segment.bounding_box().max)
             ]
         )
+
+
+class OpenPath(Shape):
+    def __init__(self, segments: Sequence[PathSegment]):
+        super().__init__()
+        self.segments = segments
+
+    def astuple(self):
+        return tuple(self.segments)
+
+    def __hash__(self):
+        return hash(self.astuple())
+
+    def __eq__(self, other):
+        return isinstance(other, OpenPath) and self.astuple() == other.astuple()
+
+    def solid_angle(self, p: Vec2) -> SolidAngle:
+        return sum(
+            (segment.solid_angle(p) for segment in self.segments), SolidAngle(ZERO)
+        )
+
+    def winding_number(self, p: Vec2) -> Expr:
+        return self.solid_angle(p).full_turns()
+
+    def distance(self, x: Num, y: Num) -> Expr:
+        minimum_distance = min_iterable(
+            segment.distance(x, y) for segment in self.segments
+        )
+        return minimum_distance
+
+    def bounding_box(self):
+        return bounding_box_from_points(
+            [
+                point
+                for segment in self.segments
+                for point in (segment.bounding_box().min, segment.bounding_box().max)
+            ]
+        )

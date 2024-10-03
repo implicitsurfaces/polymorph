@@ -1,4 +1,4 @@
-from polymorph_num.angle import Angle, angle_from_rad
+from polymorph_num.angle import Angle, angle_from_rad, polar_angle_from_vec
 from polymorph_num.expr import PI, Expr
 from polymorph_num.vec import Vec2
 
@@ -77,8 +77,10 @@ def biarc(
     p0 = Vec2(x0, y0)
     p1 = Vec2(x1, y1)
 
-    u0 = Vec2(theta0.cos(), theta0.sin())
-    u1 = Vec2(theta1.cos(), theta1.sin())
+    u0 = theta0.as_vec()
+    u1 = theta1.as_vec()
+
+    third_point = line_line_intersection(p0, u0, p1, u1)
 
     m0 = (p0 + p1) / 2
     v0 = (p1 - p0).perp()
@@ -89,10 +91,22 @@ def biarc(
     center = line_line_intersection(m0, v0, m1, v1)
     radius = (center - p0).norm()
 
-    mid_angle = (theta0 + theta1).half()
-    angle = angle_from_rad((param - 0.5) % 1 * 2 * PI) + mid_angle
+    # We use the point in the case of a biarc without inflexion point
+    # In that case we have something very smooth. This is less the case for the
+    # cases with inflexion point, but it is not too bad.
 
-    j = center + Vec2(angle.cos(), angle.sin()).scale(radius)
+    w0 = (third_point - p1).norm()
+    w1 = (third_point - p0).norm()
+    w2 = (p1 - p0).norm()
+
+    perimeter = w0 + w1 + w2
+
+    c = (p0.scale(w0) + p1.scale(w1) + third_point.scale(w2)) / perimeter
+    c_angle = polar_angle_from_vec(c - center)
+
+    angle = angle_from_rad((param - 0.5) % 1 * 2 * PI) + c_angle
+
+    j = center + angle.as_vec().scale(radius)
 
     return [
         bulging_segment_from_start_tangent(p0, j, theta0),

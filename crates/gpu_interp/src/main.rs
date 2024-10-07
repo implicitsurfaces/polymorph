@@ -254,4 +254,28 @@ mod test {
             ])
         );
     }
+
+    #[test]
+    fn test_fidget_eval() -> Result<(), fidget::Error> {
+      // From https://docs.rs/fidget/latest/fidget/#functions-and-shapes
+      use fidget::{
+          context::Tree,
+          shape::EzShape,
+          vm::VmShape
+      };
+
+      let tree = Tree::x() + Tree::y();
+      let shape = VmShape::from(tree);
+      let mut eval = VmShape::new_point_eval();
+      let tape = shape.ez_point_tape();
+      let (out, _) = eval.eval(
+          &tape,
+          1.0,
+          1.0,
+          0.0
+      )?;
+      assert_eq!(out, 2.0);
+      Ok(())
+    }
+
 }

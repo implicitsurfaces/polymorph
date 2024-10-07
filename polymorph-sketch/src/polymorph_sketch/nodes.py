@@ -200,6 +200,25 @@ class ArcCenter(Edge):
 
 @dataclass(frozen=True)
 class Biarc(Edge):
+    start_angle: Angle
+    end_angle: Angle
+    param: float
+
+
+@dataclass(frozen=True)
+class BiarcWithSmoothStart(Edge):
+    end_angle: Angle
+    param: float
+
+
+@dataclass(frozen=True)
+class BiarcWithSmoothEnd(Edge):
+    start_angle: Angle
+    param: float
+
+
+@dataclass(frozen=True)
+class BiarcWithSmoothExtremities(Edge):
     param: float
 
 

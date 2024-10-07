@@ -80,8 +80,6 @@ def biarc(
     u0 = theta0.as_vec()
     u1 = theta1.as_vec()
 
-    third_point = line_line_intersection(p0, u0, p1, u1)
-
     m0 = (p0 + p1) / 2
     v0 = (p1 - p0).perp()
 
@@ -94,6 +92,8 @@ def biarc(
     # We use the point in the case of a biarc without inflexion point
     # In that case we have something very smooth. This is less the case for the
     # cases with inflexion point, but it is not too bad.
+
+    third_point = line_line_intersection(p0, u0, p1, u1)
 
     w0 = (third_point - p1).norm()
     w1 = (third_point - p0).norm()

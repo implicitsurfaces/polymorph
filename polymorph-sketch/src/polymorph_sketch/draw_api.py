@@ -6,6 +6,10 @@ from .nodes import (
     ArcTangentStart,
     ArcWithSmoothEnd,
     ArcWithSmoothStart,
+    Biarc,
+    BiarcWithSmoothEnd,
+    BiarcWithSmoothExtremities,
+    BiarcWithSmoothStart,
     CartesianPoint,
     Distance,
     DistanceLiteral,
@@ -88,7 +92,7 @@ class PointCreator:
         return self._done(None)
 
 
-class LineCreator:
+class EdgeMaker:
     def __init__(self, current_point: Point, done):
         self._done = done
         self.current_point = current_point
@@ -111,6 +115,21 @@ class LineCreator:
     def arc_smooth_end(self):
         return self._done(ArcWithSmoothEnd())
 
+    def biarc(self, start_angle, end_angle):
+        return self._done(Biarc(as_angle(start_angle), as_angle(end_angle), 0.5))
+
+    def biarc_with_param(self, start_angle, end_angle, p=0.5):
+        return self._done(Biarc(as_angle(start_angle), as_angle(end_angle), p))
+
+    def biarc_smooth_start(self, end_angle):
+        return self._done(BiarcWithSmoothStart(as_angle(end_angle), 0.5))
+
+    def biarc_smooth_end(self, start_angle):
+        return self._done(BiarcWithSmoothEnd(as_angle(start_angle), 0.5))
+
+    def biarc_smooth_extremities(self):
+        return self._done(BiarcWithSmoothExtremities(0.5))
+
 
 def draw(origin: tuple[float, float] = (0, 0)):
     current_point = as_point(origin)
@@ -125,9 +144,9 @@ def draw(origin: tuple[float, float] = (0, 0)):
             nonlocal current_point
             current_point = point
             path = PathEdge(path, point, line)
-            return LineCreator(current_point, line_done)
+            return EdgeMaker(current_point, line_done)
 
         nonlocal current_point
         return PointCreator(current_point, point_done)
 
-    return LineCreator(current_point, line_done)
+    return EdgeMaker(current_point, line_done)

@@ -1,10 +1,11 @@
 from typing import TypeGuard
 
+from polymorph_num import ops
 from polymorph_num.angle import HALF_TURN, angle_from_deg, polar_angle_from_vec
 from polymorph_num.expr import as_expr
-from polymorph_num.ops import param
 from polymorph_num.vec import Vec2
 from polymorph_s2df.geom_helpers import (
+    biarc,
     bulging_segment_from_center,
     bulging_segment_from_end_tangent,
     bulging_segment_from_start_tangent,
@@ -23,6 +24,10 @@ from .nodes import (
     ArcTangentStart,
     ArcWithSmoothEnd,
     ArcWithSmoothStart,
+    Biarc,
+    BiarcWithSmoothEnd,
+    BiarcWithSmoothExtremities,
+    BiarcWithSmoothStart,
     CartesianPoint,
     DistanceLiteral,
     DistanceParam,
@@ -88,6 +93,78 @@ class IncompleteArcSmoothEnd(IncompleteEdge):
         )
 
 
+class IncompleteBiArcSmoothStart(IncompleteEdge):
+    def __init__(self, start, end, end_tangent, param):
+        self.start = start
+        self.end = end
+        self.end_tangent = end_tangent
+        self.param = param
+
+    def fix(self, i, edges: list[IncompleteEdge | PathSegment]):
+        previous = edges[i - 1]
+        if isinstance(previous, IncompleteEdge):
+            return self
+
+        return biarc(
+            self.start.x,
+            self.start.y,
+            previous.end_tangent(),
+            self.end.x,
+            self.end.y,
+            self.end_tangent,
+            self.param,
+        )
+
+
+class IncompleteBiArcSmoothEnd(IncompleteEdge):
+    def __init__(self, start, end, start_tangent, param):
+        self.start = start
+        self.end = end
+        self.start_tangent = start_tangent
+        self.param = param
+
+    def fix(self, i, edges: list[IncompleteEdge | PathSegment]):
+        next = edges[(i + 1) % len(edges)]
+        if isinstance(next, IncompleteEdge):
+            return self
+
+        return biarc(
+            self.start.x,
+            self.start.y,
+            self.start_tangent,
+            self.end.x,
+            self.end.y,
+            next.start_tangent(),
+            self.param,
+        )
+
+
+class IncompleteBiArcSmoothExtremities(IncompleteEdge):
+    def __init__(self, start, end, param):
+        self.start = start
+        self.end = end
+        self.param = param
+
+    def fix(self, i, edges: list[IncompleteEdge | PathSegment]):
+        next = edges[(i + 1) % len(edges)]
+        if isinstance(next, IncompleteEdge):
+            return self
+
+        previous = edges[i - 1]
+        if isinstance(previous, IncompleteEdge):
+            return self
+
+        return biarc(
+            self.start.x,
+            self.start.y,
+            previous.end_tangent(),
+            self.end.x,
+            self.end.y,
+            next.start_tangent(),
+            self.param,
+        )
+
+
 def is_incomplete(edge) -> TypeGuard[IncompleteEdge]:
     return isinstance(edge, IncompleteEdge)
 
@@ -104,16 +181,26 @@ class EdgeList:
         return self._edges[-1].end
 
     def append(self, edge: PathSegment | IncompleteEdge):
-        self._edges.append(edge)
+        if isinstance(edge, list):
+            self._edges.extend(edge)
+        else:
+            self._edges.append(edge)
 
     def finalize(self):
         edges = self._edges
         incomplete_count = len([e for e in edges if is_incomplete(e)])
 
         while incomplete_count > 0:
-            edges = [
-                e.fix(i, edges) if is_incomplete(e) else e for i, e in enumerate(edges)
-            ]
+            new_eges = []
+            for i, e in enumerate(edges):
+                if is_incomplete(e):
+                    e = e.fix(i, edges)
+                if isinstance(e, list):
+                    new_eges.extend(e)
+                else:
+                    new_eges.append(e)
+            edges = new_eges
+
             new_incomplete_count = len([e for e in edges if is_incomplete(e)])
             if new_incomplete_count == incomplete_count:
                 raise ValueError("Failed to finalize path - incomplete edges remain")
@@ -127,7 +214,7 @@ def sketch(node: Node):
         case DistanceLiteral(length):
             return as_expr(length)
         case DistanceParam():
-            return param()
+            return ops.param()
         case DistanceSum(left, right):
             return sketch(left) + sketch(right)
         case DistanceScaled(distance, scale):
@@ -138,7 +225,7 @@ def sketch(node: Node):
         case AngleLiteral(degrees):
             return angle_from_deg(as_expr(is_positive_float(degrees)))
         case AngleParam():
-            return param()
+            return ops.param()
         case AngleSum(left, right):
             return sketch(left) + sketch(right)
         case AngleDifference(left, right):
@@ -205,3 +292,29 @@ def sketch(node: Node):
         case ArcCenter(center):
             c = sketch(center)
             return lambda p0, p1: bulging_segment_from_center(p0, p1, c)
+
+        case Biarc(start_tangent, end_tangent, param):
+            return lambda p0, p1: biarc(
+                p0.x,
+                p0.y,
+                sketch(start_tangent),
+                p1.x,
+                p1.y,
+                sketch(end_tangent),
+                as_expr(param),
+            )
+
+        case BiarcWithSmoothStart(end_tangent, param):
+            return lambda p0, p1: IncompleteBiArcSmoothStart(
+                p0, p1, sketch(end_tangent), as_expr(param)
+            )
+
+        case BiarcWithSmoothEnd(start_tangent, param):
+            return lambda p0, p1: IncompleteBiArcSmoothEnd(
+                p0, p1, sketch(start_tangent), as_expr(param)
+            )
+
+        case BiarcWithSmoothExtremities(param):
+            return lambda p0, p1: IncompleteBiArcSmoothExtremities(
+                p0, p1, as_expr(param)
+            )

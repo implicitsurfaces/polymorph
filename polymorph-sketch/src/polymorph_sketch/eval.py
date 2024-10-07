@@ -29,6 +29,7 @@ from .nodes import (
     AngleParam,
     AngleSum,
     ArcBulge,
+    ArcLength,
     ArcTangentEnd,
     ArcTangentStart,
     ArcWithSmoothEnd,
@@ -81,6 +82,10 @@ def sketch_distance(node: Distance) -> Expr:
         case PolarRadius(point):
             p = sketch_point(point)
             return p.norm()
+        case ArcLength(angle, radius):
+            a = sketch_angle(angle)
+            r = sketch_distance(radius)
+            return a.as_rad() * r
         case _:
             raise ValueError(f"Unexpected distance node: {node}")
 

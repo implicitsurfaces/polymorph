@@ -93,6 +93,12 @@ class PolarRadius(Distance):
 
 
 @dataclass(frozen=True)
+class ArcLength(Distance):
+    angle: Angle
+    radius: Distance
+
+
+@dataclass(frozen=True)
 class AngleLiteral(Angle):
     degrees: PositiveFloat
 

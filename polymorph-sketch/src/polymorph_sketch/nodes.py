@@ -18,17 +18,43 @@ class Distance:
 
 
 @dataclass(frozen=True)
-class Point:
-    def __add__(self, other: "Point"):
+class VecLike:
+    pass
+
+
+@dataclass(frozen=True)
+class Point(VecLike):
+    def __add__(self, other: "Vector") -> "Point":
+        if not isinstance(other, Vector):
+            raise NotImplementedError
+        return VectorPointSum(self, other)
+
+    def __radd__(self, other: "Vector"):
+        return self.__add__(other)
+
+    def __sub__(self, other: "Point") -> "Vector":
+        return VectorFromPoints(other, self)
+
+    def vec(self) -> "Vector":
+        """Return the vector from the origin to this point."""
+        return VectorFromPoint(self)
+
+
+@dataclass(frozen=True)
+class Vector(VecLike):
+    def __add__(self, other: "Vector") -> "Vector":
         return VectorSum(self, other)
 
-    def __sub__(self, other: "Point"):
+    def __radd__(self, other: "Vector"):
+        return self.__add__(other)
+
+    def __sub__(self, other: "Vector"):
         return VectorDifference(self, other)
 
-    def polar_angle(self):
+    def polar_angle(self) -> "Angle":
         return PolarAngle(self)
 
-    def polar_radius(self):
+    def polar_radius(self) -> "Distance":
         return PolarRadius(self)
 
 
@@ -89,7 +115,7 @@ class DistanceScaled(Distance):
 
 @dataclass(frozen=True)
 class PolarRadius(Distance):
-    point: Point
+    vector: Vector
 
 
 @dataclass(frozen=True)
@@ -127,7 +153,7 @@ class AngleBisection(Angle):
 
 @dataclass(frozen=True)
 class PolarAngle(Angle):
-    point: Point
+    vector: Vector
 
 
 @dataclass(frozen=True)
@@ -153,15 +179,38 @@ class PolarPoint(Point):
 
 
 @dataclass(frozen=True)
-class VectorSum(Point):
-    left: Point
-    right: Point
+class VectorPointSum(Point):
+    point: Point
+    vector: Vector
 
 
 @dataclass(frozen=True)
-class VectorDifference(Point):
-    left: Point
-    right: Point
+class VectorPointDifference(Point):
+    point: Point
+    vector: Vector
+
+
+@dataclass(frozen=True)
+class VectorFromPoints(Vector):
+    start: Point
+    end: Point
+
+
+@dataclass(frozen=True)
+class VectorFromPoint(Vector):
+    point: Point
+
+
+@dataclass(frozen=True)
+class VectorSum(Vector):
+    left: Vector
+    right: Vector
+
+
+@dataclass(frozen=True)
+class VectorDifference(Vector):
+    left: Vector
+    right: Vector
 
 
 @dataclass(frozen=True)
@@ -192,11 +241,6 @@ class ArcWithSmoothStart(Edge):
 @dataclass(frozen=True)
 class ArcWithSmoothEnd(Edge):
     pass
-
-
-@dataclass(frozen=True)
-class ArcCenter(Edge):
-    center: Point
 
 
 @dataclass(frozen=True)

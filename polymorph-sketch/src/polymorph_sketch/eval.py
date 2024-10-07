@@ -58,7 +58,12 @@ from .nodes import (
     PolarRadius,
     PositiveFloat,
     Shape,
+    Vector,
     VectorDifference,
+    VectorFromPoint,
+    VectorFromPoints,
+    VectorPointDifference,
+    VectorPointSum,
     VectorSum,
 )
 
@@ -79,8 +84,8 @@ def sketch_distance(node: Distance) -> Expr:
             return sketch_distance(left) + sketch_distance(right)
         case DistanceScaled(distance, scale):
             return scale * sketch_distance(distance)
-        case PolarRadius(point):
-            p = sketch_point(point)
+        case PolarRadius(vector):
+            p = sketch_vector(vector)
             return p.norm()
         case ArcLength(angle, radius):
             a = sketch_angle(angle)
@@ -102,8 +107,8 @@ def sketch_angle(node: Angle) -> AngleExpr:
             return sketch_angle(left) - sketch_angle(right)
         case AngleBisection(angle):
             return sketch_angle(angle).half()
-        case PolarAngle(point):
-            p = sketch_point(point)
+        case PolarAngle(vector):
+            p = sketch_vector(vector)
             return polar_angle_from_vec(p)
         case PerpendicularAngle(angle):
             return sketch_angle(angle).perp()
@@ -121,12 +126,26 @@ def sketch_point(node: Point) -> Vec2:
             r = sketch_distance(radius)
             a = sketch_angle(angle)
             return a.as_vec().scale(r)
-        case VectorSum(left, right):
-            return sketch_point(left) + sketch_point(right)
-        case VectorDifference(left, right):
-            return sketch_point(left) - sketch_point(right)
+        case VectorPointSum(point, vector):
+            return sketch_point(point) + sketch_vector(vector)
+        case VectorPointDifference(point, vector):
+            return sketch_point(point) - sketch_vector(vector)
         case _:
             raise ValueError(f"Unexpected point node: {node}")
+
+
+def sketch_vector(node: Vector) -> Vec2:
+    match node:
+        case VectorFromPoint(point):
+            return sketch_point(point)
+        case VectorFromPoints(start, end):
+            return sketch_point(end) - sketch_point(start)
+        case VectorSum(left, right):
+            return sketch_vector(left) + sketch_vector(right)
+        case VectorDifference(left, right):
+            return sketch_vector(left) - sketch_vector(right)
+        case _:
+            raise ValueError(f"Unexpected vector node: {node}")
 
 
 class IncompleteEdge:

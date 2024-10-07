@@ -72,11 +72,11 @@ class PointCreator:
         return self._return_point(point)
 
     def move_by(self, x, y):
-        p = self.current_point + CartesianPoint(x, y)
+        p = self.current_point + CartesianPoint(x, y).vec()
         return self._return_point(p)
 
     def move_by_polar(self, angle, radius):
-        p = self.current_point + PolarPoint(as_angle(angle), as_distance(radius))
+        p = self.current_point + PolarPoint(as_angle(angle), as_distance(radius)).vec()
         return self._return_point(p)
 
     def horizontal_move_by(self, x):

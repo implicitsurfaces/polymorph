@@ -1,3 +1,6 @@
+from polymorph_s2df import Shape
+
+from .eval import sketch_shape
 from .nodes import (
     Angle,
     AngleLiteral,
@@ -88,7 +91,7 @@ class PointCreator:
     def vertical_go_to(self, y):
         return self.go_to(0, y)
 
-    def close(self):
+    def close(self) -> Shape:
         return self._done(None)
 
 
@@ -139,11 +142,11 @@ def draw(origin: tuple[float, float] = (0, 0)):
         def point_done(point):
             nonlocal path
             if point is None:
-                return PathClose(path, line)
+                return sketch_shape(PathClose(path, line))
 
             nonlocal current_point
             current_point = point
-            path = PathEdge(path, point, line)
+            path = PathEdge(path, line, point)
             return EdgeMaker(current_point, line_done)
 
         nonlocal current_point

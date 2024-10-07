@@ -6,12 +6,7 @@ Sign: TypeAlias = int
 
 
 @dataclass(frozen=True)
-class Node:
-    pass
-
-
-@dataclass(frozen=True)
-class Distance(Node):
+class Distance:
     def __add__(self, other: "Distance"):
         return DistanceSum(self, other)
 
@@ -23,7 +18,7 @@ class Distance(Node):
 
 
 @dataclass(frozen=True)
-class Point(Node):
+class Point:
     def __add__(self, other: "Point"):
         return VectorSum(self, other)
 
@@ -38,7 +33,7 @@ class Point(Node):
 
 
 @dataclass(frozen=True)
-class Angle(Node):
+class Angle:
     def __add__(self, other: "Angle"):
         return AngleSum(self, other)
 
@@ -56,17 +51,17 @@ class Angle(Node):
 
 
 @dataclass(frozen=True)
-class Edge(Node):
+class Edge:
     pass
 
 
 @dataclass(frozen=True)
-class Path(Node):
+class Path:
     pass
 
 
 @dataclass(frozen=True)
-class Shape(Node):
+class Shape:
     pass
 
 

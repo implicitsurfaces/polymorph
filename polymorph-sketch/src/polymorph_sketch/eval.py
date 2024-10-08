@@ -2,7 +2,7 @@ import collections.abc
 from typing import Callable, Sequence, TypeGuard
 from typing import Union as UnionType
 
-from polymorph_app.sketch import Constraint
+from polymorph_app.sketch import Centroid, Constraint
 from polymorph_num import ops
 from polymorph_num.angle import (
     HALF_TURN,
@@ -16,6 +16,7 @@ from polymorph_num.angle import (
 from polymorph_num.expr import Expr, as_expr
 from polymorph_num.vec import Vec2
 from polymorph_s2df import Shape as ShapeExpr
+from polymorph_s2df import geometric_properties
 from polymorph_s2df.geom_helpers import (
     biarc,
     bulging_segment_from_end_tangent,
@@ -45,6 +46,7 @@ from .nodes import (
     ConstraintOnAngle,
     ConstraintOnDistance,
     ConstraintOnPointCoincidence,
+    ConstraintOnShapeBoundary,
     Distance,
     DistanceLiteral,
     DistanceParam,
@@ -164,6 +166,9 @@ def sketch_point(node: Point) -> Vec2:
             return sketch_point(point) + sketch_vector(vector)
         case VectorPointDifference(point, vector):
             return sketch_point(point) - sketch_vector(vector)
+        case Centroid(shape):
+            shape = sketch_shape(shape)
+            return geometric_properties.centroid(shape)
         case _:
             raise ValueError(f"Unexpected point node: {node}")
 
@@ -494,6 +499,11 @@ def constraint_loss(node: Constraint) -> Expr:
 
             error_vec = (p1 / tol) - (p2 / tol)
             return error_vec.x * error_vec.x + error_vec.y * error_vec.y
+
+        case ConstraintOnShapeBoundary(shape, point):
+            p = sketch_point(point)
+            d = sketch_shape(shape).distance(p.x, p.y)
+            return d * d
 
         case _:
             raise ValueError(f"Unexpected constraint node: {node}")

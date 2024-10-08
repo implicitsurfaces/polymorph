@@ -199,6 +199,11 @@ class VectorOriginSum(Point):
 
 
 @dataclass(frozen=True)
+class Centroid(Point):
+    shape: Shape
+
+
+@dataclass(frozen=True)
 class CartesianVector(Vector):
     x: float | RealValue
     y: float | RealValue
@@ -372,6 +377,13 @@ class ConstraintOnAngle(Constraint):
 class ConstraintOnPointCoincidence(Constraint):
     first_point: Point
     second_point: Point
+    tolerance: PositiveFloat
+
+
+@dataclass(frozen=True)
+class ConstraintOnShapeBoundary(Constraint):
+    shape: Shape
+    point: Point
     tolerance: PositiveFloat
 
 

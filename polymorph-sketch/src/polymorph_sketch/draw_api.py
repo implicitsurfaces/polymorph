@@ -21,6 +21,7 @@ from .nodes import (
     ConstraintOnAngle,
     ConstraintOnDistance,
     ConstraintOnPointCoincidence,
+    ConstraintOnShapeBoundary,
     Distance,
     DistanceLiteral,
     DistanceParam,
@@ -207,6 +208,10 @@ class LossMaker:
         self.constraints.append(
             ConstraintOnPointCoincidence(as_point(point), as_point(target), tol)
         )
+        return self
+
+    def fit_point_on_boundary(self, shape, point, tol=1e-3):
+        self.constraints.append(ConstraintOnShapeBoundary(shape, as_point(point), tol))
         return self
 
     def create_unit(self):

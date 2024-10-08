@@ -139,7 +139,7 @@ def sketch_angle(node: Angle) -> AngleExpr:
         case AngleLiteral(degrees):
             return angle_from_deg(as_expr(is_positive_float(degrees)))
         case AngleParam():
-            return angle_from_rad(ops.param().atan())
+            return angle_from_rad(2 * ops.param().atan())
         case AngleSum(left, right):
             return sketch_angle(left) + sketch_angle(right)
         case AngleDifference(left, right):

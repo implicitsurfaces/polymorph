@@ -1,9 +1,13 @@
+from polymorph_num.expr import ZERO
+from polymorph_num.unit import Unit
 from polymorph_s2df import Shape
 
-from .eval import sketch_shape
+from .eval import constraint_loss, sketch_shape
+from .eval import debug_inner_node as debug_inner_node
 from .nodes import (
     Angle,
     AngleLiteral,
+    AngleParam,
     ArcBulge,
     ArcTangentEnd,
     ArcTangentStart,
@@ -14,8 +18,12 @@ from .nodes import (
     BiarcWithSmoothExtremities,
     BiarcWithSmoothStart,
     CartesianPoint,
+    ConstraintOnAngle,
+    ConstraintOnDistance,
+    ConstraintOnPointCoincidence,
     Distance,
     DistanceLiteral,
+    DistanceParam,
     Line,
     Path,
     PathClose,
@@ -24,6 +32,18 @@ from .nodes import (
     Point,
     PolarPoint,
 )
+
+
+def distance_param():
+    return DistanceParam()
+
+
+def angle_param():
+    return AngleParam()
+
+
+def point_param():
+    return PolarPoint(AngleParam(), DistanceParam())
 
 
 def as_distance(distance: float | Distance) -> Distance:
@@ -153,3 +173,32 @@ def draw(origin: tuple[float, float] = (0, 0)):
         return PointCreator(current_point, point_done)
 
     return EdgeMaker(current_point, line_done)
+
+
+class LossMaker:
+    def __init__(self):
+        self.constraints = []
+
+    def fit_distance(self, distance, target, tol=1e-3):
+        self.constraints.append(
+            ConstraintOnDistance(as_distance(distance), target, tol)
+        )
+        return self
+
+    def fit_angle(self, angle, target, tol=1e-3):
+        self.constraints.append(ConstraintOnAngle(as_angle(angle), target, tol))
+        return self
+
+    def fit_point(self, point, target, tol=1e-3):
+        self.constraints.append(
+            ConstraintOnPointCoincidence(as_point(point), as_point(target), tol)
+        )
+        return self
+
+    def create_unit(self):
+        loss = sum([constraint_loss(c) for c in self.constraints], ZERO)
+        return Unit().registerLoss(loss)
+
+
+def loss():
+    return LossMaker()

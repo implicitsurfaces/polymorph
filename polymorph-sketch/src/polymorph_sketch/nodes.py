@@ -18,12 +18,7 @@ class Distance:
 
 
 @dataclass(frozen=True)
-class VecLike:
-    pass
-
-
-@dataclass(frozen=True)
-class Point(VecLike):
+class Point:
     def __add__(self, other: "Vector") -> "Point":
         if not isinstance(other, Vector):
             raise NotImplementedError
@@ -41,7 +36,7 @@ class Point(VecLike):
 
 
 @dataclass(frozen=True)
-class Vector(VecLike):
+class Vector:
     def __add__(self, other: "Vector") -> "Vector":
         return VectorSum(self, other)
 
@@ -92,13 +87,19 @@ class Shape:
 
 
 @dataclass(frozen=True)
+class Constraint:
+    pass
+
+
+@dataclass(frozen=True)
 class DistanceLiteral(Distance):
     length: PositiveFloat
 
 
 @dataclass(frozen=True)
 class DistanceParam(Distance):
-    pass
+    def __eq__(self, other):
+        return self is other
 
 
 @dataclass(frozen=True)
@@ -131,7 +132,8 @@ class AngleLiteral(Angle):
 
 @dataclass(frozen=True)
 class AngleParam(Angle):
-    pass
+    def __eq__(self, other):
+        return self is other
 
 
 @dataclass(frozen=True)
@@ -283,3 +285,24 @@ class PathEdge(Path):
 class PathClose(Shape):
     path: Path
     edge: Edge
+
+
+@dataclass(frozen=True)
+class ConstraintOnDistance(Constraint):
+    distance: Distance
+    value: PositiveFloat
+    tolerance: PositiveFloat
+
+
+@dataclass(frozen=True)
+class ConstraintOnAngle(Constraint):
+    angle: Angle
+    degrees: PositiveFloat
+    tolerance: PositiveFloat
+
+
+@dataclass(frozen=True)
+class ConstraintOnPointCoincidence(Constraint):
+    first_point: Point
+    second_point: Point
+    tolerance: PositiveFloat

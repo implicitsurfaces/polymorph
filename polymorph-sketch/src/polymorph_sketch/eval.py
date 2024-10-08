@@ -1,6 +1,7 @@
 import collections.abc
 from typing import Callable, Sequence, TypeGuard, Union
 
+from polymorph_app.sketch import Constraint
 from polymorph_num import ops
 from polymorph_num.angle import (
     HALF_TURN,
@@ -21,6 +22,7 @@ from polymorph_s2df.geom_helpers import (
 )
 from polymorph_s2df.paths import BulgingSegment, ClosedPath, LineSegment, PathSegment
 
+from .memoizer import Memoizer
 from .nodes import (
     Angle,
     AngleBisection,
@@ -39,6 +41,9 @@ from .nodes import (
     BiarcWithSmoothExtremities,
     BiarcWithSmoothStart,
     CartesianPoint,
+    ConstraintOnAngle,
+    ConstraintOnDistance,
+    ConstraintOnPointCoincidence,
     Distance,
     DistanceLiteral,
     DistanceParam,
@@ -67,6 +72,8 @@ from .nodes import (
     VectorSum,
 )
 
+memoizer = Memoizer()
+
 
 def is_positive_float(x: float) -> PositiveFloat:
     if x <= 0:
@@ -74,12 +81,14 @@ def is_positive_float(x: float) -> PositiveFloat:
     return x
 
 
+@memoizer.memoize()
 def sketch_distance(node: Distance) -> Expr:
     match node:
         case DistanceLiteral(length):
             return as_expr(length)
         case DistanceParam():
-            return ops.param()
+            p = ops.param()
+            return p * p
         case DistanceSum(left, right):
             return sketch_distance(left) + sketch_distance(right)
         case DistanceScaled(distance, scale):
@@ -95,6 +104,7 @@ def sketch_distance(node: Distance) -> Expr:
             raise ValueError(f"Unexpected distance node: {node}")
 
 
+@memoizer.memoize()
 def sketch_angle(node: Angle) -> AngleExpr:
     match node:
         case AngleLiteral(degrees):
@@ -118,6 +128,7 @@ def sketch_angle(node: Angle) -> AngleExpr:
             raise ValueError(f"Unexpected angle node: {node}")
 
 
+@memoizer.memoize()
 def sketch_point(node: Point) -> Vec2:
     match node:
         case CartesianPoint(x, y):
@@ -134,6 +145,7 @@ def sketch_point(node: Point) -> Vec2:
             raise ValueError(f"Unexpected point node: {node}")
 
 
+@memoizer.memoize()
 def sketch_vector(node: Vector) -> Vec2:
     match node:
         case VectorFromPoint(point):
@@ -262,6 +274,7 @@ def is_incomplete(edge) -> TypeGuard[IncompleteEdge]:
     return isinstance(edge, IncompleteEdge)
 
 
+@memoizer.memoize()
 def sketch_edge(
     node: Edge,
 ) -> Callable[[Vec2, Vec2], PathSegment | IncompleteEdge | Sequence[PathSegment]]:
@@ -372,6 +385,7 @@ def sketch_path(node: Path) -> PathBuilder:
             raise ValueError(f"Unexpected path node: {node}")
 
 
+@memoizer.memoize()
 def sketch_shape(node: Shape) -> ShapeExpr:
     match node:
         case PathClose(path, edge):
@@ -384,3 +398,67 @@ def sketch_shape(node: Shape) -> ShapeExpr:
             return ClosedPath(edges_list.finalize())
         case _:
             raise ValueError(f"Unexpected path node: {node}")
+
+
+def normalize_angle(q):
+    """
+    Normalize an angle to the range [0, 360)
+    """
+    return ((q % 360) + 360) % 360
+
+
+@memoizer.memoize()
+def constraint_loss(node: Constraint) -> Expr:
+    match node:
+        case ConstraintOnDistance(distance, value, tolerance):
+            dist = sketch_distance(distance)
+            target = as_expr(is_positive_float(value))
+
+            tol = as_expr(is_positive_float(tolerance))
+
+            # We want to minimize the difference between the distance and the target,
+            # but we want to weight the difference by the tolerance (so that the tolerance
+            # corresponds to the standard deviation of a normal distribution)
+            #
+            # I apply the scaling by the tolerance before the subtraction, I *think*
+            # that it might be better for numerical stability, but I need to learn more
+            # about this.
+            weighted_diff = (dist / tol) - (target / tol)
+
+            return weighted_diff * weighted_diff
+
+        case ConstraintOnAngle(angle, degrees, tolerance):
+            theta = normalize_angle(sketch_angle(angle).as_deg())
+            target = normalize_angle(as_expr(is_positive_float(degrees)))
+            tol = as_expr(is_positive_float(tolerance))
+
+            weighted_diff = theta - target
+            return weighted_diff * weighted_diff
+
+        case ConstraintOnPointCoincidence(first_point, second_point, tolerance):
+            p1 = sketch_point(first_point)
+            p2 = sketch_point(second_point)
+            tol = as_expr(is_positive_float(tolerance))
+
+            error_vec = (p1 / tol) - (p2 / tol)
+            return error_vec.x * error_vec.x + error_vec.y * error_vec.y
+
+        case _:
+            raise ValueError(f"Unexpected constraint node: {node}")
+
+
+def reset_cache():
+    memoizer.reset_all_caches()
+
+
+def debug_inner_node(node):
+    if isinstance(node, Angle):
+        return sketch_angle(node).as_deg()
+    if isinstance(node, Distance):
+        return sketch_distance(node)
+    if isinstance(node, Point):
+        return sketch_point(node)
+    if isinstance(node, Vector):
+        return sketch_vector(node)
+
+    raise ValueError(f"Unexpected node: {node}")

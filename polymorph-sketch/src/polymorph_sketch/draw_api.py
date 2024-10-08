@@ -17,7 +17,7 @@ from .nodes import (
     BiarcWithSmoothEnd,
     BiarcWithSmoothExtremities,
     BiarcWithSmoothStart,
-    CartesianPoint,
+    CartesianVector,
     ConstraintOnAngle,
     ConstraintOnDistance,
     ConstraintOnPointCoincidence,
@@ -30,20 +30,21 @@ from .nodes import (
     PathEdge,
     PathStart,
     Point,
-    PolarPoint,
+    PolarVector,
+    Vector,
 )
 
 
-def distance_param():
+def distance_param() -> Distance:
     return DistanceParam()
 
 
-def angle_param():
+def angle_param() -> Angle:
     return AngleParam()
 
 
-def point_param():
-    return PolarPoint(AngleParam(), DistanceParam())
+def point_param() -> Point:
+    return PolarVector(AngleParam(), DistanceParam()).from_origin()
 
 
 def as_distance(distance: float | Distance) -> Distance:
@@ -58,18 +59,25 @@ def as_angle(angle: float | Angle) -> Angle:
     return AngleLiteral(angle)
 
 
+def as_vector(vector: tuple[float, float] | Vector) -> Vector:
+    if isinstance(vector, Vector):
+        return vector
+    x, y = vector
+    return CartesianVector(x, y)
+
+
 def as_point(point: tuple[float, float] | Point) -> Point:
     if isinstance(point, Point):
         return point
     x, y = point
-    return CartesianPoint(x, y)
+    return CartesianVector(x, y).from_origin()
 
 
-def as_polar_point(point: tuple[float | Angle, float | Distance] | Point) -> Point:
-    if isinstance(point, Point):
-        return point
-    angle, radius = point
-    return PolarPoint(as_angle(angle), as_distance(radius))
+def as_polar_vector(vector: tuple[float | Angle, float | Distance] | Vector) -> Vector:
+    if isinstance(vector, Vector):
+        return vector
+    angle, radius = vector
+    return PolarVector(as_angle(angle), as_distance(radius))
 
 
 class PointCreator:
@@ -81,22 +89,22 @@ class PointCreator:
         return self._done(point)
 
     def go_to(self, x, y):
-        p = CartesianPoint(x, y)
-        return self._return_point(p)
+        p = CartesianVector(x, y)
+        return self._return_point(p.from_origin())
 
     def go_to_polar(self, angle, radius):
-        p = PolarPoint(as_angle(angle), as_distance(radius))
-        return self._return_point(p)
+        p = PolarVector(as_angle(angle), as_distance(radius))
+        return self._return_point(p.from_origin())
 
     def go_to_point(self, point):
         return self._return_point(point)
 
     def move_by(self, x, y):
-        p = self.current_point + CartesianPoint(x, y).vec()
+        p = self.current_point + CartesianVector(x, y)
         return self._return_point(p)
 
     def move_by_polar(self, angle, radius):
-        p = self.current_point + PolarPoint(as_angle(angle), as_distance(radius)).vec()
+        p = self.current_point + PolarVector(as_angle(angle), as_distance(radius))
         return self._return_point(p)
 
     def horizontal_move_by(self, x):

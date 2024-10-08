@@ -40,7 +40,7 @@ from .nodes import (
     BiarcWithSmoothEnd,
     BiarcWithSmoothExtremities,
     BiarcWithSmoothStart,
-    CartesianPoint,
+    CartesianVector,
     ConstraintOnAngle,
     ConstraintOnDistance,
     ConstraintOnPointCoincidence,
@@ -58,15 +58,16 @@ from .nodes import (
     PathStart,
     PerpendicularAngle,
     Point,
-    PolarAngle,
-    PolarPoint,
-    PolarRadius,
+    PolarVector,
     PositiveFloat,
     Shape,
     Vector,
     VectorDifference,
+    VectorDirection,
     VectorFromPoint,
     VectorFromPoints,
+    VectorNorm,
+    VectorOriginSum,
     VectorPointDifference,
     VectorPointSum,
     VectorSum,
@@ -93,7 +94,7 @@ def sketch_distance(node: Distance) -> Expr:
             return sketch_distance(left) + sketch_distance(right)
         case DistanceScaled(distance, scale):
             return scale * sketch_distance(distance)
-        case PolarRadius(vector):
+        case VectorNorm(vector):
             p = sketch_vector(vector)
             return p.norm()
         case ArcLength(angle, radius):
@@ -117,7 +118,7 @@ def sketch_angle(node: Angle) -> AngleExpr:
             return sketch_angle(left) - sketch_angle(right)
         case AngleBisection(angle):
             return sketch_angle(angle).half()
-        case PolarAngle(vector):
+        case VectorDirection(vector):
             p = sketch_vector(vector)
             return polar_angle_from_vec(p)
         case PerpendicularAngle(angle):
@@ -131,12 +132,8 @@ def sketch_angle(node: Angle) -> AngleExpr:
 @memoizer.memoize()
 def sketch_point(node: Point) -> Vec2:
     match node:
-        case CartesianPoint(x, y):
-            return Vec2(x, y)
-        case PolarPoint(angle, radius):
-            r = sketch_distance(radius)
-            a = sketch_angle(angle)
-            return a.as_vec().scale(r)
+        case VectorOriginSum(vector):
+            return sketch_vector(vector)
         case VectorPointSum(point, vector):
             return sketch_point(point) + sketch_vector(vector)
         case VectorPointDifference(point, vector):
@@ -148,6 +145,10 @@ def sketch_point(node: Point) -> Vec2:
 @memoizer.memoize()
 def sketch_vector(node: Vector) -> Vec2:
     match node:
+        case CartesianVector(x, y):
+            return Vec2(as_expr(x), as_expr(y))
+        case PolarVector(angle, distance):
+            return sketch_angle(angle).as_vec().scale(sketch_distance(distance))
         case VectorFromPoint(point):
             return sketch_point(point)
         case VectorFromPoints(start, end):

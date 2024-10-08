@@ -46,11 +46,14 @@ class Vector:
     def __sub__(self, other: "Vector"):
         return VectorDifference(self, other)
 
-    def polar_angle(self) -> "Angle":
-        return PolarAngle(self)
+    def direction(self) -> "Angle":
+        return VectorDirection(self)
 
-    def polar_radius(self) -> "Distance":
-        return PolarRadius(self)
+    def norm(self) -> "Distance":
+        return VectorNorm(self)
+
+    def from_origin(self) -> "Point":
+        return VectorOriginSum(self)
 
 
 @dataclass(frozen=True)
@@ -115,7 +118,7 @@ class DistanceScaled(Distance):
 
 
 @dataclass(frozen=True)
-class PolarRadius(Distance):
+class VectorNorm(Distance):
     vector: Vector
 
 
@@ -154,7 +157,7 @@ class AngleBisection(Angle):
 
 
 @dataclass(frozen=True)
-class PolarAngle(Angle):
+class VectorDirection(Angle):
     vector: Vector
 
 
@@ -169,18 +172,6 @@ class OppositeAngle(Angle):
 
 
 @dataclass(frozen=True)
-class CartesianPoint(Point):
-    x: float
-    y: float
-
-
-@dataclass(frozen=True)
-class PolarPoint(Point):
-    angle: Angle
-    radius: Distance
-
-
-@dataclass(frozen=True)
 class VectorPointSum(Point):
     point: Point
     vector: Vector
@@ -190,6 +181,23 @@ class VectorPointSum(Point):
 class VectorPointDifference(Point):
     point: Point
     vector: Vector
+
+
+@dataclass(frozen=True)
+class VectorOriginSum(Point):
+    vector: Vector
+
+
+@dataclass(frozen=True)
+class CartesianVector(Vector):
+    x: float
+    y: float
+
+
+@dataclass(frozen=True)
+class PolarVector(Vector):
+    angle: Angle
+    radius: Distance
 
 
 @dataclass(frozen=True)

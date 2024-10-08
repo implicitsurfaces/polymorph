@@ -134,6 +134,11 @@ class ArcLength(Distance):
 
 
 @dataclass(frozen=True)
+class EdgeLength(Distance):
+    edge: Edge
+
+
+@dataclass(frozen=True)
 class AngleLiteral(Angle):
     degrees: PositiveFloat
 
@@ -298,6 +303,55 @@ class PathEdge(Path):
 class PathClose(Shape):
     path: Path
     edge: Edge
+
+
+@dataclass(frozen=True)
+class ShapeTranslation(Shape):
+    shape: Shape
+    vector: Vector
+
+
+@dataclass(frozen=True)
+class ShapeRotation(Shape):
+    shape: Shape
+    angle: Angle
+
+
+@dataclass(frozen=True)
+class ShapeUnion(Shape):
+    a: Shape
+    b: Shape
+
+
+@dataclass(frozen=True)
+class ShapeIntersection(Shape):
+    a: Shape
+    b: Shape
+
+
+@dataclass(frozen=True)
+class ShapeDifference(Shape):
+    a: Shape
+    b: Shape
+
+
+@dataclass(frozen=True)
+class ShapeShell(Shape):
+    shape: Shape
+    thickness: Distance
+
+
+@dataclass(frozen=True)
+class ShapeScale(Shape):
+    shape: Shape
+    factor: Distance
+
+
+@dataclass(frozen=True)
+class ShapeMorph(Shape):
+    a: Shape
+    b: Shape
+    t: Distance
 
 
 @dataclass(frozen=True)

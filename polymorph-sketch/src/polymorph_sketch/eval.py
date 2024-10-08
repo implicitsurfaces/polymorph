@@ -1,5 +1,6 @@
 import collections.abc
-from typing import Callable, Sequence, TypeGuard, Union
+from typing import Callable, Sequence, TypeGuard
+from typing import Union as UnionType
 
 from polymorph_app.sketch import Constraint
 from polymorph_num import ops
@@ -63,6 +64,14 @@ from .nodes import (
     RealParam,
     RealValue,
     Shape,
+    ShapeDifference,
+    ShapeIntersection,
+    ShapeMorph,
+    ShapeRotation,
+    ShapeScale,
+    ShapeShell,
+    ShapeTranslation,
+    ShapeUnion,
     Vector,
     VectorDifference,
     VectorDirection,
@@ -182,7 +191,7 @@ class IncompleteEdge:
     start: Vec2
     end: Vec2
 
-    def fix(self, i, edges: list[Union["IncompleteEdge", PathSegment]]):
+    def fix(self, i, edges: list[UnionType["IncompleteEdge", PathSegment]]):
         raise NotImplementedError
 
 
@@ -414,6 +423,31 @@ def sketch_shape(node: Shape) -> ShapeExpr:
             last_edge = sketch_edge(edge)(last_point, first_point)
             edges_list.append(last_edge)
             return ClosedPath(edges_list.finalize())
+
+        case ShapeTranslation(shape, vector):
+            return sketch_shape(shape).translate(sketch_vector(vector))
+
+        case ShapeRotation(shape, angle):
+            return sketch_shape(shape).rotate(sketch_angle(angle).as_rad())
+
+        case ShapeUnion(a, b):
+            return sketch_shape(a).union(sketch_shape(b))
+
+        case ShapeIntersection(a, b):
+            return sketch_shape(a).intersect(sketch_shape(b))
+
+        case ShapeDifference(a, b):
+            return sketch_shape(a).substract(sketch_shape(b))
+
+        case ShapeShell(shape, thickness):
+            return sketch_shape(shape).shell(sketch_distance(thickness))
+
+        case ShapeScale(shape, factor):
+            return sketch_shape(shape).scale(sketch_distance(factor))
+
+        case ShapeMorph(a, b, t):
+            return sketch_shape(a).morph(sketch_real_value(t), sketch_shape(b))
+
         case _:
             raise ValueError(f"Unexpected path node: {node}")
 

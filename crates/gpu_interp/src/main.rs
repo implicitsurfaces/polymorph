@@ -1,13 +1,30 @@
 // Based on the hello_compute example from the wgpu repo.
 // See https://github.com/gfx-rs/wgpu/tree/trunk/examples/src/hello_compute
 
+use fidget::{
+    compiler::RegOp,
+    context::{Context, Tree},
+    var::Var,
+    vm::VmData,
+};
 use std::{borrow::Cow, str::FromStr};
 use wgpu::util::DeviceExt;
+use bincode;
+use bincode::Options;
 
 const WORKGROUP_SIZE: u32 = 16;
-const MAX_BYTECODE_LEN: u32 = 1024;
+const MAX_TAPE_LEN: usize = 1024;
 
 include!(concat!(env!("OUT_DIR"), "/opcodes.rs"));
+
+fn tape_to_bytes(tape: &[RegOp]) -> Vec<u8> {
+  // bincode will include the length in the serialized data — this is
+  // a hacky way to discard it.
+  assert!(tape.len() < 2u32.pow(16) as usize, "Tape length must be less than 2^16");
+  let tape_bytes = bincode::serialize(tape).unwrap();
+  let start_idx = tape_bytes.len() / std::mem::size_of::<u32>();
+  tape_bytes[start_idx..].to_vec()
+}
 
 #[cfg_attr(test, allow(dead_code))]
 async fn run() {
@@ -22,13 +39,13 @@ async fn run() {
             .collect()
     };
 
-    let result = execute_gpu(&numbers).await.unwrap();
+    // let result = execute_gpu(&numbers).await.unwrap();
 
-    println!("Output: {:?}", result);
+    println!("Output: {:?}", numbers);
 }
 
 #[cfg_attr(test, allow(dead_code))]
-async fn execute_gpu(bytecode: &[u32]) -> Option<Vec<f32>> {
+async fn execute_gpu(tape: &[RegOp]) -> Option<Vec<f32>> {
     // Instantiates instance of WebGPU
     let instance = wgpu::Instance::default();
 
@@ -43,7 +60,7 @@ async fn execute_gpu(bytecode: &[u32]) -> Option<Vec<f32>> {
         .request_device(
             &wgpu::DeviceDescriptor {
                 label: None,
-                required_features: wgpu::Features::empty(),
+                required_features: wgpu::Features::SHADER_INT64,
                 required_limits: wgpu::Limits::downlevel_defaults(),
                 memory_hints: wgpu::MemoryHints::MemoryUsage,
             },
@@ -52,13 +69,13 @@ async fn execute_gpu(bytecode: &[u32]) -> Option<Vec<f32>> {
         .await
         .unwrap();
 
-    execute_gpu_inner(&device, &queue, bytecode).await
+    execute_gpu_inner(&device, &queue, tape).await
 }
 
 async fn execute_gpu_inner(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
-    bytecode: &[u32],
+    tape: &[RegOp],
 ) -> Option<Vec<f32>> {
     let cs_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
@@ -69,13 +86,15 @@ async fn execute_gpu_inner(
     });
 
     let storage_buffer = {
-        assert!(bytecode.len() as u32 <= MAX_BYTECODE_LEN);
-        let mut contents = vec![0u32; MAX_BYTECODE_LEN as usize];
-        contents[..bytecode.len()].copy_from_slice(bytecode);
+        assert!(tape.len() <= MAX_TAPE_LEN * std::mem::size_of::<u32>());
+        let mut contents = vec![0u8; MAX_TAPE_LEN * std::mem::size_of::<RegOp>()];
+        let tape_bytes = tape_to_bytes(tape);
+        contents[..tape_bytes.len()].copy_from_slice(&tape_bytes);
+        // eprint!("{:?}", tape_bytes);
 
         device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Storage Buffer"),
-            contents: bytemuck::cast_slice(&contents),
+            contents: &contents,
             usage: wgpu::BufferUsages::STORAGE
                 | wgpu::BufferUsages::COPY_DST
                 | wgpu::BufferUsages::COPY_SRC,
@@ -84,7 +103,7 @@ async fn execute_gpu_inner(
 
     let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Uniform Buffer"),
-        contents: bytemuck::cast_slice(&[bytecode.len() as u32]),
+        contents: bytemuck::cast_slice(&[tape.len() as u32]),
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
 
@@ -200,82 +219,89 @@ pub fn main() {
 mod test {
     use super::*;
 
-    #[test]
-    fn test_add() {
-        let bytecode: Vec<u32> = vec![OP_PUSH_I32, 5, OP_PUSH_I32, 7, OP_ADD];
-        let result = pollster::block_on(execute_gpu(&bytecode));
-        assert_eq!(result, Some(vec![12.0; WORKGROUP_SIZE as usize]));
+    // #[test]
+    // fn test_add() {
+    //     let bytecode: Vec<u32> = vec![OP_PUSH_I32, 5, OP_PUSH_I32, 7, OP_ADD];
+    //     let result = pollster::block_on(execute_gpu(&bytecode));
+    //     assert_eq!(result, Some(vec![12.0; WORKGROUP_SIZE as usize]));
 
-        #[rustfmt::skip]
-        let bytecode: Vec<u32> = vec![
-            OP_PUSH_I32, 5,
-            OP_PUSH_I32, 7,
-            OP_PUSH_I32, 11,
-            OP_ADD,
-            OP_ADD,
-        ];
-        let result = pollster::block_on(execute_gpu(&bytecode));
-        assert_eq!(result, Some(vec![23.0; WORKGROUP_SIZE as usize]));
+    //     #[rustfmt::skip]
+    //     let bytecode: Vec<u32> = vec![
+    //         OP_PUSH_I32, 5,
+    //         OP_PUSH_I32, 7,
+    //         OP_PUSH_I32, 11,
+    //         OP_ADD,
+    //         OP_ADD,
+    //     ];
+    //     let result = pollster::block_on(execute_gpu(&bytecode));
+    //     assert_eq!(result, Some(vec![23.0; WORKGROUP_SIZE as usize]));
+    // }
+
+    // #[test]
+    // fn test_sub() {
+    //     let bytecode: Vec<u32> = vec![OP_PUSH_I32, 5, OP_PUSH_I32, 7, OP_SUB];
+    //     let result = pollster::block_on(execute_gpu(&bytecode));
+    //     assert_eq!(result, Some(vec![-2.0; WORKGROUP_SIZE as usize]));
+    // }
+
+    // #[test]
+    // fn test_is_inside_circle() {
+    //     #[rustfmt::skip]
+    //     // is_inside for circle with radius 1, center at (0, 0)
+    //     let bytecode: Vec<u32> = vec![
+    //       OP_PUSH_I32, 1,
+    //       OP_PARAM, 0,
+    //       OP_PARAM, 0,
+    //       OP_MUL,
+    //       OP_PARAM, 1,
+    //       OP_PARAM, 1,
+    //       OP_MUL,
+    //       OP_ADD,
+    //       OP_SQRT,
+    //       OP_PUSH_I32, 2,
+    //       OP_SUB,
+    //       OP_PUSH_I32, 100,
+    //       OP_MUL,
+    //       OP_SIGMOID,
+    //       OP_SUB
+    //     ];
+    //     let result = pollster::block_on(execute_gpu(&bytecode));
+    //     assert_eq!(
+    //         result,
+    //         Some(vec![
+    //             1.0, 1.0, 0.5, 0.0, 1.0, 1.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+    //         ])
+    //     );
+    // }
+
+    #[test]
+    fn test_fidget_eval() {
+        // From https://docs.rs/fidget/latest/fidget/#functions-and-shapes
+        use fidget::{context::Tree, shape::EzShape, vm::VmShape};
+
+        let tree = Tree::x() + Tree::y();
+        let shape = VmShape::from(tree);
+        let mut eval = VmShape::new_point_eval();
+        let tape = shape.ez_point_tape();
+        let (out, _) = eval.eval(&tape, 1.0, 1.0, 0.0).unwrap();
+        assert_eq!(out, 2.0);
     }
 
     #[test]
-    fn test_sub() {
-        let bytecode: Vec<u32> = vec![OP_PUSH_I32, 5, OP_PUSH_I32, 7, OP_SUB];
+    fn test_fidget_gpu_eval() {
+        let tree = Tree::x() + Tree::y();
+        let mut ctx = Context::new();
+        let sum = ctx.import(&tree);
+        let data = VmData::<255>::new(&ctx, &[sum]).unwrap();
+        assert_eq!(data.len(), 4); // X, Y, (X + Y), and output
+
+        // let vars = &data.vars; // map from var to index
+        // assert_eq!(iter.next().unwrap(), RegOp::Input(0, vars[&Var::X] as u32));
+        // assert_eq!(iter.next().unwrap(), RegOp::Input(1, vars[&Var::Y] as u32));
+        // assert_eq!(iter.next().unwrap(), RegOp::AddRegReg(0, 0, 1));
+
+        let bytecode = data.iter_asm().collect::<Vec<_>>();
         let result = pollster::block_on(execute_gpu(&bytecode));
-        assert_eq!(result, Some(vec![-2.0; WORKGROUP_SIZE as usize]));
+        assert_eq!(result, Some(vec![39.0; WORKGROUP_SIZE as usize]));
     }
-
-    #[test]
-    fn test_is_inside_circle() {
-        #[rustfmt::skip]
-        // is_inside for circle with radius 1, center at (0, 0)
-        let bytecode: Vec<u32> = vec![
-          OP_PUSH_I32, 1,
-          OP_PARAM, 0,
-          OP_PARAM, 0,
-          OP_MUL,
-          OP_PARAM, 1,
-          OP_PARAM, 1,
-          OP_MUL,
-          OP_ADD,
-          OP_SQRT,
-          OP_PUSH_I32, 2,
-          OP_SUB,
-          OP_PUSH_I32, 100,
-          OP_MUL,
-          OP_SIGMOID,
-          OP_SUB
-        ];
-        let result = pollster::block_on(execute_gpu(&bytecode));
-        assert_eq!(
-            result,
-            Some(vec![
-                1.0, 1.0, 0.5, 0.0, 1.0, 1.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-            ])
-        );
-    }
-
-    #[test]
-    fn test_fidget_eval() -> Result<(), fidget::Error> {
-      // From https://docs.rs/fidget/latest/fidget/#functions-and-shapes
-      use fidget::{
-          context::Tree,
-          shape::EzShape,
-          vm::VmShape
-      };
-
-      let tree = Tree::x() + Tree::y();
-      let shape = VmShape::from(tree);
-      let mut eval = VmShape::new_point_eval();
-      let tape = shape.ez_point_tape();
-      let (out, _) = eval.eval(
-          &tape,
-          1.0,
-          1.0,
-          0.0
-      )?;
-      assert_eq!(out, 2.0);
-      Ok(())
-    }
-
 }

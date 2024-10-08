@@ -6,7 +6,12 @@ Sign: TypeAlias = int
 
 
 @dataclass(frozen=True)
-class Distance:
+class RealValue:
+    pass
+
+
+@dataclass(frozen=True)
+class Distance(RealValue):
     def __add__(self, other: "Distance"):
         return DistanceSum(self, other)
 
@@ -190,8 +195,8 @@ class VectorOriginSum(Point):
 
 @dataclass(frozen=True)
 class CartesianVector(Vector):
-    x: float
-    y: float
+    x: float | RealValue
+    y: float | RealValue
 
 
 @dataclass(frozen=True)
@@ -230,7 +235,7 @@ class Line(Edge):
 
 @dataclass(frozen=True)
 class ArcBulge(Edge):
-    bulge: float
+    bulge: float | RealValue
 
 
 @dataclass(frozen=True)
@@ -257,24 +262,24 @@ class ArcWithSmoothEnd(Edge):
 class Biarc(Edge):
     start_angle: Angle
     end_angle: Angle
-    param: float
+    param: float | RealValue
 
 
 @dataclass(frozen=True)
 class BiarcWithSmoothStart(Edge):
     end_angle: Angle
-    param: float
+    param: float | RealValue
 
 
 @dataclass(frozen=True)
 class BiarcWithSmoothEnd(Edge):
     start_angle: Angle
-    param: float
+    param: float | RealValue
 
 
 @dataclass(frozen=True)
 class BiarcWithSmoothExtremities(Edge):
-    param: float
+    param: float | RealValue
 
 
 @dataclass(frozen=True)
@@ -314,3 +319,8 @@ class ConstraintOnPointCoincidence(Constraint):
     first_point: Point
     second_point: Point
     tolerance: PositiveFloat
+
+
+@dataclass(frozen=True)
+class RealParam(RealValue):
+    pass

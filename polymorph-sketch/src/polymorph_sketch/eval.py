@@ -60,6 +60,8 @@ from .nodes import (
     Point,
     PolarVector,
     PositiveFloat,
+    RealParam,
+    RealValue,
     Shape,
     Vector,
     VectorDifference,
@@ -80,6 +82,21 @@ def is_positive_float(x: float) -> PositiveFloat:
     if x <= 0:
         raise ValueError(f"Expected positive float, got {x}")
     return x
+
+
+@memoizer.memoize()
+def sketch_real_value(node: int | float | RealValue) -> Expr:
+    if isinstance(node, Distance):
+        return sketch_distance(node)
+    match node:
+        case RealParam():
+            return ops.param()
+        case float(value):
+            return as_expr(value)
+        case int(value):
+            return as_expr(value)
+        case _:
+            raise ValueError(f"Unexpected real value node: {node}")
 
 
 @memoizer.memoize()
@@ -146,7 +163,7 @@ def sketch_point(node: Point) -> Vec2:
 def sketch_vector(node: Vector) -> Vec2:
     match node:
         case CartesianVector(x, y):
-            return Vec2(as_expr(x), as_expr(y))
+            return Vec2(sketch_real_value(x), sketch_real_value(y))
         case PolarVector(angle, distance):
             return sketch_angle(angle).as_vec().scale(sketch_distance(distance))
         case VectorFromPoint(point):
@@ -284,7 +301,7 @@ def sketch_edge(
             return lambda p0, p1: LineSegment(p0, p1)
 
         case ArcBulge(bulge):
-            return lambda p0, p1: BulgingSegment(p0, p1, bulge)
+            return lambda p0, p1: BulgingSegment(p0, p1, sketch_real_value(bulge))
 
         case ArcTangentStart(angle):
             return lambda p0, p1: bulging_segment_from_start_tangent(
@@ -310,22 +327,22 @@ def sketch_edge(
                 p1.x,
                 p1.y,
                 sketch_angle(end_tangent),
-                as_expr(param),
+                sketch_real_value(param),
             )
 
         case BiarcWithSmoothStart(end_tangent, param):
             return lambda p0, p1: IncompleteBiArcSmoothStart(
-                p0, p1, sketch_angle(end_tangent), as_expr(param)
+                p0, p1, sketch_angle(end_tangent), sketch_real_value(param)
             )
 
         case BiarcWithSmoothEnd(start_tangent, param):
             return lambda p0, p1: IncompleteBiArcSmoothEnd(
-                p0, p1, sketch_angle(start_tangent), as_expr(param)
+                p0, p1, sketch_angle(start_tangent), sketch_real_value(param)
             )
 
         case BiarcWithSmoothExtremities(param):
             return lambda p0, p1: IncompleteBiArcSmoothExtremities(
-                p0, p1, as_expr(param)
+                p0, p1, sketch_real_value(param)
             )
         case _:
             raise ValueError(f"Unexpected edge node: {node}")

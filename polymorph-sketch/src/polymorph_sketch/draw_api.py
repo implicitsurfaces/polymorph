@@ -31,8 +31,14 @@ from .nodes import (
     PathStart,
     Point,
     PolarVector,
+    RealParam,
+    RealValue,
     Vector,
 )
+
+
+def real_param() -> RealValue:
+    return RealParam()
 
 
 def distance_param() -> Distance:
@@ -44,7 +50,7 @@ def angle_param() -> Angle:
 
 
 def point_param() -> Point:
-    return PolarVector(AngleParam(), DistanceParam()).from_origin()
+    return CartesianVector(RealParam(), RealParam()).from_origin()
 
 
 def as_distance(distance: float | Distance) -> Distance:

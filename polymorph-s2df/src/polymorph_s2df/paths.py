@@ -77,6 +77,9 @@ class PathSegment(Shape):
     def __hash__(self):
         return hash(self.astuple())
 
+    def length(self):
+        raise NotImplementedError()
+
     def end_tangent(self) -> Angle:
         raise NotImplementedError()
 
@@ -114,6 +117,9 @@ class LineSegment(PathSegment):
     @cached_property
     def segment(self):
         return self.end - self.start
+
+    def length(self):
+        return self.segment.norm()
 
     def end_tangent(self):
         return polar_angle(self.segment.x, self.segment.y)
@@ -253,6 +259,10 @@ class BulgingSegment(PathSegment):
         return polar_angle(
             self.end.x - self.center.x, self.end.y - self.center.y
         ).as_sort_value()
+
+    def length(self):
+        sweep_angle = self.bulge.atan() * 4
+        return sweep_angle * self.radius
 
     def start_tangent(self) -> Angle:
         return polar_angle_from_vec(

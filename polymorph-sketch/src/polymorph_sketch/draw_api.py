@@ -1,6 +1,8 @@
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
 from polymorph_num.expr import ZERO
-from polymorph_num.unit import Unit
-from polymorph_s2df import Shape
+from polymorph_num.unit import CompiledUnit, Unit
+from polymorph_s2df.devutils import grids
 
 from .eval import constraint_loss, sketch_shape
 from .eval import debug_inner_node as debug_inner_node
@@ -34,6 +36,15 @@ from .nodes import (
     PolarVector,
     RealParam,
     RealValue,
+    Shape,
+    ShapeDifference,
+    ShapeIntersection,
+    ShapeMorph,
+    ShapeRotation,
+    ShapeScale,
+    ShapeShell,
+    ShapeTranslation,
+    ShapeUnion,
     Vector,
 )
 
@@ -87,6 +98,43 @@ def as_polar_vector(vector: tuple[float | Angle, float | Distance] | Vector) -> 
     return PolarVector(as_angle(angle), as_distance(radius))
 
 
+class ShapeEditor:
+    def __init__(self, shape: Shape):
+        self.shape = shape
+
+    def translate(self, vector: tuple[float, float] | Vector):
+        self.shape = ShapeTranslation(self.shape, as_vector(vector))
+        return self
+
+    def rotate(self, angle: float | Angle):
+        self.shape = ShapeRotation(self.shape, as_angle(angle))
+        return self
+
+    def union(self, other: "ShapeEditor"):
+        self.shape = ShapeUnion(self.shape, other.shape)
+        return self
+
+    def intersect(self, other: "ShapeEditor"):
+        self.shape = ShapeIntersection(self.shape, other.shape)
+        return self
+
+    def diff(self, other: "ShapeEditor"):
+        self.shape = ShapeDifference(self.shape, other.shape)
+        return self
+
+    def shell(self, thickness: Distance | float | int):
+        self.shape = ShapeShell(self.shape, as_distance(thickness))
+        return self
+
+    def scale(self, factor: Distance | float | int):
+        self.shape = ShapeScale(self.shape, as_distance(factor))
+        return self
+
+    def morph(self, other: "ShapeEditor", t: Distance | float | int):
+        self.shape = ShapeMorph(self.shape, other.shape, as_distance(t))
+        return self
+
+
 class PointCreator:
     def __init__(self, current_point: Point, done):
         self.current_point = current_point
@@ -126,7 +174,7 @@ class PointCreator:
     def vertical_go_to(self, y):
         return self.go_to(0, y)
 
-    def close(self) -> Shape:
+    def close(self) -> ShapeEditor:
         return self._done(None)
 
 
@@ -177,7 +225,7 @@ def draw(origin: tuple[float, float] = (0, 0)):
         def point_done(point):
             nonlocal path
             if point is None:
-                return sketch_shape(PathClose(path, line))
+                return ShapeEditor(PathClose(path, line))
 
             nonlocal current_point
             current_point = point
@@ -214,10 +262,103 @@ class LossMaker:
         self.constraints.append(ConstraintOnShapeBoundary(shape, as_point(point), tol))
         return self
 
-    def create_unit(self):
+    def create_sketch(self):
         loss = sum([constraint_loss(c) for c in self.constraints], ZERO)
-        return Unit().registerLoss(loss)
+        return Sketch(loss)
 
 
 def loss():
     return LossMaker()
+
+
+class Sketch:
+    def __init__(self, loss=None):
+        self.shapes = []
+        self.loss = loss
+        self._shape_names = {}
+        self._compiled = None
+
+        self._samples = 500
+        self._bounds = (-3, 3)
+
+        self._grids = grids(self._samples, self._bounds)
+
+    def add_shape(self, shape: ShapeEditor, name=None):
+        self.shapes.append(shape.shape)
+        if name:
+            self._shape_names[name] = len(self.shapes) - 1
+        self._compiles = None
+        return self
+
+    def add_loss(self, loss):
+        self.loss = loss
+        return self
+
+    def _compile(self):
+        unit = Unit()
+        if self.loss:
+            unit.registerLoss(self.loss)
+
+        grid_x, grid_y = self._grids[0]
+        for i, shape in enumerate(self.shapes):
+            unit.register(f"shape_{i}", sketch_shape(shape).distance(grid_x, grid_y))
+
+        c = unit.compile()
+        c = c.minimize()
+
+        self._compiled = c
+        return c
+
+    @property
+    def _unit(self) -> CompiledUnit:
+        if self._compiled is None:
+            return self._compile()
+        return self._compiled
+
+    def debug(self, node):
+        return self._unit.run(debug_inner_node(node))
+
+    def _plot_dist(self, values):
+        _, ax2 = plt.subplots(layout="constrained")
+        X, Y = self._grids[1]
+        bounds = self._bounds
+
+        values = values.reshape(self._samples, self._samples)
+
+        levels = jnp.linspace(-5, 5, 41)
+
+        ax2.axis("equal")
+        ax2.contourf(
+            X,
+            Y,
+            values,
+            levels=levels,
+            cmap="PRGn",
+            origin="lower",
+            extent=[bounds[0], bounds[1], bounds[0], bounds[1]],
+        )
+        ax2.contour(
+            X,
+            Y,
+            values,
+            levels=levels,
+            colors="k",
+            origin="lower",
+            extent=[bounds[0], bounds[1], bounds[0], bounds[1]],
+        )
+
+    def plot(self, index=None):
+        if isinstance(index, ShapeEditor):
+            values = self._unit.run(sketch_shape(index.shape).distance(*self._grids[0]))
+            self._plot_dist(values)
+            return
+
+        if index is None:
+            index = 0
+        if isinstance(index, str):
+            index = self._shape_names[index]
+
+        name = f"shape_{index}"
+
+        values = self._unit.evaluate(name)
+        self._plot_dist(values)

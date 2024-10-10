@@ -15,8 +15,8 @@ from polymorph_num.angle import (
 )
 from polymorph_num.expr import Expr, as_expr
 from polymorph_num.vec import Vec2
+from polymorph_s2df import Circle, geometric_properties
 from polymorph_s2df import Shape as ShapeExpr
-from polymorph_s2df import geometric_properties
 from polymorph_s2df.geom_helpers import (
     biarc,
     bulging_segment_from_end_tangent,
@@ -66,6 +66,7 @@ from .nodes import (
     RealParam,
     RealValue,
     Shape,
+    ShapeCircle,
     ShapeDifference,
     ShapeIntersection,
     ShapeMorph,
@@ -452,6 +453,9 @@ def sketch_shape(node: Shape) -> ShapeExpr:
 
         case ShapeMorph(a, b, t):
             return sketch_shape(a).morph(sketch_real_value(t), sketch_shape(b))
+
+        case ShapeCircle(radius, center):
+            return Circle(sketch_distance(radius)).translate(sketch_point(center))
 
         case _:
             raise ValueError(f"Unexpected path node: {node}")

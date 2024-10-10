@@ -37,6 +37,7 @@ from .nodes import (
     RealParam,
     RealValue,
     Shape,
+    ShapeCircle,
     ShapeDifference,
     ShapeIntersection,
     ShapeMorph,
@@ -215,6 +216,10 @@ class EdgeMaker:
 
     def biarc_smooth_extremities(self):
         return self._done(BiarcWithSmoothExtremities(0.5))
+
+
+def draw_circle(radius: float, origin: tuple[float, float] = (0, 0)):
+    return ShapeEditor(ShapeCircle(as_distance(radius), as_point(origin)))
 
 
 def draw(origin: tuple[float, float] = (0, 0)):

@@ -360,6 +360,12 @@ class ShapeMorph(Shape):
 
 
 @dataclass(frozen=True)
+class ShapeCircle(Shape):
+    radius: Distance
+    center: Point
+
+
+@dataclass(frozen=True)
 class ConstraintOnDistance(Constraint):
     distance: Distance
     value: PositiveFloat

@@ -8,6 +8,7 @@ from polymorph_num.angle import (
     HALF_TURN,
     angle_from_deg,
     angle_from_rad,
+    angle_from_sin,
     polar_angle_from_vec,
 )
 from polymorph_num.angle import (
@@ -140,7 +141,7 @@ def sketch_angle(node: Angle) -> AngleExpr:
         case AngleLiteral(degrees):
             return angle_from_deg(as_expr(is_positive_float(degrees)))
         case AngleParam():
-            return angle_from_rad(2 * ops.param().atan())
+            return angle_from_sin(2 * ops.param().sigmoid() - 1)
         case AngleSum(left, right):
             return sketch_angle(left) + sketch_angle(right)
         case AngleDifference(left, right):
@@ -460,14 +461,6 @@ def sketch_shape(node: Shape) -> ShapeExpr:
         case _:
             raise ValueError(f"Unexpected path node: {node}")
 
-
-def normalize_angle(q):
-    """
-    Normalize an angle to the range [0, 360)
-    """
-    return ((q % 360) + 360) % 360
-
-
 @memoizer.memoize()
 def constraint_loss(node: Constraint) -> Expr:
     match node:
@@ -489,8 +482,8 @@ def constraint_loss(node: Constraint) -> Expr:
             return weighted_diff * weighted_diff
 
         case ConstraintOnAngle(angle, degrees, tolerance):
-            theta = normalize_angle(sketch_angle(angle).as_deg())
-            target = normalize_angle(as_expr(is_positive_float(degrees)))
+            theta = sketch_angle(angle).as_deg()
+            target = as_expr(is_positive_float(degrees))
             tol = as_expr(is_positive_float(tolerance))
 
             weighted_diff = theta - target

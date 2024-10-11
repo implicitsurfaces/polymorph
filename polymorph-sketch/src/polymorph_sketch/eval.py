@@ -482,11 +482,11 @@ def constraint_loss(node: Constraint) -> Expr:
             return weighted_diff * weighted_diff
 
         case ConstraintOnAngle(angle, degrees, tolerance):
-            theta = sketch_angle(angle).as_deg()
-            target = as_expr(is_positive_float(degrees))
+            theta = sketch_angle(angle)
+            target = angle_from_deg(is_positive_float(degrees))
             tol = as_expr(is_positive_float(tolerance))
 
-            weighted_diff = theta - target
+            weighted_diff = (theta - target).as_deg()
             return weighted_diff * weighted_diff
 
         case ConstraintOnPointCoincidence(first_point, second_point, tolerance):

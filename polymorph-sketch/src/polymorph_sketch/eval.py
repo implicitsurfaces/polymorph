@@ -141,7 +141,7 @@ def sketch_angle(node: Angle) -> AngleExpr:
         case AngleLiteral(degrees):
             return angle_from_deg(as_expr(is_positive_float(degrees)))
         case AngleParam():
-            return angle_from_sin(2 * ops.param().sigmoid() - 1)
+            return angle_from_sin(2 * ops.param().sigmoid() - 1).double()
         case AngleSum(left, right):
             return sketch_angle(left) + sketch_angle(right)
         case AngleDifference(left, right):
@@ -486,8 +486,8 @@ def constraint_loss(node: Constraint) -> Expr:
             target = angle_from_deg(is_positive_float(degrees))
             tol = as_expr(is_positive_float(tolerance))
 
-            weighted_diff = (theta - target).as_deg()
-            return weighted_diff * weighted_diff
+            loss = 2.0 - ((theta - target).cos() + 1)
+            return loss / (tol * 2)
 
         case ConstraintOnPointCoincidence(first_point, second_point, tolerance):
             p1 = sketch_point(first_point)

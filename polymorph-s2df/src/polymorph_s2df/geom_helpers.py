@@ -1,5 +1,5 @@
-from polymorph_num.angle import Angle, angle_from_rad, polar_angle_from_vec
-from polymorph_num.expr import PI, Expr
+from polymorph_num.angle import Angle, polar_angle_from_vec
+from polymorph_num.expr import Expr
 from polymorph_num.vec import Vec2
 
 from polymorph_s2df.paths import BulgingSegment
@@ -71,12 +71,62 @@ def line_line_intersection(p0: Vec2, v0: Vec2, p1: Vec2, v1: Vec2):
     return p0 + v0.scale(param)
 
 
-def biarc(
-    x0: Expr, y0: Expr, theta0: Angle, x1: Expr, y1: Expr, theta1: Angle, param: Expr
-):
-    p0 = Vec2(x0, y0)
-    p1 = Vec2(x1, y1)
+def _biarc_point_no_inflexion_point(p0: Vec2, theta0: Angle, p1: Vec2, theta1: Angle):
+    """
+    Returns the point of junciton of the two arcs of a biarc.
 
+    With this algorithm, we assume a biarc that does not have an inflexion
+    point. Unfortunately, this is not alway possible and it returns weird
+    results when outside of its domain of validity (i.e. when p0 and p1 are in
+    the first and fouth quadrant, but not in the same one.)
+    """
+
+    third_point = line_line_intersection(p0, theta0.as_vec(), p1, theta1.as_vec())
+
+    w0 = (third_point - p1).norm()
+    w1 = (third_point - p0).norm()
+    w2 = (p1 - p0).norm()
+
+    perimeter = w0 + w1 + w2
+
+    return (p0.scale(w0) + p1.scale(w1) + third_point.scale(w2)) / perimeter
+
+
+def reflect_vector(p, v):
+    v = v / v.norm()
+    projection = v.scale(p.dot(v))
+    return 2 * projection - p
+
+
+def _biarc_point_inflexion_point(p0: Vec2, theta0: Angle, p1: Vec2, theta1: Angle):
+    """
+    Returns the point of junciton of the two arcs of a biarc.
+
+    With this algorithm, the biarc always has an inflexion point. We choose the
+    point such that its tangent is the average of the two tangents, reflected
+    throught the chord.
+
+    This corresponds to the algorithm proposed by Bolton (https://doi.org/10.1016/0010-4485(75)90086-X)
+    """
+
+    mid_tangent = (theta0.as_vec() + theta1.as_vec()) / 2
+
+    chord = p1 - p0
+    tgt = reflect_vector(mid_tangent, chord / chord.norm())
+    tgt = polar_angle_from_vec(tgt)
+
+    sweep0 = (theta0 + tgt).half()
+    sweep1 = (theta1 + tgt).half()
+
+    return line_line_intersection(p0, sweep0.as_vec(), p1, sweep1.as_vec())
+
+
+def _biarc_locus_center(p0: Vec2, theta0: Angle, p1: Vec2, theta1: Angle):
+    """
+    Find the center of the locus circle of the biarc.
+
+    This is the circle that defines all the valid junction points of the biarc.
+    """
     u0 = theta0.as_vec()
     u1 = theta1.as_vec()
 
@@ -86,27 +136,50 @@ def biarc(
     m1 = (p0 + p1 + u0 + u1) / 2
     v1 = (u1 + p1 - u0 - p0).perp()
 
-    center = line_line_intersection(m0, v0, m1, v1)
-    radius = (center - p0).norm()
+    return line_line_intersection(m0, v0, m1, v1)
 
-    # We use the point in the case of a biarc without inflexion point
-    # In that case we have something very smooth. This is less the case for the
-    # cases with inflexion point, but it is not too bad.
 
-    third_point = line_line_intersection(p0, u0, p1, u1)
+def simple_biarc(x0: Expr, y0: Expr, theta0: Angle, x1: Expr, y1: Expr, theta1: Angle):
+    p0 = Vec2(x0, y0)
+    p1 = Vec2(x1, y1)
 
-    w0 = (third_point - p1).norm()
-    w1 = (third_point - p0).norm()
-    w2 = (p1 - p0).norm()
+    c = _biarc_point_inflexion_point(p0, theta0, p1, theta1)
 
-    perimeter = w0 + w1 + w2
+    return [
+        bulging_segment_from_start_tangent(p0, c, theta0),
+        bulging_segment_from_end_tangent(c, p1, theta1),
+    ]
 
-    c = (p0.scale(w0) + p1.scale(w1) + third_point.scale(w2)) / perimeter
-    c_angle = polar_angle_from_vec(c - center)
 
-    angle = angle_from_rad((param - 0.5) % 1 * 2 * PI) + c_angle
+def no_inflexion_biarc(
+    x0: Expr, y0: Expr, theta0: Angle, x1: Expr, y1: Expr, theta1: Angle
+):
+    p0 = Vec2(x0, y0)
+    p1 = Vec2(x1, y1)
 
-    j = center + angle.as_vec().scale(radius)
+    c = _biarc_point_no_inflexion_point(p0, theta0, p1, theta1)
+
+    return [
+        bulging_segment_from_start_tangent(p0, c, theta0),
+        bulging_segment_from_end_tangent(c, p1, theta1),
+    ]
+
+
+def biarc(
+    x0: Expr, y0: Expr, theta0: Angle, x1: Expr, y1: Expr, theta1: Angle, param: Angle
+):
+    p0 = Vec2(x0, y0)
+    p1 = Vec2(x1, y1)
+
+    c = _biarc_point_inflexion_point(p0, theta0, p1, theta1)
+
+    locus_center = _biarc_locus_center(p0, theta0, p1, theta1)
+    radius = (locus_center - p0).norm()
+
+    c_angle = polar_angle_from_vec(c - locus_center)
+    angle = param + c_angle
+
+    j = locus_center + angle.as_vec().scale(radius)
 
     return [
         bulging_segment_from_start_tangent(p0, j, theta0),

@@ -1,6 +1,6 @@
 from jax.numpy import isscalar
 from polymorph_num import ops as ops
-from polymorph_num.angle import NO_TURN, angle_from_rad
+from polymorph_num.angle import NO_TURN, angle_from_deg, angle_from_rad
 from polymorph_num.expr import Expr as Expr
 from polymorph_num.expr import Num, as_expr
 from polymorph_num.vec import ValVec, Vec2, as_vec2
@@ -151,7 +151,7 @@ class DrawingPen:
         end: tuple[float, float],
         angle: float,
         start_angle: float | None = None,
-        param: float = 0.5,
+        param: float = 0,
     ):
         x0, y0 = self.current_point
         x1, y1 = end
@@ -166,7 +166,7 @@ class DrawingPen:
                 as_expr(x1),
                 as_expr(y1),
                 angle_from_rad(as_expr(angle)),
-                as_expr(param),
+                angle_from_deg(as_expr(param)),
             )
         )
         self.current_point = (x1, y1)

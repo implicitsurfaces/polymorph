@@ -203,19 +203,23 @@ class EdgeMaker:
         return self._done(ArcWithSmoothEnd())
 
     def biarc(self, start_angle, end_angle):
-        return self._done(Biarc(as_angle(start_angle), as_angle(end_angle), 0.5))
+        return self._done(
+            Biarc(as_angle(start_angle), as_angle(end_angle), as_angle(0))
+        )
 
-    def biarc_with_param(self, start_angle, end_angle, p=0.5):
-        return self._done(Biarc(as_angle(start_angle), as_angle(end_angle), p))
+    def biarc_with_param(self, start_angle, end_angle, p=0):
+        return self._done(
+            Biarc(as_angle(start_angle), as_angle(end_angle), as_angle(p))
+        )
 
     def biarc_smooth_start(self, end_angle):
-        return self._done(BiarcWithSmoothStart(as_angle(end_angle), 0.5))
+        return self._done(BiarcWithSmoothStart(as_angle(end_angle), as_angle(0)))
 
     def biarc_smooth_end(self, start_angle):
-        return self._done(BiarcWithSmoothEnd(as_angle(start_angle), 0.5))
+        return self._done(BiarcWithSmoothEnd(as_angle(start_angle), as_angle(0)))
 
     def biarc_smooth_extremities(self):
-        return self._done(BiarcWithSmoothExtremities(0.5))
+        return self._done(BiarcWithSmoothExtremities(as_angle(0)))
 
 
 def draw_circle(radius: float, origin: tuple[float, float] = (0, 0)):

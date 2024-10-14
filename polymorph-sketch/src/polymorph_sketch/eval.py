@@ -7,7 +7,6 @@ from polymorph_num import ops
 from polymorph_num.angle import (
     HALF_TURN,
     angle_from_deg,
-    angle_from_rad,
     angle_from_sin,
     polar_angle_from_vec,
 )
@@ -461,6 +460,7 @@ def sketch_shape(node: Shape) -> ShapeExpr:
         case _:
             raise ValueError(f"Unexpected path node: {node}")
 
+
 @memoizer.memoize()
 def constraint_loss(node: Constraint) -> Expr:
     match node:
@@ -483,7 +483,7 @@ def constraint_loss(node: Constraint) -> Expr:
 
         case ConstraintOnAngle(angle, degrees, tolerance):
             theta = sketch_angle(angle)
-            target = angle_from_deg(is_positive_float(degrees))
+            target = angle_from_deg(as_expr(is_positive_float(degrees)))
             tol = as_expr(is_positive_float(tolerance))
 
             loss = 2.0 - ((theta - target).cos() + 1)

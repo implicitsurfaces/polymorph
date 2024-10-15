@@ -2,7 +2,7 @@ from polymorph_num.angle import Angle, polar_angle_from_vec
 from polymorph_num.expr import Expr
 from polymorph_num.vec import Vec2
 
-from polymorph_s2df.paths import BulgingSegment, LineSegment
+from polymorph_s2df.paths import BulgingSegment, LineSegment, PathSegment
 
 
 def bulging_segment_from_start_tangent(
@@ -189,7 +189,7 @@ def biarc(
 
 def fillet_line_line(line1: LineSegment, line2: LineSegment, radius: Expr):
     corner = line1.end
-    ccw = (line2.end_tangent() - line1.end_tangent()).sin().sign()
+    ccw = (line2.start_tangent() - line1.end_tangent()).sin().sign()
 
     mid_tangent = (line1.end_tangent().as_vec() + line2.start_tangent().as_vec()) / 2
     corner_to_center = mid_tangent.perp()
@@ -206,3 +206,63 @@ def fillet_line_line(line1: LineSegment, line2: LineSegment, radius: Expr):
         bulging_segment_from_start_tangent(new_end_1, new_start_2, line1.end_tangent()),
         LineSegment(new_start_2, line2.end),
     ]
+
+
+def project_point_on_line(point: Vec2, p: Vec2, v: Vec2):
+    return p + v.scale((point - p).dot(v))
+
+
+def fillet_line_arc(
+    line: LineSegment, arc: BulgingSegment, radius: Expr
+) -> list[PathSegment]:
+    corner = line.end
+    ccw = (arc.start_tangent() - line.end_tangent()).sin().sign()
+    arc_orientation = arc.bulge.sign()
+
+    center = arc.center
+
+    # we define the parallel line to the segment of line. Its direction is the
+    # same as the segment, but its point is shifted
+    line_direction = line.end_tangent().as_vec()
+    parallel_p = corner + line_direction.perp().scale(ccw * radius)
+
+    # we project the center of the arc on the parallel line, to create a triangle
+    projected_center = project_point_on_line(center, parallel_p, line_direction)
+
+    side = (center - projected_center).norm()
+    hypothenuse = arc.radius - (ccw * arc_orientation * radius)
+    last_side = (hypothenuse * hypothenuse - side * side).sqrt()
+
+    fillet_center = projected_center + line_direction.scale(
+        arc_orientation * last_side * ccw
+    )
+
+    line_end = fillet_center - line_direction.perp().scale(radius * ccw)
+
+    fillet_center_to_arc_center = center - fillet_center
+    fillet_center_to_arc_center = (
+        fillet_center_to_arc_center / fillet_center_to_arc_center.norm()
+    )
+    arc_start = fillet_center - fillet_center_to_arc_center.scale(
+        arc_orientation * radius * ccw
+    )
+
+    fillet_arc = bulging_segment_from_start_tangent(
+        line_end, arc_start, line.end_tangent()
+    )
+
+    return [
+        LineSegment(line.start, line_end),
+        fillet_arc,
+        bulging_segment_from_start_tangent(
+            arc_start, arc.end, fillet_arc.end_tangent()
+        ),
+    ]
+
+
+def fillet_arc_line(
+    arc: BulgingSegment, line: LineSegment, radius: Expr
+) -> list[PathSegment]:
+    fillet = fillet_line_arc(line.reversed(), arc.reversed(), radius)
+    fillet.reverse()
+    return [s.reversed() for s in fillet]

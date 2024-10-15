@@ -98,6 +98,9 @@ class PathSegment(Shape):
     def bounding_box(self):
         raise NotImplementedError()
 
+    def reversed(self):
+        raise NotImplementedError()
+
 
 class LineSegment(PathSegment):
     def __init__(self, start: ValVec, end: ValVec):
@@ -116,6 +119,9 @@ class LineSegment(PathSegment):
 
     def __repr__(self):
         return f"LineSegment({repr_point(self.start)}, {repr_point(self.end)})"
+
+    def reversed(self):
+        return LineSegment(self.end, self.start)
 
     @cached_property
     def segment(self):
@@ -225,6 +231,9 @@ class BulgingSegment(PathSegment):
 
     def astuple(self):
         return (self.start, self.end, self.bulge)
+
+    def reversed(self):
+        return BulgingSegment(self.end, self.start, -self.bulge)
 
     def __eq__(self, other):
         return isinstance(other, BulgingSegment) and self.astuple() == other.astuple()

@@ -80,6 +80,9 @@ class PathSegment(Shape):
     def length(self):
         raise NotImplementedError()
 
+    def start_tangent(self) -> Angle:
+        raise NotImplementedError()
+
     def end_tangent(self) -> Angle:
         raise NotImplementedError()
 
@@ -120,6 +123,9 @@ class LineSegment(PathSegment):
 
     def length(self):
         return self.segment.norm()
+
+    def start_tangent(self):
+        return polar_angle(self.segment.x, self.segment.y)
 
     def end_tangent(self):
         return polar_angle(self.segment.x, self.segment.y)

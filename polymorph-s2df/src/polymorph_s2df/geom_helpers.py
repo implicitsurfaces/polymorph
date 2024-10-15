@@ -2,7 +2,7 @@ from polymorph_num.angle import Angle, polar_angle_from_vec
 from polymorph_num.expr import Expr
 from polymorph_num.vec import Vec2
 
-from polymorph_s2df.paths import BulgingSegment
+from polymorph_s2df.paths import BulgingSegment, LineSegment
 
 
 def bulging_segment_from_start_tangent(
@@ -184,4 +184,25 @@ def biarc(
     return [
         bulging_segment_from_start_tangent(p0, j, theta0),
         bulging_segment_from_end_tangent(j, p1, theta1),
+    ]
+
+
+def fillet_line_line(line1: LineSegment, line2: LineSegment, radius: Expr):
+    corner = line1.end
+    ccw = (line2.end_tangent() - line1.end_tangent()).sin().sign()
+
+    mid_tangent = (line1.end_tangent().as_vec() + line2.start_tangent().as_vec()) / 2
+    corner_to_center = mid_tangent.perp()
+
+    half_angle = line2.start_tangent() - polar_angle_from_vec(corner_to_center)
+
+    distance = radius / half_angle.tan()
+
+    new_end_1 = corner + line1.end_tangent().as_vec().scale(distance * ccw)
+    new_start_2 = corner - line2.start_tangent().as_vec().scale(distance * ccw)
+
+    return [
+        LineSegment(line1.start, new_end_1),
+        bulging_segment_from_start_tangent(new_end_1, new_start_2, line1.end_tangent()),
+        LineSegment(new_start_2, line2.end),
     ]

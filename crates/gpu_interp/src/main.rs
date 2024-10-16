@@ -1,6 +1,8 @@
 // Based on the hello_compute example from the wgpu repo.
 // See https://github.com/gfx-rs/wgpu/tree/trunk/examples/src/hello_compute
 
+use bincode;
+use bincode::Options;
 use fidget::{
     compiler::RegOp,
     context::{Context, Tree},
@@ -9,21 +11,99 @@ use fidget::{
 };
 use std::{borrow::Cow, str::FromStr};
 use wgpu::util::DeviceExt;
-use bincode;
-use bincode::Options;
 
-const WORKGROUP_SIZE: u32 = 16;
+const GLOBAL_SIZE_X: u32 = 4;
+const GLOBAL_SIZE_Y: u32 = 4;
 const MAX_TAPE_LEN: usize = 1024;
+const OUTPUT_SIZE_BYTES: u32 = GLOBAL_SIZE_X * GLOBAL_SIZE_Y * std::mem::size_of::<f32>() as u32;
 
 include!(concat!(env!("OUT_DIR"), "/opcodes.rs"));
 
 fn tape_to_bytes(tape: &[RegOp]) -> Vec<u8> {
-  // bincode will include the length in the serialized data — this is
-  // a hacky way to discard it.
-  assert!(tape.len() < 2u32.pow(16) as usize, "Tape length must be less than 2^16");
-  let tape_bytes = bincode::serialize(tape).unwrap();
-  let start_idx = tape_bytes.len() / std::mem::size_of::<u32>();
-  tape_bytes[start_idx..].to_vec()
+    let mut ans: Vec<u8> = Vec::new();
+    for op in tape {
+        // This is very naughty! bincode will serialize the enum discriminant
+        // as a u32, but we know that the discriminant is always a single byte.
+        let tag = bincode::serialize(op).unwrap()[0];
+        let mut repr = [0u8; 8];
+        repr[0] = tag;
+        match op {
+            RegOp::Input(out, i) => {
+                repr[1] = *out;
+                repr[4..8].copy_from_slice(&i.to_le_bytes());
+            }
+            RegOp::Output(arg, i) => {
+                repr[1] = *arg;
+                repr[4..8].copy_from_slice(&i.to_le_bytes());
+            }
+            RegOp::NegReg(out, arg)
+            | RegOp::AbsReg(out, arg)
+            | RegOp::RecipReg(out, arg)
+            | RegOp::SqrtReg(out, arg)
+            | RegOp::SquareReg(out, arg)
+            | RegOp::FloorReg(out, arg)
+            | RegOp::CeilReg(out, arg)
+            | RegOp::RoundReg(out, arg)
+            | RegOp::SinReg(out, arg)
+            | RegOp::CosReg(out, arg)
+            | RegOp::TanReg(out, arg)
+            | RegOp::AsinReg(out, arg)
+            | RegOp::AcosReg(out, arg)
+            | RegOp::AtanReg(out, arg)
+            | RegOp::ExpReg(out, arg)
+            | RegOp::LnReg(out, arg)
+            | RegOp::NotReg(out, arg)
+            | RegOp::CopyReg(out, arg) => {
+                repr[3] = *out;
+                repr[7] = *arg;
+            }
+            RegOp::AddRegImm(out, arg, imm)
+            | RegOp::MulRegImm(out, arg, imm)
+            | RegOp::DivRegImm(out, arg, imm)
+            | RegOp::DivImmReg(out, arg, imm)
+            | RegOp::AtanRegImm(out, arg, imm)
+            | RegOp::AtanImmReg(out, arg, imm)
+            | RegOp::SubImmReg(out, arg, imm)
+            | RegOp::SubRegImm(out, arg, imm)
+            | RegOp::MinRegImm(out, arg, imm)
+            | RegOp::MaxRegImm(out, arg, imm)
+            | RegOp::AndRegImm(out, arg, imm)
+            | RegOp::OrRegImm(out, arg, imm)
+            | RegOp::ModRegImm(out, arg, imm)
+            | RegOp::ModImmReg(out, arg, imm)
+            | RegOp::CompareRegImm(out, arg, imm)
+            | RegOp::CompareImmReg(out, arg, imm) => {
+                repr[1] = *out;
+                repr[2] = *arg;
+                repr[4..8].copy_from_slice(&imm.to_le_bytes());
+            }
+            RegOp::AtanRegReg(out, lhs, rhs)
+            | RegOp::AndRegReg(out, lhs, rhs)
+            | RegOp::OrRegReg(out, lhs, rhs)
+            | RegOp::ModRegReg(out, lhs, rhs)
+            | RegOp::AddRegReg(out, lhs, rhs)
+            | RegOp::MulRegReg(out, lhs, rhs)
+            | RegOp::DivRegReg(out, lhs, rhs)
+            | RegOp::SubRegReg(out, lhs, rhs)
+            | RegOp::CompareRegReg(out, lhs, rhs)
+            | RegOp::MinRegReg(out, lhs, rhs)
+            | RegOp::MaxRegReg(out, lhs, rhs) => {
+                repr[2] = *out;
+                repr[3] = *lhs;
+                repr[7] = *rhs;
+            }
+            RegOp::CopyImm(out, imm) => {
+                repr[3] = *out;
+                repr[4..8].copy_from_slice(&imm.to_le_bytes());
+            }
+            RegOp::Load(out, mem) | RegOp::Store(out, mem) => {
+                repr[3] = *out;
+                repr[4..8].copy_from_slice(&mem.to_le_bytes());
+            }
+        }
+        ans.extend_from_slice(&repr);
+    }
+    ans
 }
 
 #[cfg_attr(test, allow(dead_code))]
@@ -46,6 +126,8 @@ async fn run() {
 
 #[cfg_attr(test, allow(dead_code))]
 async fn execute_gpu(tape: &[RegOp]) -> Option<Vec<f32>> {
+    eprintln!("Executing bytecode: {:?}", tape);
+
     // Instantiates instance of WebGPU
     let instance = wgpu::Instance::default();
 
@@ -86,11 +168,11 @@ async fn execute_gpu_inner(
     });
 
     let storage_buffer = {
-        assert!(tape.len() <= MAX_TAPE_LEN * std::mem::size_of::<u32>());
+        assert!(tape.len() <= MAX_TAPE_LEN);
         let mut contents = vec![0u8; MAX_TAPE_LEN * std::mem::size_of::<RegOp>()];
         let tape_bytes = tape_to_bytes(tape);
         contents[..tape_bytes.len()].copy_from_slice(&tape_bytes);
-        // eprint!("{:?}", tape_bytes);
+        eprintln!("tape bytes {:?}", tape_bytes);
 
         device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Storage Buffer"),
@@ -103,26 +185,26 @@ async fn execute_gpu_inner(
 
     let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Uniform Buffer"),
-        contents: bytemuck::cast_slice(&[tape.len() as u32]),
+        contents: bytemuck::cast_slice(&[tape.len() as u32 * 2]), // x2 because each instruction is 2 u32s
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
 
     let dimensions_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Dimensions Buffer"),
-        contents: bytemuck::cast_slice(&[4u32, 4u32]),
+        contents: bytemuck::cast_slice(&[GLOBAL_SIZE_X, GLOBAL_SIZE_Y]),
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
 
     let output_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Output Buffer"),
-        size: (WORKGROUP_SIZE * std::mem::size_of::<f32>() as u32) as wgpu::BufferAddress,
+        size: OUTPUT_SIZE_BYTES as wgpu::BufferAddress,
         usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
         mapped_at_creation: false,
     });
 
     let output_staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Output Staging Buffer"),
-        size: (WORKGROUP_SIZE * std::mem::size_of::<f32>() as u32) as wgpu::BufferAddress,
+        size: OUTPUT_SIZE_BYTES as wgpu::BufferAddress,
         usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
     });
@@ -178,7 +260,7 @@ async fn execute_gpu_inner(
         0,
         &output_staging_buffer,
         0,
-        (WORKGROUP_SIZE * std::mem::size_of::<f32>() as u32) as wgpu::BufferAddress,
+        OUTPUT_SIZE_BYTES as wgpu::BufferAddress,
     );
 
     // Submits command encoder for processing
@@ -219,61 +301,6 @@ pub fn main() {
 mod test {
     use super::*;
 
-    // #[test]
-    // fn test_add() {
-    //     let bytecode: Vec<u32> = vec![OP_PUSH_I32, 5, OP_PUSH_I32, 7, OP_ADD];
-    //     let result = pollster::block_on(execute_gpu(&bytecode));
-    //     assert_eq!(result, Some(vec![12.0; WORKGROUP_SIZE as usize]));
-
-    //     #[rustfmt::skip]
-    //     let bytecode: Vec<u32> = vec![
-    //         OP_PUSH_I32, 5,
-    //         OP_PUSH_I32, 7,
-    //         OP_PUSH_I32, 11,
-    //         OP_ADD,
-    //         OP_ADD,
-    //     ];
-    //     let result = pollster::block_on(execute_gpu(&bytecode));
-    //     assert_eq!(result, Some(vec![23.0; WORKGROUP_SIZE as usize]));
-    // }
-
-    // #[test]
-    // fn test_sub() {
-    //     let bytecode: Vec<u32> = vec![OP_PUSH_I32, 5, OP_PUSH_I32, 7, OP_SUB];
-    //     let result = pollster::block_on(execute_gpu(&bytecode));
-    //     assert_eq!(result, Some(vec![-2.0; WORKGROUP_SIZE as usize]));
-    // }
-
-    // #[test]
-    // fn test_is_inside_circle() {
-    //     #[rustfmt::skip]
-    //     // is_inside for circle with radius 1, center at (0, 0)
-    //     let bytecode: Vec<u32> = vec![
-    //       OP_PUSH_I32, 1,
-    //       OP_PARAM, 0,
-    //       OP_PARAM, 0,
-    //       OP_MUL,
-    //       OP_PARAM, 1,
-    //       OP_PARAM, 1,
-    //       OP_MUL,
-    //       OP_ADD,
-    //       OP_SQRT,
-    //       OP_PUSH_I32, 2,
-    //       OP_SUB,
-    //       OP_PUSH_I32, 100,
-    //       OP_MUL,
-    //       OP_SIGMOID,
-    //       OP_SUB
-    //     ];
-    //     let result = pollster::block_on(execute_gpu(&bytecode));
-    //     assert_eq!(
-    //         result,
-    //         Some(vec![
-    //             1.0, 1.0, 0.5, 0.0, 1.0, 1.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-    //         ])
-    //     );
-    // }
-
     #[test]
     fn test_fidget_eval() {
         // From https://docs.rs/fidget/latest/fidget/#functions-and-shapes
@@ -289,19 +316,25 @@ mod test {
 
     #[test]
     fn test_fidget_gpu_eval() {
-        let tree = Tree::x() + Tree::y();
+        let tree = Tree::x() + 1;
         let mut ctx = Context::new();
         let sum = ctx.import(&tree);
         let data = VmData::<255>::new(&ctx, &[sum]).unwrap();
-        assert_eq!(data.len(), 4); // X, Y, (X + Y), and output
+        assert_eq!(data.len(), 3); // input, (X + 1), output
 
-        // let vars = &data.vars; // map from var to index
-        // assert_eq!(iter.next().unwrap(), RegOp::Input(0, vars[&Var::X] as u32));
-        // assert_eq!(iter.next().unwrap(), RegOp::Input(1, vars[&Var::Y] as u32));
-        // assert_eq!(iter.next().unwrap(), RegOp::AddRegReg(0, 0, 1));
+        let mut iter = data.iter_asm();
+        let vars = &data.vars; // map from var to index
+        assert_eq!(iter.next().unwrap(), RegOp::Input(0, vars[&Var::X] as u32));
+        assert_eq!(iter.next().unwrap(), RegOp::AddRegImm(0, 0, 1.0));
+        assert_eq!(iter.next().unwrap(), RegOp::Output(0, 0));
 
         let bytecode = data.iter_asm().collect::<Vec<_>>();
         let result = pollster::block_on(execute_gpu(&bytecode));
-        assert_eq!(result, Some(vec![39.0; WORKGROUP_SIZE as usize]));
+        assert_eq!(
+            result,
+            Some(vec![
+                1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0
+            ])
+        );
     }
 }

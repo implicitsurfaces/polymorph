@@ -12,7 +12,7 @@ struct FragmentOutput {
 var<storage> bytecode: Bytecode;
 
 @group(0) @binding(1)
-var<uniform> bytecode_length: i32;
+var<uniform> pc_max: i32;
 
 @group(0) @binding(2) var<storage, read_write> output: array<f32>;
 
@@ -21,7 +21,20 @@ var<uniform> bytecode_length: i32;
 fn execute_bytecode(x: u32, y: u32) -> f32 {
     var pc: i32 = 0;
     var reg: array<f32, 255>;
-    while (pc < bytecode_length) {
+    while (pc < pc_max) {
+        /*
+          Memory layout notes:
+          - On the Rust side, the bytecode is seralized into a Vec<u8>. When
+            we say "byte 0" or "first 4 bytes" we mean `bc_vec[0]` and
+            `bc_vec[0..4]`, respectively.
+          - Ops are 8 bytes long, with the first byte (i.e. `lo[0]`, below)
+            being the opcode.
+          - u8 arguments are generally packed into the 3 bytes following the
+            opcode.
+          - 32-bit arguments (u32 and f32) are stored in little-endian order
+            in bytes 4-7.
+          - Thus, `lo` is a 4xU8 while `hi` is a u32.
+        */
         let lo: vec4<u32> = unpack4xU8(bytecode.data[pc]);
         pc++;
         let hi: u32 = bytecode.data[pc];
@@ -44,14 +57,20 @@ fn execute_bytecode(x: u32, y: u32) -> f32 {
                 return reg[src_reg];
               }
             }
-            case 20u /* AddRegImm  */: {
-              let out_reg = lo[1];
-              let arg_reg = lo[2];
-              let imm = bitcast<f32>(hi);
-              reg[out_reg] = reg[arg_reg] + imm;
+            case 5u: /* SqrtReg */ {
+              reg[lo[1]] = sqrt(reg[lo[2]]);
             }
+            case 6u: /* SquareReg */ {
+              let val = reg[lo[2]];
+              reg[lo[1]] = val * val;
+            }
+            case 20u /* AddRegImm */: { reg[lo[1]] = reg[lo[2]] + bitcast<f32>(hi); }
+            case 24u /* SubImmReg */: { reg[lo[1]] = bitcast<f32>(hi) - reg[lo[2]]; }
+            case 25u /* SubRegImm */: { reg[lo[1]] = reg[lo[2]] - bitcast<f32>(hi); }
+            case 38u /* AddRegReg */: { reg[lo[1]] = reg[lo[2]] + reg[lo[3]]; }
+            case 42u /* MinRegReg */: { reg[lo[1]] = min(reg[lo[2]], reg[lo[3]]); }
             default: {
-              return 1.23456789;
+              return 1.234567;
             }
           }
     }

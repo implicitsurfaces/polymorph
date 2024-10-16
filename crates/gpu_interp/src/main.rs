@@ -2,7 +2,6 @@
 // See https://github.com/gfx-rs/wgpu/tree/trunk/examples/src/hello_compute
 
 use bincode;
-use bincode::Options;
 use fidget::{
     compiler::RegOp,
     context::{Context, Tree},
@@ -54,8 +53,8 @@ fn tape_to_bytes(tape: &[RegOp]) -> Vec<u8> {
             | RegOp::LnReg(out, arg)
             | RegOp::NotReg(out, arg)
             | RegOp::CopyReg(out, arg) => {
-                repr[3] = *out;
-                repr[7] = *arg;
+                repr[1] = *out;
+                repr[2] = *arg;
             }
             RegOp::AddRegImm(out, arg, imm)
             | RegOp::MulRegImm(out, arg, imm)
@@ -88,9 +87,9 @@ fn tape_to_bytes(tape: &[RegOp]) -> Vec<u8> {
             | RegOp::CompareRegReg(out, lhs, rhs)
             | RegOp::MinRegReg(out, lhs, rhs)
             | RegOp::MaxRegReg(out, lhs, rhs) => {
-                repr[2] = *out;
-                repr[3] = *lhs;
-                repr[7] = *rhs;
+                repr[1] = *out;
+                repr[2] = *lhs;
+                repr[3] = *rhs;
             }
             RegOp::CopyImm(out, imm) => {
                 repr[3] = *out;
@@ -336,5 +335,42 @@ mod test {
                 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0
             ])
         );
+    }
+
+    #[test]
+    fn test_fidget_many_circles() {
+        let mut circles = Vec::new();
+        for i in 0..2 {
+            for j in 0..2 {
+                let center_x = i as f64;
+                let center_y = j as f64;
+                circles.push(circle(center_x, center_y, 0.5));
+            }
+        }
+        let tree = circles.into_iter().reduce(|a, b| a.min(b)).unwrap();
+        let mut ctx = Context::new();
+        let node = ctx.import(&tree);
+        let data = VmData::<255>::new(&ctx, &[node]).unwrap();
+
+        let bytecode = data.iter_asm().collect::<Vec<_>>();
+        eprintln!("{:?}", bytecode);
+        let result = pollster::block_on(execute_gpu(&bytecode));
+        #[rustfmt::skip]
+        assert_eq!(
+            result,
+            Some(vec![
+                -0.5, -0.5, 0.5, 1.5,
+                -0.5, -0.5, 0.5, 1.5,
+                0.5, 0.5, 0.91421354, 1.736068,
+                1.5, 1.5, 1.736068, 2.328427
+            ])
+        );
+    }
+
+    fn circle(center_x: f64, center_y: f64, radius: f64) -> Tree {
+        let dx = Tree::constant(center_x) - Tree::x();
+        let dy = Tree::constant(center_y) - Tree::y();
+        let dist = (dx.square() + dy.square()).sqrt();
+        return dist - radius;
     }
 }

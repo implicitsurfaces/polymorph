@@ -37,13 +37,13 @@ fn execute_bytecode(x: u32, y: u32) -> f32 {
         */
         let lo: vec4<u32> = unpack4xU8(bytecode.data[pc]);
         pc++;
-        let hi: u32 = bytecode.data[pc];
+        let hi: f32 = bitcast<f32>(bytecode.data[pc]);
         pc++;
 
         switch (lo[0]) {
             case 0u /* Input */: {
               let out_reg = lo[1];
-              let i = u32(hi);
+              let i = bitcast<u32>(hi);
               if (i == 0) {
                 reg[out_reg] = f32(x);
               } else if (i == 1) {
@@ -52,7 +52,7 @@ fn execute_bytecode(x: u32, y: u32) -> f32 {
             }
             case 1u /* Output */: {
               let src_reg = lo[1];
-              let i = u32(hi);
+              let i = bitcast<u32>(hi);
               if (i == 0) {
                 return reg[src_reg];
               }
@@ -64,9 +64,9 @@ fn execute_bytecode(x: u32, y: u32) -> f32 {
               let val = reg[lo[2]];
               reg[lo[1]] = val * val;
             }
-            case 20u /* AddRegImm */: { reg[lo[1]] = reg[lo[2]] + bitcast<f32>(hi); }
-            case 24u /* SubImmReg */: { reg[lo[1]] = bitcast<f32>(hi) - reg[lo[2]]; }
-            case 25u /* SubRegImm */: { reg[lo[1]] = reg[lo[2]] - bitcast<f32>(hi); }
+            case 20u /* AddRegImm */: { reg[lo[1]] = reg[lo[2]] + hi; }
+            case 24u /* SubImmReg */: { reg[lo[1]] = hi - reg[lo[2]]; }
+            case 25u /* SubRegImm */: { reg[lo[1]] = reg[lo[2]] - hi; }
             case 38u /* AddRegReg */: { reg[lo[1]] = reg[lo[2]] + reg[lo[3]]; }
             case 42u /* MinRegReg */: { reg[lo[1]] = min(reg[lo[2]], reg[lo[3]]); }
             default: {

@@ -363,11 +363,20 @@ class Sketch:
             extent=[bounds[0], bounds[1], bounds[0], bounds[1]],
         )
 
-    def plot(self, index=None):
+    def _plot_is_inside(self, values):
+        values = values.reshape(self._samples, self._samples)
+        bounds = self._bounds
+
+        plt.imshow(
+            values > 0,
+            cmap="gray",
+            origin="lower",
+            extent=(bounds[0], bounds[1], bounds[0], bounds[1]),
+        )
+
+    def _get_values(self, index):
         if isinstance(index, ShapeEditor):
-            values = self._unit.run(sketch_shape(index.shape).distance(*self._grids[0]))
-            self._plot_dist(values)
-            return
+            return self._unit.run(sketch_shape(index.shape).distance(*self._grids[0]))
 
         if index is None:
             index = 0
@@ -375,6 +384,12 @@ class Sketch:
             index = self._shape_names[index]
 
         name = f"shape_{index}"
+        return self._unit.evaluate(name)
 
-        values = self._unit.evaluate(name)
+    def plot(self, index=None):
+        values = self._get_values(index)
         self._plot_dist(values)
+
+    def render(self, index=None):
+        values = self._get_values(index)
+        self._plot_is_inside(values)

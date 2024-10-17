@@ -1,4 +1,4 @@
-from polymorph_num.angle import Angle, polar_angle_from_vec
+from polymorph_num.angle import Angle, angle_from_cos, polar_angle_from_vec
 from polymorph_num.expr import Expr
 from polymorph_num.vec import Vec2
 
@@ -266,3 +266,55 @@ def fillet_arc_line(
     fillet = fillet_line_arc(line.reversed(), arc.reversed(), radius)
     fillet.reverse()
     return [s.reversed() for s in fillet]
+
+
+def fillet_arc_arc(
+    arc1: BulgingSegment, arc2: BulgingSegment, radius: Expr
+) -> list[PathSegment]:
+    ccw = (arc2.start_tangent() - arc1.end_tangent()).sin().sign()
+    arc1_orientation = arc1.bulge.sign()
+    arc2_orientation = arc2.bulge.sign()
+
+    centers_distance = (arc2.center - arc1.center).norm()
+    centers_direction = (arc2.center - arc1.center) / centers_distance
+
+    side_1 = arc1.radius - (arc1_orientation * radius * ccw)
+    side_2 = arc2.radius - (arc2_orientation * radius * ccw)
+
+    side_1_cos = (
+        side_1 * side_1 + centers_distance * centers_distance - side_2 * side_2
+    ) / (2 * centers_distance * side_1)
+
+    angle_1 = angle_from_cos(side_1_cos)
+
+    projected_fillet_center = arc1.center + centers_direction.scale(
+        angle_1.cos() * side_1
+    )
+
+    fillet_center = projected_fillet_center + centers_direction.perp().scale(
+        angle_1.sin() * side_1 * arc1_orientation * arc2_orientation * ccw
+    )
+
+    r1_direction = fillet_center - arc1.center
+    r1_direction = r1_direction / r1_direction.norm()
+    arc_1_end = fillet_center + r1_direction.scale(radius * ccw * arc1_orientation)
+
+    r2_direction = fillet_center - arc2.center
+    r2_direction = r2_direction / r2_direction.norm()
+    arc_2_start = fillet_center + r2_direction.scale(radius * ccw * arc2_orientation)
+
+    first_arc = bulging_segment_from_start_tangent(
+        arc1.start, arc_1_end, arc1.start_tangent()
+    )
+    fillet_arc = bulging_segment_from_start_tangent(
+        arc_1_end, arc_2_start, first_arc.end_tangent()
+    )
+    second_arc = bulging_segment_from_start_tangent(
+        arc_2_start, arc2.end, fillet_arc.end_tangent()
+    )
+
+    return [
+        first_arc,
+        fillet_arc,
+        second_arc,
+    ]

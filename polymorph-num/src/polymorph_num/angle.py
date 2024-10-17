@@ -107,10 +107,17 @@ def angle_from_rad(rad: Expr) -> Angle:
 def angle_from_deg(deg: Expr) -> Angle:
     return angle_from_rad(deg * PI / 180)
 
+
 def angle_from_sin(sin: Expr) -> Angle:
     cos = (1.0 - (sin * sin)).sqrt()
     return Angle(cos, sin)
-    
+
+
+def angle_from_cos(cos: Expr) -> Angle:
+    sin = (1.0 - (cos * cos)).sqrt()
+    return Angle(cos, sin)
+
+
 def two_vectors_angle(u: Vec2, v: Vec2) -> Angle:
     norm_u = u.norm()
     norm_v = v.norm()

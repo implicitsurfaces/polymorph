@@ -2,19 +2,13 @@
 // See https://github.com/gfx-rs/wgpu/tree/trunk/examples/src/hello_compute
 
 use bincode;
-use fidget::{
-    compiler::RegOp,
-    context::{Context, Tree},
-    var::Var,
-    vm::VmData,
-};
+use fidget::compiler::RegOp;
 use std::{borrow::Cow, str::FromStr};
 use wgpu::util::DeviceExt;
 
-const GLOBAL_SIZE_X: u32 = 4;
-const GLOBAL_SIZE_Y: u32 = 4;
-const MAX_TAPE_LEN: usize = 1024;
-const OUTPUT_SIZE_BYTES: u32 = GLOBAL_SIZE_X * GLOBAL_SIZE_Y * std::mem::size_of::<f32>() as u32;
+const WORKGROUP_SIZE_X: u32 = 16;
+const WORKGROUP_SIZE_Y: u32 = 16;
+const MAX_TAPE_LEN: u32 = 16384; /* Make sure to change size of Bytecode.data in shader! */
 
 include!(concat!(env!("OUT_DIR"), "/opcodes.rs"));
 
@@ -124,8 +118,8 @@ async fn run() {
 }
 
 #[cfg_attr(test, allow(dead_code))]
-async fn execute_gpu(tape: &[RegOp]) -> Option<Vec<f32>> {
-    eprintln!("Executing bytecode: {:?}", tape);
+async fn execute_gpu(tape: &[RegOp], global_size: (u32, u32)) -> Option<Vec<f32>> {
+    // eprintln!("Executing bytecode: {:?}", tape);
 
     // Instantiates instance of WebGPU
     let instance = wgpu::Instance::default();
@@ -150,13 +144,14 @@ async fn execute_gpu(tape: &[RegOp]) -> Option<Vec<f32>> {
         .await
         .unwrap();
 
-    execute_gpu_inner(&device, &queue, tape).await
+    execute_gpu_inner(&device, &queue, tape, global_size).await
 }
 
 async fn execute_gpu_inner(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     tape: &[RegOp],
+    global_size: (u32, u32),
 ) -> Option<Vec<f32>> {
     let cs_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
@@ -167,11 +162,15 @@ async fn execute_gpu_inner(
     });
 
     let storage_buffer = {
-        assert!(tape.len() <= MAX_TAPE_LEN);
-        let mut contents = vec![0u8; MAX_TAPE_LEN * std::mem::size_of::<RegOp>()];
+        assert!(
+            tape.len() <= MAX_TAPE_LEN as usize,
+            "Tape too long: {:?}",
+            tape.len()
+        );
+        let mut contents = vec![0u8; MAX_TAPE_LEN as usize * std::mem::size_of::<RegOp>()];
         let tape_bytes = tape_to_bytes(tape);
         contents[..tape_bytes.len()].copy_from_slice(&tape_bytes);
-        eprintln!("tape bytes {:?}", tape_bytes);
+        // eprintln!("tape bytes {:?}", tape_bytes);
 
         device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Storage Buffer"),
@@ -190,20 +189,22 @@ async fn execute_gpu_inner(
 
     let dimensions_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Dimensions Buffer"),
-        contents: bytemuck::cast_slice(&[GLOBAL_SIZE_X, GLOBAL_SIZE_Y]),
+        contents: bytemuck::cast_slice(&[global_size.0, global_size.1]),
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
 
+    let output_size_bytes = global_size.0 * global_size.1 * std::mem::size_of::<f32>() as u32;
+
     let output_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Output Buffer"),
-        size: OUTPUT_SIZE_BYTES as wgpu::BufferAddress,
+        size: output_size_bytes as wgpu::BufferAddress,
         usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
         mapped_at_creation: false,
     });
 
     let output_staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Output Staging Buffer"),
-        size: OUTPUT_SIZE_BYTES as wgpu::BufferAddress,
+        size: output_size_bytes as wgpu::BufferAddress,
         usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
     });
@@ -251,7 +252,13 @@ async fn execute_gpu_inner(
         cpass.set_pipeline(&compute_pipeline);
         cpass.set_bind_group(0, &bind_group, &[]);
         cpass.insert_debug_marker("execute bytecode");
-        cpass.dispatch_workgroups(1, 1, 1);
+        assert!(global_size.0 % WORKGROUP_SIZE_X == 0);
+        assert!(global_size.1 % WORKGROUP_SIZE_Y == 0);
+        cpass.dispatch_workgroups(
+            global_size.0 / WORKGROUP_SIZE_X,
+            global_size.1 / WORKGROUP_SIZE_Y,
+            1,
+        );
     }
     // Copy the result from the output buffer to the staging buffer
     encoder.copy_buffer_to_buffer(
@@ -259,7 +266,7 @@ async fn execute_gpu_inner(
         0,
         &output_staging_buffer,
         0,
-        OUTPUT_SIZE_BYTES as wgpu::BufferAddress,
+        output_size_bytes as wgpu::BufferAddress,
     );
 
     // Submits command encoder for processing
@@ -299,6 +306,15 @@ pub fn main() {
 #[cfg(test)]
 mod test {
     use super::*;
+    use approx::assert_relative_eq;
+    use fidget::{
+        compiler::RegOp,
+        context::{Context, Tree},
+        jit::JitShape,
+        shape::EzShape,
+        var::Var,
+        vm::VmData,
+    };
 
     #[test]
     fn test_fidget_eval() {
@@ -327,18 +343,14 @@ mod test {
         assert_eq!(iter.next().unwrap(), RegOp::AddRegImm(0, 0, 1.0));
         assert_eq!(iter.next().unwrap(), RegOp::Output(0, 0));
 
+        let global_size = (16, 16);
         let bytecode = data.iter_asm().collect::<Vec<_>>();
-        let result = pollster::block_on(execute_gpu(&bytecode));
-        assert_eq!(
-            result,
-            Some(vec![
-                1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0
-            ])
-        );
+        let result = pollster::block_on(execute_gpu(&bytecode, global_size));
+        assert_eq!(result.unwrap(), jit_evaluate(&tree, global_size));
     }
 
     #[test]
-    fn test_fidget_many_circles() {
+    fn test_fidget_four_circles() {
         let mut circles = Vec::new();
         for i in 0..2 {
             for j in 0..2 {
@@ -352,18 +364,43 @@ mod test {
         let node = ctx.import(&tree);
         let data = VmData::<255>::new(&ctx, &[node]).unwrap();
 
+        let global_size = (16, 16);
         let bytecode = data.iter_asm().collect::<Vec<_>>();
-        eprintln!("{:?}", bytecode);
-        let result = pollster::block_on(execute_gpu(&bytecode));
-        #[rustfmt::skip]
-        assert_eq!(
-            result,
-            Some(vec![
-                -0.5, -0.5, 0.5, 1.5,
-                -0.5, -0.5, 0.5, 1.5,
-                0.5, 0.5, 0.91421354, 1.736068,
-                1.5, 1.5, 1.736068, 2.328427
-            ])
+        // eprintln!("{:?}", bytecode);
+        let result = pollster::block_on(execute_gpu(&bytecode, global_size));
+        assert_relative_eq!(
+            result.unwrap().as_slice(),
+            jit_evaluate(&tree, global_size).as_slice(),
+            epsilon = 1e-6
+        );
+    }
+
+    #[test]
+    fn test_fidget_many_circles() {
+        let mut circles = Vec::new();
+        for i in 0..50 {
+            for j in 0..50 {
+                let center_x = i as f64;
+                let center_y = j as f64;
+                circles.push(circle(center_x, center_y, 0.5));
+            }
+        }
+        let tree = circles.into_iter().reduce(|a, b| a.min(b)).unwrap();
+        let start = std::time::Instant::now();
+        let mut ctx = Context::new();
+        let node = ctx.import(&tree);
+        let duration = start.elapsed();
+        let data = VmData::<255>::new(&ctx, &[node]).unwrap();
+        println!("Bytecode compilation took {:?}", duration);
+
+        let global_size = (16, 16);
+        let bytecode = data.iter_asm().collect::<Vec<_>>();
+        // eprintln!("{:?}", bytecode);
+        let result = pollster::block_on(execute_gpu(&bytecode, global_size));
+        assert_relative_eq!(
+            result.unwrap().as_slice(),
+            jit_evaluate(&tree, global_size).as_slice(),
+            epsilon = 1e-6
         );
     }
 
@@ -372,5 +409,48 @@ mod test {
         let dy = Tree::constant(center_y) - Tree::y();
         let dist = (dx.square() + dy.square()).sqrt();
         return dist - radius;
+    }
+
+    fn grid_sample(
+        x_max: f32,
+        y_max: f32,
+        x_steps: u32,
+        y_steps: u32,
+    ) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+        let mut x = Vec::with_capacity(x_steps as usize * y_steps as usize);
+        let mut y = Vec::with_capacity(x_steps as usize * y_steps as usize);
+        let mut z = Vec::with_capacity(x_steps as usize * y_steps as usize);
+
+        let x_step = x_max / (x_steps - 1) as f32;
+        let y_step = y_max / (y_steps - 1) as f32;
+
+        for i in 0..y_steps {
+            for j in 0..x_steps {
+                let x_val = j as f32 * x_step;
+                let y_val = i as f32 * y_step;
+
+                x.push(x_val);
+                y.push(y_val);
+                z.push(0.0);
+            }
+        }
+
+        (x, y, z)
+    }
+
+    fn jit_evaluate(tree: &Tree, global_size: (u32, u32)) -> Vec<f32> {
+        let shape = JitShape::from(tree.clone());
+        let tape = shape.ez_float_slice_tape();
+        let mut eval = JitShape::new_float_slice_eval();
+
+        let (x, y, z) = grid_sample(
+            global_size.0 as f32 - 1.0,
+            global_size.1 as f32 - 1.0,
+            global_size.0,
+            global_size.1,
+        );
+
+        let r = eval.eval(&tape, x.as_slice(), y.as_slice(), z.as_slice());
+        r.unwrap().to_vec()
     }
 }

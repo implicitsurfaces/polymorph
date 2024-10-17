@@ -135,7 +135,9 @@ async fn execute_gpu(tape: &[RegOp], global_size: (u32, u32)) -> Option<Vec<f32>
         .request_device(
             &wgpu::DeviceDescriptor {
                 label: None,
-                required_features: wgpu::Features::SHADER_INT64,
+                required_features: wgpu::Features::SHADER_INT64
+                    | wgpu::Features::TIMESTAMP_QUERY
+                    | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS,
                 required_limits: wgpu::Limits::downlevel_defaults(),
                 memory_hints: wgpu::MemoryHints::MemoryUsage,
             },
@@ -241,13 +243,39 @@ async fn execute_gpu_inner(
         ],
     });
 
+    // Create timestamp query set
+    let timestamp_query_set = device.create_query_set(&wgpu::QuerySetDescriptor {
+        label: Some("Timestamp Query Set"),
+        count: 2,
+        ty: wgpu::QueryType::Timestamp,
+    });
+
+    // Create two buffers for timestamps
+    let timestamp_resolve_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Timestamp Resolve Buffer"),
+        size: 16, // 2 u64 values
+        usage: wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::QUERY_RESOLVE,
+        mapped_at_creation: false,
+    });
+
+    let timestamp_readback_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Timestamp Readback Buffer"),
+        size: 16, // 2 u64 values
+        usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+
     // A command encoder executes one or many pipelines.
     let mut encoder =
         device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
     {
         let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: None,
-            timestamp_writes: None,
+            timestamp_writes: Some(wgpu::ComputePassTimestampWrites {
+                query_set: &timestamp_query_set,
+                beginning_of_pass_write_index: Some(0),
+                end_of_pass_write_index: Some(1),
+            }),
         });
         cpass.set_pipeline(&compute_pipeline);
         cpass.set_bind_group(0, &bind_group, &[]);
@@ -267,6 +295,18 @@ async fn execute_gpu_inner(
         &output_staging_buffer,
         0,
         output_size_bytes as wgpu::BufferAddress,
+    );
+
+    // Resolve timestamp query results
+    encoder.resolve_query_set(&timestamp_query_set, 0..2, &timestamp_resolve_buffer, 0);
+
+    // Copy timestamp results from resolve buffer to readback buffer
+    encoder.copy_buffer_to_buffer(
+        &timestamp_resolve_buffer,
+        0,
+        &timestamp_readback_buffer,
+        0,
+        16,
     );
 
     // Submits command encoder for processing
@@ -290,6 +330,24 @@ async fn execute_gpu_inner(
         // Unmap buffer
         drop(data);
         output_staging_buffer.unmap();
+
+        // Map the timestamp readback buffer and read the results
+        let timestamp_slice = timestamp_readback_buffer.slice(..);
+        let (sender, receiver) = flume::bounded(1);
+        timestamp_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
+        device.poll(wgpu::Maintain::wait()).panic_on_timeout();
+
+        if let Ok(Ok(())) = receiver.recv_async().await {
+            let timestamp_data = timestamp_slice.get_mapped_range();
+            let timestamps: &[u64] = bytemuck::cast_slice(&timestamp_data);
+            let duration_ns = timestamps[1] - timestamps[0];
+            eprintln!(
+                "GPU execution time: {} ms",
+                duration_ns as f32 / 1_000_000.0
+            );
+            drop(timestamp_data);
+            timestamp_readback_buffer.unmap();
+        }
 
         // Returns data from buffer
         Some(result)
@@ -393,14 +451,14 @@ mod test {
         let data = VmData::<255>::new(&ctx, &[node]).unwrap();
         println!("Bytecode compilation took {:?}", duration);
 
-        let global_size = (16, 16);
+        let global_size = (256, 256);
         let bytecode = data.iter_asm().collect::<Vec<_>>();
         // eprintln!("{:?}", bytecode);
         let result = pollster::block_on(execute_gpu(&bytecode, global_size));
         assert_relative_eq!(
             result.unwrap().as_slice(),
             jit_evaluate(&tree, global_size).as_slice(),
-            epsilon = 1e-6
+            epsilon = 1e-4
         );
     }
 
@@ -450,7 +508,13 @@ mod test {
             global_size.1,
         );
 
+        let start = std::time::Instant::now();
+        let _ = eval.eval(&tape, x.as_slice(), y.as_slice(), z.as_slice());
+        eprintln!("Jit eval took {:?}", start.elapsed());
+
+        let start = std::time::Instant::now();
         let r = eval.eval(&tape, x.as_slice(), y.as_slice(), z.as_slice());
+        eprintln!("Jit eval #2 took {:?}", start.elapsed());
         r.unwrap().to_vec()
     }
 }

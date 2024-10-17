@@ -1,5 +1,4 @@
-import collections.abc
-from typing import Callable, Sequence, TypeGuard
+from typing import Callable, TypeGuard
 from typing import Union as UnionType
 
 from polymorph_app.sketch import Centroid, Constraint
@@ -21,6 +20,10 @@ from polymorph_s2df.geom_helpers import (
     biarc,
     bulging_segment_from_end_tangent,
     bulging_segment_from_start_tangent,
+    fillet_arc_arc,
+    fillet_arc_line,
+    fillet_line_arc,
+    fillet_line_line,
 )
 from polymorph_s2df.paths import BulgingSegment, ClosedPath, LineSegment, PathSegment
 
@@ -91,7 +94,7 @@ memoizer = Memoizer()
 
 
 def is_positive_float(x: float) -> PositiveFloat:
-    if x <= 0:
+    if x < 0:
         raise ValueError(f"Expected positive float, got {x}")
     return x
 
@@ -193,11 +196,36 @@ def sketch_vector(node: Vector) -> Vec2:
             raise ValueError(f"Unexpected vector node: {node}")
 
 
+class BiarcSegment:
+    def __init__(self, start, end, start_tangent, end_tangent, param):
+        self.subsegments = biarc(
+            start.x,
+            start.y,
+            start_tangent,
+            end.x,
+            end.y,
+            end_tangent,
+            param,
+        )
+
+    def start_tangent(self):
+        return self.subsegments[0].start_tangent()
+
+    def end_tangent(self):
+        return self.subsegments[-1].end_tangent()
+
+    @property
+    def end(self):
+        return self.subsegments[-1].end
+
+
 class IncompleteEdge:
     start: Vec2
     end: Vec2
 
-    def fix(self, i, edges: list[UnionType["IncompleteEdge", PathSegment]]):
+    def fix(
+        self, i, edges: list[UnionType["IncompleteEdge", PathSegment, BiarcSegment]]
+    ):
         raise NotImplementedError
 
 
@@ -206,7 +234,7 @@ class IncompleteArcSmoothStart(IncompleteEdge):
         self.start = start
         self.end = end
 
-    def fix(self, i, edges: list[IncompleteEdge | PathSegment]):
+    def fix(self, i, edges: list[IncompleteEdge | PathSegment | BiarcSegment]):
         previous = edges[i - 1]
         if isinstance(previous, IncompleteEdge):
             return self
@@ -221,7 +249,7 @@ class IncompleteArcSmoothEnd(IncompleteEdge):
         self.start = start
         self.end = end
 
-    def fix(self, i, edges: list[IncompleteEdge | PathSegment]):
+    def fix(self, i, edges: list[IncompleteEdge | PathSegment | BiarcSegment]):
         next = edges[(i + 1) % len(edges)]
         if isinstance(next, IncompleteEdge):
             return self
@@ -238,19 +266,13 @@ class IncompleteBiArcSmoothStart(IncompleteEdge):
         self.end_tangent = end_tangent
         self.param = param
 
-    def fix(self, i, edges: list[IncompleteEdge | PathSegment]):
+    def fix(self, i, edges: list[IncompleteEdge | PathSegment | BiarcSegment]):
         previous = edges[i - 1]
         if isinstance(previous, IncompleteEdge):
             return self
 
-        return biarc(
-            self.start.x,
-            self.start.y,
-            previous.end_tangent(),
-            self.end.x,
-            self.end.y,
-            self.end_tangent,
-            self.param,
+        return BiarcSegment(
+            self.start, self.end, previous.end_tangent(), self.end_tangent, self.param
         )
 
 
@@ -261,19 +283,13 @@ class IncompleteBiArcSmoothEnd(IncompleteEdge):
         self.start_tangent = start_tangent
         self.param = param
 
-    def fix(self, i, edges: list[IncompleteEdge | PathSegment]):
+    def fix(self, i, edges: list[IncompleteEdge | PathSegment | BiarcSegment]):
         next = edges[(i + 1) % len(edges)]
         if isinstance(next, IncompleteEdge):
             return self
 
-        return biarc(
-            self.start.x,
-            self.start.y,
-            self.start_tangent,
-            self.end.x,
-            self.end.y,
-            next.start_tangent(),
-            self.param,
+        return BiarcSegment(
+            self.start, self.end, self.start_tangent, next.start_tangent(), self.param
         )
 
 
@@ -283,7 +299,7 @@ class IncompleteBiArcSmoothExtremities(IncompleteEdge):
         self.end = end
         self.param = param
 
-    def fix(self, i, edges: list[IncompleteEdge | PathSegment]):
+    def fix(self, i, edges: list[IncompleteEdge | PathSegment | BiarcSegment]):
         next = edges[(i + 1) % len(edges)]
         if isinstance(next, IncompleteEdge):
             return self
@@ -292,12 +308,10 @@ class IncompleteBiArcSmoothExtremities(IncompleteEdge):
         if isinstance(previous, IncompleteEdge):
             return self
 
-        return biarc(
-            self.start.x,
-            self.start.y,
+        return BiarcSegment(
+            self.start,
+            self.end,
             previous.end_tangent(),
-            self.end.x,
-            self.end.y,
             next.start_tangent(),
             self.param,
         )
@@ -310,7 +324,7 @@ def is_incomplete(edge) -> TypeGuard[IncompleteEdge]:
 @memoizer.memoize()
 def sketch_edge(
     node: Edge,
-) -> Callable[[Vec2, Vec2], PathSegment | IncompleteEdge | Sequence[PathSegment]]:
+) -> Callable[[Vec2, Vec2], PathSegment | IncompleteEdge | BiarcSegment]:
     match node:
         case Line():
             return lambda p0, p1: LineSegment(p0, p1)
@@ -335,14 +349,12 @@ def sketch_edge(
             return IncompleteArcSmoothEnd
 
         case Biarc(start_tangent, end_tangent, param):
-            return lambda p0, p1: biarc(
-                p0.x,
-                p0.y,
+            return lambda p0, p1: BiarcSegment(
+                p0,
+                p1,
                 sketch_angle(start_tangent),
-                p1.x,
-                p1.y,
                 sketch_angle(end_tangent),
-                sketch_real_value(param),
+                sketch_angle(param),
             )
 
         case BiarcWithSmoothStart(end_tangent, param):
@@ -363,10 +375,33 @@ def sketch_edge(
             raise ValueError(f"Unexpected edge node: {node}")
 
 
+def fillet_edges(edge1: PathSegment, edge2: PathSegment | BiarcSegment, radius: Expr):
+    if isinstance(edge2, BiarcSegment):
+        return fillet_edges(edge1, edge2.subsegments[0], radius) + [
+            edge2.subsegments[-1]
+        ]
+
+    if isinstance(edge1, LineSegment) and isinstance(edge2, LineSegment):
+        return fillet_line_line(edge1, edge2, radius)
+    if isinstance(edge1, LineSegment) and isinstance(edge2, BulgingSegment):
+        return fillet_line_arc(edge1, edge2, radius)
+    if isinstance(edge1, BulgingSegment) and isinstance(edge2, LineSegment):
+        return fillet_arc_line(edge1, edge2, radius)
+    if isinstance(edge1, BulgingSegment) and isinstance(edge2, BulgingSegment):
+        return fillet_arc_arc(edge1, edge2, radius)
+
+    raise ValueError(f"Unexpected edge combination: {edge1} and {edge2}")
+
+
 class PathBuilder:
     def __init__(self, first_point: Vec2):
         self.first_point = first_point
-        self._edges: list[IncompleteEdge | PathSegment] = []
+        self._edges: list[IncompleteEdge | PathSegment | BiarcSegment] = []
+        self._corner_radiuses: dict[int, Expr] = {}
+
+    def register_corner_radius(self, radius):
+        i = len(self._edges)
+        self._corner_radiuses[i] = radius
 
     @property
     def current_point(self):
@@ -374,25 +409,20 @@ class PathBuilder:
             return self.first_point
         return self._edges[-1].end
 
-    def append(self, edge: PathSegment | IncompleteEdge | Sequence[PathSegment]):
-        if isinstance(edge, collections.abc.Sequence):
-            self._edges.extend(edge)
-        else:
-            self._edges.append(edge)
+    def append(self, edge: PathSegment | IncompleteEdge | BiarcSegment):
+        self._edges.append(edge)
 
     def finalize(self) -> list[PathSegment]:
         edges = self._edges
         incomplete_count = len([e for e in edges if is_incomplete(e)])
 
+        # We complete the path by figuring out the tangents dependencies.
         while incomplete_count > 0:
             new_eges = []
             for i, e in enumerate(edges):
                 if is_incomplete(e):
                     e = e.fix(i, edges)
-                if isinstance(e, list):
-                    new_eges.extend(e)
-                else:
-                    new_eges.append(e)
+                new_eges.append(e)
             edges = new_eges
 
             new_incomplete_count = len([e for e in edges if is_incomplete(e)])
@@ -400,19 +430,47 @@ class PathBuilder:
                 raise ValueError("Failed to finalize path - incomplete edges remain")
             incomplete_count = new_incomplete_count
 
-        return edges  # type: ignore
+        # We now have a list of segments, we need to add the corner radiuses (and expand biarc segments)
+        final_edges: list[PathSegment] = []
+
+        for i, edge in enumerate(edges):
+            if isinstance(edge, IncompleteEdge):
+                raise ValueError("Incomplete edges should have been fixed by now")
+            elif i in self._corner_radiuses and i != 0:
+                final_edges.extend(
+                    fillet_edges(final_edges.pop(), edge, self._corner_radiuses[i])
+                )
+            elif isinstance(edge, BiarcSegment):
+                final_edges.extend(edge.subsegments)
+            else:
+                final_edges.append(edge)
+
+        if 0 in self._corner_radiuses:
+            final_edges.extend(
+                fillet_edges(
+                    final_edges.pop(-1), final_edges.pop(0), self._corner_radiuses[0]
+                )
+            )
+
+        return final_edges
 
 
 def sketch_path(node: Path) -> PathBuilder:
     match node:
-        case PathStart(point):
+        case PathStart(point, corner_radius):
             p = sketch_point(point)
-            return PathBuilder(p)
-        case PathEdge(path, edge, point):
+            builder = PathBuilder(p)
+            if corner_radius is not None:
+                builder.register_corner_radius(sketch_distance(corner_radius))
+            return builder
+
+        case PathEdge(path, edge, point, corner_radius):
             edges_list = sketch_path(path)
             p = sketch_point(point)
             e = sketch_edge(edge)(edges_list.current_point, p)
             edges_list.append(e)
+            if corner_radius is not None:
+                edges_list.register_corner_radius(sketch_distance(corner_radius))
             return edges_list
         case _:
             raise ValueError(f"Unexpected path node: {node}")

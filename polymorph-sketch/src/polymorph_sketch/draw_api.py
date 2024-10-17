@@ -141,39 +141,39 @@ class PointCreator:
         self.current_point = current_point
         self._done = done
 
-    def _return_point(self, point: Point):
-        return self._done(point)
+    def _return_point(self, point: Point, corner_radius=None):
+        return self._done(point, corner_radius)
 
-    def go_to(self, x, y):
+    def go_to(self, x, y, corner_radius=None):
         p = CartesianVector(x, y)
-        return self._return_point(p.from_origin())
+        return self._return_point(p.from_origin(), corner_radius)
 
-    def go_to_polar(self, angle, radius):
+    def go_to_polar(self, angle, radius, corner_radius=None):
         p = PolarVector(as_angle(angle), as_distance(radius))
-        return self._return_point(p.from_origin())
+        return self._return_point(p.from_origin(), corner_radius)
 
-    def go_to_point(self, point):
-        return self._return_point(point)
+    def go_to_point(self, point, corner_radius=None):
+        return self._return_point(point, corner_radius)
 
-    def move_by(self, x, y):
+    def move_by(self, x, y, corner_radius=None):
         p = self.current_point + CartesianVector(x, y)
-        return self._return_point(p)
+        return self._return_point(p, corner_radius)
 
-    def move_by_polar(self, angle, radius):
+    def move_by_polar(self, angle, radius, corner_radius=None):
         p = self.current_point + PolarVector(as_angle(angle), as_distance(radius))
-        return self._return_point(p)
+        return self._return_point(p, corner_radius)
 
-    def horizontal_move_by(self, x):
-        return self.move_by(x, 0)
+    def horizontal_move_by(self, x, corner_radius=None):
+        return self.move_by(x, 0, corner_radius)
 
-    def horizontal_go_to(self, x):
-        return self.go_to(x, 0)
+    def horizontal_go_to(self, x, corner_radius=None):
+        return self.go_to(x, 0, corner_radius)
 
-    def vertical_move_by(self, y):
-        return self.move_by(0, y)
+    def vertical_move_by(self, y, corner_radius=None):
+        return self.move_by(0, y, corner_radius)
 
-    def vertical_go_to(self, y):
-        return self.go_to(0, y)
+    def vertical_go_to(self, y, corner_radius=None):
+        return self.go_to(0, y, corner_radius)
 
     def close(self) -> ShapeEditor:
         return self._done(None)
@@ -226,19 +226,26 @@ def draw_circle(radius: float, origin: tuple[float, float] = (0, 0)):
     return ShapeEditor(ShapeCircle(as_distance(radius), as_point(origin)))
 
 
-def draw(origin: tuple[float, float] = (0, 0)):
+def draw(origin: tuple[float, float] = (0, 0), corner_radius=None):
     current_point = as_point(origin)
-    path: Path = PathStart(current_point)
+    path: Path = PathStart(
+        current_point, as_distance(corner_radius) if corner_radius is not None else None
+    )
 
     def line_done(line):
-        def point_done(point):
+        def point_done(point, corner_radius=None):
             nonlocal path
             if point is None:
                 return ShapeEditor(PathClose(path, line))
 
             nonlocal current_point
             current_point = point
-            path = PathEdge(path, line, point)
+            path = PathEdge(
+                path,
+                line,
+                point,
+                as_distance(corner_radius) if corner_radius is not None else None,
+            )
             return EdgeMaker(current_point, line_done)
 
         nonlocal current_point

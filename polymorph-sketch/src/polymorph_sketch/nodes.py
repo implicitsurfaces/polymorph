@@ -295,6 +295,7 @@ class BiarcWithSmoothExtremities(Edge):
 @dataclass(frozen=True)
 class PathStart(Path):
     point: Point
+    corner_radius: Distance | None
 
 
 @dataclass(frozen=True)
@@ -302,6 +303,7 @@ class PathEdge(Path):
     path: Path
     edge: Edge
     point: Point
+    corner_radius: Distance | None
 
 
 @dataclass(frozen=True)

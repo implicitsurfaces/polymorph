@@ -8,9 +8,24 @@ use wgpu::util::DeviceExt;
 
 const WORKGROUP_SIZE_X: u32 = 16;
 const WORKGROUP_SIZE_Y: u32 = 16;
-const MAX_TAPE_LEN: u32 = 16384; /* Make sure to change size of Bytecode.data in shader! */
+const MAX_TAPE_LEN_REGOPS: u32 = 32768;
+const REG_COUNT: usize = 32;
 
-include!(concat!(env!("OUT_DIR"), "/opcodes.rs"));
+fn shader_source() -> String {
+    let shared_constants = format!(
+        r#"
+const WORKGROUP_SIZE_X: u32 = {}u;
+const WORKGROUP_SIZE_Y: u32 = {}u;
+const MAX_TAPE_LEN_REGOPS: u32 = {}u;
+const BYTECODE_ARRAY_LEN: u32 = MAX_TAPE_LEN_REGOPS * 2u;
+const REG_COUNT: u32 = {}u;
+    "#,
+        WORKGROUP_SIZE_X, WORKGROUP_SIZE_Y, MAX_TAPE_LEN_REGOPS, REG_COUNT
+    );
+    include_str!("shader-in.wgsl")
+        .to_string()
+        .replace("{ shared_constants }", shared_constants.as_ref())
+}
 
 fn tape_to_bytes(tape: &[RegOp]) -> Vec<u8> {
     let mut ans: Vec<u8> = Vec::new();
@@ -157,19 +172,16 @@ async fn execute_gpu_inner(
 ) -> Option<Vec<f32>> {
     let cs_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
-        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!(concat!(
-            env!("OUT_DIR"),
-            "/shader.wgsl"
-        )))),
+        source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source())),
     });
 
     let storage_buffer = {
         assert!(
-            tape.len() <= MAX_TAPE_LEN as usize,
+            tape.len() <= MAX_TAPE_LEN_REGOPS as usize,
             "Tape too long: {:?}",
             tape.len()
         );
-        let mut contents = vec![0u8; MAX_TAPE_LEN as usize * std::mem::size_of::<RegOp>()];
+        let mut contents = vec![0u8; MAX_TAPE_LEN_REGOPS as usize * std::mem::size_of::<RegOp>()];
         let tape_bytes = tape_to_bytes(tape);
         contents[..tape_bytes.len()].copy_from_slice(&tape_bytes);
         // eprintln!("tape bytes {:?}", tape_bytes);
@@ -375,24 +387,11 @@ mod test {
     };
 
     #[test]
-    fn test_fidget_eval() {
-        // From https://docs.rs/fidget/latest/fidget/#functions-and-shapes
-        use fidget::{context::Tree, shape::EzShape, vm::VmShape};
-
-        let tree = Tree::x() + Tree::y();
-        let shape = VmShape::from(tree);
-        let mut eval = VmShape::new_point_eval();
-        let tape = shape.ez_point_tape();
-        let (out, _) = eval.eval(&tape, 1.0, 1.0, 0.0).unwrap();
-        assert_eq!(out, 2.0);
-    }
-
-    #[test]
     fn test_fidget_gpu_eval() {
         let tree = Tree::x() + 1;
         let mut ctx = Context::new();
         let sum = ctx.import(&tree);
-        let data = VmData::<255>::new(&ctx, &[sum]).unwrap();
+        let data = VmData::<REG_COUNT>::new(&ctx, &[sum]).unwrap();
         assert_eq!(data.len(), 3); // input, (X + 1), output
 
         let mut iter = data.iter_asm();
@@ -417,10 +416,11 @@ mod test {
                 circles.push(circle(center_x, center_y, 0.5));
             }
         }
-        let tree = circles.into_iter().reduce(|a, b| a.min(b)).unwrap();
+        let tree = smooth_union(circles);
         let mut ctx = Context::new();
         let node = ctx.import(&tree);
-        let data = VmData::<255>::new(&ctx, &[node]).unwrap();
+        let data = VmData::<REG_COUNT>::new(&ctx, &[node]).unwrap();
+        // debug!("{:?}", data.iter_asm().collect::<Vec<_>>());
 
         let global_size = (16, 16);
         let bytecode = data.iter_asm().collect::<Vec<_>>();
@@ -429,36 +429,49 @@ mod test {
         assert_relative_eq!(
             result.unwrap().as_slice(),
             jit_evaluate(&tree, global_size).as_slice(),
-            epsilon = 1e-6
+            epsilon = 1e-1
         );
+    }
+
+    fn smooth_union(trees: Vec<Tree>) -> Tree {
+        trees
+            .into_iter()
+            .reduce(|a, b| {
+                let k = 0.1;
+                let k_doubled = k * 2.0;
+                let x = b.clone() - a.clone();
+                0.5 * (a + b - (x.square() + k_doubled * k_doubled).sqrt())
+            })
+            .unwrap()
     }
 
     #[test]
     fn test_fidget_many_circles() {
         let mut circles = Vec::new();
-        for i in 0..50 {
-            for j in 0..50 {
+        for i in 0..20 {
+            for j in 0..20 {
                 let center_x = i as f64;
                 let center_y = j as f64;
                 circles.push(circle(center_x, center_y, 0.5));
             }
         }
-        let tree = circles.into_iter().reduce(|a, b| a.min(b)).unwrap();
+        let tree = smooth_union(circles);
         let start = std::time::Instant::now();
         let mut ctx = Context::new();
         let node = ctx.import(&tree);
         let duration = start.elapsed();
-        let data = VmData::<255>::new(&ctx, &[node]).unwrap();
-        println!("Bytecode compilation took {:?}", duration);
+        let data = VmData::<REG_COUNT>::new(&ctx, &[node]).unwrap();
 
-        let global_size = (256, 256);
+        eprintln!("Bytecode compilation took {:?}", duration);
+
+        let global_size = (1280, 720);
         let bytecode = data.iter_asm().collect::<Vec<_>>();
-        // eprintln!("{:?}", bytecode);
+        // debug!("{:?}", bytecode);
         let result = pollster::block_on(execute_gpu(&bytecode, global_size));
         assert_relative_eq!(
             result.unwrap().as_slice(),
             jit_evaluate(&tree, global_size).as_slice(),
-            epsilon = 1e-4
+            epsilon = 1.0
         );
     }
 

@@ -16,13 +16,13 @@ var<storage> bytecode: Bytecode;
 @group(0) @binding(1)
 var<uniform> pc_max: i32;
 
-@group(0) @binding(2) var<storage, read_write> output: array<f32>;
+@group(0) @binding(2) var<storage, read_write> output: array<vec4<f32>>;
 
 @group(0) @binding(3) var<uniform> dims: vec2<u32>;
 
-fn execute_bytecode(x: u32, y: u32) -> f32 {
+fn execute_bytecode(xs: vec4<f32>, y: u32) -> vec4<f32> {
     var pc: i32 = 0;
-    var reg: array<f32, REG_COUNT>;
+    var reg: array<vec4<f32>, REG_COUNT>;
     while (pc < pc_max) {
         /*
           Memory layout notes:
@@ -47,9 +47,9 @@ fn execute_bytecode(x: u32, y: u32) -> f32 {
               let out_reg = lo[1];
               let i = bitcast<u32>(hi);
               if (i == 0) {
-                reg[out_reg] = f32(x);
+                reg[out_reg] = xs;
               } else if (i == 1) {
-                reg[out_reg] = f32(y);
+                reg[out_reg] = vec4<f32>(y);
               }
             }
             case 1u /* Output */: {
@@ -75,16 +75,17 @@ fn execute_bytecode(x: u32, y: u32) -> f32 {
             case 41u /* SubRegReg */: { reg[lo[1]] = reg[lo[2]] - reg[lo[3]]; }
             case 42u /* MinRegReg */: { reg[lo[1]] = min(reg[lo[2]], reg[lo[3]]); }
             default: {
-              return 1.234567;
+              return vec4<f32>(1.234567);
             }
           }
     }
-    return 2.0;
+    return vec4<f32>(99.0);
 }
 
 @compute
 @workgroup_size(WORKGROUP_SIZE_X, WORKGROUP_SIZE_Y)
 fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let index = global_id.y * dims.x + global_id.x;
-    output[index] = execute_bytecode(global_id.x, global_id.y);
+    let xs = vec4<f32>(f32(global_id.x) * 4.0) + vec4<f32>(0.0, 1.0, 2.0, 3.0);
+    output[index] = execute_bytecode(xs, global_id.y);
 }

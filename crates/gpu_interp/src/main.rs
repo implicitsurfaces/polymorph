@@ -133,7 +133,7 @@ async fn run() {
 }
 
 #[cfg_attr(test, allow(dead_code))]
-async fn execute_gpu(tape: &[RegOp], global_size: (u32, u32)) -> Option<Vec<f32>> {
+async fn execute_gpu(tape: &[RegOp], data_size: (u32, u32)) -> Option<Vec<f32>> {
     // eprintln!("Executing bytecode: {:?}", tape);
 
     // Instantiates instance of WebGPU
@@ -161,19 +161,20 @@ async fn execute_gpu(tape: &[RegOp], global_size: (u32, u32)) -> Option<Vec<f32>
         .await
         .unwrap();
 
-    execute_gpu_inner(&device, &queue, tape, global_size).await
+    execute_gpu_inner(&device, &queue, tape, data_size).await
 }
 
 async fn execute_gpu_inner(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     tape: &[RegOp],
-    global_size: (u32, u32),
+    data_size: (u32, u32),
 ) -> Option<Vec<f32>> {
     let cs_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
         source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source())),
     });
+    let invoc_size = (data_size.0 / 4, data_size.1);
 
     let storage_buffer = {
         assert!(
@@ -203,11 +204,11 @@ async fn execute_gpu_inner(
 
     let dimensions_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Dimensions Buffer"),
-        contents: bytemuck::cast_slice(&[global_size.0, global_size.1]),
+        contents: bytemuck::cast_slice(&[invoc_size.0, invoc_size.1]),
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
 
-    let output_size_bytes = global_size.0 * global_size.1 * std::mem::size_of::<f32>() as u32;
+    let output_size_bytes = data_size.0 * data_size.1 * std::mem::size_of::<f32>() as u32;
 
     let output_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Output Buffer"),
@@ -292,11 +293,11 @@ async fn execute_gpu_inner(
         cpass.set_pipeline(&compute_pipeline);
         cpass.set_bind_group(0, &bind_group, &[]);
         cpass.insert_debug_marker("execute bytecode");
-        assert!(global_size.0 % WORKGROUP_SIZE_X == 0);
-        assert!(global_size.1 % WORKGROUP_SIZE_Y == 0);
+        assert!(invoc_size.0 % WORKGROUP_SIZE_X == 0);
+        assert!(invoc_size.1 % WORKGROUP_SIZE_Y == 0);
         cpass.dispatch_workgroups(
-            global_size.0 / WORKGROUP_SIZE_X,
-            global_size.1 / WORKGROUP_SIZE_Y,
+            invoc_size.0 / WORKGROUP_SIZE_X,
+            invoc_size.1 / WORKGROUP_SIZE_Y,
             1,
         );
     }
@@ -400,10 +401,10 @@ mod test {
         assert_eq!(iter.next().unwrap(), RegOp::AddRegImm(0, 0, 1.0));
         assert_eq!(iter.next().unwrap(), RegOp::Output(0, 0));
 
-        let global_size = (16, 16);
+        let data_size = (64, 16);
         let bytecode = data.iter_asm().collect::<Vec<_>>();
-        let result = pollster::block_on(execute_gpu(&bytecode, global_size));
-        assert_eq!(result.unwrap(), jit_evaluate(&tree, global_size));
+        let result = pollster::block_on(execute_gpu(&bytecode, data_size));
+        assert_eq!(result.unwrap(), jit_evaluate(&tree, data_size));
     }
 
     #[test]
@@ -422,13 +423,13 @@ mod test {
         let data = VmData::<REG_COUNT>::new(&ctx, &[node]).unwrap();
         // debug!("{:?}", data.iter_asm().collect::<Vec<_>>());
 
-        let global_size = (16, 16);
+        let data_size = (64, 64);
         let bytecode = data.iter_asm().collect::<Vec<_>>();
         // eprintln!("{:?}", bytecode);
-        let result = pollster::block_on(execute_gpu(&bytecode, global_size));
+        let result = pollster::block_on(execute_gpu(&bytecode, data_size));
         assert_relative_eq!(
             result.unwrap().as_slice(),
-            jit_evaluate(&tree, global_size).as_slice(),
+            jit_evaluate(&tree, data_size).as_slice(),
             epsilon = 1e-1
         );
     }
@@ -464,13 +465,13 @@ mod test {
 
         eprintln!("Bytecode compilation took {:?}", duration);
 
-        let global_size = (1280, 720);
+        let data_size = (512, 512);
         let bytecode = data.iter_asm().collect::<Vec<_>>();
         // debug!("{:?}", bytecode);
-        let result = pollster::block_on(execute_gpu(&bytecode, global_size));
+        let result = pollster::block_on(execute_gpu(&bytecode, data_size));
         assert_relative_eq!(
             result.unwrap().as_slice(),
-            jit_evaluate(&tree, global_size).as_slice(),
+            jit_evaluate(&tree, data_size).as_slice(),
             epsilon = 1.0
         );
     }
@@ -509,16 +510,16 @@ mod test {
         (x, y, z)
     }
 
-    fn jit_evaluate(tree: &Tree, global_size: (u32, u32)) -> Vec<f32> {
+    fn jit_evaluate(tree: &Tree, data_size: (u32, u32)) -> Vec<f32> {
         let shape = JitShape::from(tree.clone());
         let tape = shape.ez_float_slice_tape();
         let mut eval = JitShape::new_float_slice_eval();
 
         let (x, y, z) = grid_sample(
-            global_size.0 as f32 - 1.0,
-            global_size.1 as f32 - 1.0,
-            global_size.0,
-            global_size.1,
+            data_size.0 as f32 - 1.0,
+            data_size.1 as f32 - 1.0,
+            data_size.0,
+            data_size.1,
         );
 
         let start = std::time::Instant::now();

@@ -145,8 +145,13 @@ class CompiledUnit:
             tolerance=1e-3,
             d=self.obs_dict,
         )
+
         iter_num = otu.tree_get(state, "count")
         lbfgs_log.debug(f"Minimization used {iter_num} of max {max_steps} steps")
+
+        final_loss = self.loss_fn(soln, self.obs_dict)
+        lbfgs_log.debug(f"Minimization final loss value: {final_loss}")
+
         return replace(self, params=soln, _minimizer_state=state)
 
     def minimize_within_time_limit(self, time_limit_ms=10.0):

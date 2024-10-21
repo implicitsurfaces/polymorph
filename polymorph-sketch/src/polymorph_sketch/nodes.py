@@ -78,6 +78,9 @@ class Angle:
     def opposite(self):
         return OppositeAngle(self)
 
+    def to_q1(self):
+        return Q1Angle(self)
+
 
 @dataclass(frozen=True)
 class Edge:
@@ -179,6 +182,17 @@ class PerpendicularAngle(Angle):
 @dataclass(frozen=True)
 class OppositeAngle(Angle):
     angle: Angle
+
+
+@dataclass(frozen=True)
+class Q1Angle(Angle):
+    base: Angle
+
+
+@dataclass(frozen=True)
+class Q1AngleParam(Q1Angle):
+    def __eq__(self, other):
+        return self is other
 
 
 @dataclass(frozen=True)
@@ -290,6 +304,18 @@ class BiarcWithSmoothEnd(Edge):
 @dataclass(frozen=True)
 class BiarcWithSmoothExtremities(Edge):
     param: Angle
+
+
+@dataclass(frozen=True)
+class LeftBiarc(Edge):
+    start_angle: Q1Angle
+    end_angle: Q1Angle
+
+
+@dataclass(frozen=True)
+class RightBiarc(Edge):
+    start_angle: Q1Angle
+    end_angle: Q1Angle
 
 
 @dataclass(frozen=True)

@@ -24,6 +24,7 @@ from polymorph_s2df.geom_helpers import (
     fillet_arc_line,
     fillet_line_arc,
     fillet_line_line,
+    no_inflexion_biarc,
 )
 from polymorph_s2df.paths import BulgingSegment, ClosedPath, LineSegment, PathSegment
 
@@ -56,6 +57,7 @@ from .nodes import (
     DistanceScaled,
     DistanceSum,
     Edge,
+    LeftBiarc,
     Line,
     OppositeAngle,
     Path,
@@ -66,8 +68,11 @@ from .nodes import (
     Point,
     PolarVector,
     PositiveFloat,
+    Q1Angle,
+    Q1AngleParam,
     RealParam,
     RealValue,
+    RightBiarc,
     Shape,
     ShapeCircle,
     ShapeDifference,
@@ -157,6 +162,12 @@ def sketch_angle(node: Angle) -> AngleExpr:
             return sketch_angle(angle).perp()
         case OppositeAngle(angle):
             return HALF_TURN + sketch_angle(angle)
+        case Q1Angle(base):
+            a = sketch_angle(base)
+            return AngleExpr(a.cos().abs(), a.sin().abs())
+        case Q1AngleParam():
+            return angle_from_sin(ops.param().sigmoid())
+
         case _:
             raise ValueError(f"Unexpected angle node: {node}")
 
@@ -217,6 +228,32 @@ class BiarcSegment:
     @property
     def end(self):
         return self.subsegments[-1].end
+
+
+class RightBiarcSegment(BiarcSegment):
+    def __init__(self, start, end, start_tangent, end_tangent):
+        chord_angle = polar_angle_from_vec(end - start)
+        self.subsegments = no_inflexion_biarc(
+            start.x,
+            start.y,
+            chord_angle - start_tangent,
+            end.x,
+            end.y,
+            chord_angle + end_tangent,
+        )
+
+
+class LeftBiarcSegment(BiarcSegment):
+    def __init__(self, start, end, start_tangent, end_tangent):
+        chord_angle = polar_angle_from_vec(end - start)
+        self.subsegments = no_inflexion_biarc(
+            start.x,
+            start.y,
+            chord_angle + start_tangent,
+            end.x,
+            end.y,
+            chord_angle - end_tangent,
+        )
 
 
 class IncompleteEdge:
@@ -371,6 +408,23 @@ def sketch_edge(
             return lambda p0, p1: IncompleteBiArcSmoothExtremities(
                 p0, p1, sketch_real_value(param)
             )
+
+        case RightBiarc(start_angle, end_angle):
+            return lambda p0, p1: RightBiarcSegment(
+                p0,
+                p1,
+                sketch_angle(start_angle),
+                sketch_angle(end_angle),
+            )
+
+        case LeftBiarc(start_angle, end_angle):
+            return lambda p0, p1: LeftBiarcSegment(
+                p0,
+                p1,
+                sketch_angle(start_angle),
+                sketch_angle(end_angle),
+            )
+
         case _:
             raise ValueError(f"Unexpected edge node: {node}")
 

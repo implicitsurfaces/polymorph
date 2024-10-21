@@ -27,6 +27,7 @@ from .nodes import (
     Distance,
     DistanceLiteral,
     DistanceParam,
+    LeftBiarc,
     Line,
     Path,
     PathClose,
@@ -34,8 +35,10 @@ from .nodes import (
     PathStart,
     Point,
     PolarVector,
+    Q1Angle,
     RealParam,
     RealValue,
+    RightBiarc,
     Shape,
     ShapeCircle,
     ShapeDifference,
@@ -220,6 +223,16 @@ class EdgeMaker:
 
     def biarc_smooth_extremities(self):
         return self._done(BiarcWithSmoothExtremities(as_angle(0)))
+
+    def left_biarc(self, start_angle, end_angle):
+        return self._done(
+            LeftBiarc(Q1Angle(as_angle(start_angle)), Q1Angle(as_angle(end_angle)))
+        )
+
+    def right_biarc(self, start_angle, end_angle):
+        return self._done(
+            RightBiarc(Q1Angle(as_angle(start_angle)), Q1Angle(as_angle(end_angle)))
+        )
 
 
 def draw_circle(radius: float, origin: tuple[float, float] = (0, 0)):

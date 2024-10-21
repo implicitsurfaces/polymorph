@@ -65,8 +65,16 @@ def angle_param() -> Angle:
     return AngleParam()
 
 
+def vector_param() -> Vector:
+    return CartesianVector(RealParam(), RealParam())
+
+
+def polar_vector_param() -> Vector:
+    return PolarVector(AngleParam(), DistanceParam())
+
+
 def point_param() -> Point:
-    return CartesianVector(RealParam(), RealParam()).from_origin()
+    return vector_param().from_origin()
 
 
 def as_distance(distance: float | Distance) -> Distance:

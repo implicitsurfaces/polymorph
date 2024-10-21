@@ -423,4 +423,5 @@ class ConstraintOnShapeBoundary(Constraint):
 
 @dataclass(frozen=True)
 class RealParam(RealValue):
-    pass
+    def __eq__(self, other):
+        return self is other

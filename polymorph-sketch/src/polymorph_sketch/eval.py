@@ -20,11 +20,13 @@ from polymorph_s2df.geom_helpers import (
     biarc,
     bulging_segment_from_end_tangent,
     bulging_segment_from_start_tangent,
+    cubic_biarc,
     fillet_arc_arc,
     fillet_arc_line,
     fillet_line_arc,
     fillet_line_line,
     no_inflexion_biarc,
+    quadratic_biarc,
 )
 from polymorph_s2df.paths import BulgingSegment, ClosedPath, LineSegment, PathSegment
 
@@ -37,7 +39,9 @@ from .nodes import (
     AngleParam,
     AngleSum,
     ArcBulge,
+    ArcEndControlPoint,
     ArcLength,
+    ArcStartControlPoint,
     ArcTangentEnd,
     ArcTangentStart,
     ArcWithSmoothEnd,
@@ -51,6 +55,7 @@ from .nodes import (
     ConstraintOnDistance,
     ConstraintOnPointCoincidence,
     ConstraintOnShapeBoundary,
+    CubicBiarc,
     Distance,
     DistanceLiteral,
     DistanceParam,
@@ -70,6 +75,7 @@ from .nodes import (
     PositiveFloat,
     Q1Angle,
     Q1AngleParam,
+    QuadraticBiarc,
     RealParam,
     RealValue,
     RightBiarc,
@@ -256,6 +262,32 @@ class LeftBiarcSegment(BiarcSegment):
         )
 
 
+class QuadraticBiarcSegment(BiarcSegment):
+    def __init__(self, start, end, control):
+        self.subsegments = quadratic_biarc(
+            start.x,
+            start.y,
+            end.x,
+            end.y,
+            control.x,
+            control.y,
+        )
+
+
+class CubicBiarcSegment(BiarcSegment):
+    def __init__(self, start, end, start_tangent, end_tangent):
+        self.subsegments = cubic_biarc(
+            start.x,
+            start.y,
+            end.x,
+            end.y,
+            start_tangent.x,
+            start_tangent.y,
+            end_tangent.x,
+            end_tangent.y,
+        )
+
+
 class IncompleteEdge:
     start: Vec2
     end: Vec2
@@ -425,6 +457,32 @@ def sketch_edge(
                 sketch_angle(end_angle),
             )
 
+        case ArcStartControlPoint(control_point):
+            return lambda p0, p1: bulging_segment_from_start_tangent(
+                p0, p1, polar_angle_from_vec(sketch_point(control_point) - p0)
+            )
+
+        case ArcEndControlPoint(control_point):
+            return lambda p0, p1: bulging_segment_from_end_tangent(
+                p0,
+                p1,
+                polar_angle_from_vec(sketch_point(control_point) - p1).opposite(),
+            )
+
+        case CubicBiarc(start_control_point, end_control_point):
+            return lambda p0, p1: CubicBiarcSegment(
+                p0,
+                p1,
+                sketch_point(start_control_point),
+                sketch_point(end_control_point),
+            )
+
+        case QuadraticBiarc(control_point):
+            return lambda p0, p1: QuadraticBiarcSegment(
+                p0,
+                p1,
+                polar_angle_from_vec(sketch_point(control_point) - p0),
+            )
         case _:
             raise ValueError(f"Unexpected edge node: {node}")
 

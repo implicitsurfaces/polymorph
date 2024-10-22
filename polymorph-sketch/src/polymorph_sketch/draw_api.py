@@ -11,6 +11,8 @@ from .nodes import (
     AngleLiteral,
     AngleParam,
     ArcBulge,
+    ArcEndControlPoint,
+    ArcStartControlPoint,
     ArcTangentEnd,
     ArcTangentStart,
     ArcWithSmoothEnd,
@@ -24,6 +26,7 @@ from .nodes import (
     ConstraintOnDistance,
     ConstraintOnPointCoincidence,
     ConstraintOnShapeBoundary,
+    CubicBiarc,
     Distance,
     DistanceLiteral,
     DistanceParam,
@@ -36,6 +39,7 @@ from .nodes import (
     Point,
     PolarVector,
     Q1Angle,
+    QuadraticBiarc,
     RealParam,
     RealValue,
     RightBiarc,
@@ -200,6 +204,20 @@ class EdgeMaker:
 
     def arc(self, bulge):
         return self._done(ArcBulge(bulge))
+
+    def arc_start_control_point(self, control_point):
+        return self._done(ArcStartControlPoint(as_point(control_point)))
+
+    def arc_end_control_point(self, control_point):
+        return self._done(ArcEndControlPoint(as_point(control_point)))
+
+    def quadratic_biarc(self, control_point):
+        return self._done(QuadraticBiarc(as_point(control_point)))
+
+    def cubic_biarc(self, control_point1, control_point2):
+        return self._done(
+            CubicBiarc(as_point(control_point1), as_point(control_point2))
+        )
 
     def arc_tangent_start(self, angle):
         return self._done(ArcTangentStart(as_angle(angle)))

@@ -66,6 +66,9 @@ class Angle:
     def perp(self) -> "Angle":
         return Angle(-self._sin, self._cos)
 
+    def opposite(self) -> "Angle":
+        return Angle(-self._cos, -self._sin)
+
     def flip_sign(self, orientation_sign: Expr) -> "Angle":
         """Changes the angle to the opposite direction depending on the orientation sign.
 

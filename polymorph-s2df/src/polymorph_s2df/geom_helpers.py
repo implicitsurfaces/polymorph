@@ -151,6 +151,58 @@ def simple_biarc(x0: Expr, y0: Expr, theta0: Angle, x1: Expr, y1: Expr, theta1: 
     ]
 
 
+def quadratic_biarc(x0: Expr, y0: Expr, x1: Expr, y1: Expr, x2: Expr, y2: Expr):
+    p0 = Vec2(x0, y0)
+    p1 = Vec2(x1, y1)
+    p2 = Vec2(x2, y2)
+
+    w0 = (p2 - p1).norm()
+    w1 = (p2 - p0).norm()
+    w2 = (p1 - p0).norm()
+
+    perimeter = w0 + w1 + w2
+
+    c = (p0.scale(w0) + p1.scale(w1) + p2.scale(w2)) / perimeter
+
+    theta0 = polar_angle_from_vec(p2 - p0)
+    theta1 = polar_angle_from_vec(p2 - p1).opposite()
+
+    return [
+        bulging_segment_from_start_tangent(p0, c, theta0),
+        bulging_segment_from_end_tangent(c, p2, theta1),
+    ]
+
+
+def cubic_biarc(
+    x0: Expr, y0: Expr, x1: Expr, y1: Expr, x2: Expr, y2: Expr, x3: Expr, y3: Expr
+):
+    p0 = Vec2(x0, y0)
+    p1 = Vec2(x1, y1)
+    p2 = Vec2(x2, y2)
+    p3 = Vec2(x3, y3)
+
+    tgt_start = p2 - p0
+    tgt_end = p1 - p3
+
+    theta0 = polar_angle_from_vec(tgt_start)
+    theta1 = polar_angle_from_vec(tgt_end)
+
+    locus = _biarc_locus_center(p0, theta0, p1, theta1)
+
+    position_ratio = tgt_start.norm() / (tgt_start.norm() + tgt_end.norm())
+
+    chord = p1 - p0
+    postion_on_chord = p0 + chord.scale(position_ratio)
+
+    c_angle = polar_angle_from_vec(postion_on_chord - locus)
+    c = locus + c_angle.as_vec().scale((locus - p0).norm())
+
+    return [
+        bulging_segment_from_start_tangent(p0, c, theta0),
+        bulging_segment_from_end_tangent(c, p1, theta1),
+    ]
+
+
 def no_inflexion_biarc(
     x0: Expr, y0: Expr, theta0: Angle, x1: Expr, y1: Expr, theta1: Angle
 ):

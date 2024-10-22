@@ -273,6 +273,27 @@ class ArcTangentEnd(Edge):
 
 
 @dataclass(frozen=True)
+class ArcStartControlPoint(Edge):
+    control_point: Point
+
+
+@dataclass(frozen=True)
+class ArcEndControlPoint(Edge):
+    control_point: Point
+
+
+@dataclass(frozen=True)
+class CubicBiarc(Edge):
+    start_control_point: Point
+    end_control_point: Point
+
+
+@dataclass(frozen=True)
+class QuadraticBiarc(Edge):
+    control_point: Point
+
+
+@dataclass(frozen=True)
 class ArcWithSmoothStart(Edge):
     pass
 

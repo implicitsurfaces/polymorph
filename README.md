@@ -33,6 +33,13 @@ To check types:
     rye run pyright
 
 
+## Rust Jupyter Notebook
+
+
+    cargo install --locked evcxr_jupyter --version 0.18.0
+    evcxr_jupyter --install
+
+
 ## Rust experiments (Apr/May)
 
 To run the iceberg simulation:

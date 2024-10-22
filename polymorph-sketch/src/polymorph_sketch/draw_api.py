@@ -53,6 +53,7 @@ from .nodes import (
     ShapeShell,
     ShapeTranslation,
     ShapeUnion,
+    ThreePointArc,
     Vector,
 )
 
@@ -230,6 +231,9 @@ class EdgeMaker:
 
     def arc_smooth_end(self):
         return self._done(ArcWithSmoothEnd())
+
+    def arc_through_point(self, on_arc):
+        return self._done(ThreePointArc(as_point(on_arc)))
 
     def biarc(self, start_angle, end_angle):
         return self._done(

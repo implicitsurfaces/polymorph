@@ -62,6 +62,17 @@ def bulging_segement_from_radius_large_arc(
     return BulgingSegment(start_point, end_point, bulge)
 
 
+def three_point_bulging_segment(p0: Vec2, p1: Vec2, p2: Vec2):
+    chord0 = p2 - p0
+    chord1 = p1 - p2
+
+    s = chord1.cross(chord0)
+    c = chord1.dot(chord0)
+
+    bulge = -s / (c + (c * c + s * s).sqrt())
+    return BulgingSegment(p0, p1, bulge)
+
+
 def line_line_intersection(p0: Vec2, v0: Vec2, p1: Vec2, v1: Vec2):
     cross_dir = v0.cross(v1)
     diff_point = p1 - p0

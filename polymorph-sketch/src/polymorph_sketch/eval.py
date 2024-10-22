@@ -27,6 +27,7 @@ from polymorph_s2df.geom_helpers import (
     fillet_line_line,
     no_inflexion_biarc,
     quadratic_biarc,
+    three_point_bulging_segment,
 )
 from polymorph_s2df.paths import BulgingSegment, ClosedPath, LineSegment, PathSegment
 
@@ -89,6 +90,7 @@ from .nodes import (
     ShapeShell,
     ShapeTranslation,
     ShapeUnion,
+    ThreePointArc,
     Vector,
     VectorDifference,
     VectorDirection,
@@ -467,6 +469,11 @@ def sketch_edge(
                 p0,
                 p1,
                 polar_angle_from_vec(sketch_point(control_point) - p1).opposite(),
+            )
+
+        case ThreePointArc(on_arc):
+            return lambda p0, p1: three_point_bulging_segment(
+                p0, p1, sketch_point(on_arc)
             )
 
         case CubicBiarc(start_control_point, end_control_point):

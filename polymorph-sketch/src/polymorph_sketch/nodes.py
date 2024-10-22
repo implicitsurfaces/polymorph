@@ -283,6 +283,11 @@ class ArcEndControlPoint(Edge):
 
 
 @dataclass(frozen=True)
+class ThreePointArc(Edge):
+    on_arc: Point
+
+
+@dataclass(frozen=True)
 class CubicBiarc(Edge):
     start_control_point: Point
     end_control_point: Point

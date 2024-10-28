@@ -1,0 +1,6 @@
+{
+  "name": "polymorph",
+  "workspaces": [
+    "packages/*"
+  ]
+}

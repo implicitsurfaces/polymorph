@@ -4,3 +4,4 @@ cost_function_data.csv
 .ipynb_checkpoints
 .DS_Store
 .hypothesis
+node_modules

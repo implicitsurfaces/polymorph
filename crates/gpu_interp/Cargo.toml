@@ -13,6 +13,7 @@ flume = "0.11.0"
 pollster = "0.3.0"
 wgpu = "22.1.0"
 bincode = "1.3.3"
+winit = "0.29"
 
 [build-dependencies]
 serde = { version = "1.0.210", features = ["derive"] }

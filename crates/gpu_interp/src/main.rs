@@ -1,6 +1,8 @@
 // Based on the hello_compute example from the wgpu repo.
 // See https://github.com/gfx-rs/wgpu/tree/trunk/examples/src/hello_compute
 
+use gpu_interp::*;
+
 use bincode;
 use fidget::compiler::RegOp;
 use std::{borrow::Cow, str::FromStr};
@@ -136,31 +138,9 @@ async fn run() {
 async fn execute_gpu(tape: &[RegOp], data_size: (u32, u32)) -> Option<Vec<f32>> {
     // eprintln!("Executing bytecode: {:?}", tape);
 
-    // Instantiates instance of WebGPU
     let instance = wgpu::Instance::default();
-
-    // `request_adapter` instantiates the general connection to the GPU
-    let adapter = instance
-        .request_adapter(&wgpu::RequestAdapterOptions::default())
-        .await?;
-
-    // `request_device` instantiates the feature specific connection to the GPU, defining some parameters,
-    //  `features` being the available features.
-    let (device, queue) = adapter
-        .request_device(
-            &wgpu::DeviceDescriptor {
-                label: None,
-                required_features: wgpu::Features::SHADER_INT64
-                    | wgpu::Features::TIMESTAMP_QUERY
-                    | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS,
-                required_limits: wgpu::Limits::downlevel_defaults(),
-                memory_hints: wgpu::MemoryHints::MemoryUsage,
-            },
-            None,
-        )
-        .await
-        .unwrap();
-
+    let options = wgpu::RequestAdapterOptions::default();
+    let (_, device, queue) = create_device(&instance, &options).await;
     execute_gpu_inner(&device, &queue, tape, data_size).await
 }
 

@@ -26,12 +26,14 @@ export type BinaryOperation =
   | "AND"
   | "OR";
 
-export class NumNode {}
+export class NumNode {
+  readonly operation: string = "NONE";
+}
 
 export class UnaryOp extends NumNode {
   constructor(
-    public operation: UnaryOperation,
-    public original: NumNode,
+    readonly operation: UnaryOperation,
+    readonly original: NumNode,
   ) {
     super();
   }
@@ -39,15 +41,16 @@ export class UnaryOp extends NumNode {
 
 export class BinaryOp extends NumNode {
   constructor(
-    public operation: BinaryOperation,
-    public left: NumNode,
-    public right: NumNode,
+    readonly operation: BinaryOperation,
+    readonly left: NumNode,
+    readonly right: NumNode,
   ) {
     super();
   }
 }
 
 export class LiteralNum extends NumNode {
+  readonly operation = "LITERAL";
   constructor(public value: number) {
     super();
   }
@@ -136,4 +139,6 @@ export function simple_eval(node: NumNode): number {
       return left || right;
     }
   }
+
+  throw new Error(`Unknown node type: ${node?.operation}`);
 }

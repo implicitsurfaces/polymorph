@@ -20,12 +20,20 @@ export function mod(a: Num | number, b: Num | number): Num {
   return binaryOpNum("MOD", as_num(a), as_num(b));
 }
 
-export function max(a: Num | number, b: Num | number): Num {
-  return binaryOpNum("MAX", as_num(a), as_num(b));
+export function max(first: Num | number, ...others: Array<Num | number>): Num {
+  let tree = as_num(first);
+  others.forEach((n) => {
+    tree = binaryOpNum("MAX", tree, as_num(n));
+  });
+  return tree;
 }
 
-export function min(a: Num | number, b: Num | number): Num {
-  return binaryOpNum("MIN", as_num(a), as_num(b));
+export function min(first: Num | number, ...others: Array<Num | number>): Num {
+  let tree = as_num(first);
+  others.forEach((n) => {
+    tree = binaryOpNum("MIN", tree, as_num(n));
+  });
+  return tree;
 }
 
 export function atan2(a: Num | number, b: Num | number): Num {
@@ -36,12 +44,20 @@ export function compare(a: Num | number, b: Num | number): Num {
   return binaryOpNum("COMPARE", as_num(a), as_num(b));
 }
 
-export function and(a: Num | number, b: Num | number): Num {
-  return binaryOpNum("AND", as_num(a), as_num(b));
+export function and(first: Num | number, ...others: Array<Num | number>): Num {
+  let tree = as_num(first);
+  others.forEach((n) => {
+    tree = binaryOpNum("AND", tree, as_num(n));
+  });
+  return tree;
 }
 
-export function or(a: Num | number, b: Num | number): Num {
-  return binaryOpNum("OR", as_num(a), as_num(b));
+export function or(first: Num | number, ...others: Array<Num | number>): Num {
+  let tree = as_num(first);
+  others.forEach((n) => {
+    tree = binaryOpNum("OR", tree, as_num(n));
+  });
+  return tree;
 }
 
 export function not(a: Num | number): Num {

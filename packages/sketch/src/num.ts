@@ -42,6 +42,9 @@ export class Num {
   sign() {
     return unaryOpNum("SIGN", this);
   }
+  abs() {
+    return unaryOpNum("ABS", this);
+  }
   mod(other: Num) {
     return binaryOpNum("MOD", this, other);
   }

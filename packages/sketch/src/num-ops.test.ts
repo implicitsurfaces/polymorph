@@ -61,6 +61,7 @@ test("max", () => {
   ex(max(1, 0)).toBeCloseTo(1);
   ex(max(1, -1)).toBeCloseTo(1);
   ex(max(0.3, 0.1)).toBeCloseTo(0.3);
+  ex(max(0.3, 0.1, -2, 12, -123.1)).toBeCloseTo(12);
 });
 
 test("min", () => {
@@ -68,6 +69,7 @@ test("min", () => {
   ex(min(1, 0)).toBeCloseTo(0);
   ex(min(1, -1)).toBeCloseTo(-1);
   ex(min(0.3, 0.1)).toBeCloseTo(0.1);
+  ex(min(0.3, 0.1, -2, -123.1)).toBeCloseTo(-123.1);
 });
 
 test("atan2", () => {
@@ -96,6 +98,8 @@ test("and", () => {
   ex(and(0, 0)).toBeCloseTo(0);
   ex(and(0.3, 0.1)).toBeCloseTo(0.1);
   ex(and(-2, 1)).toBeCloseTo(1);
+  ex(and(-2, 1, 0, 12)).toBeCloseTo(0);
+  ex(and(-2, 1, 5, 12)).toBeCloseTo(12);
 });
 
 test("or", () => {
@@ -103,10 +107,11 @@ test("or", () => {
   ex(or(1, 0)).toBeCloseTo(1);
   ex(or(0, 1)).toBeCloseTo(1);
   ex(or(0, 0)).toBeCloseTo(0);
-  ex(or(0, 0)).toBeCloseTo(0);
   ex(or(0.3, 0.1)).toBeCloseTo(0.3);
   ex(or(-2, 1)).toBeCloseTo(-2);
   ex(or(-2, 0)).toBeCloseTo(-2);
+  ex(or(0, 0, 0, 0, 1)).toBeCloseTo(1);
+  ex(or(0, 0, 2, 0, 1)).toBeCloseTo(2);
 });
 
 test("less_than", () => {

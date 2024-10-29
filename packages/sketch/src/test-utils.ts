@@ -4,7 +4,7 @@ import { as_vec } from "./geom";
 import { Num } from "./num";
 import { DistField } from "./types";
 
-export function ex(num: Num): ReturnType<typeof expect> {
+export function ex(num: Num) {
   return expect(simple_eval(num.n));
 }
 
@@ -26,14 +26,14 @@ const GRID = Array.from({ length: GRID_SIZE }, (_, i) =>
   Array.from({ length: GRID_SIZE * 2 }, (_, j) =>
     as_vec(
       (j / 2 - GRID_SIZE / 2) / scalingFactor,
-      (i - GRID_SIZE / 2) / scalingFactor,
+      (GRID_SIZE / 2 - i) / scalingFactor,
     ).point_from_origin(),
   ),
 );
 
 export function expect_ascii_dist(distField: DistField) {
   const imageData = GRID.map((row) =>
-    row.map((point) => simple_eval(distField.distance_to(point).n) < 0),
+    row.map((point) => simple_eval(distField.distanceTo(point).n) < 0),
   );
   return expect(toASCII(imageData));
 }

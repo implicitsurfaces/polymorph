@@ -204,7 +204,7 @@ export class Vec2 {
   }
 }
 
-export default class Point {
+export class Point {
   constructor(
     private _x: Num,
     private _y: Num,

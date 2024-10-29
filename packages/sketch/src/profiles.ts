@@ -8,7 +8,7 @@ export class Circle {
     this.radius = as_num(radius);
   }
 
-  distance_to(point: Point): Num {
+  distanceTo(point: Point): Num {
     return point.vec_from_origin().norm().sub(this.radius);
   }
 }
@@ -21,7 +21,7 @@ export class Box {
     this.height = as_num(height);
   }
 
-  distance_to(point: Point): Num {
+  distanceTo(point: Point): Num {
     const half_width = this.width.div(2);
     const half_height = this.height.div(2);
 
@@ -33,25 +33,25 @@ export class Box {
 }
 
 export class TopHalfPlane {
-  distance_to(point: Point): Num {
+  distanceTo(point: Point): Num {
     return point.y;
   }
 }
 
 export class BottomHalfPlane {
-  distance_to(point: Point): Num {
+  distanceTo(point: Point): Num {
     return point.y.neg();
   }
 }
 
 export class LeftHalfPlane {
-  distance_to(point: Point): Num {
+  distanceTo(point: Point): Num {
     return point.x;
   }
 }
 
 export class RightHalfPlane {
-  distance_to(point: Point): Num {
+  distanceTo(point: Point): Num {
     return point.x.neg();
   }
 }

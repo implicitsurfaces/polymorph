@@ -115,3 +115,9 @@ test("num square", () => {
   ex(as_num(1.5).square()).toBeCloseTo(2.25);
   ex(as_num(2).square()).toBeCloseTo(4);
 });
+
+test("num abs", () => {
+  ex(as_num(0).abs()).toBeCloseTo(0);
+  ex(as_num(1.5).abs()).toBeCloseTo(1.5);
+  ex(as_num(-2).abs()).toBeCloseTo(2);
+});

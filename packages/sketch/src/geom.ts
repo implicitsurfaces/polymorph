@@ -198,6 +198,10 @@ export class Vec2 {
     const normalized = this.normalize();
     return new Angle(normalized._x, normalized._y);
   }
+
+  point_from_origin(): Point {
+    return new Point(this._x, this._y);
+  }
 }
 
 export default class Point {
@@ -235,7 +239,7 @@ export default class Point {
   }
 }
 
-export const ORIGIN = new Point(new Num(0), new Num(0));
+export const ORIGIN = new Point(as_num(0), as_num(0));
 
 export function vec_from_cartesian_coords(
   x: Num | number,

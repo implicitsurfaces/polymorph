@@ -45,6 +45,23 @@ export class Num {
   abs() {
     return unaryOpNum("ABS", this);
   }
+  smoothabs() {
+    return this.mul(unaryOpNum("TANH", this.mul(10)));
+  }
+  log1p() {
+    return unaryOpNum("LOG1P", this);
+  }
+  softplus() {
+    // This implementation is based on the jax implementation of softplus.
+    // It uses the log-sum-exp trick to avoid numerical instability.
+    const factor = 50;
+    const val = this.mul(factor);
+    const amax = binaryOpNum("MAX", val, as_num(0));
+    return val.abs().neg().exp().log1p().add(amax).div(factor);
+  }
+  softminus() {
+    return this.sub(this.softplus());
+  }
   mod(other: Num) {
     return binaryOpNum("MOD", this, other);
   }

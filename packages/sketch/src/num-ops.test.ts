@@ -19,6 +19,7 @@ import {
   greater_than,
   greater_than_or_equal,
   if_non_zero_else,
+  hypot,
 } from "./num-ops";
 
 test("add", () => {
@@ -168,4 +169,12 @@ test("if_non_zero_else", () => {
   ex(if_non_zero_else(-0.1, 0.2, 0.1)).toBeCloseTo(0.2);
   ex(if_non_zero_else(-0, 0.1, 0.2)).toBeCloseTo(0.2);
   ex(if_non_zero_else(0, 10000, 0.2)).toBeCloseTo(0.2);
+});
+
+test("hypot", () => {
+  ex(hypot(3, 4)).toBeCloseTo(5);
+  ex(hypot(1, 1)).toBeCloseTo(Math.sqrt(2));
+  ex(hypot(1, 0)).toBeCloseTo(1);
+  ex(hypot(0, 1)).toBeCloseTo(1);
+  ex(hypot(0, 0)).toBeCloseTo(0);
 });

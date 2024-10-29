@@ -93,3 +93,7 @@ export function if_non_zero_else(
   const rhs = and(n_condition, if_zero);
   return or(lhs, rhs);
 }
+
+export function hypot(a: Num | number, b: Num | number): Num {
+  return as_num(a).square().add(as_num(b).square()).sqrt();
+}

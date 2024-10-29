@@ -11,7 +11,9 @@ export type UnaryOperation =
   | "NEG"
   | "SIN"
   | "SIGN"
-  | "NOT";
+  | "NOT"
+  | "TANH"
+  | "LOG1P";
 
 export type BinaryOperation =
   | "ADD"
@@ -100,6 +102,12 @@ export function simple_eval(node: NumNode): number {
     }
     if (node.operation === "NOT") {
       return operand ? 0 : 1;
+    }
+    if (node.operation === "TANH") {
+      return Math.tanh(operand);
+    }
+    if (node.operation === "LOG1P") {
+      return Math.log1p(operand);
     }
   } else if (node instanceof BinaryOp) {
     const left = simple_eval(node.left);

@@ -1,9 +1,31 @@
 use bincode;
 use fidget::compiler::RegOp;
 use std::{borrow::Cow, str::FromStr};
-use wgpu::util::DeviceExt;
+use wgpu::{util::DeviceExt, ShaderStages};
 
 pub mod sdf;
+
+pub const FRAGMENTS_PER_INVOCATION: u32 = 4;
+pub const WORKGROUP_SIZE_X: u32 = 16;
+pub const WORKGROUP_SIZE_Y: u32 = 16;
+pub const MAX_TAPE_LEN_REGOPS: u32 = 32768;
+pub const REG_COUNT: usize = 32;
+
+pub fn shader_source() -> String {
+    let shared_constants = format!(
+        r#"
+const WORKGROUP_SIZE_X: u32 = {}u;
+const WORKGROUP_SIZE_Y: u32 = {}u;
+const MAX_TAPE_LEN_REGOPS: u32 = {}u;
+const BYTECODE_ARRAY_LEN: u32 = MAX_TAPE_LEN_REGOPS * 2u;
+const REG_COUNT: u32 = {}u;
+    "#,
+        WORKGROUP_SIZE_X, WORKGROUP_SIZE_Y, MAX_TAPE_LEN_REGOPS, REG_COUNT
+    );
+    include_str!("shader-in.wgsl")
+        .to_string()
+        .replace("{ shared_constants }", shared_constants.as_ref())
+}
 
 pub fn tape_to_bytes(tape: &[RegOp]) -> Vec<u8> {
     let mut ans: Vec<u8> = Vec::new();
@@ -131,34 +153,12 @@ pub async fn create_device(
     (adapter, device, queue)
 }
 
-pub const FRAGMENTS_PER_INVOCATION: u32 = 4;
-pub const WORKGROUP_SIZE_X: u32 = 16;
-pub const WORKGROUP_SIZE_Y: u32 = 16;
-pub const MAX_TAPE_LEN_REGOPS: u32 = 32768;
-pub const REG_COUNT: usize = 32;
-
-pub fn shader_source() -> String {
-    let shared_constants = format!(
-        r#"
-const WORKGROUP_SIZE_X: u32 = {}u;
-const WORKGROUP_SIZE_Y: u32 = {}u;
-const MAX_TAPE_LEN_REGOPS: u32 = {}u;
-const BYTECODE_ARRAY_LEN: u32 = MAX_TAPE_LEN_REGOPS * 2u;
-const REG_COUNT: u32 = {}u;
-    "#,
-        WORKGROUP_SIZE_X, WORKGROUP_SIZE_Y, MAX_TAPE_LEN_REGOPS, REG_COUNT
-    );
-    include_str!("shader-in.wgsl")
-        .to_string()
-        .replace("{ shared_constants }", shared_constants.as_ref())
-}
-
 pub enum Pipeline<'a> {
     Compute(&'a wgpu::ComputePipeline),
     Render(&'a wgpu::RenderPipeline),
 }
 
-pub fn setup_gpu_buffers(
+pub fn setup_buffers(
     device: &wgpu::Device,
     pipeline: Pipeline,
     tape: &[RegOp],
@@ -273,4 +273,61 @@ pub fn setup_gpu_buffers(
         timestamp_readback_buffer,
         bind_group,
     )
+}
+
+pub fn setup_pipeline_layout(
+    device: &wgpu::Device,
+    shader_stages: ShaderStages,
+) -> wgpu::PipelineLayout {
+    let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: None,
+        entries: &[
+            wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: shader_stages,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: shader_stages,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 2,
+                visibility: shader_stages,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: false },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 3,
+                visibility: shader_stages,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+        ],
+    });
+
+    device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: None,
+        bind_group_layouts: &[&bind_group_layout],
+        push_constant_ranges: &[],
+    })
 }

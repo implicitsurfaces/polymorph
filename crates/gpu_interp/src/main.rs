@@ -47,9 +47,10 @@ async fn evaluate_tape(
 
     let invoc_size = (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
 
+    let pipeline_layout = setup_pipeline_layout(&device, wgpu::ShaderStages::COMPUTE);
     let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
         label: None,
-        layout: None,
+        layout: Some(&pipeline_layout),
         module: &cs_module,
         entry_point: "compute_main",
         compilation_options: Default::default(),
@@ -65,7 +66,7 @@ async fn evaluate_tape(
         timestamp_resolve_buffer,
         timestamp_readback_buffer,
         bind_group,
-    ) = setup_gpu_buffers(
+    ) = setup_buffers(
         device,
         Pipeline::Compute(&compute_pipeline),
         tape,

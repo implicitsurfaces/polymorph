@@ -35,7 +35,7 @@ fn execute_bytecode(xs: vec4<f32>, y: u32) -> vec4<f32> {
             opcode.
           - 32-bit arguments (u32 and f32) are stored in little-endian order
             in bytes 4-7.
-          - Thus, `lo` is a 4xU8 while `hi` is a u32.
+          - Thus, `lo` is a 4xU8 while `hi` is an f32.
         */
         let lo: vec4<u32> = unpack4xU8(bytecode.data[pc]);
         pc++;
@@ -85,7 +85,11 @@ fn execute_bytecode(xs: vec4<f32>, y: u32) -> vec4<f32> {
 @compute
 @workgroup_size(WORKGROUP_SIZE_X, WORKGROUP_SIZE_Y)
 fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    let index = global_id.y * dims.x + global_id.x;
+    // Each shader invocation processes 4 horizontal pixels, and the output
+    // is a vec4<f32> representing four pixels.
+    let quarter_width = dims.x / 4u;
+
+    let index = global_id.y * quarter_width + global_id.x;
     let xs = vec4<f32>(f32(global_id.x) * 4.0) + vec4<f32>(0.0, 1.0, 2.0, 3.0);
     output[index] = execute_bytecode(xs, global_id.y);
 }
@@ -103,4 +107,23 @@ fn vertex_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position
     );
 
     return vec4<f32>(pos[in_vertex_index], 0.0, 1.0);
+}
+
+@fragment
+fn fragment_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
+
+    let x = u32(pos.x);
+    let y = u32(pos.y);
+
+    // Each shader invocation processes 4 horizontal pixels, and the output
+    // is a vec4<f32> representing four pixels.
+    let row_len = dims.x / 4u;
+    let buf_x = x / 4u;
+    let offset = x % 4u;
+    let index = y * row_len + buf_x;
+
+    let pixel_group = output[index];
+
+    // Select the appropriate component based on x % 4
+    return vec4<f32>(pixel_group[offset], pos.y / f32(dims.y), pos.x / f32(dims.x), 1.0);
 }

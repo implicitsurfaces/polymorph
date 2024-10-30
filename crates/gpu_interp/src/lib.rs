@@ -1,6 +1,5 @@
 use bincode;
 use fidget::compiler::RegOp;
-use std::{borrow::Cow, str::FromStr};
 use wgpu::{util::DeviceExt, ShaderStages};
 
 pub mod sdf;
@@ -168,12 +167,7 @@ pub struct Buffers {
     pub timestamp_readback_buffer: wgpu::Buffer,
 }
 
-pub fn create_buffers(
-    device: &wgpu::Device,
-    tape: &[RegOp],
-    invoc_size: (u32, u32),
-    viewport: Viewport,
-) -> Buffers {
+pub fn create_buffers(device: &wgpu::Device, tape: &[RegOp], viewport: Viewport) -> Buffers {
     let bytecode_buffer = {
         assert!(
             tape.len() <= MAX_TAPE_LEN_REGOPS as usize,
@@ -218,7 +212,7 @@ pub fn create_buffers(
 
     let dims_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Dimensions Buffer"),
-        contents: bytemuck::cast_slice(&[invoc_size.0, invoc_size.1]),
+        contents: bytemuck::cast_slice(&[viewport.width, viewport.height]),
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
 

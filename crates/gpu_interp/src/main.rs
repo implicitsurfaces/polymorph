@@ -37,8 +37,6 @@ async fn evaluate_tape(tape: &[RegOp], viewport: Viewport) -> Option<Vec<f32>> {
         source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source())),
     });
 
-    let invoc_size = (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
-
     let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
         label: None,
         layout: Some(&setup_pipeline_layout(&device, wgpu::ShaderStages::COMPUTE)),
@@ -48,7 +46,7 @@ async fn evaluate_tape(tape: &[RegOp], viewport: Viewport) -> Option<Vec<f32>> {
         cache: None,
     });
 
-    let buffers = create_buffers(&device, tape, invoc_size, viewport);
+    let buffers = create_buffers(&device, tape, viewport);
     let bind_group = create_bind_group(&device, &buffers, &pipeline.get_bind_group_layout(0));
 
     // Create timestamp query set
@@ -62,6 +60,7 @@ async fn evaluate_tape(tape: &[RegOp], viewport: Viewport) -> Option<Vec<f32>> {
     let mut encoder =
         device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
     {
+        let invoc_size = (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
         let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: None,
             timestamp_writes: Some(wgpu::ComputePassTimestampWrites {

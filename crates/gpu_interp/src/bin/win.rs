@@ -8,27 +8,15 @@ use winit::{
 };
 
 async fn run(event_loop: EventLoop<()>, window: Window) {
-    let shader_base = shader_source();
-    let fragment_shader = "
-@fragment
-fn fragment_main() -> @location(0) vec4<f32> {
-    return vec4<f32>(1.0, 0.0, 0.0, 1.0);
-}
-";
-
-    // You can specify a backend (Vulkan, Metal, etc.)here if desired.
     let instance = wgpu::Instance::default();
     let surface = instance.create_surface(&window).unwrap();
     let options = wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::default(),
         force_fallback_adapter: false,
-        // Request an adapter which can render to our surface
         compatible_surface: Some(&surface),
     };
 
     let (adapter, device, queue) = create_device(&instance, &options).await;
-
-    let shader = shader_base + fragment_shader;
 
     let viewport = {
         let mut size = window.inner_size();
@@ -41,15 +29,9 @@ fn fragment_main() -> @location(0) vec4<f32> {
         }
     };
 
-    let invoc_size = (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
-
     let tape = {
         use fidget::{
-            compiler::RegOp,
             context::{Context, Tree},
-            jit::JitShape,
-            shape::EzShape,
-            var::Var,
             vm::VmData,
         };
         use gpu_interp::sdf::*;
@@ -66,7 +48,7 @@ fn fragment_main() -> @location(0) vec4<f32> {
             for j in 0..2 {
                 let center_x = i as f64;
                 let center_y = j as f64;
-                circles.push(circle(center_x, center_y, 0.5));
+                circles.push(circle(center_x * 200.0, center_y * 200.0, 100.0));
             }
         }
         let tree = smooth_union(circles);
@@ -80,31 +62,43 @@ fn fragment_main() -> @location(0) vec4<f32> {
     let swapchain_capabilities = surface.get_capabilities(&adapter);
     let swapchain_format = swapchain_capabilities.formats[0];
 
-    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: None,
-        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&shader)),
+    let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: Some("Render Shader"),
+        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&shader_source())),
     });
 
-    let pipeline_layout = setup_pipeline_layout(&device, wgpu::ShaderStages::FRAGMENT);
-    let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+    // Setup compute pipeline
+    let pipeline_layout = setup_pipeline_layout(
+        &device,
+        wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
+    );
+    let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
         label: None,
         layout: Some(&pipeline_layout),
+        module: &shader_module,
+        entry_point: "compute_main",
+        compilation_options: Default::default(),
+        cache: None,
+    });
+
+    // Setup render pipeline
+    let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("Render Pipeline"),
+        layout: Some(&pipeline_layout),
         vertex: wgpu::VertexState {
-            module: &shader,
+            module: &shader_module,
             entry_point: "vertex_main",
             buffers: &[],
             compilation_options: Default::default(),
         },
         fragment: Some(wgpu::FragmentState {
-            module: &shader,
+            module: &shader_module,
             entry_point: "fragment_main",
             compilation_options: Default::default(),
             targets: &[Some(swapchain_format.into())],
         }),
         primitive: wgpu::PrimitiveState::default(),
         depth_stencil: None,
-
-        // Disable multisampling so that we see only exact pixel values from our shader.
         multisample: wgpu::MultisampleState {
             count: 1,
             mask: !0,
@@ -114,8 +108,14 @@ fn fragment_main() -> @location(0) vec4<f32> {
         cache: None,
     });
 
-    let buffers = create_buffers(&device, &tape, invoc_size, viewport);
-    let bind_group = create_bind_group(&device, &buffers, &pipeline.get_bind_group_layout(0));
+    let buffers = create_buffers(&device, &tape, viewport);
+    let compute_bind_group = create_bind_group(
+        &device,
+        &buffers,
+        &compute_pipeline.get_bind_group_layout(0),
+    );
+    let render_bind_group =
+        create_bind_group(&device, &buffers, &render_pipeline.get_bind_group_layout(0));
 
     let mut config = surface
         .get_default_config(&adapter, viewport.width, viewport.height)
@@ -125,10 +125,7 @@ fn fragment_main() -> @location(0) vec4<f32> {
     let window = &window;
     event_loop
         .run(move |event, target| {
-            // Have the closure take ownership of the resources.
-            // `event_loop.run` never returns, therefore we must do this to ensure
-            // the resources are properly cleaned up.
-            let _ = (&instance, &adapter, &shader, &pipeline_layout);
+            let _ = (&instance, &adapter);
 
             if let Event::WindowEvent {
                 window_id: _,
@@ -141,7 +138,6 @@ fn fragment_main() -> @location(0) vec4<f32> {
                         config.width = new_size.width.max(1).min(max_texture_size);
                         config.height = new_size.height.max(1).min(max_texture_size);
                         surface.configure(&device, &config);
-                        // On macos the window needs to be redrawn manually after resizing
                         window.request_redraw();
                     }
                     WindowEvent::RedrawRequested => {
@@ -155,6 +151,29 @@ fn fragment_main() -> @location(0) vec4<f32> {
                             device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
                                 label: None,
                             });
+
+                        // Run compute pass. TODO: Share this code!
+                        {
+                            let invoc_size =
+                                (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
+                            let mut cpass =
+                                encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                                    label: None,
+                                    timestamp_writes: None,
+                                });
+                            cpass.set_pipeline(&compute_pipeline);
+                            cpass.set_bind_group(0, &compute_bind_group, &[]);
+                            cpass.insert_debug_marker("execute bytecode");
+                            assert!(invoc_size.0 % WORKGROUP_SIZE_X == 0);
+                            assert!(invoc_size.1 % WORKGROUP_SIZE_Y == 0);
+                            cpass.dispatch_workgroups(
+                                invoc_size.0 / WORKGROUP_SIZE_X,
+                                invoc_size.1 / WORKGROUP_SIZE_Y,
+                                1,
+                            );
+                        }
+
+                        // Run render pass
                         {
                             let mut rpass =
                                 encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -171,8 +190,8 @@ fn fragment_main() -> @location(0) vec4<f32> {
                                     timestamp_writes: None,
                                     occlusion_query_set: None,
                                 });
-                            rpass.set_pipeline(&pipeline);
-                            rpass.set_bind_group(0, &bind_group, &[]);
+                            rpass.set_pipeline(&render_pipeline);
+                            rpass.set_bind_group(0, &render_bind_group, &[]);
                             rpass.draw(0..6, 0..1);
                         }
 

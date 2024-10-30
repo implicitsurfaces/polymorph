@@ -1,10 +1,9 @@
-// TODO: actual shared code here. Just adding this constant to test notebook integration.
-pub const HELLO: &'static str = "WORLD";
-
 use bincode;
 use fidget::compiler::RegOp;
 use std::{borrow::Cow, str::FromStr};
 use wgpu::util::DeviceExt;
+
+pub mod sdf;
 
 pub fn tape_to_bytes(tape: &[RegOp]) -> Vec<u8> {
     let mut ans: Vec<u8> = Vec::new();
@@ -154,8 +153,14 @@ const REG_COUNT: u32 = {}u;
         .replace("{ shared_constants }", shared_constants.as_ref())
 }
 
+pub enum Pipeline<'a> {
+    Compute(&'a wgpu::ComputePipeline),
+    Render(&'a wgpu::RenderPipeline),
+}
+
 pub fn setup_gpu_buffers(
     device: &wgpu::Device,
+    pipeline: Pipeline,
     tape: &[RegOp],
     invoc_size: (u32, u32),
     viewport: Viewport,
@@ -167,6 +172,7 @@ pub fn setup_gpu_buffers(
     wgpu::Buffer,
     wgpu::Buffer,
     wgpu::Buffer,
+    wgpu::BindGroup,
 ) {
     let storage_buffer = {
         assert!(
@@ -231,6 +237,32 @@ pub fn setup_gpu_buffers(
         mapped_at_creation: false,
     });
 
+    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: None,
+        layout: &match pipeline {
+            Pipeline::Compute(p) => p.get_bind_group_layout(0),
+            Pipeline::Render(p) => p.get_bind_group_layout(0),
+        },
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: storage_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: uniform_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: output_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: dimensions_buffer.as_entire_binding(),
+            },
+        ],
+    });
+
     (
         storage_buffer,
         uniform_buffer,
@@ -239,5 +271,6 @@ pub fn setup_gpu_buffers(
         output_staging_buffer,
         timestamp_resolve_buffer,
         timestamp_readback_buffer,
+        bind_group,
     )
 }

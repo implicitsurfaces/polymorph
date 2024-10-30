@@ -47,16 +47,6 @@ async fn evaluate_tape(
 
     let invoc_size = (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
 
-    let (
-        storage_buffer,
-        uniform_buffer,
-        dimensions_buffer,
-        output_buffer,
-        output_staging_buffer,
-        timestamp_resolve_buffer,
-        timestamp_readback_buffer,
-    ) = setup_gpu_buffers(device, tape, invoc_size, viewport);
-
     let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
         label: None,
         layout: None,
@@ -66,28 +56,22 @@ async fn evaluate_tape(
         cache: None,
     });
 
-    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: None,
-        layout: &compute_pipeline.get_bind_group_layout(0),
-        entries: &[
-            wgpu::BindGroupEntry {
-                binding: 0,
-                resource: storage_buffer.as_entire_binding(),
-            },
-            wgpu::BindGroupEntry {
-                binding: 1,
-                resource: uniform_buffer.as_entire_binding(),
-            },
-            wgpu::BindGroupEntry {
-                binding: 2,
-                resource: output_buffer.as_entire_binding(),
-            },
-            wgpu::BindGroupEntry {
-                binding: 3,
-                resource: dimensions_buffer.as_entire_binding(),
-            },
-        ],
-    });
+    let (
+        storage_buffer,
+        uniform_buffer,
+        dimensions_buffer,
+        output_buffer,
+        output_staging_buffer,
+        timestamp_resolve_buffer,
+        timestamp_readback_buffer,
+        bind_group,
+    ) = setup_gpu_buffers(
+        device,
+        Pipeline::Compute(&compute_pipeline),
+        tape,
+        invoc_size,
+        viewport,
+    );
 
     // Create timestamp query set
     let timestamp_query_set = device.create_query_set(&wgpu::QuerySetDescriptor {
@@ -204,6 +188,7 @@ mod test {
         var::Var,
         vm::VmData,
     };
+    use sdf::*;
 
     #[test]
     fn test_fidget_gpu_eval() {
@@ -256,18 +241,6 @@ mod test {
             jit_evaluate(&tree, viewport).as_slice(),
             epsilon = 1e-1
         );
-    }
-
-    fn smooth_union(trees: Vec<Tree>) -> Tree {
-        trees
-            .into_iter()
-            .reduce(|a, b| {
-                let k = 0.1;
-                let k_doubled = k * 2.0;
-                let x = b.clone() - a.clone();
-                0.5 * (a + b - (x.square() + k_doubled * k_doubled).sqrt())
-            })
-            .unwrap()
     }
 
     #[test]

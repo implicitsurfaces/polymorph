@@ -8,23 +8,13 @@ use winit::{
 };
 
 async fn run(event_loop: EventLoop<()>, window: Window) {
-    let shader = "
-@vertex
-fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position) vec4<f32> {
-    let x = f32(i32(in_vertex_index) - 1);
-    let y = f32(i32(in_vertex_index & 1u) * 2 - 1);
-    return vec4<f32>(x, y, 0.0, 1.0);
-}
-
+    let shader_base = shader_source();
+    let fragment_shader = "
 @fragment
 fn fs_main() -> @location(0) vec4<f32> {
     return vec4<f32>(1.0, 0.0, 0.0, 1.0);
 }
 ";
-
-    let mut size = window.inner_size();
-    size.width = size.width.max(1);
-    size.height = size.height.max(1);
 
     // You can specify a backend (Vulkan, Metal, etc.)here if desired.
     let instance = wgpu::Instance::default();
@@ -38,9 +28,104 @@ fn fs_main() -> @location(0) vec4<f32> {
 
     let (adapter, device, queue) = create_device(&instance, &options).await;
 
+    let shader = shader_base + fragment_shader;
+
+    let viewport = {
+        let mut size = window.inner_size();
+        size.width = size.width.max(1);
+        size.height = size.height.max(1);
+
+        Viewport {
+            width: size.width,
+            height: size.height,
+        }
+    };
+
+    let invoc_size = (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
+
+    let tape = {
+        use fidget::{
+            compiler::RegOp,
+            context::{Context, Tree},
+            jit::JitShape,
+            shape::EzShape,
+            var::Var,
+            vm::VmData,
+        };
+        use gpu_interp::sdf::*;
+
+        fn circle(center_x: f64, center_y: f64, radius: f64) -> Tree {
+            let dx = Tree::constant(center_x) - Tree::x();
+            let dy = Tree::constant(center_y) - Tree::y();
+            let dist = (dx.square() + dy.square()).sqrt();
+            return dist - radius;
+        }
+
+        let mut circles = Vec::new();
+        for i in 0..2 {
+            for j in 0..2 {
+                let center_x = i as f64;
+                let center_y = j as f64;
+                circles.push(circle(center_x, center_y, 0.5));
+            }
+        }
+        let tree = smooth_union(circles);
+        let mut ctx = Context::new();
+        let node = ctx.import(&tree);
+        let data = VmData::<REG_COUNT>::new(&ctx, &[node]).unwrap();
+
+        data.iter_asm().collect::<Vec<_>>()
+    };
+
+    let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: None,
+        entries: &[
+            wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 2,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: false },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 3,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+        ],
+    });
+
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: None,
-        bind_group_layouts: &[],
+        bind_group_layouts: &[&bind_group_layout],
         push_constant_ranges: &[],
     });
 
@@ -49,7 +134,7 @@ fn fs_main() -> @location(0) vec4<f32> {
 
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
-        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(shader)),
+        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&shader)),
     });
 
     let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -80,8 +165,25 @@ fn fs_main() -> @location(0) vec4<f32> {
         cache: None,
     });
 
+    let (
+        storage_buffer,
+        uniform_buffer,
+        dimensions_buffer,
+        output_buffer,
+        output_staging_buffer,
+        timestamp_resolve_buffer,
+        timestamp_readback_buffer,
+        bind_group,
+    ) = setup_gpu_buffers(
+        &device,
+        Pipeline::Render(&render_pipeline),
+        &tape,
+        invoc_size,
+        viewport,
+    );
+
     let mut config = surface
-        .get_default_config(&adapter, size.width, size.height)
+        .get_default_config(&adapter, viewport.width, viewport.height)
         .unwrap();
     surface.configure(&device, &config);
 
@@ -100,9 +202,9 @@ fn fs_main() -> @location(0) vec4<f32> {
             {
                 match event {
                     WindowEvent::Resized(new_size) => {
-                        // Reconfigure the surface with the new size
-                        config.width = new_size.width.max(1);
-                        config.height = new_size.height.max(1);
+                        let max_texture_size = device.limits().max_texture_dimension_2d;
+                        config.width = new_size.width.max(1).min(max_texture_size);
+                        config.height = new_size.height.max(1).min(max_texture_size);
                         surface.configure(&device, &config);
                         // On macos the window needs to be redrawn manually after resizing
                         window.request_redraw();
@@ -135,7 +237,8 @@ fn fs_main() -> @location(0) vec4<f32> {
                                     occlusion_query_set: None,
                                 });
                             rpass.set_pipeline(&render_pipeline);
-                            rpass.draw(0..3, 0..1);
+                            rpass.set_bind_group(0, &bind_group, &[]);
+                            rpass.draw(0..6, 0..1);
                         }
 
                         queue.submit(Some(encoder.finish()));

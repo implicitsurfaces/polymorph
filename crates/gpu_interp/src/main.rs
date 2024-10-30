@@ -3,118 +3,8 @@
 
 use gpu_interp::*;
 
-use bincode;
 use fidget::compiler::RegOp;
 use std::{borrow::Cow, str::FromStr};
-use wgpu::util::DeviceExt;
-
-const WORKGROUP_SIZE_X: u32 = 16;
-const WORKGROUP_SIZE_Y: u32 = 16;
-const MAX_TAPE_LEN_REGOPS: u32 = 32768;
-const REG_COUNT: usize = 32;
-
-fn shader_source() -> String {
-    let shared_constants = format!(
-        r#"
-const WORKGROUP_SIZE_X: u32 = {}u;
-const WORKGROUP_SIZE_Y: u32 = {}u;
-const MAX_TAPE_LEN_REGOPS: u32 = {}u;
-const BYTECODE_ARRAY_LEN: u32 = MAX_TAPE_LEN_REGOPS * 2u;
-const REG_COUNT: u32 = {}u;
-    "#,
-        WORKGROUP_SIZE_X, WORKGROUP_SIZE_Y, MAX_TAPE_LEN_REGOPS, REG_COUNT
-    );
-    include_str!("shader-in.wgsl")
-        .to_string()
-        .replace("{ shared_constants }", shared_constants.as_ref())
-}
-
-fn tape_to_bytes(tape: &[RegOp]) -> Vec<u8> {
-    let mut ans: Vec<u8> = Vec::new();
-    for op in tape {
-        // This is very naughty! bincode will serialize the enum discriminant
-        // as a u32, but we know that the discriminant is always a single byte.
-        let tag = bincode::serialize(op).unwrap()[0];
-        let mut repr = [0u8; 8];
-        repr[0] = tag;
-        match op {
-            RegOp::Input(out, i) => {
-                repr[1] = *out;
-                repr[4..8].copy_from_slice(&i.to_le_bytes());
-            }
-            RegOp::Output(arg, i) => {
-                repr[1] = *arg;
-                repr[4..8].copy_from_slice(&i.to_le_bytes());
-            }
-            RegOp::NegReg(out, arg)
-            | RegOp::AbsReg(out, arg)
-            | RegOp::RecipReg(out, arg)
-            | RegOp::SqrtReg(out, arg)
-            | RegOp::SquareReg(out, arg)
-            | RegOp::FloorReg(out, arg)
-            | RegOp::CeilReg(out, arg)
-            | RegOp::RoundReg(out, arg)
-            | RegOp::SinReg(out, arg)
-            | RegOp::CosReg(out, arg)
-            | RegOp::TanReg(out, arg)
-            | RegOp::AsinReg(out, arg)
-            | RegOp::AcosReg(out, arg)
-            | RegOp::AtanReg(out, arg)
-            | RegOp::ExpReg(out, arg)
-            | RegOp::LnReg(out, arg)
-            | RegOp::NotReg(out, arg)
-            | RegOp::CopyReg(out, arg) => {
-                repr[1] = *out;
-                repr[2] = *arg;
-            }
-            RegOp::AddRegImm(out, arg, imm)
-            | RegOp::MulRegImm(out, arg, imm)
-            | RegOp::DivRegImm(out, arg, imm)
-            | RegOp::DivImmReg(out, arg, imm)
-            | RegOp::AtanRegImm(out, arg, imm)
-            | RegOp::AtanImmReg(out, arg, imm)
-            | RegOp::SubImmReg(out, arg, imm)
-            | RegOp::SubRegImm(out, arg, imm)
-            | RegOp::MinRegImm(out, arg, imm)
-            | RegOp::MaxRegImm(out, arg, imm)
-            | RegOp::AndRegImm(out, arg, imm)
-            | RegOp::OrRegImm(out, arg, imm)
-            | RegOp::ModRegImm(out, arg, imm)
-            | RegOp::ModImmReg(out, arg, imm)
-            | RegOp::CompareRegImm(out, arg, imm)
-            | RegOp::CompareImmReg(out, arg, imm) => {
-                repr[1] = *out;
-                repr[2] = *arg;
-                repr[4..8].copy_from_slice(&imm.to_le_bytes());
-            }
-            RegOp::AtanRegReg(out, lhs, rhs)
-            | RegOp::AndRegReg(out, lhs, rhs)
-            | RegOp::OrRegReg(out, lhs, rhs)
-            | RegOp::ModRegReg(out, lhs, rhs)
-            | RegOp::AddRegReg(out, lhs, rhs)
-            | RegOp::MulRegReg(out, lhs, rhs)
-            | RegOp::DivRegReg(out, lhs, rhs)
-            | RegOp::SubRegReg(out, lhs, rhs)
-            | RegOp::CompareRegReg(out, lhs, rhs)
-            | RegOp::MinRegReg(out, lhs, rhs)
-            | RegOp::MaxRegReg(out, lhs, rhs) => {
-                repr[1] = *out;
-                repr[2] = *lhs;
-                repr[3] = *rhs;
-            }
-            RegOp::CopyImm(out, imm) => {
-                repr[3] = *out;
-                repr[4..8].copy_from_slice(&imm.to_le_bytes());
-            }
-            RegOp::Load(out, mem) | RegOp::Store(out, mem) => {
-                repr[3] = *out;
-                repr[4..8].copy_from_slice(&mem.to_le_bytes());
-            }
-        }
-        ans.extend_from_slice(&repr);
-    }
-    ans
-}
 
 #[cfg_attr(test, allow(dead_code))]
 async fn run() {
@@ -135,74 +25,37 @@ async fn run() {
 }
 
 #[cfg_attr(test, allow(dead_code))]
-async fn execute_gpu(tape: &[RegOp], data_size: (u32, u32)) -> Option<Vec<f32>> {
+async fn execute_gpu(tape: &[RegOp], viewport: Viewport) -> Option<Vec<f32>> {
     // eprintln!("Executing bytecode: {:?}", tape);
 
     let instance = wgpu::Instance::default();
     let options = wgpu::RequestAdapterOptions::default();
     let (_, device, queue) = create_device(&instance, &options).await;
-    execute_gpu_inner(&device, &queue, tape, data_size).await
+    evaluate_tape(&device, &queue, tape, viewport).await
 }
 
-async fn execute_gpu_inner(
+async fn evaluate_tape(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     tape: &[RegOp],
-    data_size: (u32, u32),
+    viewport: Viewport,
 ) -> Option<Vec<f32>> {
     let cs_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
         source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source())),
     });
-    let invoc_size = (data_size.0 / 4, data_size.1);
 
-    let storage_buffer = {
-        assert!(
-            tape.len() <= MAX_TAPE_LEN_REGOPS as usize,
-            "Tape too long: {:?}",
-            tape.len()
-        );
-        let mut contents = vec![0u8; MAX_TAPE_LEN_REGOPS as usize * std::mem::size_of::<RegOp>()];
-        let tape_bytes = tape_to_bytes(tape);
-        contents[..tape_bytes.len()].copy_from_slice(&tape_bytes);
-        // eprintln!("tape bytes {:?}", tape_bytes);
+    let invoc_size = (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
 
-        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Storage Buffer"),
-            contents: &contents,
-            usage: wgpu::BufferUsages::STORAGE
-                | wgpu::BufferUsages::COPY_DST
-                | wgpu::BufferUsages::COPY_SRC,
-        })
-    };
-
-    let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Uniform Buffer"),
-        contents: bytemuck::cast_slice(&[tape.len() as u32 * 2]), // x2 because each instruction is 2 u32s
-        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-    });
-
-    let dimensions_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Dimensions Buffer"),
-        contents: bytemuck::cast_slice(&[invoc_size.0, invoc_size.1]),
-        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-    });
-
-    let output_size_bytes = data_size.0 * data_size.1 * std::mem::size_of::<f32>() as u32;
-
-    let output_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("Output Buffer"),
-        size: output_size_bytes as wgpu::BufferAddress,
-        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-        mapped_at_creation: false,
-    });
-
-    let output_staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("Output Staging Buffer"),
-        size: output_size_bytes as wgpu::BufferAddress,
-        usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
+    let (
+        storage_buffer,
+        uniform_buffer,
+        dimensions_buffer,
+        output_buffer,
+        output_staging_buffer,
+        timestamp_resolve_buffer,
+        timestamp_readback_buffer,
+    ) = setup_gpu_buffers(device, tape, invoc_size, viewport);
 
     let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
         label: None,
@@ -243,21 +96,6 @@ async fn execute_gpu_inner(
         ty: wgpu::QueryType::Timestamp,
     });
 
-    // Create two buffers for timestamps
-    let timestamp_resolve_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("Timestamp Resolve Buffer"),
-        size: 16, // 2 u64 values
-        usage: wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::QUERY_RESOLVE,
-        mapped_at_creation: false,
-    });
-
-    let timestamp_readback_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("Timestamp Readback Buffer"),
-        size: 16, // 2 u64 values
-        usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
-
     // A command encoder executes one or many pipelines.
     let mut encoder =
         device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
@@ -287,7 +125,7 @@ async fn execute_gpu_inner(
         0,
         &output_staging_buffer,
         0,
-        output_size_bytes as wgpu::BufferAddress,
+        viewport.byte_size() as wgpu::BufferAddress,
     );
 
     // Resolve timestamp query results
@@ -381,10 +219,13 @@ mod test {
         assert_eq!(iter.next().unwrap(), RegOp::AddRegImm(0, 0, 1.0));
         assert_eq!(iter.next().unwrap(), RegOp::Output(0, 0));
 
-        let data_size = (64, 16);
+        let viewport = Viewport {
+            width: 64,
+            height: 16,
+        };
         let bytecode = data.iter_asm().collect::<Vec<_>>();
-        let result = pollster::block_on(execute_gpu(&bytecode, data_size));
-        assert_eq!(result.unwrap(), jit_evaluate(&tree, data_size));
+        let result = pollster::block_on(execute_gpu(&bytecode, viewport));
+        assert_eq!(result.unwrap(), jit_evaluate(&tree, viewport));
     }
 
     #[test]
@@ -403,13 +244,16 @@ mod test {
         let data = VmData::<REG_COUNT>::new(&ctx, &[node]).unwrap();
         // debug!("{:?}", data.iter_asm().collect::<Vec<_>>());
 
-        let data_size = (64, 64);
+        let viewport = Viewport {
+            width: 64,
+            height: 64,
+        };
         let bytecode = data.iter_asm().collect::<Vec<_>>();
         // eprintln!("{:?}", bytecode);
-        let result = pollster::block_on(execute_gpu(&bytecode, data_size));
+        let result = pollster::block_on(execute_gpu(&bytecode, viewport));
         assert_relative_eq!(
             result.unwrap().as_slice(),
-            jit_evaluate(&tree, data_size).as_slice(),
+            jit_evaluate(&tree, viewport).as_slice(),
             epsilon = 1e-1
         );
     }
@@ -445,13 +289,16 @@ mod test {
 
         eprintln!("Bytecode compilation took {:?}", duration);
 
-        let data_size = (512, 512);
+        let viewport = Viewport {
+            width: 512,
+            height: 512,
+        };
         let bytecode = data.iter_asm().collect::<Vec<_>>();
         // debug!("{:?}", bytecode);
-        let result = pollster::block_on(execute_gpu(&bytecode, data_size));
+        let result = pollster::block_on(execute_gpu(&bytecode, viewport));
         assert_relative_eq!(
             result.unwrap().as_slice(),
-            jit_evaluate(&tree, data_size).as_slice(),
+            jit_evaluate(&tree, viewport).as_slice(),
             epsilon = 1.0
         );
     }
@@ -490,16 +337,16 @@ mod test {
         (x, y, z)
     }
 
-    fn jit_evaluate(tree: &Tree, data_size: (u32, u32)) -> Vec<f32> {
+    fn jit_evaluate(tree: &Tree, viewport: Viewport) -> Vec<f32> {
         let shape = JitShape::from(tree.clone());
         let tape = shape.ez_float_slice_tape();
         let mut eval = JitShape::new_float_slice_eval();
 
         let (x, y, z) = grid_sample(
-            data_size.0 as f32 - 1.0,
-            data_size.1 as f32 - 1.0,
-            data_size.0,
-            data_size.1,
+            viewport.width as f32 - 1.0,
+            viewport.height as f32 - 1.0,
+            viewport.width,
+            viewport.height,
         );
 
         let start = std::time::Instant::now();

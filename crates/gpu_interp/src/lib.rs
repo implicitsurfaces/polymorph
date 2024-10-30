@@ -158,23 +158,23 @@ pub enum Pipeline<'a> {
     Render(&'a wgpu::RenderPipeline),
 }
 
-pub fn setup_buffers(
+pub struct Buffers {
+    pub bytecode_buffer: wgpu::Buffer,
+    pub pc_max_buffer: wgpu::Buffer,
+    pub output_buffer: wgpu::Buffer,
+    pub output_staging_buffer: wgpu::Buffer,
+    pub dims_buffer: wgpu::Buffer,
+    pub timestamp_resolve_buffer: wgpu::Buffer,
+    pub timestamp_readback_buffer: wgpu::Buffer,
+}
+
+pub fn create_buffers(
     device: &wgpu::Device,
-    pipeline: Pipeline,
     tape: &[RegOp],
     invoc_size: (u32, u32),
     viewport: Viewport,
-) -> (
-    wgpu::Buffer,
-    wgpu::Buffer,
-    wgpu::Buffer,
-    wgpu::Buffer,
-    wgpu::Buffer,
-    wgpu::Buffer,
-    wgpu::Buffer,
-    wgpu::BindGroup,
-) {
-    let storage_buffer = {
+) -> Buffers {
+    let bytecode_buffer = {
         assert!(
             tape.len() <= MAX_TAPE_LEN_REGOPS as usize,
             "Tape too long: {:?}",
@@ -186,7 +186,7 @@ pub fn setup_buffers(
         // eprintln!("tape bytes {:?}", tape_bytes);
 
         device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Storage Buffer"),
+            label: Some("Bytecode Buffer"),
             contents: &contents,
             usage: wgpu::BufferUsages::STORAGE
                 | wgpu::BufferUsages::COPY_DST
@@ -194,15 +194,9 @@ pub fn setup_buffers(
         })
     };
 
-    let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Uniform Buffer"),
+    let pc_max_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("pc_max Buffer"),
         contents: bytemuck::cast_slice(&[tape.len() as u32 * 2]), // x2 because each instruction is 2 u32s
-        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-    });
-
-    let dimensions_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Dimensions Buffer"),
-        contents: bytemuck::cast_slice(&[invoc_size.0, invoc_size.1]),
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
 
@@ -222,6 +216,12 @@ pub fn setup_buffers(
         mapped_at_creation: false,
     });
 
+    let dims_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Dimensions Buffer"),
+        contents: bytemuck::cast_slice(&[invoc_size.0, invoc_size.1]),
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+    });
+
     // Create two buffers for timestamps
     let timestamp_resolve_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Timestamp Resolve Buffer"),
@@ -236,43 +236,44 @@ pub fn setup_buffers(
         usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
     });
+    Buffers {
+        bytecode_buffer,
+        pc_max_buffer,
+        output_buffer,
+        output_staging_buffer,
+        dims_buffer,
+        timestamp_resolve_buffer,
+        timestamp_readback_buffer,
+    }
+}
 
-    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+pub fn create_bind_group(
+    device: &wgpu::Device,
+    buffers: &Buffers,
+    layout: &wgpu::BindGroupLayout,
+) -> wgpu::BindGroup {
+    device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: None,
-        layout: &match pipeline {
-            Pipeline::Compute(p) => p.get_bind_group_layout(0),
-            Pipeline::Render(p) => p.get_bind_group_layout(0),
-        },
+        layout,
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: storage_buffer.as_entire_binding(),
+                resource: buffers.bytecode_buffer.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: uniform_buffer.as_entire_binding(),
+                resource: buffers.pc_max_buffer.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 2,
-                resource: output_buffer.as_entire_binding(),
+                resource: buffers.output_buffer.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 3,
-                resource: dimensions_buffer.as_entire_binding(),
+                resource: buffers.dims_buffer.as_entire_binding(),
             },
         ],
-    });
-
-    (
-        storage_buffer,
-        uniform_buffer,
-        dimensions_buffer,
-        output_buffer,
-        output_staging_buffer,
-        timestamp_resolve_buffer,
-        timestamp_readback_buffer,
-        bind_group,
-    )
+    })
 }
 
 pub fn setup_pipeline_layout(

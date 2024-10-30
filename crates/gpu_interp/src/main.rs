@@ -19,60 +19,37 @@ async fn run() {
             .collect()
     };
 
-    // let result = execute_gpu(&numbers).await.unwrap();
+    // let result = evaluate_tape(&numbers).await.unwrap();
 
     println!("Output: {:?}", numbers);
 }
 
-#[cfg_attr(test, allow(dead_code))]
-async fn execute_gpu(tape: &[RegOp], viewport: Viewport) -> Option<Vec<f32>> {
-    // eprintln!("Executing bytecode: {:?}", tape);
+#[allow(dead_code)]
+async fn evaluate_tape(tape: &[RegOp], viewport: Viewport) -> Option<Vec<f32>> {
+    let (_, device, queue) = create_device(
+        &wgpu::Instance::default(),
+        &wgpu::RequestAdapterOptions::default(),
+    )
+    .await;
 
-    let instance = wgpu::Instance::default();
-    let options = wgpu::RequestAdapterOptions::default();
-    let (_, device, queue) = create_device(&instance, &options).await;
-    evaluate_tape(&device, &queue, tape, viewport).await
-}
-
-async fn evaluate_tape(
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    tape: &[RegOp],
-    viewport: Viewport,
-) -> Option<Vec<f32>> {
-    let cs_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+    let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
         source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source())),
     });
 
     let invoc_size = (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
 
-    let pipeline_layout = setup_pipeline_layout(&device, wgpu::ShaderStages::COMPUTE);
-    let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+    let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
         label: None,
-        layout: Some(&pipeline_layout),
-        module: &cs_module,
+        layout: Some(&setup_pipeline_layout(&device, wgpu::ShaderStages::COMPUTE)),
+        module: &shader_module,
         entry_point: "compute_main",
         compilation_options: Default::default(),
         cache: None,
     });
 
-    let (
-        storage_buffer,
-        uniform_buffer,
-        dimensions_buffer,
-        output_buffer,
-        output_staging_buffer,
-        timestamp_resolve_buffer,
-        timestamp_readback_buffer,
-        bind_group,
-    ) = setup_buffers(
-        device,
-        Pipeline::Compute(&compute_pipeline),
-        tape,
-        invoc_size,
-        viewport,
-    );
+    let buffers = create_buffers(&device, tape, invoc_size, viewport);
+    let bind_group = create_bind_group(&device, &buffers, &pipeline.get_bind_group_layout(0));
 
     // Create timestamp query set
     let timestamp_query_set = device.create_query_set(&wgpu::QuerySetDescriptor {
@@ -93,7 +70,7 @@ async fn evaluate_tape(
                 end_of_pass_write_index: Some(1),
             }),
         });
-        cpass.set_pipeline(&compute_pipeline);
+        cpass.set_pipeline(&pipeline);
         cpass.set_bind_group(0, &bind_group, &[]);
         cpass.insert_debug_marker("execute bytecode");
         assert!(invoc_size.0 % WORKGROUP_SIZE_X == 0);
@@ -106,21 +83,26 @@ async fn evaluate_tape(
     }
     // Copy the result from the output buffer to the staging buffer
     encoder.copy_buffer_to_buffer(
-        &output_buffer,
+        &buffers.output_buffer,
         0,
-        &output_staging_buffer,
+        &buffers.output_staging_buffer,
         0,
         viewport.byte_size() as wgpu::BufferAddress,
     );
 
     // Resolve timestamp query results
-    encoder.resolve_query_set(&timestamp_query_set, 0..2, &timestamp_resolve_buffer, 0);
+    encoder.resolve_query_set(
+        &timestamp_query_set,
+        0..2,
+        &buffers.timestamp_resolve_buffer,
+        0,
+    );
 
     // Copy timestamp results from resolve buffer to readback buffer
     encoder.copy_buffer_to_buffer(
-        &timestamp_resolve_buffer,
+        &buffers.timestamp_resolve_buffer,
         0,
-        &timestamp_readback_buffer,
+        &buffers.timestamp_readback_buffer,
         0,
         16,
     );
@@ -129,7 +111,7 @@ async fn evaluate_tape(
     queue.submit(Some(encoder.finish()));
 
     // Sets up staging buffer for mapping, sending the result back when finished.
-    let buffer_slice = output_staging_buffer.slice(..);
+    let buffer_slice = buffers.output_staging_buffer.slice(..);
     let (sender, receiver) = flume::bounded(1);
     buffer_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
 
@@ -145,10 +127,10 @@ async fn evaluate_tape(
 
         // Unmap buffer
         drop(data);
-        output_staging_buffer.unmap();
+        buffers.output_staging_buffer.unmap();
 
         // Map the timestamp readback buffer and read the results
-        let timestamp_slice = timestamp_readback_buffer.slice(..);
+        let timestamp_slice = buffers.timestamp_readback_buffer.slice(..);
         let (sender, receiver) = flume::bounded(1);
         timestamp_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
         device.poll(wgpu::Maintain::wait()).panic_on_timeout();
@@ -162,7 +144,7 @@ async fn evaluate_tape(
                 duration_ns as f32 / 1_000_000.0
             );
             drop(timestamp_data);
-            timestamp_readback_buffer.unmap();
+            buffers.timestamp_readback_buffer.unmap();
         }
 
         // Returns data from buffer
@@ -210,7 +192,7 @@ mod test {
             height: 16,
         };
         let bytecode = data.iter_asm().collect::<Vec<_>>();
-        let result = pollster::block_on(execute_gpu(&bytecode, viewport));
+        let result = pollster::block_on(evaluate_tape(&bytecode, viewport));
         assert_eq!(result.unwrap(), jit_evaluate(&tree, viewport));
     }
 
@@ -236,7 +218,7 @@ mod test {
         };
         let bytecode = data.iter_asm().collect::<Vec<_>>();
         // eprintln!("{:?}", bytecode);
-        let result = pollster::block_on(execute_gpu(&bytecode, viewport));
+        let result = pollster::block_on(evaluate_tape(&bytecode, viewport));
         assert_relative_eq!(
             result.unwrap().as_slice(),
             jit_evaluate(&tree, viewport).as_slice(),
@@ -269,7 +251,7 @@ mod test {
         };
         let bytecode = data.iter_asm().collect::<Vec<_>>();
         // debug!("{:?}", bytecode);
-        let result = pollster::block_on(execute_gpu(&bytecode, viewport));
+        let result = pollster::block_on(evaluate_tape(&bytecode, viewport));
         assert_relative_eq!(
             result.unwrap().as_slice(),
             jit_evaluate(&tree, viewport).as_slice(),

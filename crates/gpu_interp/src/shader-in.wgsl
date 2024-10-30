@@ -91,7 +91,7 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 }
 
 @vertex
-fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position) vec4<f32> {
+fn vertex_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position) vec4<f32> {
     // Create vertices for two triangles that form a quad
     var pos = array<vec2<f32>, 6>(
         vec2<f32>(-1.0, -1.0),  // Triangle 1
@@ -101,6 +101,6 @@ fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position) ve
         vec2<f32>( 1.0,  1.0),
         vec2<f32>(-1.0,  1.0)
     );
-    
+
     return vec4<f32>(pos[in_vertex_index], 0.0, 1.0);
 }

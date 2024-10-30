@@ -11,7 +11,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     let shader_base = shader_source();
     let fragment_shader = "
 @fragment
-fn fs_main() -> @location(0) vec4<f32> {
+fn fragment_main() -> @location(0) vec4<f32> {
     return vec4<f32>(1.0, 0.0, 0.0, 1.0);
 }
 ";
@@ -86,18 +86,18 @@ fn fs_main() -> @location(0) vec4<f32> {
     });
 
     let pipeline_layout = setup_pipeline_layout(&device, wgpu::ShaderStages::FRAGMENT);
-    let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+    let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: None,
         layout: Some(&pipeline_layout),
         vertex: wgpu::VertexState {
             module: &shader,
-            entry_point: "vs_main",
+            entry_point: "vertex_main",
             buffers: &[],
             compilation_options: Default::default(),
         },
         fragment: Some(wgpu::FragmentState {
             module: &shader,
-            entry_point: "fs_main",
+            entry_point: "fragment_main",
             compilation_options: Default::default(),
             targets: &[Some(swapchain_format.into())],
         }),
@@ -114,22 +114,8 @@ fn fs_main() -> @location(0) vec4<f32> {
         cache: None,
     });
 
-    let (
-        storage_buffer,
-        uniform_buffer,
-        dimensions_buffer,
-        output_buffer,
-        output_staging_buffer,
-        timestamp_resolve_buffer,
-        timestamp_readback_buffer,
-        bind_group,
-    ) = setup_buffers(
-        &device,
-        Pipeline::Render(&render_pipeline),
-        &tape,
-        invoc_size,
-        viewport,
-    );
+    let buffers = create_buffers(&device, &tape, invoc_size, viewport);
+    let bind_group = create_bind_group(&device, &buffers, &pipeline.get_bind_group_layout(0));
 
     let mut config = surface
         .get_default_config(&adapter, viewport.width, viewport.height)
@@ -185,7 +171,7 @@ fn fs_main() -> @location(0) vec4<f32> {
                                     timestamp_writes: None,
                                     occlusion_query_set: None,
                                 });
-                            rpass.set_pipeline(&render_pipeline);
+                            rpass.set_pipeline(&pipeline);
                             rpass.set_bind_group(0, &bind_group, &[]);
                             rpass.draw(0..6, 0..1);
                         }

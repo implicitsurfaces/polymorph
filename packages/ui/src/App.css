@@ -1,0 +1,19 @@
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  overflow: hidden; /* Hide scrollbars */
+}
+
+#root {
+  background-color: #e0e0e0;
+}
+
+#canvas {
+  width: 100%;
+  height: 100%;
+}

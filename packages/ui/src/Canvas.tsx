@@ -10,7 +10,6 @@ import './Canvas.css';
 //                            Draw util
 
 function drawBackground(ctx, width, height, color) {
-  ctx.resetTransform();
   ctx.beginPath();
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, width, height);
@@ -21,17 +20,80 @@ function initializeViewTransform(ctx, camera) {
   ctx.setTransform(e[0], e[1], e[3], e[4], e[6], e[7]);
 }
 
-function drawGrid(ctx) {
-  // For now, just draw the x-axis and y-axis unclipped
-  // in world coords for testing. Because of antialiasing
-  // this looks ugly. We want to change this to draw in
-  // view coords and with pixel rounding so that we get
-  // pixel perfect 1px-wide lines.
+function moveTo(ctx, p: Vector2) {
+  ctx.moveTo(p.x, p.y);
+}
+
+function lineTo(ctx, p: Vector2) {
+  ctx.lineTo(p.x, p.y);
+}
+
+/**
+ * Similar to `x % y` but always returns a value in [0, y).
+ *
+ * More precisely, this computes `x % y`, and returns it as is
+ * if the result is zero or positive, otherwise adds `y`.
+ */
+function positiveMod(x: number, y: number) {
+  const mod = x % y;
+  return mod >= 0 ? mod : mod + y;
+}
+
+function drawGrid(ctx, camera) {
+  const sceneToView = camera.viewMatrix();
+  const viewToScene = sceneToView.clone().invert();
+  const w = camera.canvasSize.x;
+  const h = camera.canvasSize.y;
+
+  // Express view rectangle in scene coordinates
+  const p1 = new Vector2(0, 0).applyMatrix3(viewToScene);
+  const p2 = new Vector2(w, 0).applyMatrix3(viewToScene);
+  const p3 = new Vector2(w, h).applyMatrix3(viewToScene);
+  const p4 = new Vector2(0, h).applyMatrix3(viewToScene);
+
+  // Get min/max in scene coordinates
+  const xMin = Math.min(p1.x, p2.x, p3.x, p4.x);
+  const xMax = Math.max(p1.x, p2.x, p3.x, p4.x);
+  const yMin = Math.min(p1.y, p2.y, p3.y, p4.y);
+  const yMax = Math.max(p1.y, p2.y, p3.y, p4.y);
+
+  // Compute X/Y axes in view coordinates
+  const xAxis1 = new Vector2(xMin, 0);
+  const xAxis2 = new Vector2(xMax, 0);
+  const yAxis1 = new Vector2(0, yMin);
+  const yAxis2 = new Vector2(0, yMax);
+  xAxis1.applyMatrix3(sceneToView);
+  xAxis2.applyMatrix3(sceneToView);
+  yAxis1.applyMatrix3(sceneToView);
+  yAxis2.applyMatrix3(sceneToView);
+
+  // Snap to pixels for pixel-perfect rendering
+  const rotation = positiveMod(camera.rotation, 180);
+  if (rotation == 0 || rotation == 90) {
+    xAxis1.round();
+    xAxis2.round();
+    yAxis1.round();
+    yAxis2.round();
+    if (rotation == 0) {
+      xAxis1.y -= 0.5;
+      xAxis2.y -= 0.5;
+      yAxis1.x -= 0.5;
+      yAxis2.x -= 0.5;
+    } else {
+      xAxis1.x -= 0.5;
+      xAxis2.x -= 0.5;
+      yAxis1.y -= 0.5;
+      yAxis2.y -= 0.5;
+    }
+  }
+
+  // Draw X/Y axes
   ctx.beginPath();
-  ctx.moveTo(-10000, 0);
-  ctx.lineTo(10000, 0);
-  ctx.moveTo(0, -10000);
-  ctx.lineTo(0, 10000);
+  moveTo(ctx, xAxis1);
+  lineTo(ctx, xAxis2);
+  moveTo(ctx, yAxis1);
+  lineTo(ctx, yAxis2);
+  ctx.lineWidth = 1;
   ctx.stroke();
 }
 
@@ -55,9 +117,10 @@ function drawScene(ctx, scene) {
 
 function draw(canvas, camera, scene) {
   const ctx = canvas.getContext('2d');
+  ctx.resetTransform();
   drawBackground(ctx, canvas.width, canvas.height, '#e0e0e0');
+  drawGrid(ctx, camera);
   initializeViewTransform(ctx, camera);
-  drawGrid(ctx);
   drawScene(ctx, scene);
 }
 

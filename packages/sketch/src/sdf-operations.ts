@@ -1,5 +1,5 @@
 import { Angle, Point, Vec2 } from "./geom";
-import { Num, as_num } from "./num";
+import { Num, asNum } from "./num";
 import { max, min } from "./num-ops";
 import { DistField } from "./types";
 
@@ -21,8 +21,8 @@ export class Rotation implements DistField {
   ) {}
 
   distanceTo(point: Point): Num {
-    const rotated = point.vec_from_origin().rotate(this.angle.neg());
-    return this.sdf.distanceTo(rotated.point_from_origin());
+    const rotated = point.vecFromOrigin().rotate(this.angle.neg());
+    return this.sdf.distanceTo(rotated.pointFromOrigin());
   }
 }
 
@@ -34,7 +34,7 @@ export class Scaling implements DistField {
 
   distanceTo(point: Point): Num {
     return this.sdf
-      .distanceTo(point.vec_from_origin().div(this.factor).point_from_origin())
+      .distanceTo(point.vecFromOrigin().div(this.factor).pointFromOrigin())
       .mul(this.factor);
   }
 }
@@ -69,7 +69,7 @@ export class Morph implements DistField {
   ) {}
 
   distanceTo(point: Point): Num {
-    const scaled1 = as_num(1).sub(this.t).mul(this.sdf1.distanceTo(point));
+    const scaled1 = asNum(1).sub(this.t).mul(this.sdf1.distanceTo(point));
     const scaled2 = this.t.mul(this.sdf2.distanceTo(point));
     return scaled1.add(scaled2);
   }

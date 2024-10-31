@@ -1,15 +1,15 @@
 import { Point } from "./geom";
-import { Num, as_num } from "./num";
+import { Num, asNum } from "./num";
 import { hypot, max } from "./num-ops";
 
 export class Circle {
   readonly radius: Num;
   constructor(radius: Num | number) {
-    this.radius = as_num(radius);
+    this.radius = asNum(radius);
   }
 
   distanceTo(point: Point): Num {
-    return point.vec_from_origin().norm().sub(this.radius);
+    return point.vecFromOrigin().norm().sub(this.radius);
   }
 }
 
@@ -17,18 +17,18 @@ export class Box {
   readonly width: Num;
   readonly height: Num;
   constructor(width: Num | number, height: Num | number) {
-    this.width = as_num(width);
-    this.height = as_num(height);
+    this.width = asNum(width);
+    this.height = asNum(height);
   }
 
   distanceTo(point: Point): Num {
-    const half_width = this.width.div(2);
-    const half_height = this.height.div(2);
+    const halfWidth = this.width.div(2);
+    const halfHeight = this.height.div(2);
 
-    const q_x = point.x.smoothabs().sub(half_width);
-    const q_y = point.y.smoothabs().sub(half_height);
+    const qX = point.x.smoothabs().sub(halfWidth);
+    const qY = point.y.smoothabs().sub(halfHeight);
 
-    return hypot(q_x.softplus(), q_y.softplus()).add(max(q_x, q_y).softminus());
+    return hypot(qX.softplus(), qY.softplus()).add(max(qX, qY).softminus());
   }
 }
 

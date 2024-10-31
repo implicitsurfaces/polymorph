@@ -1,7 +1,7 @@
 import type { BinaryOperation, UnaryOperation } from "./num-tree";
 import { NumNode, LiteralNum, BinaryOp, UnaryOp } from "./num-tree";
 
-export function as_num(n: number | Num): Num {
+export function asNum(n: number | Num): Num {
   if (n instanceof Num) {
     return n;
   }
@@ -22,16 +22,16 @@ export class Num {
     this.n = n;
   }
   add(other: Num | number) {
-    return binaryOpNum("ADD", this, as_num(other));
+    return binaryOpNum("ADD", this, asNum(other));
   }
   sub(other: Num | number) {
-    return binaryOpNum("SUB", this, as_num(other));
+    return binaryOpNum("SUB", this, asNum(other));
   }
   mul(other: Num | number) {
-    return binaryOpNum("MUL", this, as_num(other));
+    return binaryOpNum("MUL", this, asNum(other));
   }
   div(other: Num | number) {
-    return binaryOpNum("DIV", this, as_num(other));
+    return binaryOpNum("DIV", this, asNum(other));
   }
   sqrt() {
     return unaryOpNum("SQRT", this);
@@ -40,7 +40,7 @@ export class Num {
     return unaryOpNum("NEG", this);
   }
   inv() {
-    return binaryOpNum("DIV", as_num(1), this);
+    return binaryOpNum("DIV", asNum(1), this);
   }
   sign() {
     return unaryOpNum("SIGN", this);
@@ -59,7 +59,7 @@ export class Num {
     // It uses the log-sum-exp trick to avoid numerical instability.
     const factor = 50;
     const val = this.mul(factor);
-    const amax = binaryOpNum("MAX", val, as_num(0));
+    const amax = binaryOpNum("MAX", val, asNum(0));
     return val.abs().neg().exp().log1p().add(amax).div(factor);
   }
   softminus() {
@@ -97,37 +97,37 @@ export class Num {
   }
 
   compare(other: Num | number) {
-    return binaryOpNum("COMPARE", this, as_num(other));
+    return binaryOpNum("COMPARE", this, asNum(other));
   }
   and(other: Num | number) {
-    return binaryOpNum("AND", this, as_num(other));
+    return binaryOpNum("AND", this, asNum(other));
   }
   or(other: Num | number) {
-    return binaryOpNum("OR", this, as_num(other));
+    return binaryOpNum("OR", this, asNum(other));
   }
   not() {
     return unaryOpNum("NOT", this);
   }
   max(other: Num | number) {
-    return binaryOpNum("MAX", this, as_num(other));
+    return binaryOpNum("MAX", this, asNum(other));
   }
   min(other: Num | number) {
-    return binaryOpNum("MIN", this, as_num(other));
+    return binaryOpNum("MIN", this, asNum(other));
   }
   equals(other: Num | number) {
-    return as_num(other).compare(this).not();
+    return asNum(other).compare(this).not();
   }
   lessThan(other: Num | number) {
-    return as_num(other).compare(this).max(ZERO);
+    return asNum(other).compare(this).max(ZERO);
   }
   lessThanOrEqual(other: Num | number) {
-    return as_num(other).compare(this).add(ONE).min(ONE);
+    return asNum(other).compare(this).add(ONE).min(ONE);
   }
   greaterThan(other: Num | number) {
-    return as_num(other).lessThan(this);
+    return asNum(other).lessThan(this);
   }
   greaterThanOrEqual(other: Num | number) {
-    return as_num(other).lessThanOrEqual(this);
+    return asNum(other).lessThanOrEqual(this);
   }
 }
 

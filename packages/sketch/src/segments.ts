@@ -4,10 +4,10 @@ import {
   SolidAngle,
   Vec2,
   arcTan,
-  two_vectors_angle,
+  twoVectorsAngle,
 } from "./geom";
 import { Num } from "./num";
-import { min, max, clamp, if_non_zero_else } from "./num-ops";
+import { min, max, clamp, ifTruthyElse } from "./num-ops";
 import { Segment } from "./types";
 
 export class LineSegment implements Segment {
@@ -16,18 +16,18 @@ export class LineSegment implements Segment {
     readonly p1: Point,
     readonly p2: Point,
   ) {
-    this.segment = p1.vec_to(p2);
+    this.segment = p1.vecTo(p2);
   }
 
   solidAngle(p: Point): SolidAngle {
-    const a = this.p1.vec_to(p);
-    const b = this.p2.vec_to(p);
+    const a = this.p1.vecTo(p);
+    const b = this.p2.vecTo(p);
 
-    return new SolidAngle(0).add_angle(two_vectors_angle(a, b));
+    return new SolidAngle(0).addAngle(twoVectorsAngle(a, b));
   }
 
   distanceTo(p: Point): Num {
-    const startToP = p.vec_from(this.p1);
+    const startToP = p.vecFrom(this.p1);
     const parametricPosition = startToP
       .dot(this.segment)
       .div(this.segment.dot(this.segment));
@@ -35,7 +35,7 @@ export class LineSegment implements Segment {
     const clampedPosition = clamp(parametricPosition, 0, 1);
 
     const projectedPoint = this.p1.add(this.segment.scale(clampedPosition));
-    return p.vec_from(projectedPoint).norm();
+    return p.vecFrom(projectedPoint).norm();
   }
 }
 
@@ -75,8 +75,8 @@ function arcWindingNumberIndefiniteIntegral(
   const angleY = radius.square().sub(x.square()).sub(y.square());
 
   return new SolidAngle(0)
-    .add_angle(arcTan(angleX, angleY))
-    .add(new SolidAngle(0).add_angle(t).half());
+    .addAngle(arcTan(angleX, angleY))
+    .add(new SolidAngle(0).addAngle(t).half());
 }
 
 function arcWindingNumberAtPi(radius: Num, x: Num, y: Num) {
@@ -92,7 +92,7 @@ export class BulgingSegment implements Segment {
   ) {}
 
   get chord() {
-    return this.p2.vec_from(this.p1);
+    return this.p2.vecFrom(this.p1);
   }
 
   get center() {
@@ -105,28 +105,28 @@ export class BulgingSegment implements Segment {
   }
 
   private get p1SortAngle() {
-    return this.p1.vec_from(this.center).as_angle().as_sort_value();
+    return this.p1.vecFrom(this.center).asAngle().asSortValue();
   }
 
   private get p2SortAngle() {
-    return this.p2.vec_from(this.center).as_angle().as_sort_value();
+    return this.p2.vecFrom(this.center).asAngle().asSortValue();
   }
 
   distanceTo(p: Point): Num {
     const inSectorDistance = p
-      .vec_from(this.center)
+      .vecFrom(this.center)
       .norm()
       .sub(this.radius)
       .abs();
     const outSectorDistance = min(
-      p.vec_from(this.p1).norm(),
-      p.vec_from(this.p2).norm(),
+      p.vecFrom(this.p1).norm(),
+      p.vecFrom(this.p2).norm(),
     );
 
     const orientation = this.bulge.sign();
 
     const pSortVal = orientation.mul(
-      p.vec_from(this.center).as_angle().as_sort_value(),
+      p.vecFrom(this.center).asAngle().asSortValue(),
     );
     const p1SortVal = orientation.mul(this.p1SortAngle);
     const p2SortVal = orientation.mul(this.p2SortAngle);
@@ -147,18 +147,18 @@ export class BulgingSegment implements Segment {
       .equals(minSortVal)
       .or(p2SortVal.equals(maxSortVal));
 
-    return if_non_zero_else(
+    return ifTruthyElse(
       p1SortVal.lessThan(pSortVal),
-      if_non_zero_else(p2IsExtrema, inSectorDistance, outSectorDistance),
-      if_non_zero_else(p2IsExtrema, outSectorDistance, inSectorDistance),
+      ifTruthyElse(p2IsExtrema, inSectorDistance, outSectorDistance),
+      ifTruthyElse(p2IsExtrema, outSectorDistance, inSectorDistance),
     );
   }
 
   solidAngle(p: Point): SolidAngle {
-    const startAngle = this.p1.vec_from(this.center).as_angle();
-    const endAngle = this.p2.vec_from(this.center).as_angle();
+    const startAngle = this.p1.vecFrom(this.center).asAngle();
+    const endAngle = this.p2.vecFrom(this.center).asAngle();
 
-    const pVec = p.vec_from(this.center);
+    const pVec = p.vecFrom(this.center);
 
     const endAngleIntegral = arcWindingNumberIndefiniteIntegral(
       endAngle,
@@ -204,7 +204,7 @@ export class BulgingSegment implements Segment {
      * the same side of pi.
      */
 
-    const spanSign = endAngle.as_sort_value().sub(startAngle.as_sort_value());
+    const spanSign = endAngle.asSortValue().sub(startAngle.asSortValue());
 
     /* We then need to take into account the case where the angles are
      * clockwise. In that case we need to make two changes:
@@ -222,7 +222,7 @@ export class BulgingSegment implements Segment {
       .mul(orientationSign)
       .lessThan(0);
 
-    const piCrossingCorrectionTurns = if_non_zero_else(
+    const piCrossingCorrectionTurns = ifTruthyElse(
       isCrossingPi,
       orientationSign.mul(arcWindingNumberAtPi(this.radius, pVec.x, pVec.y)),
       0,

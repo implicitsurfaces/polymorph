@@ -13,58 +13,58 @@ import {
   Translation,
   Union,
 } from "./sdf-operations";
-import { angle_from_deg, as_vec } from "./geom";
-import { as_num } from "./num";
+import { angleFromDeg, asVec } from "./geom";
+import { asNum } from "./num";
 
 test("translate", () => {
   const box = new Box(0.5, 0.5);
-  expectASCIIshape(new Translation(as_vec(0.5, 0), box)).toMatchSnapshot(
+  expectASCIIshape(new Translation(asVec(0.5, 0), box)).toMatchSnapshot(
     "right",
   );
-  expectASCIIshape(new Translation(as_vec(-0.5, 0), box)).toMatchSnapshot(
+  expectASCIIshape(new Translation(asVec(-0.5, 0), box)).toMatchSnapshot(
     "left",
   );
-  expectASCIIshape(new Translation(as_vec(0, 0.5), box)).toMatchSnapshot("top");
-  expectASCIIshape(new Translation(as_vec(0, -0.5), box)).toMatchSnapshot(
+  expectASCIIshape(new Translation(asVec(0, 0.5), box)).toMatchSnapshot("top");
+  expectASCIIshape(new Translation(asVec(0, -0.5), box)).toMatchSnapshot(
     "bottom",
   );
 });
 
 test("rotate", () => {
-  const box = new Translation(as_vec(0.25, 0), new Box(0.5, 0.3));
-  expectASCIIshape(new Rotation(angle_from_deg(0), box)).toMatchSnapshot("0");
-  expectASCIIshape(new Rotation(angle_from_deg(90), box)).toMatchSnapshot("0");
-  expectASCIIshape(new Rotation(angle_from_deg(45), box)).toMatchSnapshot("0");
+  const box = new Translation(asVec(0.25, 0), new Box(0.5, 0.3));
+  expectASCIIshape(new Rotation(angleFromDeg(0), box)).toMatchSnapshot("0");
+  expectASCIIshape(new Rotation(angleFromDeg(90), box)).toMatchSnapshot("0");
+  expectASCIIshape(new Rotation(angleFromDeg(45), box)).toMatchSnapshot("0");
 });
 
 test("scale", () => {
   const box = new Box(0.5, 0.5);
-  expectASCIIshape(new Scaling(as_num(2), box)).toMatchSnapshot("bigger");
-  expectASCIIshape(new Scaling(as_num(0.5), box)).toMatchSnapshot("smaller");
+  expectASCIIshape(new Scaling(asNum(2), box)).toMatchSnapshot("bigger");
+  expectASCIIshape(new Scaling(asNum(0.5), box)).toMatchSnapshot("smaller");
 });
 
 test("dilate", () => {
   const box = new Box(0.5, 0.3);
-  expectASCIIshape(new Dilatation(as_num(0.2), box)).toMatchSnapshot("outside");
-  expectASCIIshape(new Dilatation(as_num(-0.1), box)).toMatchSnapshot("inside");
+  expectASCIIshape(new Dilatation(asNum(0.2), box)).toMatchSnapshot("outside");
+  expectASCIIshape(new Dilatation(asNum(-0.1), box)).toMatchSnapshot("inside");
 });
 
 test("shell", () => {
   const box = new Box(1.3, 0.7);
-  expectASCIIshape(new Shell(as_num(0.1), box)).toMatchSnapshot();
+  expectASCIIshape(new Shell(asNum(0.1), box)).toMatchSnapshot();
 });
 
 test("morph", () => {
   const box = new Box(1.8, 0.5);
   const circle = new Circle(0.5);
 
-  expectASCIIshape(new Morph(as_num(0.5), box, circle)).toMatchSnapshot(
+  expectASCIIshape(new Morph(asNum(0.5), box, circle)).toMatchSnapshot(
     "halfway",
   );
-  expectASCIIshape(new Morph(as_num(0.9), box, circle)).toMatchSnapshot(
+  expectASCIIshape(new Morph(asNum(0.9), box, circle)).toMatchSnapshot(
     "mostly circle",
   );
-  expectASCIIshape(new Morph(as_num(0.1), box, circle)).toMatchSnapshot(
+  expectASCIIshape(new Morph(asNum(0.1), box, circle)).toMatchSnapshot(
     "mostly box",
   );
 });

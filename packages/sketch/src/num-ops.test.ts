@@ -14,11 +14,11 @@ import {
   compare,
   and,
   or,
-  less_than,
-  less_than_or_equal,
-  greater_than,
-  greater_than_or_equal,
-  if_non_zero_else,
+  lessThan,
+  lessThanOrEqual,
+  greaterThan,
+  greaterThanOrEqual,
+  ifTruthyElse,
   hypot,
   clamp,
 } from "./num-ops";
@@ -117,59 +117,59 @@ test("or", () => {
 });
 
 test("less_than", () => {
-  ex(less_than(1, 3)).toBeCloseTo(1);
-  ex(less_than(1, 1)).toBeCloseTo(0);
-  ex(less_than(1, -1)).toBeCloseTo(0);
-  ex(less_than(0.3, 0.1)).toBeCloseTo(0);
-  ex(less_than(0.1, 0.3)).toBeCloseTo(1);
-  ex(less_than(-2, -1)).toBeCloseTo(1);
-  ex(less_than(-1, -2)).toBeCloseTo(0);
-  ex(less_than(-2, -2)).toBeCloseTo(0);
+  ex(lessThan(1, 3)).toBeCloseTo(1);
+  ex(lessThan(1, 1)).toBeCloseTo(0);
+  ex(lessThan(1, -1)).toBeCloseTo(0);
+  ex(lessThan(0.3, 0.1)).toBeCloseTo(0);
+  ex(lessThan(0.1, 0.3)).toBeCloseTo(1);
+  ex(lessThan(-2, -1)).toBeCloseTo(1);
+  ex(lessThan(-1, -2)).toBeCloseTo(0);
+  ex(lessThan(-2, -2)).toBeCloseTo(0);
 });
 
 test("less_than_or_equal", () => {
-  ex(less_than_or_equal(1, 3)).toBeCloseTo(1);
-  ex(less_than_or_equal(1, 1)).toBeCloseTo(1);
-  ex(less_than_or_equal(1, -1)).toBeCloseTo(0);
-  ex(less_than_or_equal(0.3, 0.1)).toBeCloseTo(0);
-  ex(less_than_or_equal(0.1, 0.3)).toBeCloseTo(1);
-  ex(less_than_or_equal(-2, -1)).toBeCloseTo(1);
-  ex(less_than_or_equal(-1, -2)).toBeCloseTo(0);
-  ex(less_than_or_equal(-2, -2)).toBeCloseTo(1);
+  ex(lessThanOrEqual(1, 3)).toBeCloseTo(1);
+  ex(lessThanOrEqual(1, 1)).toBeCloseTo(1);
+  ex(lessThanOrEqual(1, -1)).toBeCloseTo(0);
+  ex(lessThanOrEqual(0.3, 0.1)).toBeCloseTo(0);
+  ex(lessThanOrEqual(0.1, 0.3)).toBeCloseTo(1);
+  ex(lessThanOrEqual(-2, -1)).toBeCloseTo(1);
+  ex(lessThanOrEqual(-1, -2)).toBeCloseTo(0);
+  ex(lessThanOrEqual(-2, -2)).toBeCloseTo(1);
 });
 
 test("greater_than", () => {
-  ex(greater_than(1, 3)).toBeCloseTo(0);
-  ex(greater_than(1, 1)).toBeCloseTo(0);
-  ex(greater_than(1, -1)).toBeCloseTo(1);
-  ex(greater_than(0.3, 0.1)).toBeCloseTo(1);
-  ex(greater_than(0.1, 0.3)).toBeCloseTo(0);
-  ex(greater_than(-2, -1)).toBeCloseTo(0);
-  ex(greater_than(-1, -2)).toBeCloseTo(1);
-  ex(greater_than(-2, -2)).toBeCloseTo(0);
+  ex(greaterThan(1, 3)).toBeCloseTo(0);
+  ex(greaterThan(1, 1)).toBeCloseTo(0);
+  ex(greaterThan(1, -1)).toBeCloseTo(1);
+  ex(greaterThan(0.3, 0.1)).toBeCloseTo(1);
+  ex(greaterThan(0.1, 0.3)).toBeCloseTo(0);
+  ex(greaterThan(-2, -1)).toBeCloseTo(0);
+  ex(greaterThan(-1, -2)).toBeCloseTo(1);
+  ex(greaterThan(-2, -2)).toBeCloseTo(0);
 });
 
 test("greater_than_or_equal", () => {
-  ex(greater_than_or_equal(1, 3)).toBeCloseTo(0);
-  ex(greater_than_or_equal(1, 1)).toBeCloseTo(1);
-  ex(greater_than_or_equal(1, -1)).toBeCloseTo(1);
-  ex(greater_than_or_equal(0.3, 0.1)).toBeCloseTo(1);
-  ex(greater_than_or_equal(0.1, 0.3)).toBeCloseTo(0);
-  ex(greater_than_or_equal(-2, -1)).toBeCloseTo(0);
-  ex(greater_than_or_equal(-1, -2)).toBeCloseTo(1);
-  ex(greater_than_or_equal(-2, -2)).toBeCloseTo(1);
+  ex(greaterThanOrEqual(1, 3)).toBeCloseTo(0);
+  ex(greaterThanOrEqual(1, 1)).toBeCloseTo(1);
+  ex(greaterThanOrEqual(1, -1)).toBeCloseTo(1);
+  ex(greaterThanOrEqual(0.3, 0.1)).toBeCloseTo(1);
+  ex(greaterThanOrEqual(0.1, 0.3)).toBeCloseTo(0);
+  ex(greaterThanOrEqual(-2, -1)).toBeCloseTo(0);
+  ex(greaterThanOrEqual(-1, -2)).toBeCloseTo(1);
+  ex(greaterThanOrEqual(-2, -2)).toBeCloseTo(1);
 });
 
 test("if_non_zero_else", () => {
-  ex(if_non_zero_else(1, 3, 4)).toBeCloseTo(3);
-  ex(if_non_zero_else(0, 3, 4)).toBeCloseTo(4);
-  ex(if_non_zero_else(-1, 3, 4)).toBeCloseTo(3);
-  ex(if_non_zero_else(0.3, 0.1, 0.2)).toBeCloseTo(0.1);
-  ex(if_non_zero_else(0.1, 0.1, 0.2)).toBeCloseTo(0.1);
-  ex(if_non_zero_else(0.1, 0.2, 0.1)).toBeCloseTo(0.2);
-  ex(if_non_zero_else(-0.1, 0.2, 0.1)).toBeCloseTo(0.2);
-  ex(if_non_zero_else(-0, 0.1, 0.2)).toBeCloseTo(0.2);
-  ex(if_non_zero_else(0, 10000, 0.2)).toBeCloseTo(0.2);
+  ex(ifTruthyElse(1, 3, 4)).toBeCloseTo(3);
+  ex(ifTruthyElse(0, 3, 4)).toBeCloseTo(4);
+  ex(ifTruthyElse(-1, 3, 4)).toBeCloseTo(3);
+  ex(ifTruthyElse(0.3, 0.1, 0.2)).toBeCloseTo(0.1);
+  ex(ifTruthyElse(0.1, 0.1, 0.2)).toBeCloseTo(0.1);
+  ex(ifTruthyElse(0.1, 0.2, 0.1)).toBeCloseTo(0.2);
+  ex(ifTruthyElse(-0.1, 0.2, 0.1)).toBeCloseTo(0.2);
+  ex(ifTruthyElse(-0, 0.1, 0.2)).toBeCloseTo(0.2);
+  ex(ifTruthyElse(0, 10000, 0.2)).toBeCloseTo(0.2);
 });
 
 test("hypot", () => {

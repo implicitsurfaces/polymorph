@@ -1,6 +1,6 @@
 import { expect } from "vitest";
 import { simple_eval } from "./num-tree";
-import { as_vec } from "./geom";
+import { asVec } from "./geom";
 import { Num } from "./num";
 import { DistField, Segment } from "./types";
 
@@ -48,10 +48,10 @@ const GRID_SIZE = 50;
 const scalingFactor = GRID_SIZE / 2;
 const GRID = Array.from({ length: GRID_SIZE }, (_, i) =>
   Array.from({ length: GRID_SIZE * 2 }, (_, j) =>
-    as_vec(
+    asVec(
       (j / 2 - GRID_SIZE / 2) / scalingFactor,
       (GRID_SIZE / 2 - i) / scalingFactor,
-    ).point_from_origin(),
+    ).pointFromOrigin(),
   ),
 );
 

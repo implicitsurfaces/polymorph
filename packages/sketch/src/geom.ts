@@ -1,8 +1,8 @@
-import { Num, as_num } from "./num";
-import { atan2, hypot, if_non_zero_else, less_than } from "./num-ops";
+import { Num, asNum } from "./num";
+import { atan2, hypot, ifTruthyElse, lessThan } from "./num-ops";
 
-function non_zero_sign(n: Num): Num {
-  return if_non_zero_else(less_than(n, 0), as_num(-1), as_num(1));
+function nonZeroSign(n: Num): Num {
+  return ifTruthyElse(lessThan(n, 0), asNum(-1), asNum(1));
 }
 
 export class Angle {
@@ -34,8 +34,8 @@ export class Angle {
 
   half(): Angle {
     return new Angle(
-      non_zero_sign(this._sin).mul(this._cos.add(1).div(2).sqrt()),
-      as_num(1).sub(this._cos).div(2).sqrt(),
+      nonZeroSign(this._sin).mul(this._cos.add(1).div(2).sqrt()),
+      asNum(1).sub(this._cos).div(2).sqrt(),
     );
   }
 
@@ -66,53 +66,51 @@ export class Angle {
     return this._sin.div(this._cos);
   }
 
-  as_rad(): Num {
+  asRad(): Num {
     return atan2(this._sin, this._cos);
   }
 
-  as_deg(): Num {
-    return this.as_rad().mul(180).div(Math.PI);
+  asDeg(): Num {
+    return this.asRad().mul(180).div(Math.PI);
   }
 
-  as_sort_value(): Num {
-    const is_q2_q3 = less_than(this._sin, 0);
-    return if_non_zero_else(
-      is_q2_q3,
-      this._cos.add(3),
-      as_num(1).sub(this._cos),
-    ).div(2);
+  asSortValue(): Num {
+    const isQ2Q3 = lessThan(this._sin, 0);
+    return ifTruthyElse(isQ2Q3, this._cos.add(3), asNum(1).sub(this._cos)).div(
+      2,
+    );
   }
 
-  as_vec(): Vec2 {
+  asVec(): Vec2 {
     return new Vec2(this._cos, this._sin);
   }
 }
 
-export function angle_from_rad(rad: Num | number): Angle {
-  const val = as_num(rad);
+export function angleRromRad(rad: Num | number): Angle {
+  const val = asNum(rad);
   return new Angle(val.cos(), val.sin());
 }
 
-export function angle_from_deg(deg: Num | number): Angle {
-  const val = as_num(deg);
-  return angle_from_rad(val.mul(Math.PI).div(180));
+export function angleFromDeg(deg: Num | number): Angle {
+  const val = asNum(deg);
+  return angleRromRad(val.mul(Math.PI).div(180));
 }
 
-export function angle_from_sin(sin: Num | number): Angle {
-  const val = as_num(sin);
-  return new Angle(as_num(1).sub(val.square()).sqrt(), val);
+export function angleFromSin(sin: Num | number): Angle {
+  const val = asNum(sin);
+  return new Angle(asNum(1).sub(val.square()).sqrt(), val);
 }
 
-export function angle_from_cos(cos: Num | number): Angle {
-  const val = as_num(cos);
-  return new Angle(val, as_num(1).sub(val.square()).sqrt());
+export function angleFromCos(cos: Num | number): Angle {
+  const val = asNum(cos);
+  return new Angle(val, asNum(1).sub(val.square()).sqrt());
 }
 
-export function angle_from_direction(direction: Vec2): Angle {
-  return direction.as_angle();
+export function angleFromDirection(direction: Vec2): Angle {
+  return direction.asAngle();
 }
 
-export function two_vectors_angle(v1: Vec2, v2: Vec2): Angle {
+export function twoVectorsAngle(v1: Vec2, v2: Vec2): Angle {
   const u1 = v1.normalize();
   const u2 = v2.normalize();
 
@@ -124,18 +122,15 @@ export function two_vectors_angle(v1: Vec2, v2: Vec2): Angle {
 
 export function arcTan(x: Num | number, y: Num | number): Angle {
   const norm = hypot(x, y);
-  return new Angle(as_num(x).div(norm), as_num(y).div(norm));
+  return new Angle(asNum(x).div(norm), asNum(y).div(norm));
 }
 
-export const NO_TURN = new Angle(as_num(1), as_num(0));
-export const FULL_TURN = new Angle(as_num(1), as_num(0));
-export const HALF_TURN = new Angle(as_num(-1), as_num(0));
-export const QUARTER_TURN = new Angle(as_num(0), as_num(1));
-export const THREE_QUARTER_TURN = new Angle(as_num(0), as_num(-1));
-export const EIGHTH_TURN = new Angle(
-  as_num(Math.SQRT1_2),
-  as_num(Math.SQRT1_2),
-);
+export const NO_TURN = new Angle(asNum(1), asNum(0));
+export const FULL_TURN = new Angle(asNum(1), asNum(0));
+export const HALF_TURN = new Angle(asNum(-1), asNum(0));
+export const QUARTER_TURN = new Angle(asNum(0), asNum(1));
+export const THREE_QUARTER_TURN = new Angle(asNum(0), asNum(-1));
+export const EIGHTH_TURN = new Angle(asNum(Math.SQRT1_2), asNum(Math.SQRT1_2));
 
 export class Vec2 {
   private _x: Num;
@@ -209,12 +204,12 @@ export class Vec2 {
     );
   }
 
-  as_angle(): Angle {
+  asAngle(): Angle {
     const normalized = this.normalize();
     return new Angle(normalized._x, normalized._y);
   }
 
-  point_from_origin(): Point {
+  pointFromOrigin(): Point {
     return new Point(this._x, this._y);
   }
 }
@@ -240,15 +235,15 @@ export class Point {
     return new Point(this._x.sub(vec.x), this._y.sub(vec.y));
   }
 
-  vec_to(other: Point): Vec2 {
+  vecTo(other: Point): Vec2 {
     return new Vec2(other._x.sub(this._x), other._y.sub(this._y));
   }
 
-  vec_from(other: Point): Vec2 {
+  vecFrom(other: Point): Vec2 {
     return new Vec2(this._x.sub(other._x), this._y.sub(other._y));
   }
 
-  vec_from_origin(): Vec2 {
+  vecFromOrigin(): Vec2 {
     return new Vec2(this._x, this._y);
   }
 
@@ -261,17 +256,14 @@ export class Point {
   }
 }
 
-export const ORIGIN = new Point(as_num(0), as_num(0));
+export const ORIGIN = new Point(asNum(0), asNum(0));
 
-export function vec_from_cartesian_coords(
-  x: Num | number,
-  y: Num | number,
-): Vec2 {
-  return new Vec2(as_num(x), as_num(y));
+export function vecFromCartesianCoords(x: Num | number, y: Num | number): Vec2 {
+  return new Vec2(asNum(x), asNum(y));
 }
-export const as_vec = vec_from_cartesian_coords;
+export const asVec = vecFromCartesianCoords;
 
-export function vec_from_polar_coords(r: Num | number, angle: Angle): Vec2 {
+export function vecFromPolarCoords(r: Num | number, angle: Angle): Vec2 {
   return new Vec2(angle.cos().mul(r), angle.sin().mul(r));
 }
 
@@ -279,19 +271,19 @@ export class SolidAngle {
   private _turns: Num;
 
   constructor(turns: Num | number) {
-    this._turns = as_num(turns);
+    this._turns = asNum(turns);
   }
 
   get turns(): Num {
     return this._turns;
   }
 
-  add_angle(angle: Angle): SolidAngle {
-    return new SolidAngle(this._turns.add(angle.as_rad().div(Math.PI / 2)));
+  addAngle(angle: Angle): SolidAngle {
+    return new SolidAngle(this._turns.add(angle.asRad().div(Math.PI / 2)));
   }
 
-  add_turns(turns: Num | number): SolidAngle {
-    return new SolidAngle(this._turns.add(as_num(turns)));
+  addTurns(turns: Num | number): SolidAngle {
+    return new SolidAngle(this._turns.add(asNum(turns)));
   }
 
   add(other: SolidAngle): SolidAngle {
@@ -312,5 +304,5 @@ export class SolidAngle {
 }
 
 export function solidAngleFromAngle(angle: Angle): SolidAngle {
-  return new SolidAngle(0).add_angle(angle);
+  return new SolidAngle(0).addAngle(angle);
 }

@@ -143,62 +143,62 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                         frame_start = Instant::now();
                         println!("Frame time: {:?}", frame_time);
 
-                        let frame = surface
-                            .get_current_texture()
-                            .expect("Failed to acquire next swap chain texture");
-                        let view = frame
-                            .texture
-                            .create_view(&wgpu::TextureViewDescriptor::default());
-                        let mut encoder =
-                            device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                                label: None,
-                            });
+                        // let frame = surface
+                        //     .get_current_texture()
+                        //     .expect("Failed to acquire next swap chain texture");
+                        // let view = frame
+                        //     .texture
+                        //     .create_view(&wgpu::TextureViewDescriptor::default());
+                        // let mut encoder =
+                        //     device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        //         label: None,
+                        //     });
 
-                        // Run compute pass. TODO: Share this code!
-                        {
-                            let invoc_size =
-                                (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
-                            let mut cpass =
-                                encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                                    label: None,
-                                    timestamp_writes: None,
-                                });
-                            cpass.set_pipeline(&compute_pipeline);
-                            cpass.set_bind_group(0, &bind_group, &[]);
-                            cpass.insert_debug_marker("execute bytecode");
-                            assert!(invoc_size.0 % WORKGROUP_SIZE_X == 0);
-                            assert!(invoc_size.1 % WORKGROUP_SIZE_Y == 0);
-                            cpass.dispatch_workgroups(
-                                invoc_size.0 / WORKGROUP_SIZE_X,
-                                invoc_size.1 / WORKGROUP_SIZE_Y,
-                                1,
-                            );
-                        }
+                        // // Run compute pass. TODO: Share this code!
+                        // {
+                        //     let invoc_size =
+                        //         (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
+                        //     let mut cpass =
+                        //         encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                        //             label: None,
+                        //             timestamp_writes: None,
+                        //         });
+                        //     cpass.set_pipeline(&compute_pipeline);
+                        //     cpass.set_bind_group(0, &bind_group, &[]);
+                        //     cpass.insert_debug_marker("execute bytecode");
+                        //     assert!(invoc_size.0 % WORKGROUP_SIZE_X == 0);
+                        //     assert!(invoc_size.1 % WORKGROUP_SIZE_Y == 0);
+                        //     cpass.dispatch_workgroups(
+                        //         invoc_size.0 / WORKGROUP_SIZE_X,
+                        //         invoc_size.1 / WORKGROUP_SIZE_Y,
+                        //         1,
+                        //     );
+                        // }
 
-                        // Run render pass
-                        {
-                            let mut rpass =
-                                encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                                    label: None,
-                                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                                        view: &view,
-                                        resolve_target: None,
-                                        ops: wgpu::Operations {
-                                            load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
-                                            store: wgpu::StoreOp::Store,
-                                        },
-                                    })],
-                                    depth_stencil_attachment: None,
-                                    timestamp_writes: None,
-                                    occlusion_query_set: None,
-                                });
-                            rpass.set_pipeline(&render_pipeline);
-                            rpass.set_bind_group(0, &bind_group, &[]);
-                            rpass.draw(0..6, 0..1);
-                        }
+                        // // Run render pass
+                        // {
+                        //     let mut rpass =
+                        //         encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        //             label: None,
+                        //             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        //                 view: &view,
+                        //                 resolve_target: None,
+                        //                 ops: wgpu::Operations {
+                        //                     load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
+                        //                     store: wgpu::StoreOp::Store,
+                        //                 },
+                        //             })],
+                        //             depth_stencil_attachment: None,
+                        //             timestamp_writes: None,
+                        //             occlusion_query_set: None,
+                        //         });
+                        //     rpass.set_pipeline(&render_pipeline);
+                        //     rpass.set_bind_group(0, &bind_group, &[]);
+                        //     rpass.draw(0..6, 0..1);
+                        // }
 
-                        queue.submit(Some(encoder.finish()));
-                        frame.present();
+                        // queue.submit(Some(encoder.finish()));
+                        // frame.present();
 
                         window.request_redraw();
                     }

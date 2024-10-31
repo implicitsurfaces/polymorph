@@ -4,11 +4,11 @@ import { Vector2 } from 'threejs-math';
  * Stores all objects in the scene.
  */
 export class Scene {
-	constructor(public points: Array<Vector2> = []) {}
+  constructor(public points: Array<Vector2> = []) {}
 
-	addPoint(position: Vector2) {
-		this.points.push(position);
-	}
+  addPoint(position: Vector2) {
+    this.points.push(position);
+  }
 }
 
 // For now, we use one global scene object.
@@ -24,5 +24,5 @@ const _globalScene: Scene = new Scene();
  * menubar (Edit > Copy), or using a global keyboard shortcut (Ctrl + C).
  */
 export function getActiveScene(): Scene {
-	return _globalScene;
+  return _globalScene;
 }

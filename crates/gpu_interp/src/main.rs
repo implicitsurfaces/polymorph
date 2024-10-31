@@ -128,23 +128,7 @@ async fn evaluate_tape(tape: &[RegOp], viewport: Viewport) -> Option<Vec<f32>> {
         drop(data);
         buffers.output_staging_buffer.unmap();
 
-        // Map the timestamp readback buffer and read the results
-        let timestamp_slice = buffers.timestamp_readback_buffer.slice(..);
-        let (sender, receiver) = flume::bounded(1);
-        timestamp_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
-        device.poll(wgpu::Maintain::wait()).panic_on_timeout();
-
-        if let Ok(Ok(())) = receiver.recv_async().await {
-            let timestamp_data = timestamp_slice.get_mapped_range();
-            let timestamps: &[u64] = bytemuck::cast_slice(&timestamp_data);
-            let duration_ns = timestamps[1] - timestamps[0];
-            eprintln!(
-                "GPU execution time: {} ms",
-                duration_ns as f32 / 1_000_000.0
-            );
-            drop(timestamp_data);
-            buffers.timestamp_readback_buffer.unmap();
-        }
+        print_timestamps(&device, &buffers).await;
 
         // Returns data from buffer
         Some(result)

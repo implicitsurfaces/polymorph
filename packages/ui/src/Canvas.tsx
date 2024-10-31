@@ -29,14 +29,66 @@ function lineTo(ctx, p: Vector2) {
 }
 
 /**
- * Similar to `x % y` but always returns a value in [0, y).
- *
- * More precisely, this computes `x % y`, and returns it as is
- * if the result is zero or positive, otherwise adds `y`.
+ * If the line segment [p1, p2] is perfectly horizontal or perfectly vertical,
+ * then snap it to the pixel grid for pixel-perfect rendering.
  */
-function positiveMod(x: number, y: number) {
-  const mod = x % y;
-  return mod >= 0 ? mod : mod + y;
+function pixelSnap(p1: Vector2, p2: Vector2) {
+  if (p1.x == p2.x) {
+    p1.round();
+    p2.round();
+    p1.x -= 0.5;
+    p2.x -= 0.5;
+  } else if (p1.y == p2.y) {
+    p1.round();
+    p2.round();
+    p1.y -= 0.5;
+    p2.y -= 0.5;
+  }
+}
+
+// Transform p1 and p2 to view coords, pixel snap them, then moveTo(p1) and lineTo(p2)
+function drawGridLine(ctx, sceneToView, p1, p2) {
+  p1.applyMatrix3(sceneToView);
+  p2.applyMatrix3(sceneToView);
+  pixelSnap(p1, p2);
+  moveTo(ctx, p1);
+  lineTo(ctx, p2);
+}
+
+function drawGridCells(ctx, sceneToView, xMin, xMax, yMin, yMax, size, color) {
+  // Get scene coords of the first visible horizontal and vertical grid line,
+  // as well as how many of them are visible.
+  const xStart = Math.floor(xMin / size) * size;
+  const xNum = Math.floor((xMax - xMin) / size) + 2;
+  const yStart = Math.floor(yMin / size) * size;
+  const yNum = Math.floor((yMax - yMin) / size) + 2;
+
+  ctx.beginPath();
+
+  // Vertical lines
+  for (let i = 0; i < xNum; ++i) {
+    const x = xStart + i * size;
+    drawGridLine(ctx, sceneToView, new Vector2(x, yMin), new Vector2(x, yMax));
+  }
+
+  // Horizontal lines
+  for (let i = 0; i < yNum; ++i) {
+    const y = yStart + i * size;
+    drawGridLine(ctx, sceneToView, new Vector2(xMin, y), new Vector2(xMax, y));
+  }
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = color;
+  ctx.stroke();
+}
+
+function drawGridAxes(ctx, sceneToView, xMin, xMax, yMin, yMax, color) {
+  ctx.beginPath();
+  drawGridLine(ctx, sceneToView, new Vector2(xMin, 0), new Vector2(xMax, 0));
+  drawGridLine(ctx, sceneToView, new Vector2(0, yMin), new Vector2(0, yMax));
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = color;
+  ctx.stroke();
 }
 
 function drawGrid(ctx, camera) {
@@ -44,6 +96,13 @@ function drawGrid(ctx, camera) {
   const viewToScene = sceneToView.clone().invert();
   const w = camera.canvasSize.x;
   const h = camera.canvasSize.y;
+  const axesColor = '#808080';
+  const majorColor = '#b2b2b2';
+  const minorColor = '#cccccc';
+
+  // Size of minor and major grid cells in scene coords
+  const minorSize = Math.pow(10, Math.ceil(0.6 - Math.log10(camera.zoom)));
+  const majorSize = minorSize * 10;
 
   // Express view rectangle in scene coordinates
   const p1 = new Vector2(0, 0).applyMatrix3(viewToScene);
@@ -57,44 +116,9 @@ function drawGrid(ctx, camera) {
   const yMin = Math.min(p1.y, p2.y, p3.y, p4.y);
   const yMax = Math.max(p1.y, p2.y, p3.y, p4.y);
 
-  // Compute X/Y axes in view coordinates
-  const xAxis1 = new Vector2(xMin, 0);
-  const xAxis2 = new Vector2(xMax, 0);
-  const yAxis1 = new Vector2(0, yMin);
-  const yAxis2 = new Vector2(0, yMax);
-  xAxis1.applyMatrix3(sceneToView);
-  xAxis2.applyMatrix3(sceneToView);
-  yAxis1.applyMatrix3(sceneToView);
-  yAxis2.applyMatrix3(sceneToView);
-
-  // Snap to pixels for pixel-perfect rendering
-  const rotation = positiveMod(camera.rotation, 180);
-  if (rotation == 0 || rotation == 90) {
-    xAxis1.round();
-    xAxis2.round();
-    yAxis1.round();
-    yAxis2.round();
-    if (rotation == 0) {
-      xAxis1.y -= 0.5;
-      xAxis2.y -= 0.5;
-      yAxis1.x -= 0.5;
-      yAxis2.x -= 0.5;
-    } else {
-      xAxis1.x -= 0.5;
-      xAxis2.x -= 0.5;
-      yAxis1.y -= 0.5;
-      yAxis2.y -= 0.5;
-    }
-  }
-
-  // Draw X/Y axes
-  ctx.beginPath();
-  moveTo(ctx, xAxis1);
-  lineTo(ctx, xAxis2);
-  moveTo(ctx, yAxis1);
-  lineTo(ctx, yAxis2);
-  ctx.lineWidth = 1;
-  ctx.stroke();
+  drawGridCells(ctx, sceneToView, xMin, xMax, yMin, yMax, minorSize, minorColor);
+  drawGridCells(ctx, sceneToView, xMin, xMax, yMin, yMax, majorSize, majorColor);
+  drawGridAxes(ctx, sceneToView, xMin, xMax, yMin, yMax, axesColor);
 }
 
 function drawDisk(ctx, position: Point, radius: number) {

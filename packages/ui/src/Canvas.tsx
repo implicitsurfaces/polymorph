@@ -133,58 +133,113 @@ function getEventWorldPosition(e) {
 
 // Store mouse state.
 // TODO: avoid globals by storing as state of the Canvas component?
-let _currentMouseButton = null;
 let _mousePosOnPress = null;
 let _cameraOnPress = null;
+let _dragButton = null;
+let _isDrag = false; // whether mouse moved more than threshold
+let _isDragAccepted = false; // whether there is a drag action for drag button
 
 function onMouseDown(e) {
-  // Prevent concurrent mouse actions
-  if (_currentMouseButton != null && _currentMouseButton != e.button) {
+  // Prevent concurrent drag/click actions
+  if (_dragButton != null && _dragButton != e.button) {
     return;
   }
-
-  _currentMouseButton = e.button;
+  _dragButton = e.button;
   _mousePosOnPress = getEventPosition(e);
   _cameraOnPress = getActiveCamera().clone();
+  _isDrag = false;
+  _isDragAccepted = false;
 }
 
 function onMouseMove(e) {
-  if (_currentMouseButton == null) {
+  // For now, we do nothing on mouse move unless a button is pressed
+  if (_dragButton == null) {
     return;
   }
 
-  switch (_currentMouseButton) {
+  // Disambiguate between drag and click actions
+  const dragThreshold = 5;
+  const deltaPos = getEventPosition(e).sub(_mousePosOnPress);
+  if (!_isDrag && deltaPos.manhattanLength() > dragThreshold) {
+    _isDrag = true;
+    _isDragAccepted = onDragStart(e);
+  }
+  if (_isDragAccepted) {
+    onDragMove(e);
+  }
+}
+
+function onMouseUp(e) {
+  if (_dragButton != e.button) {
+    return;
+  }
+  if (_isDragAccepted) {
+    onDragEnd(e);
+  } else {
+    onClick(e);
+  }
+  _dragButton = null;
+}
+
+// Returns whether there is a drag action available for the drag button.
+//
+function onDragStart(/* e */): boolean {
+  switch (_dragButton) {
     case 1: {
-      // middle button: pan
-      const delta = getEventPosition(e);
-      delta.sub(_mousePosOnPress);
-      const newCenter = _cameraOnPress.center.clone();
-      newCenter.sub(delta);
+      // middle drag: pan
+      return true;
+    }
+    case 2: {
+      // right drag: rotate
+      return true;
+    }
+  }
+  return false;
+}
+
+function onDragMove(e) {
+  const deltaPos = getEventPosition(e).sub(_mousePosOnPress);
+  switch (_dragButton) {
+    case 1: {
+      // middle drag: pan
+      const newCenter = _cameraOnPress.center.clone().sub(deltaPos);
       getActiveCamera().center = newCenter;
       redrawActiveCanvas();
       break;
     }
     case 2: {
-      // right button: rotate (TODO)
+      // right drag: rotate
+      const rotateSensitivity = 0.01; // 100px -> 1rad
+      const anchor = _mousePosOnPress;
+      const angle = rotateSensitivity * (deltaPos.x - deltaPos.y);
+      getActiveCamera().copy(_cameraOnPress).rotateAround(anchor, angle);
+      redrawActiveCanvas();
       break;
     }
   }
 }
 
-function onMouseUp(e) {
-  if (_currentMouseButton != e.button) {
-    return;
-  }
+function onDragEnd(/* e */) {
+  // Nothing for now
+}
+
+function onClick(e) {
   switch (e.button) {
     case 0: {
-      // left button: create point
+      // left click: create point
       const pos = getEventWorldPosition(e);
       getActiveScene().addPoint(pos);
       redrawActiveCanvas();
       break;
     }
+    case 2: {
+      // right click: reset rotation
+      const anchor = _mousePosOnPress;
+      getActiveCamera().setRotationAround(anchor, 0);
+      redrawActiveCanvas();
+      break;
+    }
   }
-  _currentMouseButton = null;
 }
 
 function onWheel(e) {
@@ -231,6 +286,7 @@ export function Canvas() {
       onMouseMove={e => onMouseMove(e)}
       onMouseUp={e => onMouseUp(e)}
       onWheel={e => onWheel(e)}
+      onContextMenu={e => e.preventDefault()}
     />
   );
 }

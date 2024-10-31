@@ -46,17 +46,35 @@ export class Camera2 {
    * Returns a new camera with the same properties as this one.
    */
   clone(): Camera2 {
-    return new Camera2(this.canvasSize, this.center, this.zoom, this.rotation);
+    return new this.constructor().copy(this);
   }
 
   /**
    * Copies the properties from the source camera into this one.
    */
   copy(source: Camera2) {
-    this.canvasSize = source.canvasSize;
-    this.center = source.center;
+    this.canvasSize.copy(source.canvasSize);
+    this.center.copy(source.center);
     this.zoom = source.zoom;
     this.rotation = source.rotation;
+    return this;
+  }
+
+  /**
+   * Modifies this camera by setting its zoom to be the given value while
+   * keeping the given anchor position fixed in view coordinates.
+   */
+  setZoomAt(anchor: Vector2, zoom: number) {
+    // Compute anchor's world coords before zoom.
+    const viewToWorld = this.viewMatrix().invert();
+    const p = anchor.clone().applyMatrix3(viewToWorld);
+
+    // Set new camera zoom.
+    this.zoom = zoom;
+
+    // Apply translation to keep anchor unchanged in view coords.
+    p.applyMatrix3(this.viewMatrix());
+    this.center.add(p).sub(anchor);
   }
 
   /**
@@ -64,23 +82,35 @@ export class Camera2 {
    * the given anchor position fixed in view coordinates.
    */
   zoomAt(anchor: Vector2, steps: number) {
+    // TODO: Use predefined zoom levels table to prevent numerical drift.
+    const cubicRoot2 = 1.25992104989487; // x2 zoom every 3 steps
+    const newZoom = this.zoom * Math.pow(cubicRoot2, steps);
+    this.setZoomAt(anchor, newZoom);
+  }
+
+  /**
+   * Modifies this camera by setting its rotation to be the given value
+   * (in radians) while keeping the given anchor position fixed in view
+   * coordinates.
+   */
+  setRotationAround(anchor: Vector2, rotation: number) {
     // Compute anchor's world coords before zoom.
-    //
     const viewToWorld = this.viewMatrix().invert();
     const p = anchor.clone().applyMatrix3(viewToWorld);
 
-    // Compute and set new camera zoom.
-    //
-    // TODO: Use zoom table to prevent numerical drift by snapping to
-    // predefined zoom levels.
-    //
-    const cubicRoot2 = 1.25992104989487; // x2 zoom every 3 steps
-    const newZoom = this.zoom * Math.pow(cubicRoot2, steps);
-    this.zoom = newZoom;
+    // Set new camera rotation.
+    this.rotation = rotation;
 
     // Apply translation to keep anchor unchanged in view coords.
-    //
     p.applyMatrix3(this.viewMatrix());
     this.center.add(p).sub(anchor);
+  }
+
+  /**
+   * Modifies this camera by applying a rotation of the given angle (in radians)
+   * while keeping the given anchor position fixed in view coordinates.
+   */
+  rotateAround(anchor: Vector2, angle: number) {
+    this.setRotationAround(anchor, this.rotation + angle);
   }
 }

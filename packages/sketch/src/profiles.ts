@@ -1,4 +1,4 @@
-import Point from "./geom";
+import { Point } from "./geom";
 import { Num, as_num } from "./num";
 import { hypot, max } from "./num-ops";
 

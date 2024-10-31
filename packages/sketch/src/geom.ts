@@ -112,6 +112,16 @@ export function angle_from_direction(direction: Vec2): Angle {
   return direction.as_angle();
 }
 
+export function two_vectors_angle(v1: Vec2, v2: Vec2): Angle {
+  const u1 = v1.normalize();
+  const u2 = v2.normalize();
+
+  const cos = u1.dot(u2);
+  const sin = u1.cross(u2);
+
+  return new Angle(cos, sin);
+}
+
 export const NO_TURN = new Angle(as_num(1), as_num(0));
 export const FULL_TURN = new Angle(as_num(1), as_num(0));
 export const HALF_TURN = new Angle(as_num(-1), as_num(0));
@@ -251,4 +261,40 @@ export const as_vec = vec_from_cartesian_coords;
 
 export function vec_from_polar_coords(r: Num | number, angle: Angle): Vec2 {
   return new Vec2(angle.cos().mul(r), angle.sin().mul(r));
+}
+
+export class SolidAngle {
+  private _turns: Num;
+
+  constructor(turns: Num | number) {
+    this._turns = as_num(turns);
+  }
+
+  get turns(): Num {
+    return this._turns;
+  }
+
+  add_angle(angle: Angle): SolidAngle {
+    return new SolidAngle(this._turns.add(angle.as_rad().div(Math.PI / 2)));
+  }
+
+  add_turns(turns: Num | number): SolidAngle {
+    return new SolidAngle(this._turns.add(as_num(turns)));
+  }
+
+  add(other: SolidAngle): SolidAngle {
+    return new SolidAngle(this._turns.add(other._turns));
+  }
+
+  sub(other: SolidAngle): SolidAngle {
+    return new SolidAngle(this._turns.sub(other._turns));
+  }
+
+  neg(): SolidAngle {
+    return new SolidAngle(this._turns.neg());
+  }
+
+  half(): SolidAngle {
+    return new SolidAngle(this._turns.div(2));
+  }
 }

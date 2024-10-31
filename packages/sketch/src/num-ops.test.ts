@@ -20,6 +20,7 @@ import {
   greater_than_or_equal,
   if_non_zero_else,
   hypot,
+  clamp,
 } from "./num-ops";
 
 test("add", () => {
@@ -177,4 +178,17 @@ test("hypot", () => {
   ex(hypot(1, 0)).toBeCloseTo(1);
   ex(hypot(0, 1)).toBeCloseTo(1);
   ex(hypot(0, 0)).toBeCloseTo(0);
+});
+
+test("clamp", () => {
+  ex(clamp(1, 3, 4)).toBeCloseTo(3);
+  ex(clamp(5, 3, 4)).toBeCloseTo(4);
+  ex(clamp(3.5, 3, 4)).toBeCloseTo(3.5);
+  ex(clamp(3, 3, 4)).toBeCloseTo(3);
+  ex(clamp(4, 3, 4)).toBeCloseTo(4);
+  ex(clamp(1, 3, 3)).toBeCloseTo(3);
+  ex(clamp(5, 3, 3)).toBeCloseTo(3);
+  ex(clamp(3.5, 3, 3)).toBeCloseTo(3);
+  ex(clamp(3, 3, 3)).toBeCloseTo(3);
+  ex(clamp(4, 3, 3)).toBeCloseTo(3);
 });

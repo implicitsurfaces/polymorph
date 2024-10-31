@@ -152,11 +152,6 @@ pub async fn create_device(
     (adapter, device, queue)
 }
 
-pub enum Pipeline<'a> {
-    Compute(&'a wgpu::ComputePipeline),
-    Render(&'a wgpu::RenderPipeline),
-}
-
 pub struct Buffers {
     pub bytecode_buffer: wgpu::Buffer,
     pub pc_max_buffer: wgpu::Buffer,
@@ -273,7 +268,7 @@ pub fn create_bind_group(
 pub fn setup_pipeline_layout(
     device: &wgpu::Device,
     shader_stages: ShaderStages,
-) -> wgpu::PipelineLayout {
+) -> (wgpu::PipelineLayout, wgpu::BindGroupLayout) {
     let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: None,
         entries: &[
@@ -320,11 +315,12 @@ pub fn setup_pipeline_layout(
         ],
     });
 
-    device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: None,
         bind_group_layouts: &[&bind_group_layout],
         push_constant_ranges: &[],
-    })
+    });
+    (pipeline_layout, bind_group_layout)
 }
 
 pub async fn print_timestamps(device: &wgpu::Device, buffers: &Buffers) {

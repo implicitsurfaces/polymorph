@@ -37,9 +37,11 @@ async fn evaluate_tape(tape: &[RegOp], viewport: Viewport) -> Option<Vec<f32>> {
         source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source())),
     });
 
+    let (pipeline_layout, bind_group_layout) =
+        setup_pipeline_layout(&device, wgpu::ShaderStages::COMPUTE);
     let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
         label: None,
-        layout: Some(&setup_pipeline_layout(&device, wgpu::ShaderStages::COMPUTE)),
+        layout: Some(&pipeline_layout),
         module: &shader_module,
         entry_point: "compute_main",
         compilation_options: Default::default(),
@@ -47,7 +49,7 @@ async fn evaluate_tape(tape: &[RegOp], viewport: Viewport) -> Option<Vec<f32>> {
     });
 
     let buffers = create_buffers(&device, tape, viewport);
-    let bind_group = create_bind_group(&device, &buffers, &pipeline.get_bind_group_layout(0));
+    let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
     // Create timestamp query set
     let timestamp_query_set = device.create_query_set(&wgpu::QuerySetDescriptor {

@@ -1,6 +1,7 @@
 use gpu_interp::*;
 
 use std::borrow::Cow;
+use std::time::{Duration, Instant};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::EventLoop,
@@ -68,7 +69,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     });
 
     // Setup compute pipeline
-    let pipeline_layout = setup_pipeline_layout(
+    let (pipeline_layout, bind_group_layout) = setup_pipeline_layout(
         &device,
         wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
     );
@@ -109,13 +110,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     });
 
     let buffers = create_buffers(&device, &tape, viewport);
-    let compute_bind_group = create_bind_group(
-        &device,
-        &buffers,
-        &compute_pipeline.get_bind_group_layout(0),
-    );
-    let render_bind_group =
-        create_bind_group(&device, &buffers, &render_pipeline.get_bind_group_layout(0));
+    let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
     let mut config = surface
         .get_default_config(&adapter, viewport.width, viewport.height)
@@ -123,6 +118,9 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     surface.configure(&device, &config);
 
     let window = &window;
+    let mut last_fps_update = Instant::now();
+    let mut frame_count = 0;
+
     event_loop
         .run(move |event, target| {
             let _ = (&instance, &adapter);
@@ -141,6 +139,14 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                         window.request_redraw();
                     }
                     WindowEvent::RedrawRequested => {
+                        frame_count += 1;
+                        let now = Instant::now();
+                        if now.duration_since(last_fps_update) >= Duration::from_secs(1) {
+                            println!("FPS: {}", frame_count);
+                            frame_count = 0;
+                            last_fps_update = now;
+                        }
+
                         let frame = surface
                             .get_current_texture()
                             .expect("Failed to acquire next swap chain texture");
@@ -162,7 +168,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                                     timestamp_writes: None,
                                 });
                             cpass.set_pipeline(&compute_pipeline);
-                            cpass.set_bind_group(0, &compute_bind_group, &[]);
+                            cpass.set_bind_group(0, &bind_group, &[]);
                             cpass.insert_debug_marker("execute bytecode");
                             assert!(invoc_size.0 % WORKGROUP_SIZE_X == 0);
                             assert!(invoc_size.1 % WORKGROUP_SIZE_Y == 0);
@@ -191,12 +197,14 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                                     occlusion_query_set: None,
                                 });
                             rpass.set_pipeline(&render_pipeline);
-                            rpass.set_bind_group(0, &render_bind_group, &[]);
+                            rpass.set_bind_group(0, &bind_group, &[]);
                             rpass.draw(0..6, 0..1);
                         }
 
                         queue.submit(Some(encoder.finish()));
                         frame.present();
+
+                        window.request_redraw();
                     }
                     WindowEvent::CloseRequested => target.exit(),
                     _ => {}

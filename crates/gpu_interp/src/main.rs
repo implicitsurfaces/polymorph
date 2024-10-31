@@ -214,11 +214,11 @@ mod test {
     #[test]
     fn test_fidget_many_circles() {
         let mut circles = Vec::new();
-        for i in 0..20 {
-            for j in 0..20 {
+        for i in 0..10 {
+            for j in 0..10 {
                 let center_x = i as f64;
                 let center_y = j as f64;
-                circles.push(circle(center_x, center_y, 0.5));
+                circles.push(circle(center_x * 200.0, center_y * 200.0, 100.0));
             }
         }
         let tree = smooth_union(circles);
@@ -231,8 +231,8 @@ mod test {
         eprintln!("Bytecode compilation took {:?}", duration);
 
         let viewport = Viewport {
-            width: 512,
-            height: 512,
+            width: 1600,
+            height: 1200,
         };
         let bytecode = data.iter_asm().collect::<Vec<_>>();
         // debug!("{:?}", bytecode);

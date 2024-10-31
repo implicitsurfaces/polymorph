@@ -45,8 +45,8 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         }
 
         let mut circles = Vec::new();
-        for i in 0..2 {
-            for j in 0..2 {
+        for i in 0..10 {
+            for j in 0..10 {
                 let center_x = i as f64;
                 let center_y = j as f64;
                 circles.push(circle(center_x * 200.0, center_y * 200.0, 100.0));
@@ -118,8 +118,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     surface.configure(&device, &config);
 
     let window = &window;
-    let mut last_fps_update = Instant::now();
-    let mut frame_count = 0;
+    let mut frame_start = Instant::now();
 
     event_loop
         .run(move |event, target| {
@@ -135,17 +134,14 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                         let max_texture_size = device.limits().max_texture_dimension_2d;
                         config.width = new_size.width.max(1).min(max_texture_size);
                         config.height = new_size.height.max(1).min(max_texture_size);
+                        eprint!("{} {}", config.width, config.height);
                         surface.configure(&device, &config);
                         window.request_redraw();
                     }
                     WindowEvent::RedrawRequested => {
-                        frame_count += 1;
-                        let now = Instant::now();
-                        if now.duration_since(last_fps_update) >= Duration::from_secs(1) {
-                            println!("FPS: {}", frame_count);
-                            frame_count = 0;
-                            last_fps_update = now;
-                        }
+                        let frame_time = frame_start.elapsed();
+                        frame_start = Instant::now();
+                        println!("Frame time: {:?}", frame_time);
 
                         let frame = surface
                             .get_current_texture()

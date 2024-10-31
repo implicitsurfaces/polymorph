@@ -53,35 +53,23 @@ async fn evaluate_tape(tape: &[RegOp], viewport: Viewport) -> Option<Vec<f32>> {
 
     // Create timestamp query set
     let timestamp_query_set = device.create_query_set(&wgpu::QuerySetDescriptor {
-        label: Some("Timestamp Query Set"),
-        count: 2,
+        label: Some("Timestamp query set"),
+        count: TIMESTAMP_COUNT as u32,
         ty: wgpu::QueryType::Timestamp,
     });
 
     // A command encoder executes one or many pipelines.
     let mut encoder =
         device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-    {
-        let invoc_size = (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
-        let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-            label: None,
-            timestamp_writes: Some(wgpu::ComputePassTimestampWrites {
-                query_set: &timestamp_query_set,
-                beginning_of_pass_write_index: Some(0),
-                end_of_pass_write_index: Some(1),
-            }),
-        });
-        cpass.set_pipeline(&pipeline);
-        cpass.set_bind_group(0, &bind_group, &[]);
-        cpass.insert_debug_marker("execute bytecode");
-        assert!(invoc_size.0 % WORKGROUP_SIZE_X == 0);
-        assert!(invoc_size.1 % WORKGROUP_SIZE_Y == 0);
-        cpass.dispatch_workgroups(
-            invoc_size.0 / WORKGROUP_SIZE_X,
-            invoc_size.1 / WORKGROUP_SIZE_Y,
-            1,
-        );
-    }
+
+    add_compute_pass(
+        &mut encoder,
+        &pipeline,
+        &bind_group,
+        &timestamp_query_set,
+        &viewport,
+    );
+
     // Copy the result from the output buffer to the staging buffer
     encoder.copy_buffer_to_buffer(
         &buffers.output_buffer,
@@ -130,7 +118,7 @@ async fn evaluate_tape(tape: &[RegOp], viewport: Viewport) -> Option<Vec<f32>> {
         drop(data);
         buffers.output_staging_buffer.unmap();
 
-        print_timestamps("Compute pass", &device, &buffers).await;
+        print_timestamps(&device, &queue, &buffers).await;
 
         // Returns data from buffer
         Some(result)

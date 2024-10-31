@@ -6,6 +6,7 @@ use wgpu::{util::DeviceExt, ShaderStages};
 pub mod sdf;
 
 pub const FRAGMENTS_PER_INVOCATION: u32 = 4;
+pub const TIMESTAMP_COUNT: u64 = 4;
 pub const WORKGROUP_SIZE_X: u32 = 16;
 pub const WORKGROUP_SIZE_Y: u32 = 16;
 pub const MAX_TAPE_LEN_REGOPS: u32 = 32768;
@@ -215,14 +216,14 @@ pub fn create_buffers(device: &wgpu::Device, tape: &[RegOp], viewport: Viewport)
     // Create two buffers for timestamps
     let timestamp_resolve_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Timestamp Resolve Buffer"),
-        size: 16, // 2 u64 values
+        size: 4 * std::mem::size_of::<u64>() as wgpu::BufferAddress,
         usage: wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::QUERY_RESOLVE,
         mapped_at_creation: false,
     });
 
     let timestamp_readback_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Timestamp Readback Buffer"),
-        size: 16, // 2 u64 values
+        size: 4 * std::mem::size_of::<u64>() as wgpu::BufferAddress,
         usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
     });
@@ -324,19 +325,55 @@ pub fn setup_pipeline_layout(
     (pipeline_layout, bind_group_layout)
 }
 
-pub async fn print_timestamps(label: &str, device: &wgpu::Device, buffers: &Buffers) {
+pub async fn print_timestamps(device: &wgpu::Device, queue: &wgpu::Queue, buffers: &Buffers) {
     // Map the timestamp readback buffer and read the results
     let timestamp_slice = buffers.timestamp_readback_buffer.slice(..);
     let (sender, receiver) = flume::bounded(1);
     timestamp_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
     device.poll(wgpu::Maintain::wait()).panic_on_timeout();
 
+    let p = queue.get_timestamp_period();
+
     if let Ok(Ok(())) = receiver.recv_async().await {
         let timestamp_data = timestamp_slice.get_mapped_range();
         let timestamps: &[u64] = bytemuck::cast_slice(&timestamp_data);
-        let duration = Duration::from_nanos(timestamps[1] - timestamps[0]);
-        eprintln!("{} took {:?}", label, duration);
+        eprintln!(
+            "Duration #1: {:?}",
+            Duration::from_nanos((p * (timestamps[1] - timestamps[0]) as f32) as u64)
+        );
+        eprintln!(
+            "Duration #2: {:?}",
+            Duration::from_nanos((p * (timestamps[3] - timestamps[2]) as f32) as u64)
+        );
         drop(timestamp_data);
         buffers.timestamp_readback_buffer.unmap();
     }
+}
+
+pub fn add_compute_pass<'a>(
+    encoder: &'a mut wgpu::CommandEncoder,
+    pipeline: &'a wgpu::ComputePipeline,
+    bind_group: &'a wgpu::BindGroup,
+    timestamp_query_set: &'a wgpu::QuerySet,
+    viewport: &Viewport,
+) {
+    let invoc_size = (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
+    let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+        label: None,
+        timestamp_writes: Some(wgpu::ComputePassTimestampWrites {
+            query_set: &timestamp_query_set,
+            beginning_of_pass_write_index: Some(0),
+            end_of_pass_write_index: Some(1),
+        }),
+    });
+    cpass.set_pipeline(pipeline);
+    cpass.set_bind_group(0, &bind_group, &[]);
+    cpass.insert_debug_marker("execute bytecode");
+    assert!(invoc_size.0 % WORKGROUP_SIZE_X == 0);
+    assert!(invoc_size.1 % WORKGROUP_SIZE_Y == 0);
+    cpass.dispatch_workgroups(
+        invoc_size.0 / WORKGROUP_SIZE_X,
+        invoc_size.1 / WORKGROUP_SIZE_Y,
+        1,
+    );
 }

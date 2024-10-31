@@ -153,7 +153,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                         let timestamp_query_set =
                             device.create_query_set(&wgpu::QuerySetDescriptor {
                                 label: Some("Timestamp query set"),
-                                count: 2, // Start and end timestamps
+                                count: TIMESTAMP_COUNT as u32,
                                 ty: wgpu::QueryType::Timestamp,
                             });
 
@@ -162,28 +162,18 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                                 label: None,
                             });
 
-                        // Run compute pass. TODO: Share this code!
-                        {
-                            let invoc_size =
-                                (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
-                            let mut cpass =
-                                encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                                    label: None,
-                                    timestamp_writes: None,
-                                });
-                            cpass.set_pipeline(&compute_pipeline);
-                            cpass.set_bind_group(0, &bind_group, &[]);
-                            cpass.insert_debug_marker("execute bytecode");
-                            assert!(invoc_size.0 % WORKGROUP_SIZE_X == 0);
-                            assert!(invoc_size.1 % WORKGROUP_SIZE_Y == 0);
-                            cpass.dispatch_workgroups(
-                                invoc_size.0 / WORKGROUP_SIZE_X,
-                                invoc_size.1 / WORKGROUP_SIZE_Y,
-                                1,
-                            );
-                        }
+                        encoder.write_timestamp(&timestamp_query_set, 0);
 
-                        // Run render pass. Inside a block because so it gets
+                        add_compute_pass(
+                            &mut encoder,
+                            &compute_pipeline,
+                            &bind_group,
+                            &timestamp_query_set,
+                            &viewport,
+                        );
+
+                        encoder.write_timestamp(&timestamp_query_set, 2);
+
                         // dropped and unlocks the encoder when we're done
                         // with it.
                         {
@@ -200,8 +190,8 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                                     })],
                                     depth_stencil_attachment: None,
                                     timestamp_writes: Some(wgpu::RenderPassTimestampWrites {
-                                        beginning_of_pass_write_index: Some(0),
-                                        end_of_pass_write_index: Some(1),
+                                        beginning_of_pass_write_index: Some(2),
+                                        end_of_pass_write_index: Some(3),
                                         query_set: &timestamp_query_set,
                                     }),
                                     occlusion_query_set: None,
@@ -214,7 +204,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                         // Resolve timestamp query results
                         encoder.resolve_query_set(
                             &timestamp_query_set,
-                            0..2,
+                            0..TIMESTAMP_COUNT as u32,
                             &buffers.timestamp_resolve_buffer,
                             0,
                         );
@@ -225,13 +215,13 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                             0,
                             &buffers.timestamp_readback_buffer,
                             0,
-                            16,
+                            TIMESTAMP_COUNT * std::mem::size_of::<u64>() as wgpu::BufferAddress,
                         );
 
                         queue.submit(Some(encoder.finish()));
                         frame.present();
 
-                        pollster::block_on(print_timestamps("Render pass", &device, &buffers));
+                        pollster::block_on(print_timestamps(&device, &queue, &buffers));
 
                         window.request_redraw();
                     }

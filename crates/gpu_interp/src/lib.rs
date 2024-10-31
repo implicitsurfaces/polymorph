@@ -1,5 +1,6 @@
 use bincode;
 use fidget::compiler::RegOp;
+use std::time::Duration;
 use wgpu::{util::DeviceExt, ShaderStages};
 
 pub mod sdf;
@@ -323,7 +324,7 @@ pub fn setup_pipeline_layout(
     (pipeline_layout, bind_group_layout)
 }
 
-pub async fn print_timestamps(device: &wgpu::Device, buffers: &Buffers) {
+pub async fn print_timestamps(label: &str, device: &wgpu::Device, buffers: &Buffers) {
     // Map the timestamp readback buffer and read the results
     let timestamp_slice = buffers.timestamp_readback_buffer.slice(..);
     let (sender, receiver) = flume::bounded(1);
@@ -333,11 +334,8 @@ pub async fn print_timestamps(device: &wgpu::Device, buffers: &Buffers) {
     if let Ok(Ok(())) = receiver.recv_async().await {
         let timestamp_data = timestamp_slice.get_mapped_range();
         let timestamps: &[u64] = bytemuck::cast_slice(&timestamp_data);
-        let duration_ns = timestamps[1] - timestamps[0];
-        eprintln!(
-            "GPU execution time: {} ms",
-            duration_ns as f32 / 1_000_000.0
-        );
+        let duration = Duration::from_nanos(timestamps[1] - timestamps[0]);
+        eprintln!("{} took {:?}", label, duration);
         drop(timestamp_data);
         buffers.timestamp_readback_buffer.unmap();
     }

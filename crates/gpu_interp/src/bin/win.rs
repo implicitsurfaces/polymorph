@@ -149,33 +149,43 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                         let view = frame
                             .texture
                             .create_view(&wgpu::TextureViewDescriptor::default());
+
+                        let timestamp_query_set =
+                            device.create_query_set(&wgpu::QuerySetDescriptor {
+                                label: Some("Timestamp query set"),
+                                count: 2, // Start and end timestamps
+                                ty: wgpu::QueryType::Timestamp,
+                            });
+
                         let mut encoder =
                             device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
                                 label: None,
                             });
 
                         // Run compute pass. TODO: Share this code!
-                        // {
-                        //     let invoc_size =
-                        //         (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
-                        //     let mut cpass =
-                        //         encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                        //             label: None,
-                        //             timestamp_writes: None,
-                        //         });
-                        //     cpass.set_pipeline(&compute_pipeline);
-                        //     cpass.set_bind_group(0, &bind_group, &[]);
-                        //     cpass.insert_debug_marker("execute bytecode");
-                        //     assert!(invoc_size.0 % WORKGROUP_SIZE_X == 0);
-                        //     assert!(invoc_size.1 % WORKGROUP_SIZE_Y == 0);
-                        //     cpass.dispatch_workgroups(
-                        //         invoc_size.0 / WORKGROUP_SIZE_X,
-                        //         invoc_size.1 / WORKGROUP_SIZE_Y,
-                        //         1,
-                        //     );
-                        // }
+                        {
+                            let invoc_size =
+                                (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
+                            let mut cpass =
+                                encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                                    label: None,
+                                    timestamp_writes: None,
+                                });
+                            cpass.set_pipeline(&compute_pipeline);
+                            cpass.set_bind_group(0, &bind_group, &[]);
+                            cpass.insert_debug_marker("execute bytecode");
+                            assert!(invoc_size.0 % WORKGROUP_SIZE_X == 0);
+                            assert!(invoc_size.1 % WORKGROUP_SIZE_Y == 0);
+                            cpass.dispatch_workgroups(
+                                invoc_size.0 / WORKGROUP_SIZE_X,
+                                invoc_size.1 / WORKGROUP_SIZE_Y,
+                                1,
+                            );
+                        }
 
-                        // Run render pass
+                        // Run render pass. Inside a block because so it gets
+                        // dropped and unlocks the encoder when we're done
+                        // with it.
                         {
                             let mut rpass =
                                 encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -189,7 +199,11 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                                         },
                                     })],
                                     depth_stencil_attachment: None,
-                                    timestamp_writes: None,
+                                    timestamp_writes: Some(wgpu::RenderPassTimestampWrites {
+                                        beginning_of_pass_write_index: Some(0),
+                                        end_of_pass_write_index: Some(1),
+                                        query_set: &timestamp_query_set,
+                                    }),
                                     occlusion_query_set: None,
                                 });
                             rpass.set_pipeline(&render_pipeline);
@@ -197,8 +211,27 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                             rpass.draw(0..6, 0..1);
                         }
 
+                        // Resolve timestamp query results
+                        encoder.resolve_query_set(
+                            &timestamp_query_set,
+                            0..2,
+                            &buffers.timestamp_resolve_buffer,
+                            0,
+                        );
+
+                        // Copy timestamp results from resolve buffer to readback buffer
+                        encoder.copy_buffer_to_buffer(
+                            &buffers.timestamp_resolve_buffer,
+                            0,
+                            &buffers.timestamp_readback_buffer,
+                            0,
+                            16,
+                        );
+
                         queue.submit(Some(encoder.finish()));
                         frame.present();
+
+                        pollster::block_on(print_timestamps("Render pass", &device, &buffers));
 
                         window.request_redraw();
                     }

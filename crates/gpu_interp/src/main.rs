@@ -130,7 +130,7 @@ async fn evaluate_tape(tape: &[RegOp], viewport: Viewport) -> Option<Vec<f32>> {
         drop(data);
         buffers.output_staging_buffer.unmap();
 
-        print_timestamps(&device, &buffers).await;
+        print_timestamps("Compute pass", &device, &buffers).await;
 
         // Returns data from buffer
         Some(result)

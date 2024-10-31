@@ -1,5 +1,5 @@
 import { Num, as_num } from "./num";
-import { atan2, if_non_zero_else, less_than } from "./num-ops";
+import { atan2, hypot, if_non_zero_else, less_than } from "./num-ops";
 
 function non_zero_sign(n: Num): Num {
   return if_non_zero_else(less_than(n, 0), as_num(-1), as_num(1));
@@ -122,6 +122,11 @@ export function two_vectors_angle(v1: Vec2, v2: Vec2): Angle {
   return new Angle(cos, sin);
 }
 
+export function arcTan(x: Num | number, y: Num | number): Angle {
+  const norm = hypot(x, y);
+  return new Angle(as_num(x).div(norm), as_num(y).div(norm));
+}
+
 export const NO_TURN = new Angle(as_num(1), as_num(0));
 export const FULL_TURN = new Angle(as_num(1), as_num(0));
 export const HALF_TURN = new Angle(as_num(-1), as_num(0));
@@ -224,6 +229,13 @@ export class Point {
     return new Point(this._x.add(vec.x), this._y.add(vec.y));
   }
 
+  midPoint(other: Point): Point {
+    return new Point(
+      this._x.add(other._x).div(2),
+      this._y.add(other._y).div(2),
+    );
+  }
+
   sub(vec: Vec2): Point {
     return new Point(this._x.sub(vec.x), this._y.sub(vec.y));
   }
@@ -297,4 +309,8 @@ export class SolidAngle {
   half(): SolidAngle {
     return new SolidAngle(this._turns.div(2));
   }
+}
+
+export function solidAngleFromAngle(angle: Angle): SolidAngle {
+  return new SolidAngle(0).add_angle(angle);
 }

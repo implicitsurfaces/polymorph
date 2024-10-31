@@ -121,3 +121,88 @@ test("num abs", () => {
   ex(as_num(1.5).abs()).toBeCloseTo(1.5);
   ex(as_num(-2).abs()).toBeCloseTo(2);
 });
+
+test("num compare", () => {
+  ex(as_num(0).compare(0)).toBeCloseTo(0);
+  ex(as_num(1).compare(0)).toBeCloseTo(1);
+  ex(as_num(0).compare(1)).toBeCloseTo(-1);
+});
+
+test("num and", () => {
+  ex(as_num(0).and(0)).toBeCloseTo(0);
+  ex(as_num(1).and(0)).toBeCloseTo(0);
+  ex(as_num(0).and(1)).toBeCloseTo(0);
+  ex(as_num(1).and(1)).toBeCloseTo(1);
+  ex(as_num(1).and(-1)).toBeCloseTo(-1);
+});
+
+test("num or", () => {
+  ex(as_num(0).or(0)).toBeCloseTo(0);
+  ex(as_num(1).or(0)).toBeCloseTo(1);
+  ex(as_num(0).or(1)).toBeCloseTo(1);
+  ex(as_num(1).or(1)).toBeCloseTo(1);
+  ex(as_num(1).or(-1)).toBeCloseTo(1);
+  ex(as_num(-1).or(1)).toBeCloseTo(-1);
+});
+
+test("num max", () => {
+  ex(as_num(0).max(0)).toBeCloseTo(0);
+  ex(as_num(1).max(0)).toBeCloseTo(1);
+  ex(as_num(0).max(1)).toBeCloseTo(1);
+  ex(as_num(1).max(1)).toBeCloseTo(1);
+  ex(as_num(1).max(-1)).toBeCloseTo(1);
+  ex(as_num(-1).max(1)).toBeCloseTo(1);
+});
+
+test("num min", () => {
+  ex(as_num(0).min(0)).toBeCloseTo(0);
+  ex(as_num(1).min(0)).toBeCloseTo(0);
+  ex(as_num(0).min(1)).toBeCloseTo(0);
+  ex(as_num(1).min(1)).toBeCloseTo(1);
+  ex(as_num(1).min(-1)).toBeCloseTo(-1);
+  ex(as_num(-1).min(1)).toBeCloseTo(-1);
+});
+
+test("num less than", () => {
+  ex(as_num(0).lessThan(0)).toBeCloseTo(0);
+  ex(as_num(1).lessThan(0)).toBeCloseTo(0);
+  ex(as_num(0).lessThan(1)).toBeCloseTo(1);
+  ex(as_num(1).lessThan(1)).toBeCloseTo(0);
+  ex(as_num(1).lessThan(-1)).toBeCloseTo(0);
+  ex(as_num(-1).lessThan(1)).toBeCloseTo(1);
+});
+
+test("num less than or equal", () => {
+  ex(as_num(0).lessThanOrEqual(0)).toBeCloseTo(1);
+  ex(as_num(1).lessThanOrEqual(0)).toBeCloseTo(0);
+  ex(as_num(0).lessThanOrEqual(1)).toBeCloseTo(1);
+  ex(as_num(1).lessThanOrEqual(1)).toBeCloseTo(1);
+  ex(as_num(1).lessThanOrEqual(-1)).toBeCloseTo(0);
+  ex(as_num(-1).lessThanOrEqual(1)).toBeCloseTo(1);
+});
+
+test("num greater than", () => {
+  ex(as_num(0).greaterThan(0)).toBeCloseTo(0);
+  ex(as_num(1).greaterThan(0)).toBeCloseTo(1);
+  ex(as_num(0).greaterThan(1)).toBeCloseTo(0);
+  ex(as_num(1).greaterThan(1)).toBeCloseTo(0);
+  ex(as_num(1).greaterThan(-1)).toBeCloseTo(1);
+  ex(as_num(-1).greaterThan(1)).toBeCloseTo(0);
+});
+
+test("num greater than or equal", () => {
+  ex(as_num(0).greaterThanOrEqual(0)).toBeCloseTo(1);
+  ex(as_num(1).greaterThanOrEqual(0)).toBeCloseTo(1);
+  ex(as_num(0).greaterThanOrEqual(1)).toBeCloseTo(0);
+  ex(as_num(1).greaterThanOrEqual(1)).toBeCloseTo(1);
+  ex(as_num(1).greaterThanOrEqual(-1)).toBeCloseTo(1);
+  ex(as_num(-1).greaterThanOrEqual(1)).toBeCloseTo(0);
+});
+test("num equals", () => {
+  ex(as_num(0).equals(0)).toBeCloseTo(1);
+  ex(as_num(1).equals(0)).toBeCloseTo(0);
+  ex(as_num(0).equals(1)).toBeCloseTo(0);
+  ex(as_num(1).equals(1)).toBeCloseTo(1);
+  ex(as_num(1).equals(-1)).toBeCloseTo(0);
+  ex(as_num(-1).equals(1)).toBeCloseTo(0);
+});

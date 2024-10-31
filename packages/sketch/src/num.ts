@@ -39,6 +39,9 @@ export class Num {
   neg() {
     return unaryOpNum("NEG", this);
   }
+  inv() {
+    return binaryOpNum("DIV", as_num(1), this);
+  }
   sign() {
     return unaryOpNum("SIGN", this);
   }
@@ -92,4 +95,42 @@ export class Num {
   square() {
     return binaryOpNum("MUL", this, this);
   }
+
+  compare(other: Num | number) {
+    return binaryOpNum("COMPARE", this, as_num(other));
+  }
+  and(other: Num | number) {
+    return binaryOpNum("AND", this, as_num(other));
+  }
+  or(other: Num | number) {
+    return binaryOpNum("OR", this, as_num(other));
+  }
+  not() {
+    return unaryOpNum("NOT", this);
+  }
+  max(other: Num | number) {
+    return binaryOpNum("MAX", this, as_num(other));
+  }
+  min(other: Num | number) {
+    return binaryOpNum("MIN", this, as_num(other));
+  }
+  equals(other: Num | number) {
+    return as_num(other).compare(this).not();
+  }
+  lessThan(other: Num | number) {
+    return as_num(other).compare(this).max(ZERO);
+  }
+  lessThanOrEqual(other: Num | number) {
+    return as_num(other).compare(this).add(ONE).min(ONE);
+  }
+  greaterThan(other: Num | number) {
+    return as_num(other).lessThan(this);
+  }
+  greaterThanOrEqual(other: Num | number) {
+    return as_num(other).lessThanOrEqual(this);
+  }
 }
+
+export const ZERO = new Num(new LiteralNum(0));
+export const ONE = new Num(new LiteralNum(1));
+export const TWO = new Num(new LiteralNum(2));

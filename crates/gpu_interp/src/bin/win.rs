@@ -66,14 +66,14 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         &device,
         wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
     );
-    let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-        label: None,
-        layout: Some(&pipeline_layout),
-        module: &shader_module,
-        entry_point: "compute_main",
-        compilation_options: Default::default(),
-        cache: None,
-    });
+    // let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+    //     label: None,
+    //     layout: Some(&pipeline_layout),
+    //     module: &shader_module,
+    //     entry_point: "compute_main",
+    //     compilation_options: Default::default(),
+    //     cache: None,
+    // });
 
     // Setup render pipeline
     let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -166,17 +166,17 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                                 label: None,
                             });
 
-                        encoder.write_timestamp(&timestamp_query_set, 0);
+                        // encoder.write_timestamp(&timestamp_query_set, 0);
 
-                        add_compute_pass(
-                            &mut encoder,
-                            &compute_pipeline,
-                            &bind_group,
-                            &timestamp_query_set,
-                            &viewport,
-                        );
+                        // add_compute_pass(
+                        //     &mut encoder,
+                        //     &compute_pipeline,
+                        //     &bind_group,
+                        //     &timestamp_query_set,
+                        //     &viewport,
+                        // );
 
-                        encoder.write_timestamp(&timestamp_query_set, 2);
+                        // encoder.write_timestamp(&timestamp_query_set, 2);
 
                         // dropped and unlocks the encoder when we're done
                         // with it.

@@ -16,7 +16,8 @@ var<storage> bytecode: Bytecode;
 @group(0) @binding(1)
 var<uniform> pc_max: i32;
 
-@group(0) @binding(2) var<storage, read_write> output: array<vec4<f32>>;
+@group(0) @binding(2)
+var output_texture: texture_storage_2d<rgba8unorm, read_write>;
 
 @group(0) @binding(3) var<uniform> dims: vec2<u32>;
 
@@ -87,13 +88,13 @@ fn execute_bytecode(xs: vec4<f32>, y: u32) -> vec4<f32> {
 @compute
 @workgroup_size(WORKGROUP_SIZE_X, WORKGROUP_SIZE_Y)
 fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    // Each shader invocation processes 4 horizontal pixels, and the output
-    // is a vec4<f32> representing four pixels.
-    let quarter_width = dims.x / 4u;
-
-    let index = global_id.y * quarter_width + global_id.x;
     let xs = vec4<f32>(f32(global_id.x) * 4.0) + vec4<f32>(0.0, 1.0, 2.0, 3.0);
-    output[index] = execute_bytecode(xs, global_id.y);
+    let result = execute_bytecode(xs, global_id.y);
+
+    // Write all 4 components to adjacent pixels
+    for (var i = 0u; i < 4u; i++) {
+        textureStore(output_texture, vec2<i32>(i32(global_id.x * 4u + i), i32(global_id.y)), vec4<f32>(result[i], 0.0, 0.0, 1.0));
+    }
 }
 
 @vertex
@@ -117,15 +118,9 @@ fn fragment_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let x = u32(pos.x) + step_count;
     let y = u32(pos.y) + step_count;
 
-    // Each shader invocation processes 4 horizontal pixels, and the output
-    // is a vec4<f32> representing four pixels.
-    let row_len = dims.x / 4u;
-    let buf_x = x / 4u;
-    let offset = x % 4u;
-    let index = y * row_len + buf_x;
+    // Read directly from texture coordinates
+    let pixel_value = textureLoad(output_texture, vec2<i32>(i32(x), i32(y)));
 
-    let pixel_group = output[index];
-
-    // Select the appropriate component based on x % 4
-    return vec4<f32>(pixel_group[offset], pos.y / f32(dims.y), pos.x / f32(dims.x), 1.0);
+    // Return full color including the sampled value
+    return vec4<f32>(pixel_value.x, pos.y / f32(dims.y), pos.x / f32(dims.x), 1.0);
 }

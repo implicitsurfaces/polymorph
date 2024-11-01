@@ -48,7 +48,7 @@ async fn evaluate_tape(tape: &[RegOp], viewport: Viewport) -> Option<Vec<f32>> {
         cache: None,
     });
 
-    let buffers = create_buffers(&device, tape, viewport);
+    let buffers = create_and_fill_buffers(&device, tape, viewport);
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
     // Create timestamp query set

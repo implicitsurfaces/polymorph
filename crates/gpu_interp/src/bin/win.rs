@@ -109,7 +109,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         cache: None,
     });
 
-    let buffers = create_buffers(&device, &tape, viewport);
+    let buffers = create_and_fill_buffers(&device, &tape, viewport);
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
     let mut config = surface
@@ -119,6 +119,8 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
 
     let window = &window;
     let mut frame_start = Instant::now();
+
+    let mut step_count = 0;
 
     event_loop
         .run(move |event, target| {
@@ -142,6 +144,15 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                         let frame_time = frame_start.elapsed();
                         frame_start = Instant::now();
                         println!("Frame time: {:?}", frame_time);
+
+                        // The step count is a "logical time" that is updated
+                        // every frame.
+                        step_count += 2;
+                        queue.write_buffer(
+                            &buffers.step_count_buffer,
+                            0,
+                            bytemuck::cast_slice(&[step_count]),
+                        );
 
                         let frame = surface
                             .get_current_texture()

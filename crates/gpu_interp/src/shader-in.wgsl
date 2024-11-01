@@ -20,6 +20,8 @@ var<uniform> pc_max: i32;
 
 @group(0) @binding(3) var<uniform> dims: vec2<u32>;
 
+@group(0) @binding(4) var<uniform> step_count: u32;
+
 fn execute_bytecode(xs: vec4<f32>, y: u32) -> vec4<f32> {
     var pc: i32 = 0;
     var reg: array<vec4<f32>, REG_COUNT>;
@@ -111,8 +113,9 @@ fn vertex_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position
 
 @fragment
 fn fragment_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    let x = u32(pos.x);
-    let y = u32(pos.y);
+    // Adding the step count has the effect of moving the viewport each frame.
+    let x = u32(pos.x) + step_count;
+    let y = u32(pos.y) + step_count;
 
     // Each shader invocation processes 4 horizontal pixels, and the output
     // is a vec4<f32> representing four pixels.

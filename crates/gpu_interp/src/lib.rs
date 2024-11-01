@@ -160,11 +160,16 @@ pub struct Buffers {
     pub output_buffer: wgpu::Buffer,
     pub output_staging_buffer: wgpu::Buffer,
     pub dims_buffer: wgpu::Buffer,
+    pub step_count_buffer: wgpu::Buffer,
     pub timestamp_resolve_buffer: wgpu::Buffer,
     pub timestamp_readback_buffer: wgpu::Buffer,
 }
 
-pub fn create_buffers(device: &wgpu::Device, tape: &[RegOp], viewport: Viewport) -> Buffers {
+pub fn create_and_fill_buffers(
+    device: &wgpu::Device,
+    tape: &[RegOp],
+    viewport: Viewport,
+) -> Buffers {
     let bytecode_buffer = {
         assert!(
             tape.len() <= MAX_TAPE_LEN_REGOPS as usize,
@@ -213,6 +218,12 @@ pub fn create_buffers(device: &wgpu::Device, tape: &[RegOp], viewport: Viewport)
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
 
+    let count_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Count Buffer"),
+        contents: bytemuck::cast_slice(&[0u32]),
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+    });
+
     // Create two buffers for timestamps
     let timestamp_resolve_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Timestamp Resolve Buffer"),
@@ -233,6 +244,7 @@ pub fn create_buffers(device: &wgpu::Device, tape: &[RegOp], viewport: Viewport)
         output_buffer,
         output_staging_buffer,
         dims_buffer,
+        step_count_buffer: count_buffer,
         timestamp_resolve_buffer,
         timestamp_readback_buffer,
     }
@@ -262,6 +274,10 @@ pub fn create_bind_group(
             wgpu::BindGroupEntry {
                 binding: 3,
                 resource: buffers.dims_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: buffers.step_count_buffer.as_entire_binding(),
             },
         ],
     })
@@ -306,6 +322,16 @@ pub fn setup_pipeline_layout(
             },
             wgpu::BindGroupLayoutEntry {
                 binding: 3,
+                visibility: shader_stages,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 4,
                 visibility: shader_stages,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,

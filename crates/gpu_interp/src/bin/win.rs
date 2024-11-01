@@ -1,7 +1,7 @@
 use gpu_interp::*;
 
 use std::borrow::Cow;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use winit::{
     event::{Event, WindowEvent},
     event_loop::EventLoop,
@@ -36,13 +36,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
             vm::VmData,
         };
         use gpu_interp::sdf::*;
-
-        fn circle(center_x: f64, center_y: f64, radius: f64) -> Tree {
-            let dx = Tree::constant(center_x) - Tree::x();
-            let dy = Tree::constant(center_y) - Tree::y();
-            let dist = (dx.square() + dy.square()).sqrt();
-            return dist - radius;
-        }
 
         let mut circles = Vec::new();
         for i in 0..10 {

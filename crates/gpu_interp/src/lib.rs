@@ -123,7 +123,7 @@ pub struct Viewport {
 
 impl Viewport {
     pub fn byte_size(&self) -> u32 {
-        self.width * self.height * 4 // 4 bytes per rgba8unorm pixel
+        self.width * self.height * std::mem::size_of::<f32>() as u32
     }
 }
 
@@ -142,8 +142,7 @@ pub async fn create_device(
                 label: None,
                 required_features: wgpu::Features::SHADER_INT64
                     | wgpu::Features::TIMESTAMP_QUERY
-                    | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS
-                    | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES,
+                    | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS,
                 required_limits: wgpu::Limits::downlevel_defaults(),
                 memory_hints: wgpu::MemoryHints::MemoryUsage,
             },
@@ -158,7 +157,7 @@ pub async fn create_device(
 pub struct Buffers {
     pub bytecode_buffer: wgpu::Buffer,
     pub pc_max_buffer: wgpu::Buffer,
-    pub output_buffer: wgpu::Texture,
+    pub output_buffer: wgpu::Buffer,
     pub output_staging_buffer: wgpu::Buffer,
     pub dims_buffer: wgpu::Buffer,
     pub step_count_buffer: wgpu::Buffer,
@@ -193,28 +192,22 @@ pub fn create_and_fill_buffers(
 
     let pc_max_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("pc_max Buffer"),
-        contents: bytemuck::cast_slice(&[tape.len() as i32 * 2]), // x2 because each instruction is 2 u32s
+        contents: bytemuck::cast_slice(&[tape.len() as u32 * 2]), // x2 because each instruction is 2 u32s
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
 
-    let output_texture = device.create_texture(&wgpu::TextureDescriptor {
-        label: Some("Output Texture"),
-        size: wgpu::Extent3d {
-            width: viewport.width,
-            height: viewport.height,
-            depth_or_array_layers: 1,
-        },
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: wgpu::TextureDimension::D2,
-        format: wgpu::TextureFormat::Rgba8Unorm,
-        usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_SRC,
-        view_formats: &[],
+    let output_size_bytes = viewport.byte_size();
+
+    let output_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Output Buffer"),
+        size: output_size_bytes as wgpu::BufferAddress,
+        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+        mapped_at_creation: false,
     });
 
     let output_staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Output Staging Buffer"),
-        size: viewport.byte_size() as wgpu::BufferAddress,
+        size: output_size_bytes as wgpu::BufferAddress,
         usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
     });
@@ -248,7 +241,7 @@ pub fn create_and_fill_buffers(
     Buffers {
         bytecode_buffer,
         pc_max_buffer,
-        output_buffer: output_texture,
+        output_buffer,
         output_staging_buffer,
         dims_buffer,
         step_count_buffer: count_buffer,
@@ -276,9 +269,7 @@ pub fn create_bind_group(
             },
             wgpu::BindGroupEntry {
                 binding: 2,
-                resource: wgpu::BindingResource::TextureView(
-                    &buffers.output_buffer.create_view(&Default::default()),
-                ),
+                resource: buffers.output_buffer.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 3,
@@ -322,10 +313,10 @@ pub fn setup_pipeline_layout(
             wgpu::BindGroupLayoutEntry {
                 binding: 2,
                 visibility: shader_stages,
-                ty: wgpu::BindingType::StorageTexture {
-                    access: wgpu::StorageTextureAccess::ReadWrite,
-                    format: wgpu::TextureFormat::Rgba8Unorm,
-                    view_dimension: wgpu::TextureViewDimension::D2,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: false },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
                 },
                 count: None,
             },

@@ -16,15 +16,15 @@ var<storage> bytecode: Bytecode;
 @group(0) @binding(1)
 var<uniform> pc_max: i32;
 
-@group(0) @binding(2) var<storage, read_write> output: array<f32>;
+@group(0) @binding(2) var<storage, read_write> output: array<vec4<f32>>;
 
 @group(0) @binding(3) var<uniform> dims: vec2<u32>;
 
 @group(0) @binding(4) var<uniform> step_count: u32;
 
-fn execute_bytecode(x: f32, y: f32) -> f32 {
+fn execute_bytecode(xs: vec4<f32>, y: u32) -> vec4<f32> {
     var pc: i32 = 0;
-    var reg: array<f32, REG_COUNT>;
+    var reg: array<vec4<f32>, REG_COUNT>;
     while (pc < pc_max) {
         /*
           Memory layout notes:
@@ -49,9 +49,9 @@ fn execute_bytecode(x: f32, y: f32) -> f32 {
               let out_reg = lo[1];
               let i = bitcast<u32>(hi);
               if (i == 0) {
-                reg[out_reg] = x;
+                reg[out_reg] = xs;
               } else if (i == 1) {
-                reg[out_reg] = y;
+                reg[out_reg] = vec4<f32>(y);
               }
             }
             case 1u /* Output */: {
@@ -77,18 +77,23 @@ fn execute_bytecode(x: f32, y: f32) -> f32 {
             case 41u /* SubRegReg */: { reg[lo[1]] = reg[lo[2]] - reg[lo[3]]; }
             case 42u /* MinRegReg */: { reg[lo[1]] = min(reg[lo[2]], reg[lo[3]]); }
             default: {
-              return 1.234567;
+              return vec4<f32>(1.234567);
             }
           }
     }
-    return 99.0;
+    return vec4<f32>(99.0);
 }
 
 @compute
 @workgroup_size(WORKGROUP_SIZE_X, WORKGROUP_SIZE_Y)
 fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    let index = global_id.y + global_id.x;
-    output[index] = execute_bytecode(f32(global_id.x), f32(global_id.y));
+    // Each shader invocation processes 4 horizontal pixels, and the output
+    // is a vec4<f32> representing four pixels.
+    let quarter_width = dims.x / 4u;
+
+    let index = global_id.y * quarter_width + global_id.x;
+    let xs = vec4<f32>(f32(global_id.x) * 4.0) + vec4<f32>(0.0, 1.0, 2.0, 3.0);
+    output[index] = execute_bytecode(xs, global_id.y);
 }
 
 @vertex
@@ -108,7 +113,19 @@ fn vertex_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position
 
 @fragment
 fn fragment_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-  let x = pos.x + f32(step_count);
-  let y = pos.y + f32(step_count);
-  return vec4<f32>(execute_bytecode(x, y), pos.y / f32(dims.y), pos.x / f32(dims.x), 1.0);
+    // Adding the step count has the effect of moving the viewport each frame.
+    let x = u32(pos.x) + step_count;
+    let y = u32(pos.y) + step_count;
+
+    // Each shader invocation processes 4 horizontal pixels, and the output
+    // is a vec4<f32> representing four pixels.
+    let row_len = dims.x / 4u;
+    let buf_x = x / 4u;
+    let offset = x % 4u;
+    let index = y * row_len + buf_x;
+
+    let pixel_group = output[index];
+
+    // Select the appropriate component based on x % 4
+    return vec4<f32>(pixel_group[offset], pos.y / f32(dims.y), pos.x / f32(dims.x), 1.0);
 }

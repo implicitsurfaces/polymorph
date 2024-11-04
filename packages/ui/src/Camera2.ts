@@ -52,7 +52,7 @@ export class Camera2 {
   /**
    * Copies the properties from the source camera into this one.
    */
-  copy(source: Camera2) {
+  copy(source: Camera2): Camera2 {
     this.canvasSize.copy(source.canvasSize);
     this.center.copy(source.center);
     this.zoom = source.zoom;
@@ -64,7 +64,7 @@ export class Camera2 {
    * Modifies this camera by setting its zoom to be the given value while
    * keeping the given anchor position fixed in view coordinates.
    */
-  setZoomAt(anchor: Vector2, zoom: number) {
+  setZoomAt(anchor: Vector2, zoom: number): Camera2 {
     // Compute anchor's world coords before zoom.
     const viewToWorld = this.viewMatrix().invert();
     const p = anchor.clone().applyMatrix3(viewToWorld);
@@ -75,17 +75,19 @@ export class Camera2 {
     // Apply translation to keep anchor unchanged in view coords.
     p.applyMatrix3(this.viewMatrix());
     this.center.add(p).sub(anchor);
+
+    return this;
   }
 
   /**
    * Modifies this camera by applying the given number of steps while keeping
    * the given anchor position fixed in view coordinates.
    */
-  zoomAt(anchor: Vector2, steps: number) {
+  zoomAt(anchor: Vector2, steps: number): Camera2 {
     // TODO: Use predefined zoom levels table to prevent numerical drift.
     const cubicRoot2 = 1.25992104989487; // x2 zoom every 3 steps
     const newZoom = this.zoom * Math.pow(cubicRoot2, steps);
-    this.setZoomAt(anchor, newZoom);
+    return this.setZoomAt(anchor, newZoom);
   }
 
   /**
@@ -93,7 +95,7 @@ export class Camera2 {
    * (in radians) while keeping the given anchor position fixed in view
    * coordinates.
    */
-  setRotationAround(anchor: Vector2, rotation: number) {
+  setRotationAround(anchor: Vector2, rotation: number): Camera2 {
     // Compute anchor's world coords before zoom.
     const viewToWorld = this.viewMatrix().invert();
     const p = anchor.clone().applyMatrix3(viewToWorld);
@@ -104,13 +106,15 @@ export class Camera2 {
     // Apply translation to keep anchor unchanged in view coords.
     p.applyMatrix3(this.viewMatrix());
     this.center.add(p).sub(anchor);
+
+    return this;
   }
 
   /**
    * Modifies this camera by applying a rotation of the given angle (in radians)
    * while keeping the given anchor position fixed in view coordinates.
    */
-  rotateAround(anchor: Vector2, angle: number) {
-    this.setRotationAround(anchor, this.rotation + angle);
+  rotateAround(anchor: Vector2, angle: number): Camera2 {
+    return this.setRotationAround(anchor, this.rotation + angle);
   }
 }

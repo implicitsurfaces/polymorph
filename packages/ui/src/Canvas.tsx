@@ -1,8 +1,6 @@
-import { useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Vector2 } from 'threejs-math';
-
 import { Camera2 } from './Camera2.ts';
-import { getActiveScene } from './Scene.ts';
 
 import './Canvas.css';
 
@@ -149,205 +147,7 @@ function draw(canvas, camera, scene) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-//                       Canvas and Camera management
-
-// For now we use a global canvas and camera.
-// In the future we should allow multiple canvases obviously (top view vs. 3D view, etc.)
-
-function getActiveCanvas() {
-  return document.getElementById('canvas');
-}
-
-const _globalCamera = new Camera2();
-
-function getActiveCamera() {
-  return _globalCamera;
-}
-
-/**
- * Sets the size of the canvas' render target (in pixels) to be equal to its
- * display size as an HTML element (in CSS units).
- *
- * This is required since it is not done automatically, and therefore we would
- * by default get a small render target (e.g., 100x100 px) whose pixels are
- * stretched to fill the size of the HTML element.
- */
-function updateCanvasSize(canvas, camera) {
-  const w = canvas.clientWidth;
-  const h = canvas.clientHeight;
-  canvas.width = w;
-  canvas.height = h;
-  camera.canvasSize = new Vector2(w, h);
-  // TODO: With hi-res screens, shouldn't we instead use the ratio between CSS
-  // units and physical pixels? Also, currently, if the browser has a zoom factor,
-  // this also leads to pixelization.
-}
-
-function updateCanvasSizeAndRedraw(canvas, camera, scene) {
-  updateCanvasSize(canvas, camera);
-  draw(canvas, camera, scene);
-}
-
-function updateActiveCanvasSizeAndRedraw() {
-  updateCanvasSizeAndRedraw(getActiveCanvas(), getActiveCamera(), getActiveScene());
-}
-
-function redrawActiveCanvas() {
-  draw(getActiveCanvas(), getActiveCamera(), getActiveScene());
-}
-
-///////////////////////////////////////////////////////////////////////////////
-//                           Event util
-
-// TODO: add canvas argument or refactor into the Canvas class, and make the
-// camera a data member of the Canvas class.
-
-function getEventPosition(e) {
-  return new Vector2(e.clientX, e.clientY);
-}
-
-function getEventWorldPosition(e) {
-  const camera = getActiveCamera();
-  const viewToWorld = camera.viewMatrix().invert();
-  return getEventPosition(e).applyMatrix3(viewToWorld);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-//                           Mouse events
-
-// TODO: add an observer system so that modifying the camera or the scene
-// automatically causes a redraw. For now we manually call redraws.
-
-// Store mouse state.
-// TODO: avoid globals by storing as state of the Canvas component?
-let _mousePosOnPress = null;
-let _cameraOnPress = null;
-let _dragButton = null;
-let _isDrag = false; // whether mouse moved more than threshold
-let _isDragAccepted = false; // whether there is a drag action for drag button
-
-function onMouseDown(e) {
-  // Prevent concurrent drag/click actions
-  if (_dragButton != null && _dragButton != e.button) {
-    return;
-  }
-  _dragButton = e.button;
-  _mousePosOnPress = getEventPosition(e);
-  _cameraOnPress = getActiveCamera().clone();
-  _isDrag = false;
-  _isDragAccepted = false;
-}
-
-function onMouseMove(e) {
-  // For now, we do nothing on mouse move unless a button is pressed
-  if (_dragButton == null) {
-    return;
-  }
-
-  // Disambiguate between drag and click actions
-  const dragThreshold = 5;
-  const deltaPos = getEventPosition(e).sub(_mousePosOnPress);
-  if (!_isDrag && deltaPos.manhattanLength() > dragThreshold) {
-    _isDrag = true;
-    _isDragAccepted = onDragStart(e);
-  }
-  if (_isDragAccepted) {
-    onDragMove(e);
-  }
-}
-
-function onMouseUp(e) {
-  if (_dragButton != e.button) {
-    return;
-  }
-  if (_isDragAccepted) {
-    onDragEnd(e);
-  } else {
-    onClick(e);
-  }
-  _dragButton = null;
-}
-
-// Returns whether there is a drag action available for the drag button.
-//
-function onDragStart(/* e */): boolean {
-  switch (_dragButton) {
-    case 1: {
-      // middle drag: pan
-      return true;
-    }
-    case 2: {
-      // right drag: rotate
-      return true;
-    }
-  }
-  return false;
-}
-
-function onDragMove(e) {
-  const deltaPos = getEventPosition(e).sub(_mousePosOnPress);
-  switch (_dragButton) {
-    case 1: {
-      // middle drag: pan
-      const newCenter = _cameraOnPress.center.clone().sub(deltaPos);
-      getActiveCamera().center = newCenter;
-      redrawActiveCanvas();
-      break;
-    }
-    case 2: {
-      // right drag: rotate
-      const rotateSensitivity = 0.01; // 100px -> 1rad
-      const anchor = _mousePosOnPress;
-      const angle = rotateSensitivity * (deltaPos.x - deltaPos.y);
-      getActiveCamera().copy(_cameraOnPress).rotateAround(anchor, angle);
-      redrawActiveCanvas();
-      break;
-    }
-  }
-}
-
-function onDragEnd(/* e */) {
-  // Nothing for now
-}
-
-function onClick(e) {
-  switch (e.button) {
-    case 0: {
-      // left click: create point
-      const pos = getEventWorldPosition(e);
-      getActiveScene().addPoint(pos);
-      redrawActiveCanvas();
-      break;
-    }
-    case 2: {
-      // right click: reset rotation
-      const anchor = _mousePosOnPress;
-      getActiveCamera().setRotationAround(anchor, 0);
-      redrawActiveCanvas();
-      break;
-    }
-  }
-}
-
-function onWheel(e) {
-  // TODO: support all delta modes
-  // 0 = pixels (120px for one scroll step)
-  // 1 = lines
-  // 2 = pages
-  if (e.deltaMode != 0) {
-    return;
-  }
-
-  const anchor = getEventPosition(e);
-  const steps = -e.deltaY / 120;
-  getActiveCamera().zoomAt(anchor, steps);
-  redrawActiveCanvas();
-}
-
-///////////////////////////////////////////////////////////////////////////////
 //                           Canvas React Component
-
-// TODO: avoid globals by passing the relevant canvas to the callbacks.
 
 // Update canvas on resize
 //
@@ -356,24 +156,219 @@ function onWheel(e) {
 // https://react.dev/reference/react/hooks
 // https://blog.logrocket.com/using-resizeobserver-react-responsive-designs/
 //
-window.addEventListener('resize', () => {
-  updateActiveCanvasSizeAndRedraw();
-});
+// window.addEventListener('resize', () => {
+//   updateActiveCanvasSizeAndRedraw();
+// });
 
-export function Canvas() {
-  // update canvas on first-time load
+export function Canvas({ scene, setScene }) {
+  const [camera, setCamera] = useState(new Camera2());
+  const [mouseState, setMouseState] = useState({});
+
+  const ref = useRef(null);
+
+  /**
+   * Sets the size of the canvas' render target (in pixels) to be equal to its
+   * display size as an HTML element (in CSS units).
+   *
+   * This is required since it is not done automatically, and therefore we would
+   * by default get a small render target (e.g., 100x100 px) whose pixels are
+   * stretched to fill the size of the HTML element.
+   */
+  function updateSize() {
+    const canvas = ref.current;
+    if (!canvas) {
+      return;
+    }
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    if (canvas.width != w || canvas.height != h) {
+      // TODO: With hi-res screens, shouldn't we instead use the ratio between CSS
+      // units and physical pixels? Also, currently, if the browser has a zoom factor,
+      // this also leads to pixelization.
+      canvas.width = w;
+      canvas.height = h;
+    }
+    if (camera.canvasSize.x != w || camera.canvasSize.y != h) {
+      // TODO: maybe canvasSize should not be part of the Camera itself, so
+      // that it's not part of the state?
+      const nextCamera = camera.clone();
+      nextCamera.canvasSize = new Vector2(w, h);
+      setCamera(nextCamera);
+    }
+  }
+
+  function redraw() {
+    const canvas = ref.current;
+    if (canvas) {
+      draw(canvas, camera, scene);
+    }
+  }
+
+  // Update whenever state changes, such as:
+  // - first-time load
+  // - camera changes
+  //
+  // However, note that this is not called on resize.
+  //
   useEffect(() => {
-    updateActiveCanvasSizeAndRedraw();
+    updateSize();
+    redraw();
   });
 
+  /**
+   * Return the position of the mouse event relative to the topleft corner
+   * of the event target.
+   */
+  function getEventPosition(e) {
+    const rect = e.target.getBoundingClientRect();
+    return new Vector2(e.clientX - rect.left, e.clientY - rect.top);
+  }
+
+  /**
+   * Return the position of the mouse event in scene coordinates.
+   */
+  function getEventScenePosition(e) {
+    const viewToWorld = camera.viewMatrix().invert();
+    return getEventPosition(e).applyMatrix3(viewToWorld);
+  }
+
+  function onMouseDown(e) {
+    // Prevent concurrent drag/click actions
+    if (mouseState.dragButton != null && mouseState.dragButton != e.button) {
+      return;
+    }
+    setMouseState({
+      dragButton: e.button,
+      posOnPress: getEventPosition(e),
+      cameraOnPress: camera.clone(),
+      isDrag: false,
+      isDragAccepted: false,
+    });
+  }
+
+  function onMouseMove(e) {
+    // For now, we do nothing on mouse move unless a button is pressed
+    if (mouseState.dragButton == null) {
+      return;
+    }
+    // Disambiguate between drag and click actions
+    let nextMouseState = null;
+    const dragThreshold = 5;
+    const deltaPos = getEventPosition(e).sub(mouseState.posOnPress);
+    let isDragAccepted = mouseState.isDragAccepted;
+    if (!mouseState.isDrag && deltaPos.manhattanLength() > dragThreshold) {
+      nextMouseState = { ...mouseState };
+      nextMouseState.isDrag = true;
+      nextMouseState.isDragAccepted = onDragStart(e);
+      isDragAccepted = nextMouseState.isDragAccepted;
+    }
+    if (isDragAccepted) {
+      onDragMove(e);
+    }
+    if (nextMouseState) {
+      setMouseState(nextMouseState);
+    }
+  }
+
+  function onMouseUp(e) {
+    if (mouseState.dragButton != e.button) {
+      return;
+    }
+    if (mouseState.isDragAccepted) {
+      onDragEnd(e);
+    } else {
+      onClick(e);
+    }
+    setMouseState({});
+  }
+
+  // Returns whether there is a drag action available for the drag button.
+  //
+  function onDragStart(/* e */): boolean {
+    switch (mouseState.dragButton) {
+      case 1: {
+        // middle drag: pan
+        return true;
+      }
+      case 2: {
+        // right drag: rotate
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function onDragMove(e) {
+    const deltaPos = getEventPosition(e).sub(mouseState.posOnPress);
+    switch (mouseState.dragButton) {
+      case 1: {
+        // middle drag: pan
+        const nextCenter = mouseState.cameraOnPress.center.clone().sub(deltaPos);
+        const nextCamera = camera.clone();
+        nextCamera.center = nextCenter;
+        setCamera(nextCamera);
+        break;
+      }
+      case 2: {
+        // right drag: rotate
+        const rotateSensitivity = 0.01; // 100px -> 1rad
+        const anchor = mouseState.posOnPress;
+        const angle = rotateSensitivity * (deltaPos.x - deltaPos.y);
+        const nextCamera = mouseState.cameraOnPress.clone();
+        nextCamera.rotateAround(anchor, angle);
+        setCamera(nextCamera);
+        break;
+      }
+    }
+  }
+
+  function onDragEnd(/* e */) {
+    // Nothing for now
+  }
+
+  function onClick(e) {
+    switch (e.button) {
+      case 0: {
+        // left click: create point
+        const pos = getEventScenePosition(e);
+        setScene(scene.clone().addPoint(pos));
+        break;
+      }
+      case 2: {
+        // right click: reset rotation
+        const anchor = getEventPosition(e);
+        const nextCamera = mouseState.cameraOnPress.clone();
+        nextCamera.setRotationAround(anchor, 0);
+        setCamera(nextCamera);
+        break;
+      }
+    }
+  }
+
+  function onWheel(e) {
+    // TODO: support all delta modes
+    // 0 = pixels (120px for one scroll step)
+    // 1 = lines
+    // 2 = pages
+    if (e.deltaMode != 0) {
+      return;
+    }
+    const anchor = getEventPosition(e);
+    const steps = -e.deltaY / 120;
+    const nextCamera = camera.clone().zoomAt(anchor, steps);
+    setCamera(nextCamera);
+  }
+
   return (
-    <canvas
-      id="canvas"
-      onMouseDown={e => onMouseDown(e)}
-      onMouseMove={e => onMouseMove(e)}
-      onMouseUp={e => onMouseUp(e)}
-      onWheel={e => onWheel(e)}
-      onContextMenu={e => e.preventDefault()}
-    />
+    <div className="canvas-container">
+      <canvas
+        ref={ref}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
+        onWheel={onWheel}
+        onContextMenu={e => e.preventDefault()}
+      />
+    </div>
   );
 }

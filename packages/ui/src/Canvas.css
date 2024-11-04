@@ -1,4 +1,11 @@
-#canvas {
+
+/* flexbox doesn't play nice with canvases, so we wrap them in a div */
+.canvas-container {
+  flex-grow: 1;
+  flex-basis: 0; /* don't let the size of the canvas child interfere with flex sizes */
+}
+
+canvas {
   width: 100%;
   height: 100%;
 }

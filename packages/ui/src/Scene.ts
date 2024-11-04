@@ -17,7 +17,7 @@ export class Scene {
    * Copies the content from the source scene into this one.
    */
   copy(source: Scene): Scene {
-    this.points = [...source.points];
+    this.points = source.points.map(p => p.clone());
     return this;
   }
 

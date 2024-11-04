@@ -1,6 +1,7 @@
 import { Point } from "./geom";
-import { Num, asNum } from "./num";
-import { hypot, max } from "./num-ops";
+import { Num, ONE, asNum } from "./num";
+import { hypot, max, min } from "./num-ops";
+import { Segment } from "./types";
 
 export class Circle {
   readonly radius: Num;
@@ -53,5 +54,24 @@ export class LeftHalfPlane {
 export class RightHalfPlane {
   distanceTo(point: Point): Num {
     return point.x.neg();
+  }
+}
+
+export class ClosedPath {
+  readonly segments: Segment[];
+  constructor(segments: Segment[]) {
+    this.segments = segments;
+  }
+
+  distanceTo(point: Point): Num {
+    const distances = this.segments.map((segment) => segment.distanceTo(point));
+    const dist = min(distances[0], ...distances.slice(1));
+
+    const windingNumber = this.segments
+      .map((segment) => segment.solidAngle(point).turns)
+      .reduce((a, b) => a.add(b), asNum(0));
+    const insideSign = ONE.sub(windingNumber.abs().min(1).mul(2));
+
+    return dist.mul(insideSign);
   }
 }

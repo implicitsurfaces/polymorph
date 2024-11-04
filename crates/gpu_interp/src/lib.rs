@@ -11,17 +11,18 @@ pub const WORKGROUP_SIZE_X: u32 = 16;
 pub const WORKGROUP_SIZE_Y: u32 = 16;
 pub const MAX_TAPE_LEN_REGOPS: u32 = 32768;
 pub const REG_COUNT: usize = 32;
+pub const MEM_SIZE: usize = 32;
 
 pub fn shader_source() -> String {
     let shared_constants = format!(
         r#"
-const WORKGROUP_SIZE_X: u32 = {}u;
-const WORKGROUP_SIZE_Y: u32 = {}u;
-const MAX_TAPE_LEN_REGOPS: u32 = {}u;
+const WORKGROUP_SIZE_X: u32 = {WORKGROUP_SIZE_X}u;
+const WORKGROUP_SIZE_Y: u32 = {WORKGROUP_SIZE_Y}u;
+const MAX_TAPE_LEN_REGOPS: u32 = {MAX_TAPE_LEN_REGOPS}u;
 const BYTECODE_ARRAY_LEN: u32 = MAX_TAPE_LEN_REGOPS * 2u;
-const REG_COUNT: u32 = {}u;
-    "#,
-        WORKGROUP_SIZE_X, WORKGROUP_SIZE_Y, MAX_TAPE_LEN_REGOPS, REG_COUNT
+const REG_COUNT: u32 = {REG_COUNT}u;
+const MEM_SIZE: u32 = {MEM_SIZE}u;
+    "#
     );
     include_str!("shader-in.wgsl")
         .to_string()
@@ -102,11 +103,11 @@ pub fn tape_to_bytes(tape: &[RegOp]) -> Vec<u8> {
                 repr[3] = *rhs;
             }
             RegOp::CopyImm(out, imm) => {
-                repr[3] = *out;
+                repr[1] = *out;
                 repr[4..8].copy_from_slice(&imm.to_le_bytes());
             }
-            RegOp::Load(out, mem) | RegOp::Store(out, mem) => {
-                repr[3] = *out;
+            RegOp::Load(r, mem) | RegOp::Store(r, mem) => {
+                repr[1] = *r;
                 repr[4..8].copy_from_slice(&mem.to_le_bytes());
             }
         }

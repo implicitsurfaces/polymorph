@@ -30,28 +30,40 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         }
     };
 
+    // let tape = {
+    //     use fidget::{
+    //         context::{Context, Tree},
+    //         vm::VmData,
+    //     };
+    //     use gpu_interp::sdf::*;
+
+    //     let mut circles = Vec::new();
+    //     for i in 0..10 {
+    //         for j in 0..10 {
+    //             let center_x = i as f64;
+    //             let center_y = j as f64;
+    //             circles.push(circle(center_x * 200.0, center_y * 200.0, 100.0));
+    //         }
+    //     }
+    //     let tree = smooth_union(circles);
+    //     let mut ctx = Context::new();
+    //     let node = ctx.import(&tree);
+    //     let data = VmData::<REG_COUNT>::new(&ctx, &[node]).unwrap();
+
+    //     data.iter_asm().collect::<Vec<_>>()
+    // };
+
     let tape = {
-        use fidget::{
-            context::{Context, Tree},
-            vm::VmData,
-        };
-        use gpu_interp::sdf::*;
-
-        let mut circles = Vec::new();
-        for i in 0..10 {
-            for j in 0..10 {
-                let center_x = i as f64;
-                let center_y = j as f64;
-                circles.push(circle(center_x * 200.0, center_y * 200.0, 100.0));
-            }
-        }
-        let tree = smooth_union(circles);
-        let mut ctx = Context::new();
-        let node = ctx.import(&tree);
-        let data = VmData::<REG_COUNT>::new(&ctx, &[node]).unwrap();
-
+        use fidget::{context::Context, vm::VmData};
+        let mut file = std::fs::File::open(
+            "/Users/pdubroy/dev/third_party/makeeter/fidget/models/prospero.vm",
+        )
+        .unwrap();
+        let (ctx, root) = Context::from_text(&mut file).unwrap();
+        let data = VmData::<REG_COUNT>::new(&ctx, &[root]).unwrap();
         data.iter_asm().collect::<Vec<_>>()
     };
+    eprintln!("{:?}", tape);
 
     let swapchain_capabilities = surface.get_capabilities(&adapter);
     let swapchain_format = swapchain_capabilities.formats[0];
@@ -140,7 +152,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
 
                         // The step count is a "logical time" that is updated
                         // every frame.
-                        step_count += 2;
+                        step_count += 1;
                         queue.write_buffer(
                             &buffers.step_count_buffer,
                             0,

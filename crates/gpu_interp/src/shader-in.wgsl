@@ -72,10 +72,12 @@ fn execute_bytecode(xs: vec4<f32>, y: u32) -> vec4<f32> {
             case 21u /* MulRegImm */: { reg[lo[1]] = reg[lo[2]] * hi; }
             case 24u /* SubImmReg */: { reg[lo[1]] = hi - reg[lo[2]]; }
             case 25u /* SubRegImm */: { reg[lo[1]] = reg[lo[2]] - hi; }
+            case 33u /* MaxRegImm */: { reg[lo[1]] = max(reg[lo[2]], vec4<f32>(hi)); }
             case 38u /* AddRegReg */: { reg[lo[1]] = reg[lo[2]] + reg[lo[3]]; }
             case 39u /* MulRegReg */: { reg[lo[1]] = reg[lo[2]] * reg[lo[3]]; }
             case 41u /* SubRegReg */: { reg[lo[1]] = reg[lo[2]] - reg[lo[3]]; }
             case 42u /* MinRegReg */: { reg[lo[1]] = min(reg[lo[2]], reg[lo[3]]); }
+            case 43u /* MaxRegReg */: { reg[lo[1]] = max(reg[lo[2]], reg[lo[3]]); }
             default: {
               return vec4<f32>(1.234567);
             }

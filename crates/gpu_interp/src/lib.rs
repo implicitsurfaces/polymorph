@@ -140,9 +140,7 @@ pub async fn create_device(
         .request_device(
             &wgpu::DeviceDescriptor {
                 label: None,
-                required_features: wgpu::Features::SHADER_INT64
-                    | wgpu::Features::TIMESTAMP_QUERY
-                    | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS,
+                required_features: wgpu::Features::SHADER_INT64 | wgpu::Features::TIMESTAMP_QUERY,
                 required_limits: wgpu::Limits::downlevel_defaults(),
                 memory_hints: wgpu::MemoryHints::MemoryUsage,
             },

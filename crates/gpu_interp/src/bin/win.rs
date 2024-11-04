@@ -166,8 +166,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                                 label: None,
                             });
 
-                        encoder.write_timestamp(&timestamp_query_set, 0);
-
                         add_compute_pass(
                             &mut encoder,
                             &compute_pipeline,
@@ -175,8 +173,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                             &timestamp_query_set,
                             &viewport,
                         );
-
-                        encoder.write_timestamp(&timestamp_query_set, 2);
 
                         // dropped and unlocks the encoder when we're done
                         // with it.

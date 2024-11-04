@@ -1,3 +1,5 @@
+import { memoizeNodeEval } from "./utils/cache";
+
 export type UnaryOperation =
   | "SQRT"
   | "COS"
@@ -58,11 +60,11 @@ export class LiteralNum extends NumNode {
   }
 }
 
-export function simple_eval(node: NumNode): number {
+const simpleEval = memoizeNodeEval(function (node: NumNode): number {
   if (node instanceof LiteralNum) {
     return node.value;
   } else if (node instanceof UnaryOp) {
-    const operand = simple_eval(node.original);
+    const operand = simpleEval(node.original);
 
     if (node.operation === "SQRT") {
       return Math.sqrt(operand);
@@ -110,8 +112,8 @@ export function simple_eval(node: NumNode): number {
       return Math.log1p(operand);
     }
   } else if (node instanceof BinaryOp) {
-    const left = simple_eval(node.left);
-    const right = simple_eval(node.right);
+    const left = simpleEval(node.left);
+    const right = simpleEval(node.right);
 
     if (node.operation === "ADD") {
       return left + right;
@@ -149,4 +151,6 @@ export function simple_eval(node: NumNode): number {
   }
 
   throw new Error(`Unknown node type: ${node?.operation}`);
-}
+});
+
+export { simpleEval };

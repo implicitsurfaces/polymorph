@@ -1,11 +1,11 @@
 import { expect } from "vitest";
-import { simple_eval } from "./num-tree";
+import { simpleEval } from "./num-tree";
 import { asVec } from "./geom";
 import { Num } from "./num";
 import { DistField, Segment } from "./types";
 
 export function ex(num: Num) {
-  return expect(simple_eval(num.n));
+  return expect(simpleEval(num.n));
 }
 
 const FILLED_CHAR = "█";
@@ -57,21 +57,21 @@ const GRID = Array.from({ length: GRID_SIZE }, (_, i) =>
 
 export function expectASCIIshape(distField: DistField) {
   const imageData = GRID.map((row) =>
-    row.map((point) => simple_eval(distField.distanceTo(point).n) < 0),
+    row.map((point) => simpleEval(distField.distanceTo(point).n) < 0),
   );
   return expect(booleansToASCII(imageData));
 }
 
 export function expectASCIISolidAngle(segment: Segment) {
   const imageData = GRID.map((row) =>
-    row.map((point) => simple_eval(segment.solidAngle(point).turns.n)),
+    row.map((point) => simpleEval(segment.solidAngle(point).turns.n)),
   );
   return expect(gradientToASCII(imageData));
 }
 
 export function expectASCIIDistance(distField: DistField) {
   const imageData = GRID.map((row) =>
-    row.map((point) => simple_eval(distField.distanceTo(point).n)),
+    row.map((point) => simpleEval(distField.distanceTo(point).n)),
   );
   return expect(gradientToASCII(imageData, 0.5));
 }

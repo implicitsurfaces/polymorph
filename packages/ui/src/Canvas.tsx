@@ -149,17 +149,6 @@ function draw(canvas, camera, scene) {
 ///////////////////////////////////////////////////////////////////////////////
 //                           Canvas React Component
 
-// Update canvas on resize
-//
-// TODO: Reactify this? Should be possible with a ResizeObserver hook
-// https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver
-// https://react.dev/reference/react/hooks
-// https://blog.logrocket.com/using-resizeobserver-react-responsive-designs/
-//
-// window.addEventListener('resize', () => {
-//   updateActiveCanvasSizeAndRedraw();
-// });
-
 export function Canvas({ scene, setScene }) {
   const [camera, setCamera] = useState(new Camera2());
   const [mouseState, setMouseState] = useState({});
@@ -204,6 +193,11 @@ export function Canvas({ scene, setScene }) {
     }
   }
 
+  function update() {
+    updateSize();
+    redraw();
+  }
+
   // Update whenever state changes, such as:
   // - first-time load
   // - camera changes
@@ -211,8 +205,11 @@ export function Canvas({ scene, setScene }) {
   // However, note that this is not called on resize.
   //
   useEffect(() => {
-    updateSize();
-    redraw();
+    update();
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('resize', update);
+    };
   });
 
   /**

@@ -156,7 +156,6 @@ function draw(canvas, camera, scene) {
 interface PointerState {
   button: number;
   viewPosOnPress: Vector2;
-  windowPosOnPress: Vector2;
   cameraOnPress: Camera2;
   isDrag: false;
   isDragAccepted: false;
@@ -178,6 +177,7 @@ export function Canvas({ scene, setScene }) {
   const ref = useRef(null);
   const padding = useRef<RectOffset>(new RectOffset());
   const border = useRef<RectOffset>(new RectOffset());
+  const devicePixelRatio = useRef<number>(1);
 
   /**
    * Sets the size of the canvas' render target (in pixels) to be equal to its
@@ -210,9 +210,17 @@ export function Canvas({ scene, setScene }) {
     border.current.bottom = parseFloat(cs.borderBottomWidth);
     border.current.left = parseFloat(cs.borderLeftWidth);
 
-    // Compute the size of the content rect of the canvas
-    const w = canvas.clientWidth - padding.current.left - padding.current.right;
-    const h = canvas.clientHeight - padding.current.top - padding.current.bottom;
+    // Compute the size of the content rect of the canvas in CSS pixels.
+    //
+    const w_css = canvas.clientWidth - padding.current.left - padding.current.right;
+    const h_css = canvas.clientHeight - padding.current.top - padding.current.bottom;
+
+    // Convert from CSS pixels to hardware pixels: this is the image
+    // resolution we want for the underlying render target we're drawing to.
+    //
+    devicePixelRatio.current = window.devicePixelRatio;
+    const w = devicePixelRatio.current * w_css;
+    const h = devicePixelRatio.current * h_css;
 
     if (canvas.width != w || canvas.height != h) {
       // TODO: With hi-res screens, shouldn't we instead use the ratio between CSS
@@ -243,8 +251,9 @@ export function Canvas({ scene, setScene }) {
   }
 
   /**
-   * Return the position of the topleft corner of the canvas, exluding
-   * padding, relative to the browser viewport.
+   * Return the position of the topleft corner of the canvas(exluding border
+   * and padding), in CSS pixels, relative to the topleft corner of the
+   * browser windows (= "viewport coordinates").
    */
   function getCanvasPosition() {
     const canvas = ref.current;
@@ -259,19 +268,21 @@ export function Canvas({ scene, setScene }) {
   }
 
   /**
-   * Return the position of the pointer event relative to the topleft corner
-   * of the event target.
+   * Return the position of the pointer event, in CSS pixels, relative to the
+   * topleft corner of the browser windows (= "viewport coordinates").
    */
   function getPointerWindowPosition(e) {
     return new Vector2(e.clientX, e.clientY);
   }
 
   /**
-   * Return the position of the pointer event relative to the topleft corner
-   * of the canvas, exluding padding target.
+   * Return the position of the pointer event, in hardware pixels, relative to the
+   * topleft corner of the canvas (exluding border and padding).
    */
   function getPointerViewPosition(e) {
-    return getPointerWindowPosition(e).sub(getCanvasPosition());
+    return getPointerWindowPosition(e) //
+      .sub(getCanvasPosition())
+      .multiplyScalar(devicePixelRatio.current);
   }
 
   /**
@@ -294,7 +305,6 @@ export function Canvas({ scene, setScene }) {
     setPointerState({
       button: e.button,
       viewPosOnPress: getPointerViewPosition(e),
-      windowPosOnPress: getPointerWindowPosition(e),
       cameraOnPress: camera.clone(),
       isDrag: false,
       isDragAccepted: false,
@@ -356,7 +366,7 @@ export function Canvas({ scene, setScene }) {
   }
 
   function onDragMove(e) {
-    const deltaPos = getPointerWindowPosition(e).sub(pointerState.windowPosOnPress);
+    const deltaPos = getPointerViewPosition(e).sub(pointerState.viewPosOnPress);
     switch (pointerState.button) {
       case 1: {
         // middle drag: pan
@@ -411,7 +421,7 @@ export function Canvas({ scene, setScene }) {
       return;
     }
     const anchor = getPointerViewPosition(e);
-    const steps = -e.deltaY / 120;
+    const steps = (-e.deltaY / 120) * devicePixelRatio.current;
     const nextCamera = camera.clone().zoomAt(anchor, steps);
     setCamera(nextCamera);
   }

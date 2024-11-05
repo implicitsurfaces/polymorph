@@ -162,11 +162,22 @@ interface PointerState {
   isDragAccepted: false;
 }
 
+export class RectOffset {
+  constructor(
+    public top: number = 0,
+    public right: number = 0,
+    public bottom: number = 0,
+    public left: number = 0
+  ) {}
+}
+
 export function Canvas({ scene, setScene }) {
   const [camera, setCamera] = useState<Camera2>(new Camera2());
   const [pointerState, setPointerState] = useState<PointerState | null>(null);
 
   const ref = useRef(null);
+  const padding = useRef<RectOffset>(new RectOffset());
+  const border = useRef<RectOffset>(new RectOffset());
 
   /**
    * Sets the size of the canvas' render target (in pixels) to be equal to its
@@ -181,8 +192,28 @@ export function Canvas({ scene, setScene }) {
     if (!canvas) {
       return;
     }
-    const w = canvas.clientWidth;
-    const h = canvas.clientHeight;
+
+    // Get the computed padding and border size of the canvas.
+    //
+    // We need this because getBoundingClientRect(), clientWidth, and
+    // clientHeight are all referring to the "border rect" (that is,
+    // including padding and border), while the canvas is actually rendered
+    // to the smaller "content rect" (excluding padding and border).
+    //
+    const cs = getComputedStyle(canvas);
+    padding.current.top = parseFloat(cs.paddingTop);
+    padding.current.right = parseFloat(cs.paddingRight);
+    padding.current.bottom = parseFloat(cs.paddingBottom);
+    padding.current.left = parseFloat(cs.paddingLeft);
+    border.current.top = parseFloat(cs.borderTopWidth);
+    border.current.right = parseFloat(cs.borderRightWidth);
+    border.current.bottom = parseFloat(cs.borderBottomWidth);
+    border.current.left = parseFloat(cs.borderLeftWidth);
+
+    // Compute the size of the content rect of the canvas
+    const w = canvas.clientWidth - padding.current.left - padding.current.right;
+    const h = canvas.clientHeight - padding.current.top - padding.current.bottom;
+
     if (canvas.width != w || canvas.height != h) {
       // TODO: With hi-res screens, shouldn't we instead use the ratio between CSS
       // units and physical pixels? Also, currently, if the browser has a zoom factor,
@@ -212,13 +243,19 @@ export function Canvas({ scene, setScene }) {
   }
 
   /**
-   * Return the position of the pointer event relative to the topleft corner
-   * of the event target.
+   * Return the position of the topleft corner of the canvas, exluding
+   * padding, relative to the browser viewport.
    */
-  function getPointerViewPosition(e) {
-    // XXX: or use offsetX / offsetY?
-    const rect = e.target.getBoundingClientRect();
-    return new Vector2(e.clientX - rect.left, e.clientY - rect.top);
+  function getCanvasPosition() {
+    const canvas = ref.current;
+    if (!canvas) {
+      return new Vector2();
+    }
+    const rect = canvas.getBoundingClientRect();
+    return new Vector2(
+      rect.left + padding.current.left + border.current.left,
+      rect.top + padding.current.top + border.current.top
+    );
   }
 
   /**
@@ -227,6 +264,14 @@ export function Canvas({ scene, setScene }) {
    */
   function getPointerWindowPosition(e) {
     return new Vector2(e.clientX, e.clientY);
+  }
+
+  /**
+   * Return the position of the pointer event relative to the topleft corner
+   * of the canvas, exluding padding target.
+   */
+  function getPointerViewPosition(e) {
+    return getPointerWindowPosition(e).sub(getCanvasPosition());
   }
 
   /**
@@ -379,7 +424,7 @@ export function Canvas({ scene, setScene }) {
     update();
 
     // Register for document-wide pointer events once drag starts.
-    // This allows to keep dragging even after the pointer exists the canvas.
+    // This allows to keep dragging even after the pointer exits the canvas.
     //
     if (pointerState) {
       document.addEventListener('pointermove', onPointerMove);

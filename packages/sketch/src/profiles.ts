@@ -75,3 +75,15 @@ export class ClosedPath {
     return dist.mul(insideSign);
   }
 }
+
+export class OpenPath {
+  readonly segments: Segment[];
+  constructor(segments: Segment[]) {
+    this.segments = segments;
+  }
+
+  distanceTo(point: Point): Num {
+    const distances = this.segments.map((segment) => segment.distanceTo(point));
+    return min(distances[0], ...distances.slice(1));
+  }
+}

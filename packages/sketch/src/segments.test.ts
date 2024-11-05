@@ -15,64 +15,86 @@ const p = (x: number, y: number) => asVec(x, y).pointFromOrigin();
 
 const t = (s: Segment) => new Dilatation(asNum(0.2), s);
 
-test("line segment distance", () => {
-  expectASCIIshape(
-    t(new LineSegment(p(-0.5, -0.5), p(0.5, 0.5))),
+test("line segment distance", async () => {
+  (
+    await expectASCIIshape(t(new LineSegment(p(-0.5, -0.5), p(0.5, 0.5))))
   ).toMatchSnapshot();
 
-  expectASCIIshape(
-    t(new LineSegment(p(-0.5, 0.5), p(0.5, -0.5))),
+  (
+    await expectASCIIshape(t(new LineSegment(p(-0.5, 0.5), p(0.5, -0.5))))
   ).toMatchSnapshot();
 
-  expectASCIIshape(t(new LineSegment(p(-0.5, 0), p(0.5, 0)))).toMatchSnapshot();
-});
-
-test("line segment solid angle", () => {
-  expectASCIISolidAngle(
-    new LineSegment(p(-0.5, -0.5), p(0.5, 0.5)),
-  ).toMatchSnapshot();
-  expectASCIISolidAngle(
-    new LineSegment(p(0.5, 0.5), p(-0.5, -0.5)),
-  ).toMatchSnapshot();
-
-  expectASCIISolidAngle(
-    new LineSegment(p(0, 0.5), p(0, -0.5)),
+  (
+    await expectASCIIshape(t(new LineSegment(p(-0.5, 0), p(0.5, 0))))
   ).toMatchSnapshot();
 });
 
-test("arc distance with positive bulge", () => {
-  expectASCIIshape(
-    t(new BulgingSegment(p(-0.5, -0.5), p(0.5, 0.5), asNum(0.3))),
+test("line segment solid angle", async () => {
+  (
+    await expectASCIISolidAngle(new LineSegment(p(-0.5, -0.5), p(0.5, 0.5)))
   ).toMatchSnapshot();
-  expectASCIIshape(
-    t(new BulgingSegment(p(0.5, 0.5), p(-0.5, -0.5), asNum(0.3))),
-  ).toMatchSnapshot();
-  expectASCIIshape(
-    t(new BulgingSegment(p(-0.5, 0.5), p(0.5, -0.5), asNum(0.3))),
-  ).toMatchSnapshot();
-  expectASCIIshape(
-    t(new BulgingSegment(p(-0.5, 0), p(0.5, 0), asNum(0.3))),
+  (
+    await expectASCIISolidAngle(new LineSegment(p(0.5, 0.5), p(-0.5, -0.5)))
   ).toMatchSnapshot();
 
-  expectASCIIshape(
-    t(new BulgingSegment(p(-0.5, -0.5), p(0.5, 0.5), asNum(1.6))),
-  ).toMatchSnapshot();
-  expectASCIIshape(
-    t(new BulgingSegment(p(0.5, 0.5), p(-0.5, -0.5), asNum(1.6))),
-  ).toMatchSnapshot();
-  expectASCIIshape(
-    t(new BulgingSegment(p(-0.5, 0.5), p(0.5, -0.5), asNum(1.6))),
-  ).toMatchSnapshot();
-  expectASCIIshape(
-    t(new BulgingSegment(p(-0.5, 0), p(0.5, 0), asNum(1.6))),
+  (
+    await expectASCIISolidAngle(new LineSegment(p(0, 0.5), p(0, -0.5)))
   ).toMatchSnapshot();
 });
 
-test("arc solid angle with positive bulge", () => {
-  expectASCIISolidAngle(
-    new BulgingSegment(p(-0.5, -0.5), p(0.5, 0.5), asNum(0.3)),
+test("arc distance with positive bulge", async () => {
+  (
+    await expectASCIIshape(
+      t(new BulgingSegment(p(-0.5, -0.5), p(0.5, 0.5), asNum(0.3))),
+    )
   ).toMatchSnapshot();
-  expectASCIISolidAngle(
-    new BulgingSegment(p(0.5, 0.5), p(-0.5, -0.5), asNum(0.3)),
+  (
+    await expectASCIIshape(
+      t(new BulgingSegment(p(0.5, 0.5), p(-0.5, -0.5), asNum(0.3))),
+    )
+  ).toMatchSnapshot();
+  (
+    await expectASCIIshape(
+      t(new BulgingSegment(p(-0.5, 0.5), p(0.5, -0.5), asNum(0.3))),
+    )
+  ).toMatchSnapshot();
+  (
+    await expectASCIIshape(
+      t(new BulgingSegment(p(-0.5, 0), p(0.5, 0), asNum(0.3))),
+    )
+  ).toMatchSnapshot();
+
+  (
+    await expectASCIIshape(
+      t(new BulgingSegment(p(-0.5, -0.5), p(0.5, 0.5), asNum(1.6))),
+    )
+  ).toMatchSnapshot();
+  (
+    await expectASCIIshape(
+      t(new BulgingSegment(p(0.5, 0.5), p(-0.5, -0.5), asNum(1.6))),
+    )
+  ).toMatchSnapshot();
+  (
+    await expectASCIIshape(
+      t(new BulgingSegment(p(-0.5, 0.5), p(0.5, -0.5), asNum(1.6))),
+    )
+  ).toMatchSnapshot();
+  (
+    await expectASCIIshape(
+      t(new BulgingSegment(p(-0.5, 0), p(0.5, 0), asNum(1.6))),
+    )
+  ).toMatchSnapshot();
+});
+
+test("arc solid angle with positive bulge", async () => {
+  (
+    await expectASCIISolidAngle(
+      new BulgingSegment(p(-0.5, -0.5), p(0.5, 0.5), asNum(0.3)),
+    )
+  ).toMatchSnapshot();
+  (
+    await expectASCIISolidAngle(
+      new BulgingSegment(p(0.5, 0.5), p(-0.5, -0.5), asNum(0.3)),
+    )
   ).toMatchSnapshot();
 });

@@ -16,86 +16,104 @@ import {
 import { angleFromDeg, asVec } from "./geom";
 import { asNum } from "./num";
 
-test("translate", () => {
+test("translate", async () => {
   const box = new Box(0.5, 0.5);
-  expectASCIIshape(new Translation(asVec(0.5, 0), box)).toMatchSnapshot(
+  (await expectASCIIshape(new Translation(asVec(0.5, 0), box))).toMatchSnapshot(
     "right",
   );
-  expectASCIIshape(new Translation(asVec(-0.5, 0), box)).toMatchSnapshot(
-    "left",
+  (
+    await expectASCIIshape(new Translation(asVec(-0.5, 0), box))
+  ).toMatchSnapshot("left");
+  (await expectASCIIshape(new Translation(asVec(0, 0.5), box))).toMatchSnapshot(
+    "top",
   );
-  expectASCIIshape(new Translation(asVec(0, 0.5), box)).toMatchSnapshot("top");
-  expectASCIIshape(new Translation(asVec(0, -0.5), box)).toMatchSnapshot(
-    "bottom",
-  );
+  (
+    await expectASCIIshape(new Translation(asVec(0, -0.5), box))
+  ).toMatchSnapshot("bottom");
 });
 
-test("rotate", () => {
+test("rotate", async () => {
   const box = new Translation(asVec(0.25, 0), new Box(0.5, 0.3));
-  expectASCIIshape(new Rotation(angleFromDeg(0), box)).toMatchSnapshot("0");
-  expectASCIIshape(new Rotation(angleFromDeg(90), box)).toMatchSnapshot("0");
-  expectASCIIshape(new Rotation(angleFromDeg(45), box)).toMatchSnapshot("0");
+  (await expectASCIIshape(new Rotation(angleFromDeg(0), box))).toMatchSnapshot(
+    "0",
+  );
+  (await expectASCIIshape(new Rotation(angleFromDeg(90), box))).toMatchSnapshot(
+    "0",
+  );
+  (await expectASCIIshape(new Rotation(angleFromDeg(45), box))).toMatchSnapshot(
+    "0",
+  );
 });
 
-test("scale", () => {
+test("scale", async () => {
   const box = new Box(0.5, 0.5);
-  expectASCIIshape(new Scaling(asNum(2), box)).toMatchSnapshot("bigger");
-  expectASCIIshape(new Scaling(asNum(0.5), box)).toMatchSnapshot("smaller");
+  (await expectASCIIshape(new Scaling(asNum(2), box))).toMatchSnapshot(
+    "bigger",
+  );
+  (await expectASCIIshape(new Scaling(asNum(0.5), box))).toMatchSnapshot(
+    "smaller",
+  );
 });
 
-test("dilate", () => {
+test("dilate", async () => {
   const box = new Box(0.5, 0.3);
-  expectASCIIshape(new Dilatation(asNum(0.2), box)).toMatchSnapshot("outside");
-  expectASCIIshape(new Dilatation(asNum(-0.1), box)).toMatchSnapshot("inside");
+  (await expectASCIIshape(new Dilatation(asNum(0.2), box))).toMatchSnapshot(
+    "outside",
+  );
+  (await expectASCIIshape(new Dilatation(asNum(-0.1), box))).toMatchSnapshot(
+    "inside",
+  );
 });
 
-test("shell", () => {
+test("shell", async () => {
   const box = new Box(1.3, 0.7);
-  expectASCIIshape(new Shell(asNum(0.1), box)).toMatchSnapshot();
+  (await expectASCIIshape(new Shell(asNum(0.1), box))).toMatchSnapshot();
 });
 
-test("morph", () => {
+test("morph", async () => {
   const box = new Box(1.8, 0.5);
   const circle = new Circle(0.5);
 
-  expectASCIIshape(new Morph(asNum(0.5), box, circle)).toMatchSnapshot(
+  (await expectASCIIshape(new Morph(asNum(0.5), box, circle))).toMatchSnapshot(
     "halfway",
   );
-  expectASCIIshape(new Morph(asNum(0.9), box, circle)).toMatchSnapshot(
+  (await expectASCIIshape(new Morph(asNum(0.9), box, circle))).toMatchSnapshot(
     "mostly circle",
   );
-  expectASCIIshape(new Morph(asNum(0.1), box, circle)).toMatchSnapshot(
+  (await expectASCIIshape(new Morph(asNum(0.1), box, circle))).toMatchSnapshot(
     "mostly box",
   );
 });
 
-test("union", () => {
+test("union", async () => {
   const box = new Box(0.3, 1.9);
   const box2 = new Box(1.9, 0.3);
   const circle = new Circle(0.5);
 
-  expectASCIIshape(new Union(box, circle)).toMatchSnapshot();
-  expectASCIIshape(new Union(box, circle, box2)).toMatchSnapshot(
+  (await expectASCIIshape(new Union(box, circle))).toMatchSnapshot();
+  (await expectASCIIshape(new Union(box, circle, box2))).toMatchSnapshot(
     "union of three",
   );
 });
 
-test("intersection", () => {
+test("intersection", async () => {
   const box = new Box(0.7, 1.9);
   const circle = new Circle(0.5);
 
-  expectASCIIshape(new Intersection(box, circle)).toMatchSnapshot();
-  expectASCIIshape(
-    new Intersection(box, circle, new TopHalfPlane()),
+  (await expectASCIIshape(new Intersection(box, circle))).toMatchSnapshot();
+  (
+    await expectASCIIshape(new Intersection(box, circle, new TopHalfPlane()))
   ).toMatchSnapshot("intersection of three");
 });
 
-test("difference", () => {
+test("difference", async () => {
   const box = new Box(1.9, 0.7);
   const circle = new Circle(0.5);
 
-  expectASCIIshape(new Difference(circle, box)).toMatchSnapshot("remove box");
-  expectASCIIshape(new Difference(box, circle)).toMatchSnapshot(
+  (await expectASCIIshape(new Difference(circle, box))).toMatchSnapshot(
+    "remove box",
+  );
+  (await expectASCIIshape(new Difference(box, circle))).toMatchSnapshot(
     "remove circle",
   );
 });

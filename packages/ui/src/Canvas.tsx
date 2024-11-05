@@ -149,9 +149,22 @@ function draw(canvas, camera, scene) {
 ///////////////////////////////////////////////////////////////////////////////
 //                           Canvas React Component
 
+/**
+ * Stores information for handling a pointerdown-pointermove-pointerup
+ * sequence on a Canvas.
+ */
+interface PointerState {
+  button: number;
+  viewPosOnPress: Vector2;
+  windowPosOnPress: Vector2;
+  cameraOnPress: Camera2;
+  isDrag: false;
+  isDragAccepted: false;
+}
+
 export function Canvas({ scene, setScene }) {
-  const [camera, setCamera] = useState(new Camera2());
-  const [mouseState, setMouseState] = useState({});
+  const [camera, setCamera] = useState<Camera2>(new Camera2());
+  const [pointerState, setPointerState] = useState<PointerState | null>(null);
 
   const ref = useRef(null);
 
@@ -198,91 +211,93 @@ export function Canvas({ scene, setScene }) {
     redraw();
   }
 
-  // Update whenever state changes, such as:
-  // - first-time load
-  // - camera changes
-  //
-  // However, note that this is not called on resize.
-  //
-  useEffect(() => {
-    update();
-    window.addEventListener('resize', update);
-    return () => {
-      window.removeEventListener('resize', update);
-    };
-  });
-
   /**
-   * Return the position of the mouse event relative to the topleft corner
+   * Return the position of the pointer event relative to the topleft corner
    * of the event target.
    */
-  function getEventPosition(e) {
+  function getPointerViewPosition(e) {
+    // XXX: or use offsetX / offsetY?
     const rect = e.target.getBoundingClientRect();
     return new Vector2(e.clientX - rect.left, e.clientY - rect.top);
   }
 
   /**
-   * Return the position of the mouse event in scene coordinates.
+   * Return the position of the pointer event relative to the topleft corner
+   * of the event target.
    */
-  function getEventScenePosition(e) {
-    const viewToWorld = camera.viewMatrix().invert();
-    return getEventPosition(e).applyMatrix3(viewToWorld);
+  function getPointerWindowPosition(e) {
+    return new Vector2(e.clientX, e.clientY);
   }
 
-  function onMouseDown(e) {
-    // Prevent concurrent drag/click actions
-    if (mouseState.dragButton != null && mouseState.dragButton != e.button) {
+  /**
+   * Return the position of the pointer event in scene coordinates.
+   */
+  function getEventScenePosition(e) {
+    const viewToScene = camera.viewMatrix().invert();
+    return getPointerViewPosition(e).applyMatrix3(viewToScene);
+  }
+
+  function onPointerDown(e) {
+    // Ignore if for some reason e.button is null or undefined
+    if (e.button == null) {
       return;
     }
-    setMouseState({
-      dragButton: e.button,
-      posOnPress: getEventPosition(e),
+    // Prevent concurrent pointerdown-pointermove-pointerup sequences
+    if (pointerState) {
+      return;
+    }
+    setPointerState({
+      button: e.button,
+      viewPosOnPress: getPointerViewPosition(e),
+      windowPosOnPress: getPointerWindowPosition(e),
       cameraOnPress: camera.clone(),
       isDrag: false,
       isDragAccepted: false,
     });
   }
 
-  function onMouseMove(e) {
-    // For now, we do nothing on mouse move unless a button is pressed
-    if (mouseState.dragButton == null) {
+  function onPointerMove(e) {
+    // Nothing to do unless we're part of pointerdown-pointermove-pointerup sequence
+    if (!pointerState) {
       return;
     }
     // Disambiguate between drag and click actions
-    let nextMouseState = null;
+    let nextPointerState = null;
     const dragThreshold = 5;
-    const deltaPos = getEventPosition(e).sub(mouseState.posOnPress);
-    let isDragAccepted = mouseState.isDragAccepted;
-    if (!mouseState.isDrag && deltaPos.manhattanLength() > dragThreshold) {
-      nextMouseState = { ...mouseState };
-      nextMouseState.isDrag = true;
-      nextMouseState.isDragAccepted = onDragStart(e);
-      isDragAccepted = nextMouseState.isDragAccepted;
+    const deltaPos = getPointerViewPosition(e).sub(pointerState.viewPosOnPress);
+    let isDragAccepted = pointerState.isDragAccepted;
+    if (!pointerState.isDrag && deltaPos.manhattanLength() > dragThreshold) {
+      nextPointerState = { ...pointerState };
+      nextPointerState.isDrag = true;
+      nextPointerState.isDragAccepted = onDragStart(e);
+      isDragAccepted = nextPointerState.isDragAccepted;
     }
     if (isDragAccepted) {
       onDragMove(e);
     }
-    if (nextMouseState) {
-      setMouseState(nextMouseState);
+    if (nextPointerState) {
+      setPointerState(nextPointerState);
     }
   }
 
-  function onMouseUp(e) {
-    if (mouseState.dragButton != e.button) {
+  function onPointerUp(e) {
+    // Nothing to do unless we're part of pointerdown-pointermove-pointerup sequence
+    // and e.button matches the button of that sequence
+    if (!(pointerState && pointerState.button === e.button)) {
       return;
     }
-    if (mouseState.isDragAccepted) {
+    if (pointerState.isDragAccepted) {
       onDragEnd(e);
     } else {
       onClick(e);
     }
-    setMouseState({});
+    setPointerState(null);
   }
 
   // Returns whether there is a drag action available for the drag button.
   //
   function onDragStart(/* e */): boolean {
-    switch (mouseState.dragButton) {
+    switch (pointerState.button) {
       case 1: {
         // middle drag: pan
         return true;
@@ -296,11 +311,11 @@ export function Canvas({ scene, setScene }) {
   }
 
   function onDragMove(e) {
-    const deltaPos = getEventPosition(e).sub(mouseState.posOnPress);
-    switch (mouseState.dragButton) {
+    const deltaPos = getPointerWindowPosition(e).sub(pointerState.windowPosOnPress);
+    switch (pointerState.button) {
       case 1: {
         // middle drag: pan
-        const nextCenter = mouseState.cameraOnPress.center.clone().sub(deltaPos);
+        const nextCenter = pointerState.cameraOnPress.center.clone().sub(deltaPos);
         const nextCamera = camera.clone();
         nextCamera.center = nextCenter;
         setCamera(nextCamera);
@@ -309,9 +324,9 @@ export function Canvas({ scene, setScene }) {
       case 2: {
         // right drag: rotate
         const rotateSensitivity = 0.01; // 100px -> 1rad
-        const anchor = mouseState.posOnPress;
+        const anchor = pointerState.viewPosOnPress;
         const angle = rotateSensitivity * (deltaPos.x - deltaPos.y);
-        const nextCamera = mouseState.cameraOnPress.clone();
+        const nextCamera = pointerState.cameraOnPress.clone();
         nextCamera.rotateAround(anchor, angle);
         setCamera(nextCamera);
         break;
@@ -333,8 +348,8 @@ export function Canvas({ scene, setScene }) {
       }
       case 2: {
         // right click: reset rotation
-        const anchor = getEventPosition(e);
-        const nextCamera = mouseState.cameraOnPress.clone();
+        const anchor = getPointerViewPosition(e);
+        const nextCamera = pointerState.cameraOnPress.clone();
         nextCamera.setRotationAround(anchor, 0);
         setCamera(nextCamera);
         break;
@@ -350,19 +365,49 @@ export function Canvas({ scene, setScene }) {
     if (e.deltaMode != 0) {
       return;
     }
-    const anchor = getEventPosition(e);
+    const anchor = getPointerViewPosition(e);
     const steps = -e.deltaY / 120;
     const nextCamera = camera.clone().zoomAt(anchor, steps);
     setCamera(nextCamera);
   }
 
+  useEffect(() => {
+    // Update whenever state changes, such as:
+    // - first-time load
+    // - camera changes
+    //
+    update();
+
+    // Register for document-wide pointer events once drag starts.
+    // This allows to keep dragging even after the pointer exists the canvas.
+    //
+    if (pointerState) {
+      document.addEventListener('pointermove', onPointerMove);
+      document.addEventListener('pointerup', onPointerUp);
+    } else {
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onPointerUp);
+    }
+
+    // Update canvas size and redraw when the window size changes.
+    // TODO: Use ResizeObserver instead?
+    //
+    window.addEventListener('resize', update);
+
+    // Cleanup.
+    //
+    return () => {
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('resize', update);
+    };
+  });
+
   return (
     <div className="canvas-container">
       <canvas
         ref={ref}
-        onMouseDown={onMouseDown}
-        onMouseMove={onMouseMove}
-        onMouseUp={onMouseUp}
+        onPointerDown={onPointerDown}
         onWheel={onWheel}
         onContextMenu={e => e.preventDefault()}
       />

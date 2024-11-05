@@ -210,28 +210,45 @@ export function Canvas({ scene, setScene }) {
     border.current.bottom = parseFloat(cs.borderBottomWidth);
     border.current.left = parseFloat(cs.borderLeftWidth);
 
-    // Compute the size of the content rect of the canvas in CSS pixels.
+    // Compute CSS coordinates of the boundary of the canvas' content rect.
     //
-    const w_css = canvas.clientWidth - padding.current.left - padding.current.right;
-    const h_css = canvas.clientHeight - padding.current.top - padding.current.bottom;
+    // It is important to use getBoundingClientRect() and not
+    // canvas.clientWidth and canvas.clientHeight, since the latter are only
+    // using integer precision, while the former is using float precision.
+    //
+    const rect = canvas.getBoundingClientRect();
+    const left = rect.left + padding.current.left + border.current.left;
+    const top = rect.top + padding.current.top + border.current.top;
+    const right = rect.right - padding.current.right - border.current.right;
+    const bottom = rect.bottom - padding.current.bottom - border.current.bottom;
 
-    // Convert from CSS pixels to hardware pixels: this is the image
-    // resolution we want for the underlying render target we're drawing to.
+    // Convert from CSS pixels to device pixels.
     //
     devicePixelRatio.current = window.devicePixelRatio;
-    const w = devicePixelRatio.current * w_css;
-    const h = devicePixelRatio.current * h_css;
+    const left_ = left * devicePixelRatio.current;
+    const top_ = top * devicePixelRatio.current;
+    const right_ = right * devicePixelRatio.current;
+    const bottom_ = bottom * devicePixelRatio.current;
 
+    // Deduce the size, in device pixels, of the rectangle where
+    // the canvas is actually displayed.
+    //
+    // Note that browsers seem to do pixel-snapping by rounding the
+    // coordinates, so it's important to first round the coordinates then
+    // take the difference, rather than first taking the difference then
+    // rounding.
+    //
+    const w = Math.round(right_) - Math.round(left_);
+    const h = Math.round(bottom_) - Math.round(top_);
+
+    // Sets the size of the canvas' render target to its display size, in
+    // device pixels, in order to avoid any downscaling or upscaling.
+    //
     if (canvas.width != w || canvas.height != h) {
-      // TODO: With hi-res screens, shouldn't we instead use the ratio between CSS
-      // units and physical pixels? Also, currently, if the browser has a zoom factor,
-      // this also leads to pixelization.
       canvas.width = w;
       canvas.height = h;
     }
     if (camera.canvasSize.x != w || camera.canvasSize.y != h) {
-      // TODO: maybe canvasSize should not be part of the Camera itself, so
-      // that it's not part of the state?
       const nextCamera = camera.clone();
       nextCamera.canvasSize = new Vector2(w, h);
       setCamera(nextCamera);

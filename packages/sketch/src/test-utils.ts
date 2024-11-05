@@ -1,6 +1,6 @@
 import { expect } from "vitest";
-import { simpleEval } from "./num-tree";
-import { asVec } from "./geom";
+import { simpleEval, dedupeEval } from "./num-tree";
+import { Point, asVec } from "./geom";
 import { Num } from "./num";
 import { DistField, Segment } from "./types";
 
@@ -55,23 +55,34 @@ const GRID = Array.from({ length: GRID_SIZE }, (_, i) =>
   ),
 );
 
-export function expectASCIIshape(distField: DistField) {
-  const imageData = GRID.map((row) =>
-    row.map((point) => simpleEval(distField.distanceTo(point).n) < 0),
+function callOnGrid<T>(fn: (point: Point) => Promise<T>) {
+  return Promise.all(GRID.map((row) => Promise.all(row.map(fn))));
+}
+
+export async function expectASCIIshape(distField: DistField) {
+  console.log("buiding ascii shape");
+  const imageData = await callOnGrid(
+    async (point) => (await dedupeEval(distField.distanceTo(point).n)) < 0,
   );
+  console.log("shape is built");
   return expect(booleansToASCII(imageData));
 }
 
-export function expectASCIISolidAngle(segment: Segment) {
-  const imageData = GRID.map((row) =>
-    row.map((point) => simpleEval(segment.solidAngle(point).turns.n)),
+export async function expectASCIISolidAngle(segment: Segment) {
+  console.log("building ascii solid angle");
+  const imageData = await callOnGrid((point) =>
+    dedupeEval(segment.solidAngle(point).turns.n),
   );
+  console.log("solid angle is built");
+
   return expect(gradientToASCII(imageData));
 }
 
-export function expectASCIIDistance(distField: DistField) {
-  const imageData = GRID.map((row) =>
-    row.map((point) => simpleEval(distField.distanceTo(point).n)),
+export async function expectASCIIDistance(distField: DistField) {
+  console.log("building ascii distance");
+  const imageData = await callOnGrid((point) =>
+    dedupeEval(distField.distanceTo(point).n),
   );
+  console.log("distance is built");
   return expect(gradientToASCII(imageData, 0.5));
 }

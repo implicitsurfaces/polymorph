@@ -1,4 +1,5 @@
 import { memoizeNodeEval } from "./utils/cache";
+import { dedupeTree } from "./utils/dedupe-tree";
 
 export type UnaryOperation =
   | "SQRT"
@@ -60,97 +61,118 @@ export class LiteralNum extends NumNode {
   }
 }
 
+const simpleUnaryOp = (operation: UnaryOperation, operand: number) => {
+  if (operation === "SQRT") {
+    return Math.sqrt(operand);
+  }
+  if (operation === "COS") {
+    return Math.cos(operand);
+  }
+  if (operation === "ACOS") {
+    return Math.acos(operand);
+  }
+  if (operation === "ASIN") {
+    return Math.asin(operand);
+  }
+  if (operation === "TAN") {
+    return Math.tan(operand);
+  }
+  if (operation === "ATAN") {
+    return Math.atan(operand);
+  }
+  if (operation === "LOG") {
+    return Math.log(operand);
+  }
+  if (operation === "EXP") {
+    return Math.exp(operand);
+  }
+  if (operation === "ABS") {
+    return Math.abs(operand);
+  }
+  if (operation === "NEG") {
+    return -operand;
+  }
+  if (operation === "SIN") {
+    return Math.sin(operand);
+  }
+  if (operation === "SIGN") {
+    return Math.sign(operand);
+  }
+  if (operation === "NOT") {
+    return operand ? 0 : 1;
+  }
+  if (operation === "TANH") {
+    return Math.tanh(operand);
+  }
+  if (operation === "LOG1P") {
+    return Math.log1p(operand);
+  }
+  throw new Error(`Unknown unary operation: ${operation}`);
+};
+
+const simpleBinaryOp = (
+  operation: BinaryOperation,
+  left: number,
+  right: number,
+) => {
+  if (operation === "ADD") {
+    return left + right;
+  }
+  if (operation === "SUB") {
+    return left - right;
+  }
+  if (operation === "MUL") {
+    return left * right;
+  }
+  if (operation === "DIV") {
+    return left / right;
+  }
+  if (operation === "MOD") {
+    return left % right;
+  }
+  if (operation === "ATAN2") {
+    return Math.atan2(left, right);
+  }
+  if (operation === "MIN") {
+    return Math.min(left, right);
+  }
+  if (operation === "MAX") {
+    return Math.max(left, right);
+  }
+  if (operation === "COMPARE") {
+    return Math.sign(left - right);
+  }
+  if (operation === "AND") {
+    return left && right;
+  }
+  if (operation === "OR") {
+    return left || right;
+  }
+  throw new Error(`Unknown binary operation: ${operation}`);
+};
+
 const simpleEval = memoizeNodeEval(function (node: NumNode): number {
   if (node instanceof LiteralNum) {
     return node.value;
   } else if (node instanceof UnaryOp) {
     const operand = simpleEval(node.original);
-
-    if (node.operation === "SQRT") {
-      return Math.sqrt(operand);
-    }
-    if (node.operation === "COS") {
-      return Math.cos(operand);
-    }
-    if (node.operation === "ACOS") {
-      return Math.acos(operand);
-    }
-    if (node.operation === "ASIN") {
-      return Math.asin(operand);
-    }
-    if (node.operation === "TAN") {
-      return Math.tan(operand);
-    }
-    if (node.operation === "ATAN") {
-      return Math.atan(operand);
-    }
-    if (node.operation === "LOG") {
-      return Math.log(operand);
-    }
-    if (node.operation === "EXP") {
-      return Math.exp(operand);
-    }
-    if (node.operation === "ABS") {
-      return Math.abs(operand);
-    }
-    if (node.operation === "NEG") {
-      return -operand;
-    }
-    if (node.operation === "SIN") {
-      return Math.sin(operand);
-    }
-    if (node.operation === "SIGN") {
-      return Math.sign(operand);
-    }
-    if (node.operation === "NOT") {
-      return operand ? 0 : 1;
-    }
-    if (node.operation === "TANH") {
-      return Math.tanh(operand);
-    }
-    if (node.operation === "LOG1P") {
-      return Math.log1p(operand);
-    }
+    return simpleUnaryOp(node.operation, operand);
   } else if (node instanceof BinaryOp) {
     const left = simpleEval(node.left);
     const right = simpleEval(node.right);
 
-    if (node.operation === "ADD") {
-      return left + right;
-    }
-    if (node.operation === "SUB") {
-      return left - right;
-    }
-    if (node.operation === "MUL") {
-      return left * right;
-    }
-    if (node.operation === "DIV") {
-      return left / right;
-    }
-    if (node.operation === "ATAN2") {
-      return Math.atan2(left, right);
-    }
-    if (node.operation === "MOD") {
-      return left % right;
-    }
-    if (node.operation === "MIN") {
-      return Math.min(left, right);
-    }
-    if (node.operation === "MAX") {
-      return Math.max(left, right);
-    }
-    if (node.operation === "COMPARE") {
-      return Math.sign(left - right);
-    }
-    if (node.operation === "AND") {
-      return left && right;
-    }
-    if (node.operation === "OR") {
-      return left || right;
-    }
+    return simpleBinaryOp(node.operation, left, right);
   }
 
   throw new Error(`Unknown node type: ${node?.operation}`);
 });
 
-export { simpleEval };
+const dedupeEval = async function (node: NumNode): Promise<number> {
+  console.log("node is built");
+  const deduped = await dedupeTree(node);
+  console.log("node is deduped", deduped);
+  const res = simpleEval(node);
+  return res;
+};
+
+export { simpleEval, dedupeEval };

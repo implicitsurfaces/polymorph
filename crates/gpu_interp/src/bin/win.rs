@@ -30,29 +30,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         }
     };
 
-    // let tape = {
-    //     use fidget::{
-    //         context::{Context, Tree},
-    //         vm::VmData,
-    //     };
-    //     use gpu_interp::sdf::*;
-
-    //     let mut circles = Vec::new();
-    //     for i in 0..10 {
-    //         for j in 0..10 {
-    //             let center_x = i as f64;
-    //             let center_y = j as f64;
-    //             circles.push(circle(center_x * 200.0, center_y * 200.0, 100.0));
-    //         }
-    //     }
-    //     let tree = smooth_union(circles);
-    //     let mut ctx = Context::new();
-    //     let node = ctx.import(&tree);
-    //     let data = VmData::<REG_COUNT>::new(&ctx, &[node]).unwrap();
-
-    //     data.iter_asm().collect::<Vec<_>>()
-    // };
-
     let tape = {
         use fidget::{context::Context, vm::VmData};
         let mut file = std::fs::File::open(

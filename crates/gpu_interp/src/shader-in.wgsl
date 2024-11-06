@@ -50,9 +50,9 @@ fn execute_bytecode(xs: vec4<f32>, y: u32) -> vec4<f32> {
               let out_reg = lo[1];
               let i = bitcast<u32>(hi);
               if (i == 0) {
-                reg[out_reg] = xs;
+                reg[out_reg] = (xs - 750.0) / 500.0;
               } else if (i == 1) {
-                reg[out_reg] = vec4<f32>(y);
+                reg[out_reg] = (vec4<f32>(y) - 750.0) / 500.0;
               }
             }
             case 1u /* Output */: {
@@ -118,9 +118,8 @@ fn vertex_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position
 
 @fragment
 fn fragment_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    // Adding the step count has the effect of moving the viewport each frame.
-    let x = u32(pos.x) + step_count;
-    let y = u32(pos.y) + step_count;
+    let x = u32(pos.x);
+    let y = u32(pos.y);
 
     // Each shader invocation processes 4 horizontal pixels, and the output
     // is a vec4<f32> representing four pixels.
@@ -130,7 +129,7 @@ fn fragment_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let index = y * row_len + buf_x;
 
     let pixel_group = output[index];
+    let is_inside = f32(pixel_group[offset] < 0.0);
 
-    // Select the appropriate component based on x % 4
-    return vec4<f32>(pixel_group[offset], pos.y / f32(dims.y), pos.x / f32(dims.x), 1.0);
+    return vec4<f32>(is_inside, is_inside, is_inside, 1.0);
 }

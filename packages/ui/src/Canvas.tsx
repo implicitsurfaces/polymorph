@@ -31,12 +31,12 @@ function lineTo(ctx, p: Vector2) {
  * then snap it to the pixel grid for pixel-perfect rendering.
  */
 function pixelSnap(p1: Vector2, p2: Vector2) {
-  if (p1.x == p2.x) {
+  if (Math.abs(p1.x - p2.x) < 0.01) {
     p1.round();
     p2.round();
     p1.x -= 0.5;
     p2.x -= 0.5;
-  } else if (p1.y == p2.y) {
+  } else if (Math.abs(p1.y - p2.y) < 0.01) {
     p1.round();
     p2.round();
     p1.y -= 0.5;
@@ -161,110 +161,35 @@ interface PointerState {
   isDragAccepted: false;
 }
 
-export class RectOffset {
-  constructor(
-    public top: number = 0,
-    public right: number = 0,
-    public bottom: number = 0,
-    public left: number = 0
-  ) {}
-}
-
 export function Canvas({ scene, setScene }) {
   const [camera, setCamera] = useState<Camera2>(new Camera2());
   const [pointerState, setPointerState] = useState<PointerState | null>(null);
 
   const ref = useRef(null);
-  const padding = useRef<RectOffset>(new RectOffset());
-  const border = useRef<RectOffset>(new RectOffset());
-  const devicePixelRatio = useRef<number>(1);
 
   /**
-   * Sets the size of the canvas' render target (in pixels) to be equal to its
-   * display size as an HTML element (in CSS units).
+   * We need this because while ResizeObserver provides the size of the
+   * content box, it does not provide its position in any coordinate systems,
+   * and its position can change even without its size changing (e.g., if the
+   * user scolls the page).
    *
-   * This is required since it is not done automatically, and therefore we would
-   * by default get a small render target (e.g., 100x100 px) whose pixels are
-   * stretched to fill the size of the HTML element.
+   * Therefore, when a pointer event is triggered, the only way to reliably
+   * access the canvas position in viewport coordinate is to query its border
+   * box position via getBoundingClientRect(), and substracts the
+   * padding/border using getComputedStyle(). It might be possible to keep
+   * the latter cached, but it's probably not worth it.
    */
-  function updateSize() {
+  function getCanvasBorderBoxToContentBoxOffset() {
     const canvas = ref.current;
     if (!canvas) {
-      return;
+      return new Vector2(0, 0);
     }
-
-    // Get the computed padding and border size of the canvas.
-    //
-    // We need this because getBoundingClientRect(), clientWidth, and
-    // clientHeight are all referring to the "border rect" (that is,
-    // including padding and border), while the canvas is actually rendered
-    // to the smaller "content rect" (excluding padding and border).
-    //
     const cs = getComputedStyle(canvas);
-    padding.current.top = parseFloat(cs.paddingTop);
-    padding.current.right = parseFloat(cs.paddingRight);
-    padding.current.bottom = parseFloat(cs.paddingBottom);
-    padding.current.left = parseFloat(cs.paddingLeft);
-    border.current.top = parseFloat(cs.borderTopWidth);
-    border.current.right = parseFloat(cs.borderRightWidth);
-    border.current.bottom = parseFloat(cs.borderBottomWidth);
-    border.current.left = parseFloat(cs.borderLeftWidth);
-
-    // Compute CSS coordinates of the boundary of the canvas' content rect.
-    //
-    // It is important to use getBoundingClientRect() and not
-    // canvas.clientWidth and canvas.clientHeight, since the latter are only
-    // using integer precision, while the former is using float precision.
-    //
-    const rect = canvas.getBoundingClientRect();
-    const left = rect.left + padding.current.left + border.current.left;
-    const top = rect.top + padding.current.top + border.current.top;
-    const right = rect.right - padding.current.right - border.current.right;
-    const bottom = rect.bottom - padding.current.bottom - border.current.bottom;
-
-    // Convert from CSS pixels to device pixels.
-    //
-    devicePixelRatio.current = window.devicePixelRatio;
-    const left_ = left * devicePixelRatio.current;
-    const top_ = top * devicePixelRatio.current;
-    const right_ = right * devicePixelRatio.current;
-    const bottom_ = bottom * devicePixelRatio.current;
-
-    // Deduce the size, in device pixels, of the rectangle where
-    // the canvas is actually displayed.
-    //
-    // Note that browsers seem to do pixel-snapping by rounding the
-    // coordinates, so it's important to first round the coordinates then
-    // take the difference, rather than first taking the difference then
-    // rounding.
-    //
-    const w = Math.round(right_) - Math.round(left_);
-    const h = Math.round(bottom_) - Math.round(top_);
-
-    // Sets the size of the canvas' render target to its display size, in
-    // device pixels, in order to avoid any downscaling or upscaling.
-    //
-    if (canvas.width != w || canvas.height != h) {
-      canvas.width = w;
-      canvas.height = h;
-    }
-    if (camera.canvasSize.x != w || camera.canvasSize.y != h) {
-      const nextCamera = camera.clone();
-      nextCamera.canvasSize = new Vector2(w, h);
-      setCamera(nextCamera);
-    }
-  }
-
-  function redraw() {
-    const canvas = ref.current;
-    if (canvas) {
-      draw(canvas, camera, scene);
-    }
-  }
-
-  function update() {
-    updateSize();
-    redraw();
+    const paddingLeft = parseFloat(cs.paddingLeft);
+    const paddingTop = parseFloat(cs.paddingTop);
+    const borderLeft = parseFloat(cs.borderLeft);
+    const borderTop = parseFloat(cs.borderTop);
+    return new Vector2(paddingLeft + borderLeft, paddingTop + borderTop);
   }
 
   /**
@@ -275,13 +200,11 @@ export function Canvas({ scene, setScene }) {
   function getCanvasPosition() {
     const canvas = ref.current;
     if (!canvas) {
-      return new Vector2();
+      return new Vector2(0, 0);
     }
-    const rect = canvas.getBoundingClientRect();
-    return new Vector2(
-      rect.left + padding.current.left + border.current.left,
-      rect.top + padding.current.top + border.current.top
-    );
+    const borderBox = canvas.getBoundingClientRect();
+    const offset = getCanvasBorderBoxToContentBoxOffset();
+    return new Vector2(borderBox.left, borderBox.top).add(offset);
   }
 
   /**
@@ -299,7 +222,7 @@ export function Canvas({ scene, setScene }) {
   function getPointerViewPosition(e) {
     return getPointerWindowPosition(e) //
       .sub(getCanvasPosition())
-      .multiplyScalar(devicePixelRatio.current);
+      .multiplyScalar(window.devicePixelRatio);
   }
 
   /**
@@ -438,21 +361,52 @@ export function Canvas({ scene, setScene }) {
       return;
     }
     const anchor = getPointerViewPosition(e);
-    const steps = (-e.deltaY / 120) * devicePixelRatio.current;
+    const steps = (-e.deltaY / 120) * window.devicePixelRatio;
     const nextCamera = camera.clone().zoomAt(anchor, steps);
     setCamera(nextCamera);
   }
 
+  // Redraw whenever the component state is updated, which includes a change
+  // of the scene, of the camera, or of the canvas width/height trigerred via
+  // the ResizeObserver.
+  //
   useEffect(() => {
-    // Update whenever state changes, such as:
-    // - first-time load
-    // - camera changes
-    //
-    update();
+    const canvas = ref.current;
+    if (canvas && canvas.width > 0 && canvas.height > 0) {
+      draw(canvas, camera, scene);
+    }
+  });
 
-    // Register for document-wide pointer events once drag starts.
-    // This allows to keep dragging even after the pointer exits the canvas.
-    //
+  // Update the camera (and therefore the canvas width/height attributes)
+  // based on its computed device pixel size.
+  //
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) {
+      return;
+    }
+    const observer = new ResizeObserver(entries => {
+      const entry = entries.find(entry => entry.target === canvas);
+      if (entry) {
+        const w = entry.devicePixelContentBoxSize[0].inlineSize;
+        const h = entry.devicePixelContentBoxSize[0].blockSize;
+        if (camera.canvasSize.x != w || camera.canvasSize.y != h) {
+          const nextCamera = camera.clone();
+          nextCamera.canvasSize = new Vector2(w, h);
+          setCamera(nextCamera);
+        }
+      }
+    });
+    observer.observe(canvas, { box: ['device-pixel-content-box'] });
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  // Register for document-wide pointer events once drag starts.
+  // This allows to keep dragging even after the pointer exits the canvas.
+  //
+  useEffect(() => {
     if (pointerState) {
       document.addEventListener('pointermove', onPointerMove);
       document.addEventListener('pointerup', onPointerUp);
@@ -460,25 +414,18 @@ export function Canvas({ scene, setScene }) {
       document.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('pointerup', onPointerUp);
     }
-
-    // Update canvas size and redraw when the window size changes.
-    // TODO: Use ResizeObserver instead?
-    //
-    window.addEventListener('resize', update);
-
-    // Cleanup.
-    //
     return () => {
       document.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('pointerup', onPointerUp);
-      window.removeEventListener('resize', update);
     };
-  });
+  }, [pointerState]);
 
   return (
     <div className="canvas-container">
       <canvas
         ref={ref}
+        width={camera.canvasSize.x}
+        height={camera.canvasSize.y}
         onPointerDown={onPointerDown}
         onWheel={onWheel}
         onContextMenu={e => e.preventDefault()}
@@ -486,3 +433,5 @@ export function Canvas({ scene, setScene }) {
     </div>
   );
 }
+
+export default Canvas;

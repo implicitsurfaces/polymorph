@@ -32,10 +32,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
 
     let tape = {
         use fidget::{context::Context, vm::VmData};
-        let mut file = std::fs::File::open(
-            "/Users/pdubroy/dev/third_party/makeeter/fidget/models/prospero.vm",
-        )
-        .unwrap();
+        let mut file = std::fs::File::open("prospero.vm").unwrap();
         let (ctx, root) = Context::from_text(&mut file).unwrap();
         let data = VmData::<REG_COUNT>::new(&ctx, &[root]).unwrap();
         data.iter_asm().collect::<Vec<_>>()

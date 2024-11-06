@@ -116,7 +116,7 @@ pub fn tape_to_bytes(tape: &[RegOp]) -> Vec<u8> {
     ans
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Viewport {
     pub width: u32,
     pub height: u32,
@@ -160,6 +160,7 @@ pub struct Buffers {
     pub output_staging_buffer: wgpu::Buffer,
     pub dims_buffer: wgpu::Buffer,
     pub step_count_buffer: wgpu::Buffer,
+    pub projection_buffer: wgpu::Buffer,
     pub timestamp_resolve_buffer: wgpu::Buffer,
     pub timestamp_readback_buffer: wgpu::Buffer,
 }
@@ -192,7 +193,7 @@ pub fn create_and_fill_buffers(
     let pc_max_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("pc_max Buffer"),
         contents: bytemuck::cast_slice(&[tape.len() as u32 * 2]), // x2 because each instruction is 2 u32s
-        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        usage: wgpu::BufferUsages::UNIFORM,
     });
 
     let output_size_bytes = viewport.byte_size();
@@ -211,16 +212,33 @@ pub fn create_and_fill_buffers(
         mapped_at_creation: false,
     });
 
-    let dims_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Dimensions Buffer"),
+    let viewport_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Viewport Buffer"),
         contents: bytemuck::cast_slice(&[viewport.width, viewport.height]),
+        usage: wgpu::BufferUsages::UNIFORM,
+    });
+
+    let step_count_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Step Count Buffer"),
+        contents: bytemuck::cast_slice(&[0u32]),
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
 
-    let count_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Count Buffer"),
-        contents: bytemuck::cast_slice(&[0u32]),
-        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+    let projection_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Projection Buffer"),
+        // maps screen space to world space: scale, then translate
+        contents: {
+            let w = viewport.width as f32;
+            let h = viewport.height as f32;
+            bytemuck::cast_slice(&dbg!([
+                1. / (w / 2.),
+                -1. / (h / 2.),
+                //
+                1.,
+                -1.,
+            ]))
+        },
+        usage: wgpu::BufferUsages::UNIFORM,
     });
 
     // Create two buffers for timestamps
@@ -242,8 +260,9 @@ pub fn create_and_fill_buffers(
         pc_max_buffer,
         output_buffer,
         output_staging_buffer,
-        dims_buffer,
-        step_count_buffer: count_buffer,
+        dims_buffer: viewport_buffer,
+        step_count_buffer,
+        projection_buffer,
         timestamp_resolve_buffer,
         timestamp_readback_buffer,
     }
@@ -277,6 +296,10 @@ pub fn create_bind_group(
             wgpu::BindGroupEntry {
                 binding: 4,
                 resource: buffers.step_count_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 5,
+                resource: buffers.projection_buffer.as_entire_binding(),
             },
         ],
     })
@@ -331,6 +354,16 @@ pub fn setup_pipeline_layout(
             },
             wgpu::BindGroupLayoutEntry {
                 binding: 4,
+                visibility: shader_stages,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 5,
                 visibility: shader_stages,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,

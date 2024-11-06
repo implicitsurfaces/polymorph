@@ -30,14 +30,18 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         }
     };
 
+    let viewport = Viewport {
+        width: 64 * 10,
+        height: 16 * 4 * 10,
+    };
+
     let tape = {
         use fidget::{context::Context, vm::VmData};
-        let mut file = std::fs::File::open("prospero.vm").unwrap();
+        let mut file = std::fs::File::open("quarter.vm").unwrap();
         let (ctx, root) = Context::from_text(&mut file).unwrap();
         let data = VmData::<REG_COUNT>::new(&ctx, &[root]).unwrap();
         data.iter_asm().collect::<Vec<_>>()
     };
-    eprintln!("{:?}", tape);
 
     let swapchain_capabilities = surface.get_capabilities(&adapter);
     let swapchain_format = swapchain_capabilities.formats[0];

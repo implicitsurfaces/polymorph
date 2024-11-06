@@ -10,19 +10,26 @@ struct FragmentOutput {
     @location(0) FragColor: vec4<f32>,
 }
 
-@group(0) @binding(0)
-var<storage> bytecode: Bytecode;
+struct Projection {
+    scale: vec2<f32>,
+    translation: vec2<f32>,
+}
 
-@group(0) @binding(1)
-var<uniform> pc_max: i32;
+
+@group(0) @binding(0) var<storage> bytecode: Bytecode;
+
+@group(0) @binding(1) var<uniform> pc_max: i32;
 
 @group(0) @binding(2) var<storage, read_write> output: array<vec4<f32>>;
 
-@group(0) @binding(3) var<uniform> dims: vec2<u32>;
+@group(0) @binding(3) var<uniform> viewport: vec2<u32>;
 
 @group(0) @binding(4) var<uniform> step_count: u32;
 
-fn execute_bytecode(xs: vec4<f32>, y: u32) -> vec4<f32> {
+@group(0) @binding(5) var<uniform> projection: Projection;
+
+
+fn execute_bytecode(xs: vec4<f32>, y: f32) -> vec4<f32> {
     var pc: i32 = 0;
     var reg: array<vec4<f32>, REG_COUNT>;
     var mem: array<vec4<f32>, MEM_SIZE>;
@@ -50,8 +57,10 @@ fn execute_bytecode(xs: vec4<f32>, y: u32) -> vec4<f32> {
               let out_reg = lo[1];
               let i = bitcast<u32>(hi);
               if (i == 0) {
+                //reg[out_reg] = (xs * projection.scale.x) + projection.translation.x;
                 reg[out_reg] = (xs - 750.0) / 500.0;
               } else if (i == 1) {
+                //reg[out_reg] = vec4<f32>((y * projection.scale.y) + projection.translation.y);
                 reg[out_reg] = (vec4<f32>(y) - 750.0) / 500.0;
               }
             }
@@ -94,11 +103,11 @@ fn execute_bytecode(xs: vec4<f32>, y: u32) -> vec4<f32> {
 fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     // Each shader invocation processes 4 horizontal pixels, and the output
     // is a vec4<f32> representing four pixels.
-    let quarter_width = dims.x / 4u;
+    let quarter_width = viewport[0] / 4u;
 
     let index = global_id.y * quarter_width + global_id.x;
     let xs = vec4<f32>(f32(global_id.x) * 4.0) + vec4<f32>(0.0, 1.0, 2.0, 3.0);
-    output[index] = execute_bytecode(xs, global_id.y);
+    output[index] = execute_bytecode(xs, f32(global_id.y));
 }
 
 @vertex
@@ -123,7 +132,7 @@ fn fragment_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     // Each shader invocation processes 4 horizontal pixels, and the output
     // is a vec4<f32> representing four pixels.
-    let row_len = dims.x / 4u;
+    let row_len = viewport[0] / 4u;
     let buf_x = x / 4u;
     let offset = x % 4u;
     let index = y * row_len + buf_x;

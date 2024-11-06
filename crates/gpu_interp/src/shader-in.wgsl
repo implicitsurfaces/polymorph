@@ -15,7 +15,6 @@ struct Projection {
     translation: vec2<f32>,
 }
 
-
 @group(0) @binding(0) var<storage> bytecode: Bytecode;
 
 @group(0) @binding(1) var<uniform> pc_max: i32;
@@ -27,7 +26,6 @@ struct Projection {
 @group(0) @binding(4) var<uniform> step_count: u32;
 
 @group(0) @binding(5) var<uniform> projection: Projection;
-
 
 fn execute_bytecode(xs: vec4<f32>, y: f32) -> vec4<f32> {
     var pc: i32 = 0;
@@ -57,11 +55,9 @@ fn execute_bytecode(xs: vec4<f32>, y: f32) -> vec4<f32> {
               let out_reg = lo[1];
               let i = bitcast<u32>(hi);
               if (i == 0) {
-                //reg[out_reg] = (xs * projection.scale.x) + projection.translation.x;
-                reg[out_reg] = (xs - 750.0) / 500.0;
+                reg[out_reg] = (xs * projection.scale.x) - projection.translation.x;
               } else if (i == 1) {
-                //reg[out_reg] = vec4<f32>((y * projection.scale.y) + projection.translation.y);
-                reg[out_reg] = (vec4<f32>(y) - 750.0) / 500.0;
+                reg[out_reg] = vec4<f32>(y * projection.scale.y) - projection.translation.y;
               }
             }
             case 1u /* Output */: {

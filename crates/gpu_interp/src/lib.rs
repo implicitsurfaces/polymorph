@@ -231,11 +231,10 @@ pub fn create_and_fill_buffers(
             let w = viewport.width as f32;
             let h = viewport.height as f32;
             bytemuck::cast_slice(&dbg!([
-                1. / (w / 2.),
-                -1. / (h / 2.),
-                //
+                1. / (w / 2.) as f32,
+                -1. / (h / 2.) as f32,
                 1.,
-                -1.,
+                -1.
             ]))
         },
         usage: wgpu::BufferUsages::UNIFORM,

@@ -30,7 +30,7 @@ struct Projection {
 fn execute_bytecode(xs: vec4<f32>, y: f32) -> vec4<f32> {
     var pc: i32 = 0;
     var reg: array<vec4<f32>, REG_COUNT>;
-    var mem: array<vec4<f32>, MEM_SIZE>;
+
     while (pc < pc_max) {
         /*
           Memory layout notes:
@@ -84,8 +84,6 @@ fn execute_bytecode(xs: vec4<f32>, y: f32) -> vec4<f32> {
             case 41u /* SubRegReg */: { reg[lo[1]] = reg[lo[2]] - reg[lo[3]]; }
             case 42u /* MinRegReg */: { reg[lo[1]] = min(reg[lo[2]], reg[lo[3]]); }
             case 43u /* MaxRegReg */: { reg[lo[1]] = max(reg[lo[2]], reg[lo[3]]); }
-            case 48u /* Load */: { reg[lo[1]] = mem[bitcast<u32>(hi)]; }
-            case 49u /* Store */: { mem[bitcast<u32>(hi)] = reg[lo[1]]; }
             default: {
               return vec4<f32>(1.234567);
             }

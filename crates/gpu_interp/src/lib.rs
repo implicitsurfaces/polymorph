@@ -14,8 +14,7 @@ pub const TIMESTAMP_COUNT: u64 = 4;
 pub const WORKGROUP_SIZE_X: u32 = 16;
 pub const WORKGROUP_SIZE_Y: u32 = 16;
 pub const MAX_TAPE_LEN_REGOPS: u32 = 32768;
-pub const REG_COUNT: usize = 32;
-pub const MEM_SIZE: usize = 32;
+pub const REG_COUNT: usize = 128;
 
 pub fn shader_source() -> String {
     let shared_constants = format!(
@@ -25,7 +24,6 @@ const WORKGROUP_SIZE_Y: u32 = {WORKGROUP_SIZE_Y}u;
 const MAX_TAPE_LEN_REGOPS: u32 = {MAX_TAPE_LEN_REGOPS}u;
 const BYTECODE_ARRAY_LEN: u32 = MAX_TAPE_LEN_REGOPS * 2u;
 const REG_COUNT: u32 = {REG_COUNT}u;
-const MEM_SIZE: u32 = {MEM_SIZE}u;
     "#
     );
     include_str!("shader-in.wgsl")
@@ -144,9 +142,8 @@ impl GPUTape {
                     repr[1] = *out;
                     repr[4..8].copy_from_slice(&imm.to_le_bytes());
                 }
-                RegOp::Load(r, mem) | RegOp::Store(r, mem) => {
-                    repr[1] = *r;
-                    repr[4..8].copy_from_slice(&mem.to_le_bytes());
+                RegOp::Load(_r, _mem) | RegOp::Store(_r, _mem) => {
+                    panic!("Store/load not supported. Try increasing REG_COUNT.")
                 }
             }
             ans.extend_from_slice(&repr);

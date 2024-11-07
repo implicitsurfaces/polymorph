@@ -6,7 +6,9 @@ export function memoizeNodeEval<
   const idCache = new WeakMap<N, ReturnType<T>>();
 
   return function (node: Parameters<T>[0]): ReturnType<T> {
-    if (idCache.has(node)) return idCache.get(node)!;
+    if (idCache.has(node)) {
+      return idCache.get(node)!;
+    }
 
     const val = fn(node);
     idCache.set(node, val);

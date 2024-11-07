@@ -1,4 +1,6 @@
-import { md5 } from "hash-wasm";
+import xxhash from "xxhash-wasm";
+
+const hasher = xxhash();
 
 export class Hasher {
   private str: string;
@@ -37,9 +39,6 @@ export class Hasher {
   }
 
   async done(): Promise<string> {
-    console.log(this.str);
-    const h = await md5(this.str);
-    console.log(h);
-    return h;
+    return (await hasher).h64ToString(this.str);
   }
 }

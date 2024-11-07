@@ -19,20 +19,31 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
 
     let (adapter, device, queue) = create_device(&instance, &options).await;
 
-    let viewport = {
-        let mut size = window.inner_size();
-        size.width = size.width.max(1);
-        size.height = size.height.max(1);
+    // let viewport = {
+    //     let mut size = window.inner_size();
+    //     size.width = size.width.max(1);
+    //     size.height = size.height.max(1);
 
-        Viewport {
-            width: size.width,
-            height: size.height,
-        }
-    };
+    //     Viewport {
+    //         width: size.width,
+    //         height: size.height,
+    //     }
+    // };
+
+    // let projection = Projection::default();
 
     let viewport = Viewport {
         width: 64 * 10,
         height: 16 * 4 * 10,
+    };
+
+    let projection = {
+        let w = viewport.width as f32;
+        let h = viewport.height as f32;
+        Projection {
+            scale: [1. / (w / 2.), -1. / (h / 2.)],
+            translation: [1., -1.],
+        }
     };
 
     let tape = {
@@ -92,7 +103,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         cache: None,
     });
 
-    let buffers = create_and_fill_buffers(&device, &tape, viewport);
+    let buffers = create_and_fill_buffers(&device, &tape, viewport, projection);
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
     let mut config = surface
@@ -126,7 +137,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                     WindowEvent::RedrawRequested => {
                         let frame_time = frame_start.elapsed();
                         frame_start = Instant::now();
-                        println!("Frame time: {:?}", frame_time);
+                        // eprintln!("Frame time: {:?}", frame_time);
 
                         // The step count is a "logical time" that is updated
                         // every frame.

@@ -128,6 +128,32 @@ impl Viewport {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct Projection {
+    pub scale: [f32; 2],
+    pub translation: [f32; 2],
+}
+
+impl Projection {
+    // TODO: it'd be nice to avoid mucking on the heap here.
+    pub fn as_bytes(&self) -> Vec<f32> {
+        vec![
+            self.scale[0],
+            self.scale[1],
+            self.translation[0],
+            self.translation[1],
+        ]
+    }
+}
+impl Default for Projection {
+    fn default() -> Self {
+        Self {
+            scale: [1., 1.],
+            translation: [0., 0.],
+        }
+    }
+}
+
 pub async fn create_device(
     instance: &wgpu::Instance,
     options: &wgpu::RequestAdapterOptions<'_, '_>,
@@ -169,6 +195,7 @@ pub fn create_and_fill_buffers(
     device: &wgpu::Device,
     tape: &[RegOp],
     viewport: Viewport,
+    projection: Projection,
 ) -> Buffers {
     let bytecode_buffer = {
         assert!(
@@ -227,16 +254,7 @@ pub fn create_and_fill_buffers(
     let projection_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Projection Buffer"),
         // maps screen space to world space: scale, then translate
-        contents: {
-            let w = viewport.width as f32;
-            let h = viewport.height as f32;
-            bytemuck::cast_slice(&dbg!([
-                1. / (w / 2.) as f32,
-                -1. / (h / 2.) as f32,
-                1.,
-                -1.
-            ]))
-        },
+        contents: { bytemuck::cast_slice(&projection.as_bytes()) },
         usage: wgpu::BufferUsages::UNIFORM,
     });
 
@@ -394,14 +412,14 @@ pub async fn print_timestamps(device: &wgpu::Device, queue: &wgpu::Queue, buffer
     if let Ok(Ok(())) = receiver.recv_async().await {
         let timestamp_data = timestamp_slice.get_mapped_range();
         let timestamps: &[u64] = bytemuck::cast_slice(&timestamp_data);
-        eprintln!(
-            "Duration #1: {:?}",
-            Duration::from_nanos((p * (timestamps[1] - timestamps[0]) as f32) as u64)
-        );
-        eprintln!(
-            "Duration #2: {:?}",
-            Duration::from_nanos((p * (timestamps[3] - timestamps[2]) as f32) as u64)
-        );
+        // eprintln!(
+        //     "Duration #1: {:?}",
+        //     Duration::from_nanos((p * (timestamps[1] - timestamps[0]) as f32) as u64)
+        // );
+        // eprintln!(
+        //     "Duration #2: {:?}",
+        //     Duration::from_nanos((p * (timestamps[3] - timestamps[2]) as f32) as u64)
+        // );
         drop(timestamp_data);
         buffers.timestamp_readback_buffer.unmap();
     }

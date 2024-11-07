@@ -55,34 +55,34 @@ const GRID = Array.from({ length: GRID_SIZE }, (_, i) =>
   ),
 );
 
-function callOnGrid<T>(fn: (point: Point) => Promise<T>) {
-  return Promise.all(GRID.map((row) => Promise.all(row.map(fn))));
+async function callOnGrid<T>(fn: (point: Point) => Promise<T>) {
+  const results = [];
+  for (const row of GRID) {
+    const rowResults = await Promise.all(row.map(fn));
+    results.push(rowResults);
+  }
+  return results;
 }
 
 export async function expectASCIIshape(distField: DistField) {
-  console.log("buiding ascii shape");
-  const imageData = await callOnGrid(
-    async (point) => (await dedupeEval(distField.distanceTo(point).n)) < 0,
-  );
-  console.log("shape is built");
+  const imageData = await callOnGrid(async (point): Promise<boolean> => {
+    const dist = await dedupeEval(distField.distanceTo(point).n);
+    return dist < 0;
+  });
   return expect(booleansToASCII(imageData));
 }
 
 export async function expectASCIISolidAngle(segment: Segment) {
-  console.log("building ascii solid angle");
   const imageData = await callOnGrid((point) =>
     dedupeEval(segment.solidAngle(point).turns.n),
   );
-  console.log("solid angle is built");
 
   return expect(gradientToASCII(imageData));
 }
 
 export async function expectASCIIDistance(distField: DistField) {
-  console.log("building ascii distance");
   const imageData = await callOnGrid((point) =>
     dedupeEval(distField.distanceTo(point).n),
   );
-  console.log("distance is built");
   return expect(gradientToASCII(imageData, 0.5));
 }

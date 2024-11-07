@@ -167,12 +167,16 @@ const simpleEval = memoizeNodeEval(function (node: NumNode): number {
   throw new Error(`Unknown node type: ${node?.operation}`);
 });
 
-const dedupeEval = async function (node: NumNode): Promise<number> {
-  console.log("node is built");
+export async function dedupeEval(node: NumNode): Promise<number> {
+  /* this is actually way slower than simpleEval */
+  /*
   const deduped = await dedupeTree(node);
-  console.log("node is deduped", deduped);
-  const res = simpleEval(node);
-  return res;
-};
+  return simpleEval(deduped);
 
-export { simpleEval, dedupeEval };
+  to be kept for now
+  */
+
+  return Promise.resolve(simpleEval(node));
+}
+
+export { simpleEval };

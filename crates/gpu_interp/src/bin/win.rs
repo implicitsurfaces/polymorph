@@ -1,3 +1,4 @@
+use fidget::{shape::EzShape, vm::VmShape};
 use gpu_interp::*;
 
 use std::borrow::Cow;
@@ -47,11 +48,11 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     };
 
     let tape = {
-        use fidget::{context::Context, vm::VmData};
-        let mut file = std::fs::File::open("quarter.vm").unwrap();
+        use fidget::context::Context;
+        let mut file = std::fs::File::open("prospero.vm").unwrap();
         let (ctx, root) = Context::from_text(&mut file).unwrap();
-        let data = VmData::<REG_COUNT>::new(&ctx, &[root]).unwrap();
-        data.iter_asm().collect::<Vec<_>>()
+
+        GPUTape::new(ctx, root)
     };
 
     let swapchain_capabilities = surface.get_capabilities(&adapter);

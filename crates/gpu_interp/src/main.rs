@@ -3,7 +3,6 @@
 
 use gpu_interp::*;
 
-use fidget::compiler::RegOp;
 use std::{borrow::Cow, str::FromStr};
 
 #[cfg_attr(test, allow(dead_code))]
@@ -25,7 +24,7 @@ async fn run() {
 }
 
 #[allow(dead_code)]
-async fn evaluate_tape(tape: &[RegOp], viewport: Viewport) -> Option<Vec<f32>> {
+async fn evaluate_tape(tape: &GPUTape, viewport: Viewport) -> Option<Vec<f32>> {
     let (_, device, queue) = create_device(
         &wgpu::Instance::default(),
         &wgpu::RequestAdapterOptions::default(),
@@ -48,7 +47,7 @@ async fn evaluate_tape(tape: &[RegOp], viewport: Viewport) -> Option<Vec<f32>> {
         cache: None,
     });
 
-    let buffers = create_and_fill_buffers(&device, tape, viewport, Projection::default());
+    let buffers = create_and_fill_buffers(&device, &tape, viewport, Projection::default());
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
     // Create timestamp query set
@@ -137,37 +136,11 @@ mod test {
     use super::*;
     use approx::assert_relative_eq;
     use fidget::{
-        compiler::RegOp,
         context::{Context, Tree},
         jit::JitShape,
         shape::EzShape,
-        var::Var,
-        vm::VmData,
     };
     use sdf::*;
-
-    #[test]
-    fn test_fidget_gpu_eval() {
-        let tree = Tree::x() + 1;
-        let mut ctx = Context::new();
-        let sum = ctx.import(&tree);
-        let data = VmData::<REG_COUNT>::new(&ctx, &[sum]).unwrap();
-        assert_eq!(data.len(), 3); // input, (X + 1), output
-
-        let mut iter = data.iter_asm();
-        let vars = &data.vars; // map from var to index
-        assert_eq!(iter.next().unwrap(), RegOp::Input(0, vars[&Var::X] as u32));
-        assert_eq!(iter.next().unwrap(), RegOp::AddRegImm(0, 0, 1.0));
-        assert_eq!(iter.next().unwrap(), RegOp::Output(0, 0));
-
-        let viewport = Viewport {
-            width: 64,
-            height: 16,
-        };
-        let bytecode = data.iter_asm().collect::<Vec<_>>();
-        let result = pollster::block_on(evaluate_tape(&bytecode, viewport));
-        assert_eq!(result.unwrap(), jit_evaluate(&tree, viewport));
-    }
 
     #[test]
     fn test_fidget_four_circles() {
@@ -182,16 +155,14 @@ mod test {
         let tree = smooth_union(circles);
         let mut ctx = Context::new();
         let node = ctx.import(&tree);
-        let data = VmData::<REG_COUNT>::new(&ctx, &[node]).unwrap();
-        // debug!("{:?}", data.iter_asm().collect::<Vec<_>>());
-
         let viewport = Viewport {
             width: 64,
             height: 64,
         };
-        let bytecode = data.iter_asm().collect::<Vec<_>>();
-        // eprintln!("{:?}", bytecode);
-        let result = pollster::block_on(evaluate_tape(&bytecode, viewport));
+
+        let tape = GPUTape::new(ctx, node);
+
+        let result = pollster::block_on(evaluate_tape(&tape, viewport));
         assert_relative_eq!(
             result.unwrap().as_slice(),
             jit_evaluate(&tree, viewport).as_slice(),
@@ -210,21 +181,18 @@ mod test {
             }
         }
         let tree = smooth_union(circles);
-        let start = std::time::Instant::now();
+
         let mut ctx = Context::new();
         let node = ctx.import(&tree);
-        let duration = start.elapsed();
-        let data = VmData::<REG_COUNT>::new(&ctx, &[node]).unwrap();
-
-        eprintln!("Bytecode compilation took {:?}", duration);
+        let tape = GPUTape::new(ctx, node);
 
         let viewport = Viewport {
             width: 1600,
             height: 1200,
         };
-        let bytecode = data.iter_asm().collect::<Vec<_>>();
+
         // debug!("{:?}", bytecode);
-        let result = pollster::block_on(evaluate_tape(&bytecode, viewport));
+        let result = pollster::block_on(evaluate_tape(&tape, viewport));
         assert_relative_eq!(
             result.unwrap().as_slice(),
             jit_evaluate(&tree, viewport).as_slice(),

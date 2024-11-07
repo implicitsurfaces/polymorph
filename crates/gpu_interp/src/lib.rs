@@ -1,6 +1,10 @@
 use bincode;
-use fidget::compiler::RegOp;
-use std::time::Duration;
+use fidget::{
+    compiler::RegOp,
+    shape::EzShape,
+    vm::{VmData, VmShape},
+};
+
 use wgpu::{util::DeviceExt, ShaderStages};
 
 pub mod sdf;
@@ -29,91 +33,126 @@ const MEM_SIZE: u32 = {MEM_SIZE}u;
         .replace("{ shared_constants }", shared_constants.as_ref())
 }
 
-pub fn tape_to_bytes(tape: &[RegOp]) -> Vec<u8> {
-    let mut ans: Vec<u8> = Vec::new();
-    for op in tape {
-        // This is very naughty! bincode will serialize the enum discriminant
-        // as a u32, but we know that the discriminant is always a single byte.
-        let tag = bincode::serialize(op).unwrap()[0];
-        let mut repr = [0u8; 8];
-        repr[0] = tag;
-        match op {
-            RegOp::Input(out, i) => {
-                repr[1] = *out;
-                repr[4..8].copy_from_slice(&i.to_le_bytes());
-            }
-            RegOp::Output(arg, i) => {
-                repr[1] = *arg;
-                repr[4..8].copy_from_slice(&i.to_le_bytes());
-            }
-            RegOp::NegReg(out, arg)
-            | RegOp::AbsReg(out, arg)
-            | RegOp::RecipReg(out, arg)
-            | RegOp::SqrtReg(out, arg)
-            | RegOp::SquareReg(out, arg)
-            | RegOp::FloorReg(out, arg)
-            | RegOp::CeilReg(out, arg)
-            | RegOp::RoundReg(out, arg)
-            | RegOp::SinReg(out, arg)
-            | RegOp::CosReg(out, arg)
-            | RegOp::TanReg(out, arg)
-            | RegOp::AsinReg(out, arg)
-            | RegOp::AcosReg(out, arg)
-            | RegOp::AtanReg(out, arg)
-            | RegOp::ExpReg(out, arg)
-            | RegOp::LnReg(out, arg)
-            | RegOp::NotReg(out, arg)
-            | RegOp::CopyReg(out, arg) => {
-                repr[1] = *out;
-                repr[2] = *arg;
-            }
-            RegOp::AddRegImm(out, arg, imm)
-            | RegOp::MulRegImm(out, arg, imm)
-            | RegOp::DivRegImm(out, arg, imm)
-            | RegOp::DivImmReg(out, arg, imm)
-            | RegOp::AtanRegImm(out, arg, imm)
-            | RegOp::AtanImmReg(out, arg, imm)
-            | RegOp::SubImmReg(out, arg, imm)
-            | RegOp::SubRegImm(out, arg, imm)
-            | RegOp::MinRegImm(out, arg, imm)
-            | RegOp::MaxRegImm(out, arg, imm)
-            | RegOp::AndRegImm(out, arg, imm)
-            | RegOp::OrRegImm(out, arg, imm)
-            | RegOp::ModRegImm(out, arg, imm)
-            | RegOp::ModImmReg(out, arg, imm)
-            | RegOp::CompareRegImm(out, arg, imm)
-            | RegOp::CompareImmReg(out, arg, imm) => {
-                repr[1] = *out;
-                repr[2] = *arg;
-                repr[4..8].copy_from_slice(&imm.to_le_bytes());
-            }
-            RegOp::AtanRegReg(out, lhs, rhs)
-            | RegOp::AndRegReg(out, lhs, rhs)
-            | RegOp::OrRegReg(out, lhs, rhs)
-            | RegOp::ModRegReg(out, lhs, rhs)
-            | RegOp::AddRegReg(out, lhs, rhs)
-            | RegOp::MulRegReg(out, lhs, rhs)
-            | RegOp::DivRegReg(out, lhs, rhs)
-            | RegOp::SubRegReg(out, lhs, rhs)
-            | RegOp::CompareRegReg(out, lhs, rhs)
-            | RegOp::MinRegReg(out, lhs, rhs)
-            | RegOp::MaxRegReg(out, lhs, rhs) => {
-                repr[1] = *out;
-                repr[2] = *lhs;
-                repr[3] = *rhs;
-            }
-            RegOp::CopyImm(out, imm) => {
-                repr[1] = *out;
-                repr[4..8].copy_from_slice(&imm.to_le_bytes());
-            }
-            RegOp::Load(r, mem) | RegOp::Store(r, mem) => {
-                repr[1] = *r;
-                repr[4..8].copy_from_slice(&mem.to_le_bytes());
-            }
+pub struct GPUTape {
+    pub tape: Vec<fidget::compiler::RegOp>,
+}
+
+impl GPUTape {
+    pub fn new(ctx: fidget::Context, root: fidget::context::Node) -> Self {
+        let data = VmData::<REG_COUNT>::new(&ctx, &[root]).unwrap();
+        let shape = VmShape::new(&ctx, root).unwrap();
+        let tape = shape.ez_point_tape();
+
+        // rewrite so x/y/z are always 0/1/2.
+        let varmap = tape.vars();
+        let mut remapping = [None; 3];
+
+        if let Some(idx) = varmap.get(&fidget::var::Var::X) {
+            remapping[idx] = Some(0);
         }
-        ans.extend_from_slice(&repr);
+        if let Some(idx) = varmap.get(&fidget::var::Var::Y) {
+            remapping[idx] = Some(1);
+        }
+        if let Some(idx) = varmap.get(&fidget::var::Var::Z) {
+            remapping[idx] = Some(2);
+        }
+        GPUTape {
+            tape: data
+                .iter_asm()
+                .map(|r| match r {
+                    RegOp::Input(out, i) => RegOp::Input(out, remapping[i as usize].unwrap()),
+                    other => other,
+                })
+                .collect::<Vec<_>>(),
+        }
     }
-    ans
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut ans: Vec<u8> = Vec::new();
+        for op in &self.tape {
+            // This is very naughty! bincode will serialize the enum discriminant
+            // as a u32, but we know that the discriminant is always a single byte.
+            let tag = bincode::serialize(op).unwrap()[0];
+            let mut repr = [0u8; 8];
+            repr[0] = tag;
+            match op {
+                RegOp::Input(out, i) => {
+                    repr[1] = *out;
+                    repr[4..8].copy_from_slice(&i.to_le_bytes());
+                }
+                RegOp::Output(arg, i) => {
+                    repr[1] = *arg;
+                    repr[4..8].copy_from_slice(&i.to_le_bytes());
+                }
+                RegOp::NegReg(out, arg)
+                | RegOp::AbsReg(out, arg)
+                | RegOp::RecipReg(out, arg)
+                | RegOp::SqrtReg(out, arg)
+                | RegOp::SquareReg(out, arg)
+                | RegOp::FloorReg(out, arg)
+                | RegOp::CeilReg(out, arg)
+                | RegOp::RoundReg(out, arg)
+                | RegOp::SinReg(out, arg)
+                | RegOp::CosReg(out, arg)
+                | RegOp::TanReg(out, arg)
+                | RegOp::AsinReg(out, arg)
+                | RegOp::AcosReg(out, arg)
+                | RegOp::AtanReg(out, arg)
+                | RegOp::ExpReg(out, arg)
+                | RegOp::LnReg(out, arg)
+                | RegOp::NotReg(out, arg)
+                | RegOp::CopyReg(out, arg) => {
+                    repr[1] = *out;
+                    repr[2] = *arg;
+                }
+                RegOp::AddRegImm(out, arg, imm)
+                | RegOp::MulRegImm(out, arg, imm)
+                | RegOp::DivRegImm(out, arg, imm)
+                | RegOp::DivImmReg(out, arg, imm)
+                | RegOp::AtanRegImm(out, arg, imm)
+                | RegOp::AtanImmReg(out, arg, imm)
+                | RegOp::SubImmReg(out, arg, imm)
+                | RegOp::SubRegImm(out, arg, imm)
+                | RegOp::MinRegImm(out, arg, imm)
+                | RegOp::MaxRegImm(out, arg, imm)
+                | RegOp::AndRegImm(out, arg, imm)
+                | RegOp::OrRegImm(out, arg, imm)
+                | RegOp::ModRegImm(out, arg, imm)
+                | RegOp::ModImmReg(out, arg, imm)
+                | RegOp::CompareRegImm(out, arg, imm)
+                | RegOp::CompareImmReg(out, arg, imm) => {
+                    repr[1] = *out;
+                    repr[2] = *arg;
+                    repr[4..8].copy_from_slice(&imm.to_le_bytes());
+                }
+                RegOp::AtanRegReg(out, lhs, rhs)
+                | RegOp::AndRegReg(out, lhs, rhs)
+                | RegOp::OrRegReg(out, lhs, rhs)
+                | RegOp::ModRegReg(out, lhs, rhs)
+                | RegOp::AddRegReg(out, lhs, rhs)
+                | RegOp::MulRegReg(out, lhs, rhs)
+                | RegOp::DivRegReg(out, lhs, rhs)
+                | RegOp::SubRegReg(out, lhs, rhs)
+                | RegOp::CompareRegReg(out, lhs, rhs)
+                | RegOp::MinRegReg(out, lhs, rhs)
+                | RegOp::MaxRegReg(out, lhs, rhs) => {
+                    repr[1] = *out;
+                    repr[2] = *lhs;
+                    repr[3] = *rhs;
+                }
+                RegOp::CopyImm(out, imm) => {
+                    repr[1] = *out;
+                    repr[4..8].copy_from_slice(&imm.to_le_bytes());
+                }
+                RegOp::Load(r, mem) | RegOp::Store(r, mem) => {
+                    repr[1] = *r;
+                    repr[4..8].copy_from_slice(&mem.to_le_bytes());
+                }
+            }
+            ans.extend_from_slice(&repr);
+        }
+        ans
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -135,14 +174,13 @@ pub struct Projection {
 }
 
 impl Projection {
-    // TODO: it'd be nice to avoid mucking on the heap here.
-    pub fn as_bytes(&self) -> Vec<f32> {
-        vec![
-            self.scale[0],
-            self.scale[1],
-            self.translation[0],
-            self.translation[1],
-        ]
+    pub fn as_bytes(&self) -> [u8; 4 * std::mem::size_of::<f32>()] {
+        let mut bytes = [0u8; 16];
+        bytes[0..4].copy_from_slice(&self.scale[0].to_le_bytes());
+        bytes[4..8].copy_from_slice(&self.scale[1].to_le_bytes());
+        bytes[8..12].copy_from_slice(&self.translation[0].to_le_bytes());
+        bytes[12..16].copy_from_slice(&self.translation[1].to_le_bytes());
+        bytes
     }
 }
 impl Default for Projection {
@@ -193,18 +231,13 @@ pub struct Buffers {
 
 pub fn create_and_fill_buffers(
     device: &wgpu::Device,
-    tape: &[RegOp],
+    tape: &GPUTape,
     viewport: Viewport,
     projection: Projection,
 ) -> Buffers {
     let bytecode_buffer = {
-        assert!(
-            tape.len() <= MAX_TAPE_LEN_REGOPS as usize,
-            "Tape too long: {:?}",
-            tape.len()
-        );
         let mut contents = vec![0u8; MAX_TAPE_LEN_REGOPS as usize * std::mem::size_of::<RegOp>()];
-        let tape_bytes = tape_to_bytes(tape);
+        let tape_bytes = tape.to_bytes();
         contents[..tape_bytes.len()].copy_from_slice(&tape_bytes);
         // eprintln!("tape bytes {:?}", tape_bytes);
 
@@ -219,7 +252,7 @@ pub fn create_and_fill_buffers(
 
     let pc_max_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("pc_max Buffer"),
-        contents: bytemuck::cast_slice(&[tape.len() as u32 * 2]), // x2 because each instruction is 2 u32s
+        contents: bytemuck::cast_slice(&[tape.tape.len() as u32 * 2]), // x2 because each instruction is 2 u32s
         usage: wgpu::BufferUsages::UNIFORM,
     });
 

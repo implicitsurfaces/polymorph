@@ -12,7 +12,7 @@ export interface CustomHashFunction {
   (): string;
 }
 
-class DedupeContext<T extends Hashable> {
+export class DedupeContext<T extends Hashable> {
   private hashes: WeakMap<T, string>;
   private cache: Map<string, T>;
 
@@ -57,16 +57,13 @@ class DedupeContext<T extends Hashable> {
       }
     }
 
-    console.log("hashing", hasher.str);
     const hash = await hasher.done();
     this.hashes.set(obj, hash);
     return hash;
   }
 
   async get(tree: T): Promise<T> {
-    console.log("hasing", tree);
     const hash = await this._createHash(tree);
-    console.log("hashed", tree);
     if (this.cache.has(hash)) {
       return this.cache.get(hash)!;
     }
@@ -76,7 +73,7 @@ class DedupeContext<T extends Hashable> {
 }
 
 function isScalar(tree: Hashable): boolean {
-  return typeof tree !== "object" && tree !== null;
+  return typeof tree !== "object" || tree === null;
 }
 
 function isLeaf(tree: Hashable): boolean {
@@ -86,35 +83,42 @@ function isLeaf(tree: Hashable): boolean {
 async function _dedupeTree<T extends Hashable>(
   tree: T,
   context: DedupeContext<T>,
+  parents: Set<T> = new Set(),
 ): Promise<T> {
   if (isLeaf(tree)) {
-    console.log("leaf", tree);
     return await context.get(tree);
   }
 
   const proxyMap = new Map<string, T>();
-  for (const key in tree) {
+  const keys = Object.keys(tree);
+
+  for (const key of keys) {
     const childNode = tree[key];
     if (isScalar(childNode)) {
       continue;
     }
-    const val = await _dedupeTree(childNode as T, context);
+
+    if (parents.has(childNode as T)) {
+      throw new Error("Circular dependency detected");
+    }
+    const newParents = new Set([tree, ...parents]);
+    const val = await _dedupeTree(childNode as T, context, newParents);
     proxyMap.set(key, val);
   }
 
   const proxiedTree = new Proxy(tree, {
-    get(target, prop) {
+    get(target, prop, receiver) {
       if (proxyMap.has(prop as string)) {
         return proxyMap.get(prop as string);
       }
-      return Reflect.get(target, prop);
+      return Reflect.get(target, prop, receiver);
     },
   });
 
   return await context.get(proxiedTree);
 }
 
-export async function dedupeTree<T extends Hashable>(tree: T): Promise<T> {
+export function dedupeTree<T extends Hashable>(tree: T): Promise<T> {
   const context = new DedupeContext<T>();
-  return await _dedupeTree(tree, context);
+  return _dedupeTree(tree, context);
 }

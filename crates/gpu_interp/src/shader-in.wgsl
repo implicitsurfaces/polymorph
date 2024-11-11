@@ -51,7 +51,7 @@ fn execute_bytecode(xs: vec4<f32>, y: f32) -> vec4<f32> {
         pc++;
 
         switch (lo[0]) {
-            case 0u /* Input */: {
+            case 1u /* Input */: {
               let out_reg = lo[1];
               let i = bitcast<u32>(hi);
               if (i == 0) {
@@ -60,30 +60,31 @@ fn execute_bytecode(xs: vec4<f32>, y: f32) -> vec4<f32> {
                 reg[out_reg] = vec4<f32>(y * projection.scale.y) - projection.translation.y;
               }
             }
-            case 1u /* Output */: {
+            case 0u /* Output */: {
               let src_reg = lo[1];
               let i = bitcast<u32>(hi);
               if (i == 0) {
                 return reg[src_reg];
               }
             }
-            case 2u /* NegReg */: { reg[lo[1]] = -reg[lo[2]]; }
-            case 5u /* SqrtReg */: { reg[lo[1]] = sqrt(reg[lo[2]]); }
-            case 6u /* SquareReg */: {
+            case 2u /* CopyReg */: { reg[lo[1]] = reg[lo[2]]; }
+            case 4u /* NegReg */: { reg[lo[1]] = -reg[lo[2]]; }
+            case 7u /* SqrtReg */: { reg[lo[1]] = sqrt(reg[lo[2]]); }
+            case 8u /* SquareReg */: {
               let val = reg[lo[2]];
               reg[lo[1]] = val * val;
             }
-            case 20u /* AddRegImm */: { reg[lo[1]] = reg[lo[2]] + hi; }
-            case 21u /* MulRegImm */: { reg[lo[1]] = reg[lo[2]] * hi; }
-            case 24u /* SubImmReg */: { reg[lo[1]] = hi - reg[lo[2]]; }
-            case 25u /* SubRegImm */: { reg[lo[1]] = reg[lo[2]] - hi; }
-            case 32u /* MinRegImm */: { reg[lo[1]] = min(reg[lo[2]], vec4<f32>(hi)); }
-            case 33u /* MaxRegImm */: { reg[lo[1]] = max(reg[lo[2]], vec4<f32>(hi)); }
-            case 38u /* AddRegReg */: { reg[lo[1]] = reg[lo[2]] + reg[lo[3]]; }
-            case 39u /* MulRegReg */: { reg[lo[1]] = reg[lo[2]] * reg[lo[3]]; }
-            case 41u /* SubRegReg */: { reg[lo[1]] = reg[lo[2]] - reg[lo[3]]; }
-            case 42u /* MinRegReg */: { reg[lo[1]] = min(reg[lo[2]], reg[lo[3]]); }
-            case 43u /* MaxRegReg */: { reg[lo[1]] = max(reg[lo[2]], reg[lo[3]]); }
+            case 21u /* AddRegImm */: { reg[lo[1]] = reg[lo[2]] + hi; }
+            case 22u /* MulRegImm */: { reg[lo[1]] = reg[lo[2]] * hi; }
+            case 29u /* SubImmReg */: { reg[lo[1]] = hi - reg[lo[2]]; }
+            case 24u /* SubRegImm */: { reg[lo[1]] = reg[lo[2]] - hi; }
+            case 33u /* MinRegImm */: { reg[lo[1]] = min(reg[lo[2]], vec4<f32>(hi)); }
+            case 34u /* MaxRegImm */: { reg[lo[1]] = max(reg[lo[2]], vec4<f32>(hi)); }
+            case 37u /* AddRegReg */: { reg[lo[1]] = reg[lo[2]] + reg[lo[3]]; }
+            case 38u /* MulRegReg */: { reg[lo[1]] = reg[lo[2]] * reg[lo[3]]; }
+            case 40u /* SubRegReg */: { reg[lo[1]] = reg[lo[2]] - reg[lo[3]]; }
+            case 44u /* MinRegReg */: { reg[lo[1]] = min(reg[lo[2]], reg[lo[3]]); }
+            case 45u /* MaxRegReg */: { reg[lo[1]] = max(reg[lo[2]], reg[lo[3]]); }
             default: {
               return vec4<f32>(1.234567);
             }

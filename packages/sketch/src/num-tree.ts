@@ -1,5 +1,4 @@
 import { memoizeNodeEval } from "./utils/cache";
-import { dedupeTree } from "./utils/dedupe-tree";
 
 export type UnaryOperation =
   | "SQRT"

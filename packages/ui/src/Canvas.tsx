@@ -119,17 +119,21 @@ function drawGrid(ctx, camera) {
   drawGridAxes(ctx, sceneToView, xMin, xMax, yMin, yMax, axesColor);
 }
 
-function drawDisk(ctx, position: Point, radius: number) {
+function drawDisk(ctx, position: Vector2, radius: number) {
   ctx.beginPath();
   ctx.arc(position.x, position.y, radius, 0, 2 * Math.PI);
   ctx.fillStyle = 'black';
   ctx.fill();
 }
 
-function drawPoints(ctx, scene) {
+function drawPoint(ctx, point: Point) {
   const radius = 5;
-  scene.points.forEach(p => {
-    drawDisk(ctx, p, radius);
+  drawDisk(ctx, point.position, radius);
+}
+
+function drawPoints(ctx, scene) {
+  scene.points.forEach(point => {
+    drawPoint(ctx, point);
   });
 }
 
@@ -161,11 +165,13 @@ interface PointerState {
   isDragAccepted: false;
 }
 
-export function Canvas({ scene, setScene }) {
+export function Canvas({ sceneManager }) {
   const [camera, setCamera] = useState<Camera2>(new Camera2());
   const [pointerState, setPointerState] = useState<PointerState | null>(null);
 
   const ref = useRef(null);
+
+  const scene = sceneManager.scene();
 
   /**
    * We need this because while ResizeObserver provides the size of the
@@ -338,7 +344,8 @@ export function Canvas({ scene, setScene }) {
       case 0: {
         // left click: create point
         const pos = getEventScenePosition(e);
-        setScene(scene.clone().addPoint(pos));
+        scene.addPoint(pos);
+        sceneManager.commitChanges();
         break;
       }
       case 2: {

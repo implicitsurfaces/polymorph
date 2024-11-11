@@ -17,19 +17,26 @@ struct Projection {
 
 @group(0) @binding(0) var<storage> bytecode: Bytecode;
 
-@group(0) @binding(1) var<uniform> pc_max: i32;
+@group(0) @binding(1) var<uniform> bc_offsets: array<vec4<u32>, MAX_TILE_COUNT_DIV_4>;
 
-@group(0) @binding(2) var<storage, read_write> output: array<vec4<f32>>;
+@group(0) @binding(2) var<uniform> bc_lengths: array<vec4<u32>, MAX_TILE_COUNT_DIV_4>;
 
-@group(0) @binding(3) var<uniform> viewport: vec2<u32>;
+@group(0) @binding(3) var<storage, read_write> output: array<vec4<f32>>;
 
-@group(0) @binding(4) var<uniform> step_count: u32;
+@group(0) @binding(4) var<uniform> viewport: vec2<u32>;
 
-@group(0) @binding(5) var<uniform> projection: Projection;
+@group(0) @binding(5) var<uniform> step_count: u32;
 
-fn execute_bytecode(xs: vec4<f32>, y: f32) -> vec4<f32> {
-    var pc: i32 = 0;
+@group(0) @binding(6) var<uniform> projection: Projection;
+
+fn execute_bytecode(xs: vec4<f32>, y: f32, tile_idx: u32) -> vec4<f32> {
     var reg: array<vec4<f32>, REG_COUNT>;
+
+    // Uniforms need 16-byte alignment, so we use a vec4<u32>.
+    var pc: u32 = bc_offsets[tile_idx / 4u][tile_idx % 4u];
+    let pc_max = bc_lengths[tile_idx / 4u][tile_idx % 4u];
+
+    let bogus = vec4<f32>(f32(pc), f32(pc_max), f32(tile_idx), 0.0);
 
     while (pc < pc_max) {
         /*
@@ -98,11 +105,16 @@ fn execute_bytecode(xs: vec4<f32>, y: f32) -> vec4<f32> {
 fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     // Each shader invocation processes 4 horizontal pixels, and the output
     // is a vec4<f32> representing four pixels.
-    let quarter_width = viewport[0] / 4u;
+    let row_len = viewport[0] / 4u;
+    let tile_row_len = row_len / TILE_SIZE_X;
 
-    let index = global_id.y * quarter_width + global_id.x;
+    let tile_x = global_id.x * 4u / TILE_SIZE_X; // tile size is in pixels
+    let tile_y = global_id.y / TILE_SIZE_Y;
+
     let xs = vec4<f32>(f32(global_id.x) * 4.0) + vec4<f32>(0.0, 1.0, 2.0, 3.0);
-    output[index] = execute_bytecode(xs, f32(global_id.y));
+    let out_idx = global_id.y * row_len + global_id.x;
+    let tile_idx = tile_y * tile_row_len + tile_x;
+    output[out_idx] = execute_bytecode(xs, f32(global_id.y), tile_idx);
 }
 
 @vertex

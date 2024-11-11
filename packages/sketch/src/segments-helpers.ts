@@ -1,5 +1,10 @@
 import { Angle, Point, Vec2 } from "./geom";
+import { Num } from "./num";
 import { BulgingSegment } from "./segments";
+
+function bulgeFromSandC(s: Num, c: Num) {
+  return s.neg().div(c.add(c.square().add(s.square()).sqrt()));
+}
 
 export function bulgingSegmentUsingStartTangent(
   p1: Point,
@@ -7,14 +12,25 @@ export function bulgingSegmentUsingStartTangent(
   startTangent: Angle,
 ) {
   const chord = p1.vecTo(p2);
-
   const tgt = startTangent.asVec();
 
   const s = chord.cross(tgt);
   const c = chord.dot(tgt);
 
-  const bulge = s.neg().div(c.add(c.square().add(s.square()).sqrt()));
-  return new BulgingSegment(p1, p2, bulge);
+  return new BulgingSegment(p1, p2, bulgeFromSandC(s, c));
+}
+
+export function bulgingSegmentUsingStartControl(
+  p1: Point,
+  p2: Point,
+  control: Point,
+) {
+  const chord = p1.vecTo(p2);
+  const tgt = p1.vecTo(control).normalize();
+
+  const s = chord.cross(tgt);
+  const c = chord.dot(tgt);
+  return new BulgingSegment(p1, p2, bulgeFromSandC(s, c));
 }
 
 export function bulgingSegmentUsingEndTangent(
@@ -23,14 +39,24 @@ export function bulgingSegmentUsingEndTangent(
   endTangent: Angle,
 ) {
   const chord = p1.vecTo(p2);
-
   const tgt = endTangent.asVec();
 
   const s = tgt.cross(chord);
   const c = tgt.dot(chord);
+  return new BulgingSegment(p1, p2, bulgeFromSandC(s, c));
+}
 
-  const bulge = s.neg().div(c.add(c.square().add(s.square()).sqrt()));
-  return new BulgingSegment(p1, p2, bulge);
+export function bulgingSegmentUsingEndControl(
+  p1: Point,
+  p2: Point,
+  control: Point,
+) {
+  const chord = p1.vecTo(p2);
+  const tgt = p2.vecTo(control).normalize();
+
+  const s = tgt.cross(chord);
+  const c = tgt.dot(chord);
+  return new BulgingSegment(p1, p2, bulgeFromSandC(s, c));
 }
 
 export function threePointsBulgingSegment(p1: Point, p2: Point, p3: Point) {

@@ -2,7 +2,7 @@ import { test } from "vitest";
 
 import { Dilatation } from "./sdf-operations";
 
-import { expectASCIIDistance, expectASCIIshape } from "./test-utils";
+import { expectASCIIshape } from "./test-utils";
 import { angleFromDeg, asVec } from "./geom";
 import { asNum } from "./num";
 import {

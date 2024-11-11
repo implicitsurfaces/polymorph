@@ -1,4 +1,4 @@
-import { Num, asNum } from "./num";
+import { Num, ONE, asNum } from "./num";
 import { atan2, hypot, ifTruthyElse, lessThan } from "./num-ops";
 
 function nonZeroSign(n: Num): Num {
@@ -81,8 +81,8 @@ export class Angle {
     );
   }
 
-  asVec(): Vec2 {
-    return new Vec2(this._cos, this._sin);
+  asVec(): UnitVec2 {
+    return new UnitVec2(this._cos, this._sin);
   }
 }
 
@@ -133,8 +133,8 @@ export const THREE_QUARTER_TURN = new Angle(asNum(0), asNum(-1));
 export const EIGHTH_TURN = new Angle(asNum(Math.SQRT1_2), asNum(Math.SQRT1_2));
 
 export class Vec2 {
-  private _x: Num;
-  private _y: Num;
+  protected _x: Num;
+  protected _y: Num;
 
   constructor(x: Num, y: Num) {
     this._x = x;
@@ -173,7 +173,7 @@ export class Vec2 {
     return this.dot(this).sqrt();
   }
 
-  normalize(): Vec2 {
+  normalize(): UnitVec2 {
     return this.div(this.norm());
   }
 
@@ -211,6 +211,43 @@ export class Vec2 {
 
   pointFromOrigin(): Point {
     return new Point(this._x, this._y);
+  }
+}
+
+export class UnitVec2 extends Vec2 {
+  asAngle(): Angle {
+    return new Angle(this._x, this._y);
+  }
+
+  norm(): Num {
+    return ONE;
+  }
+
+  normalize(): UnitVec2 {
+    return this;
+  }
+
+  neg(): UnitVec2 {
+    return new UnitVec2(this._x.neg(), this._y.neg());
+  }
+
+  perp(): UnitVec2 {
+    return new UnitVec2(this._y.neg(), this._x);
+  }
+
+  mirrorX(): UnitVec2 {
+    return new UnitVec2(this._x.neg(), this._y);
+  }
+
+  mirrorY(): UnitVec2 {
+    return new UnitVec2(this._x, this._y.neg());
+  }
+
+  rotate(angle: Angle): UnitVec2 {
+    return new UnitVec2(
+      angle.cos().mul(this._x).sub(angle.sin().mul(this._y)),
+      angle.sin().mul(this._x).add(angle.cos().mul(this._y)),
+    );
   }
 }
 

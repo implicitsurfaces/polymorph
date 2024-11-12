@@ -561,7 +561,7 @@ pub async fn print_timestamps(device: &wgpu::Device, queue: &wgpu::Queue, buffer
 
     if let Ok(Ok(())) = receiver.recv_async().await {
         let timestamp_data = timestamp_slice.get_mapped_range();
-        // let timestamps: &[u64] = bytemuck::cast_slice(&timestamp_data);
+        let timestamps: &[u64] = bytemuck::cast_slice(&timestamp_data);
         // eprintln!(
         //     "Duration #1: {:?}",
         //     Duration::from_nanos((p * (timestamps[1] - timestamps[0]) as f32) as u64)

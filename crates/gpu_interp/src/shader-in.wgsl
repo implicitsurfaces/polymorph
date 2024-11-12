@@ -147,6 +147,5 @@ fn fragment_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let pixel_group = output[index];
     let is_inside = f32(pixel_group[offset] < 0.0);
 
-    // return vec4<f32>(pixel_group[offset], pixel_group[offset], pixel_group[offset], 1.0);
     return vec4<f32>(is_inside, is_inside, is_inside, 1.0);
 }

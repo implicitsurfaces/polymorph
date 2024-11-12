@@ -1,11 +1,4 @@
-use fidget::{
-    compiler::RegOp,
-    context::{Context, Tree},
-    jit::JitShape,
-    shape::EzShape,
-    var::Var,
-    vm::VmData,
-};
+use fidget::context::Tree;
 
 pub fn circle(center_x: f64, center_y: f64, radius: f64) -> Tree {
     let dx = Tree::constant(center_x) - Tree::x();

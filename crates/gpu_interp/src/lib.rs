@@ -118,11 +118,14 @@ impl GPUTape {
                         subtape_starts.push(regops.len() as u32 * 2);
                         subtape_ends.push(regops.len() as u32 * 2);
                         continue;
-                    } else if out.upper() < 0.0 {
-                        // Tile is entirely inside the shape -- use the default tape.
-                        // TODO: Could we do better here?
+                    }
+                    if out.upper() < 0.0 || trace.is_none() {
+                        // Tile is entirely inside the shape, or the tape could not
+                        // be simplified. Use the default tape.
+                        // TODO: Could we do better in the "entirely inside" case?
                         subtape_starts.push(0);
                         subtape_ends.push(default_tape_len * 2);
+                        continue;
                     }
                     let simplified_tape =
                         shape.ez_simplify(trace.unwrap()).unwrap().ez_point_tape();

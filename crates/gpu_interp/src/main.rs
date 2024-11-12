@@ -160,7 +160,7 @@ mod test {
             height: 64,
         };
 
-        let tape = GPUTape::new(ctx, node);
+        let tape = GPUTape::new(ctx, node, viewport.width, viewport.height);
 
         let result = pollster::block_on(evaluate_tape(&tape, viewport));
         assert_relative_eq!(
@@ -182,14 +182,14 @@ mod test {
         }
         let tree = smooth_union(circles);
 
+        let viewport = Viewport {
+            width: 128,
+            height: 128,
+        };
+
         let mut ctx = Context::new();
         let node = ctx.import(&tree);
-        let tape = GPUTape::new(ctx, node);
-
-        let viewport = Viewport {
-            width: 1600,
-            height: 1200,
-        };
+        let tape = GPUTape::new(ctx, node, viewport.width, viewport.height);
 
         // debug!("{:?}", bytecode);
         let result = pollster::block_on(evaluate_tape(&tape, viewport));

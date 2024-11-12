@@ -234,29 +234,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
 
                         pollster::block_on(print_timestamps(&device, &queue, &buffers));
 
-                        // {
-                        //     // Map and read staging buffer
-                        //     let slice = buffers.output_staging_buffer.slice(..);
-                        //     slice.map_async(wgpu::MapMode::Read, |_| {});
-                        //     device.poll(wgpu::Maintain::Wait);
-
-                        //     // Read and print first 16 bytes as f32s
-                        //     let data = slice.get_mapped_range();
-                        //     let floats: &[f32] = bytemuck::cast_slice(&data);
-
-                        //     let mut last_f = 0.0f32;
-                        //     for f in floats.iter() {
-                        //         if last_f == 669.0 {
-                        //             eprintln!("Missing bytecode? {}", f);
-                        //         }
-                        //         last_f = *f;
-                        //     }
-
-                        //     // eprintln!("First 4 f32s: {:?}", &floats[0..4]);
-                        //     drop(data);
-                        //     buffers.output_staging_buffer.unmap();
-                        // }
-
                         window.request_redraw();
                     }
                     WindowEvent::CloseRequested => target.exit(),

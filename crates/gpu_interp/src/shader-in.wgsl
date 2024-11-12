@@ -15,6 +15,8 @@ struct Projection {
     translation: vec2<f32>,
 }
 
+
+
 @group(0) @binding(0) var<storage> bytecode: Bytecode;
 
 @group(0) @binding(1) var<uniform> bc_offsets: array<vec4<u32>, MAX_TILE_COUNT_DIV_4>;
@@ -33,7 +35,7 @@ fn execute_bytecode(xs: vec4<f32>, y: f32, tile_idx: u32) -> vec4<f32> {
     var reg: array<vec4<f32>, REG_COUNT>;
 
     // Uniforms need 16-byte alignment, so we use a vec4<u32>.
-    var pc: u32 = bc_offsets[tile_idx / 4u][tile_idx % 4u];
+    var pc = bc_offsets[tile_idx / 4u][tile_idx % 4u];
     let pc_max = bc_lengths[tile_idx / 4u][tile_idx % 4u];
 
     let bogus = vec4<f32>(f32(pc), f32(pc_max), f32(tile_idx), 0.0);
@@ -147,5 +149,6 @@ fn fragment_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let pixel_group = output[index];
     let is_inside = f32(pixel_group[offset] < 0.0);
 
+    // return vec4<f32>(pixel_group[offset], pixel_group[offset], pixel_group[offset], 1.0);
     return vec4<f32>(is_inside, is_inside, is_inside, 1.0);
 }

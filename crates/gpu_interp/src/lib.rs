@@ -1,8 +1,11 @@
 use bincode;
 use fidget::{
     compiler::RegOp,
+    context::Tree,
     shape::EzShape,
+    types::Interval,
     vm::{VmData, VmFunction, VmShape},
+    Context,
 };
 
 use wgpu::{util::DeviceExt, ShaderStages};
@@ -13,10 +16,10 @@ pub const FRAGMENTS_PER_INVOCATION: u32 = 4;
 pub const TIMESTAMP_COUNT: u64 = 4;
 pub const WORKGROUP_SIZE_X: u32 = 16;
 pub const WORKGROUP_SIZE_Y: u32 = 16;
-pub const MAX_TAPE_LEN_REGOPS: u32 = 32768 * 3;
+pub const MAX_TAPE_LEN_REGOPS: u32 = 32768 * 5;
 pub const REG_COUNT: usize = 255;
-pub const TILE_SIZE_X: u32 = 320;
-pub const TILE_SIZE_Y: u32 = 320;
+pub const TILE_SIZE_X: u32 = 128;
+pub const TILE_SIZE_Y: u32 = 128;
 pub const MAX_TILE_COUNT: u32 = 256;
 
 pub fn shader_source() -> String {
@@ -44,6 +47,13 @@ pub struct GPUTape {
     pub lengths: Vec<u32>,
 }
 
+fn circle(center_x: f64, center_y: f64, radius: f64) -> Tree {
+    let dx = Tree::constant(center_x) - Tree::x();
+    let dy = Tree::constant(center_y) - Tree::y();
+    let dist = (dx.square() + dy.square()).sqrt();
+    return dist - radius;
+}
+
 impl GPUTape {
     pub fn new(ctx: fidget::Context, root: fidget::context::Node, width: u32, height: u32) -> Self {
         let start = std::time::Instant::now();
@@ -65,18 +75,29 @@ impl GPUTape {
             let tape_i = shape.ez_interval_tape();
             let mut eval_i = fidget::shape::Shape::<VmFunction>::new_interval_eval();
 
+            let unproject = |val: f32, bounds: f32| (2.0 * val / bounds) - 1.0;
+
             for row in 0..(height / TILE_SIZE_Y) {
-                let y = half_height - row as f32 * TILE_SIZE_Y as f32;
-                let y_interval = fidget::types::Interval::new(y - TILE_SIZE_Y as f32, y);
+                let y = row as f32 * TILE_SIZE_Y as f32;
+                let y_interval = fidget::types::Interval::new(
+                    -unproject(y + TILE_SIZE_Y as f32, height as f32),
+                    -unproject(y, height as f32),
+                );
 
                 for col in 0..(width / TILE_SIZE_X) {
-                    let x = -half_width + col as f32 * TILE_SIZE_X as f32;
-                    let x_interval = fidget::types::Interval::new(x, x + TILE_SIZE_X as f32);
-                    dbg!((x_interval, y_interval));
+                    let x = col as f32 * TILE_SIZE_X as f32;
+                    let x_interval = fidget::types::Interval::new(
+                        unproject(x, width as f32),
+                        unproject(x + TILE_SIZE_X as f32, width as f32),
+                    );
+                    dbg!(x_interval, y_interval);
 
-                    let (_, trace) = eval_i
+                    let (out, trace) = eval_i
                         .eval(&tape_i, x_interval, y_interval, 0.0.into())
                         .unwrap();
+                    if out.lower() > 0.0 || out.upper() < 0.0 {
+                        todo!();
+                    }
                     let point_tape = shape.ez_simplify(trace.unwrap()).unwrap().ez_point_tape();
                     let data = point_tape.raw_tape().data();
 

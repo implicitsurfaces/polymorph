@@ -138,7 +138,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                     WindowEvent::RedrawRequested => {
                         let frame_time = frame_start.elapsed();
                         frame_start = Instant::now();
-                        eprintln!("Frame time: {:?}", frame_time);
+                        // eprintln!("Frame time: {:?}", frame_time);
 
                         // The step count is a "logical time" that is updated
                         // every frame.
@@ -218,15 +218,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                             &buffers.timestamp_readback_buffer,
                             0,
                             TIMESTAMP_COUNT * std::mem::size_of::<u64>() as wgpu::BufferAddress,
-                        );
-
-                        // Copy output buffer to staging buffer
-                        encoder.copy_buffer_to_buffer(
-                            &buffers.output_buffer,
-                            0,
-                            &buffers.output_staging_buffer,
-                            0,
-                            16,
                         );
 
                         queue.submit(Some(encoder.finish()));

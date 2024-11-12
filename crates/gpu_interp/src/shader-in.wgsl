@@ -21,7 +21,7 @@ struct Projection {
 
 @group(0) @binding(1) var<uniform> bc_offsets: array<vec4<u32>, MAX_TILE_COUNT_DIV_4>;
 
-@group(0) @binding(2) var<uniform> bc_lengths: array<vec4<u32>, MAX_TILE_COUNT_DIV_4>;
+@group(0) @binding(2) var<uniform> bc_ends: array<vec4<u32>, MAX_TILE_COUNT_DIV_4>;
 
 @group(0) @binding(3) var<storage, read_write> output: array<vec4<f32>>;
 
@@ -36,11 +36,14 @@ fn execute_bytecode(xs: vec4<f32>, y: f32, tile_idx: u32) -> vec4<f32> {
 
     // Uniforms need 16-byte alignment, so we use a vec4<u32>.
     var pc = bc_offsets[tile_idx / 4u][tile_idx % 4u];
-    let pc_max = bc_lengths[tile_idx / 4u][tile_idx % 4u];
+    let pc_max = bc_ends[tile_idx / 4u][tile_idx % 4u];
 
-    let bogus = vec4<f32>(f32(pc), f32(pc_max), f32(tile_idx), 0.0);
+    // Handle the case where simplification results in an empty tape.
+    if (pc == pc_max) {
+        return vec4<f32>(0.0);
+    }
 
-    while (true) {
+    while (pc < pc_max) {
         /*
           Memory layout notes:
           - On the Rust side, the bytecode is seralized into a Vec<u8>. When

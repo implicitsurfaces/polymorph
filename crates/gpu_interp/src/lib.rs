@@ -1,11 +1,8 @@
 use bincode;
 use fidget::{
     compiler::RegOp,
-    context::Tree,
     shape::EzShape,
-    types::Interval,
-    vm::{VmData, VmFunction, VmShape},
-    Context,
+    vm::{VmFunction, VmShape},
 };
 
 use wgpu::{util::DeviceExt, ShaderStages};
@@ -18,8 +15,8 @@ pub const WORKGROUP_SIZE_X: u32 = 16;
 pub const WORKGROUP_SIZE_Y: u32 = 16;
 pub const MAX_TAPE_LEN_REGOPS: u32 = 32768 * 5;
 pub const REG_COUNT: usize = 255;
-pub const TILE_SIZE_X: u32 = 128;
-pub const TILE_SIZE_Y: u32 = 128;
+pub const TILE_SIZE_X: u32 = 64;
+pub const TILE_SIZE_Y: u32 = 32;
 pub const MAX_TILE_COUNT: u32 = 256;
 
 pub fn shader_source() -> String {
@@ -45,13 +42,6 @@ pub struct GPUTape {
     pub tape: Vec<RegOp>,
     pub offsets: Vec<u32>,
     pub lengths: Vec<u32>,
-}
-
-fn circle(center_x: f64, center_y: f64, radius: f64) -> Tree {
-    let dx = Tree::constant(center_x) - Tree::x();
-    let dy = Tree::constant(center_y) - Tree::y();
-    let dist = (dx.square() + dy.square()).sqrt();
-    return dist - radius;
 }
 
 impl GPUTape {
@@ -96,7 +86,10 @@ impl GPUTape {
                         .eval(&tape_i, x_interval, y_interval, 0.0.into())
                         .unwrap();
                     if out.lower() > 0.0 || out.upper() < 0.0 {
-                        todo!();
+                        // The entire tile is outside the shape -- write an emtpy tape.
+                        subtape_starts.push(regops.len() as u32 * 2);
+                        subtape_ends.push(regops.len() as u32 * 2);
+                        continue;
                     }
                     let point_tape = shape.ez_simplify(trace.unwrap()).unwrap().ez_point_tape();
                     let data = point_tape.raw_tape().data();
@@ -229,7 +222,6 @@ impl GPUTape {
             }
             ans.extend_from_slice(&repr);
         }
-        dbg!(&ans[..10]);
         ans
     }
 }

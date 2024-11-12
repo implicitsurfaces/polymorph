@@ -38,7 +38,7 @@ fn execute_bytecode(xs: vec4<f32>, y: f32, tile_idx: u32) -> vec4<f32> {
 
     let bogus = vec4<f32>(f32(pc), f32(pc_max), f32(tile_idx), 0.0);
 
-    while (pc < pc_max) {
+    while (true) {
         /*
           Memory layout notes:
           - On the Rust side, the bytecode is seralized into a Vec<u8>. When
@@ -93,7 +93,7 @@ fn execute_bytecode(xs: vec4<f32>, y: f32, tile_idx: u32) -> vec4<f32> {
             case 44u /* MinRegReg */: { reg[lo[1]] = min(reg[lo[2]], reg[lo[3]]); }
             case 45u /* MaxRegReg */: { reg[lo[1]] = max(reg[lo[2]], reg[lo[3]]); }
             default: {
-              return vec4<f32>(1.234567);
+              return vec4<f32>(669.0, f32(pc), f32(lo[0]), f32(lo[0]));
             }
           }
     }
@@ -106,7 +106,7 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     // Each shader invocation processes 4 horizontal pixels, and the output
     // is a vec4<f32> representing four pixels.
     let row_len = viewport[0] / 4u;
-    let tile_row_len = row_len / TILE_SIZE_X;
+    let tile_row_len = viewport[0] / TILE_SIZE_X;
 
     let tile_x = global_id.x * 4u / TILE_SIZE_X; // tile size is in pixels
     let tile_y = global_id.y / TILE_SIZE_Y;

@@ -15,8 +15,8 @@ pub const WORKGROUP_SIZE_X: u32 = 16;
 pub const WORKGROUP_SIZE_Y: u32 = 16;
 pub const MAX_TAPE_LEN_REGOPS: u32 = 32768 * 3;
 pub const REG_COUNT: usize = 255;
-pub const TILE_SIZE_X: u32 = 128;
-pub const TILE_SIZE_Y: u32 = 128;
+pub const TILE_SIZE_X: u32 = 320;
+pub const TILE_SIZE_Y: u32 = 320;
 pub const MAX_TILE_COUNT: u32 = 256;
 
 pub fn shader_source() -> String {
@@ -51,73 +51,71 @@ impl GPUTape {
         // let data = VmData::<REG_COUNT>::new(&ctx, &[root]).unwrap();
 
         let shape = VmShape::new(&ctx, root).unwrap();
-        let tape = shape.ez_point_tape();
-
-        let remap_vars = {
-            // rewrite so x/y/z are always 0/1/2.
-            let varmap = tape.vars();
-            let mut remapping = [None; 3];
-
-            if let Some(idx) = varmap.get(&fidget::var::Var::X) {
-                remapping[idx] = Some(0);
-            }
-            if let Some(idx) = varmap.get(&fidget::var::Var::Y) {
-                remapping[idx] = Some(1);
-            }
-            if let Some(idx) = varmap.get(&fidget::var::Var::Z) {
-                remapping[idx] = Some(2);
-            }
-
-            move |r| match r {
-                RegOp::Input(out, i) => RegOp::Input(out, remapping[i as usize].unwrap()),
-                other => other,
-            }
-        };
 
         let mut regops: Vec<RegOp> = Vec::new();
 
         // tiling
         let ret = {
-            let tile_counts = (width / TILE_SIZE_X, height / TILE_SIZE_Y);
-            dbg!(tile_counts);
-            let hw = width as f32 / 2.;
-            let hh = height as f32 / 2.;
+            let half_width = width as f32 / 2.;
+            let half_height = height as f32 / 2.;
 
-            let mut offsets: Vec<u32> = Vec::new();
-            let mut lengths: Vec<u32> = Vec::new();
-
-            let mut next_offset = 0;
+            let mut subtape_starts: Vec<u32> = Vec::new();
+            let mut subtape_ends: Vec<u32> = Vec::new();
 
             let tape_i = shape.ez_interval_tape();
             let mut eval_i = fidget::shape::Shape::<VmFunction>::new_interval_eval();
 
-            for j in 0..tile_counts.1 {
-                for i in 0..tile_counts.0 {
-                    let x = -hw + i as f32 * TILE_SIZE_X as f32;
-                    let y = -hh + j as f32 * TILE_SIZE_Y as f32;
+            for row in 0..(height / TILE_SIZE_Y) {
+                let y = half_height - row as f32 * TILE_SIZE_Y as f32;
+                let y_interval = fidget::types::Interval::new(y - TILE_SIZE_Y as f32, y);
 
-                    let x = fidget::types::Interval::new(x, x + TILE_SIZE_X as f32);
-                    let y = fidget::types::Interval::new(y, y + TILE_SIZE_Y as f32);
-                    dbg!((x, y));
+                for col in 0..(width / TILE_SIZE_X) {
+                    let x = -half_width + col as f32 * TILE_SIZE_X as f32;
+                    let x_interval = fidget::types::Interval::new(x, x + TILE_SIZE_X as f32);
+                    dbg!((x_interval, y_interval));
 
-                    let (_, trace) = eval_i.eval(&tape_i, x, y, 0.0.into()).unwrap();
+                    let (_, trace) = eval_i
+                        .eval(&tape_i, x_interval, y_interval, 0.0.into())
+                        .unwrap();
                     let point_tape = shape.ez_simplify(trace.unwrap()).unwrap().ez_point_tape();
                     let data = point_tape.raw_tape().data();
 
-                    offsets.push(next_offset);
-                    dbg!(&offsets);
+                    let remap_vars = {
+                        // rewrite so x/y/z are always 0/1/2.
+                        let varmap = point_tape.vars();
+                        let mut remapping = [None; 3];
+
+                        if let Some(idx) = varmap.get(&fidget::var::Var::X) {
+                            remapping[idx] = Some(0);
+                        }
+                        if let Some(idx) = varmap.get(&fidget::var::Var::Y) {
+                            remapping[idx] = Some(1);
+                        }
+                        if let Some(idx) = varmap.get(&fidget::var::Var::Z) {
+                            remapping[idx] = Some(2);
+                        }
+
+                        move |r| match r {
+                            RegOp::Input(out, i) => {
+                                RegOp::Input(out, remapping[i as usize].unwrap())
+                            }
+                            other => other,
+                        }
+                    };
+
+                    // dbg!(&regops);
+                    subtape_starts.push(regops.len() as u32 * 2);
                     regops.extend(data.iter_asm().map(remap_vars));
-                    let len_bytes = regops.len() as u32 * 2;
-                    lengths.push(len_bytes);
-                    dbg!((regops.len(), len_bytes));
-                    next_offset += len_bytes;
+                    subtape_ends.push(regops.len() as u32 * 2);
                 }
             }
-            dbg!(&regops);
+            dbg!(&subtape_starts);
+            dbg!(&subtape_ends);
+            // dbg!(&regops);
             GPUTape {
                 tape: regops,
-                offsets: dbg!(offsets),
-                lengths: dbg!(lengths),
+                offsets: dbg!(subtape_starts),
+                lengths: dbg!(subtape_ends),
             }
         };
 

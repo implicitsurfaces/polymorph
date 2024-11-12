@@ -1,28 +1,40 @@
 import { useState, useRef, useEffect } from 'react';
 import { Vector2 } from 'threejs-math';
 import { Camera2 } from './Camera2.ts';
+import { Point, Scene, SceneManager } from './Scene.ts';
 
 import './Canvas.css';
 
 ///////////////////////////////////////////////////////////////////////////////
 //                            Draw util
 
-function drawBackground(ctx, width, height, color) {
+// A StrokeStyle or FillStyle is:
+// - A string parsed as CSS <color> value.
+// - A CanvasGradient object (a linear or radial gradient).
+// - A CanvasPattern object (a repeating image).
+//
+// https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/fillStyle
+// https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/strokeStyle
+//
+type FillStyle = string | CanvasGradient | CanvasPattern;
+type StrokeStyle = string | CanvasGradient | CanvasPattern;
+
+function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: number, fillStyle: FillStyle) {
   ctx.beginPath();
-  ctx.fillStyle = color;
+  ctx.fillStyle = fillStyle;
   ctx.fillRect(0, 0, width, height);
 }
 
-function initializeViewTransform(ctx, camera) {
+function initializeViewTransform(ctx: CanvasRenderingContext2D, camera: Camera2) {
   const e = camera.viewMatrix().elements;
   ctx.setTransform(e[0], e[1], e[3], e[4], e[6], e[7]);
 }
 
-function moveTo(ctx, p: Vector2) {
+function moveTo(ctx: CanvasRenderingContext2D, p: Vector2) {
   ctx.moveTo(p.x, p.y);
 }
 
-function lineTo(ctx, p: Vector2) {
+function lineTo(ctx: CanvasRenderingContext2D, p: Vector2) {
   ctx.lineTo(p.x, p.y);
 }
 
@@ -45,7 +57,7 @@ function pixelSnap(p1: Vector2, p2: Vector2) {
 }
 
 // Transform p1 and p2 to view coords, pixel snap them, then moveTo(p1) and lineTo(p2)
-function drawGridLine(ctx, sceneToView, p1, p2) {
+function drawGridLine(ctx: CanvasRenderingContext2D, sceneToView: Camera2, p1: Vector2, p2: Vector2) {
   p1.applyMatrix3(sceneToView);
   p2.applyMatrix3(sceneToView);
   pixelSnap(p1, p2);
@@ -53,7 +65,16 @@ function drawGridLine(ctx, sceneToView, p1, p2) {
   lineTo(ctx, p2);
 }
 
-function drawGridCells(ctx, sceneToView, xMin, xMax, yMin, yMax, size, color) {
+function drawGridCells(
+  ctx: CanvasRenderingContext2D,
+  sceneToView: Camera2,
+  xMin: number,
+  xMax: number,
+  yMin: number,
+  yMax: number,
+  size: number,
+  strokeStyle: StrokeStyle
+) {
   // Get scene coords of the first visible horizontal and vertical grid line,
   // as well as how many of them are visible.
   const xStart = Math.floor(xMin / size) * size;
@@ -76,20 +97,28 @@ function drawGridCells(ctx, sceneToView, xMin, xMax, yMin, yMax, size, color) {
   }
 
   ctx.lineWidth = 1;
-  ctx.strokeStyle = color;
+  ctx.strokeStyle = strokeStyle;
   ctx.stroke();
 }
 
-function drawGridAxes(ctx, sceneToView, xMin, xMax, yMin, yMax, color) {
+function drawGridAxes(
+  ctx: CanvasRenderingContext2D,
+  sceneToView: Camera2,
+  xMin: number,
+  xMax: number,
+  yMin: number,
+  yMax: number,
+  strokeStyle: StrokeStyle
+) {
   ctx.beginPath();
   drawGridLine(ctx, sceneToView, new Vector2(xMin, 0), new Vector2(xMax, 0));
   drawGridLine(ctx, sceneToView, new Vector2(0, yMin), new Vector2(0, yMax));
   ctx.lineWidth = 1;
-  ctx.strokeStyle = color;
+  ctx.strokeStyle = strokeStyle;
   ctx.stroke();
 }
 
-function drawGrid(ctx, camera) {
+function drawGrid(ctx: CanvasRenderingContext2D, camera: Camera2) {
   const sceneToView = camera.viewMatrix();
   const viewToScene = sceneToView.clone().invert();
   const w = camera.canvasSize.x;
@@ -119,30 +148,34 @@ function drawGrid(ctx, camera) {
   drawGridAxes(ctx, sceneToView, xMin, xMax, yMin, yMax, axesColor);
 }
 
-function drawDisk(ctx, position: Vector2, radius: number) {
+function drawDisk(ctx: CanvasRenderingContext2D, position: Vector2, radius: number, fillStyle: FillStyle) {
   ctx.beginPath();
   ctx.arc(position.x, position.y, radius, 0, 2 * Math.PI);
-  ctx.fillStyle = 'black';
+  ctx.fillStyle = fillStyle;
   ctx.fill();
 }
 
-function drawPoint(ctx, point: Point) {
+function drawPoint(ctx: CanvasRenderingContext2D, point: Point) {
   const radius = 5;
-  drawDisk(ctx, point.position, radius);
+  const fillStyle = 'black';
+  drawDisk(ctx, point.position, radius, fillStyle);
 }
 
-function drawPoints(ctx, scene) {
+function drawPoints(ctx: CanvasRenderingContext2D, scene: Scene) {
   scene.points.forEach(point => {
     drawPoint(ctx, point);
   });
 }
 
-function drawScene(ctx, scene) {
+function drawScene(ctx: CanvasRenderingContext2D, scene: Scene) {
   drawPoints(ctx, scene);
 }
 
-function draw(canvas, camera, scene) {
+function draw(canvas: HTMLCanvasElement, camera: Camera2, scene: Scene) {
   const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    return;
+  }
   ctx.resetTransform();
   drawBackground(ctx, canvas.width, canvas.height, '#e0e0e0');
   drawGrid(ctx, camera);
@@ -161,15 +194,23 @@ interface PointerState {
   button: number;
   viewPosOnPress: Vector2;
   cameraOnPress: Camera2;
-  isDrag: false;
-  isDragAccepted: false;
+  isDrag: boolean;
+  isDragAccepted: boolean;
 }
 
-export function Canvas({ sceneManager }) {
+interface CanvasProps {
+  sceneManager: SceneManager;
+}
+
+type IMouseEvent = MouseEvent | React.MouseEvent;
+type IPointerEvent = PointerEvent | React.PointerEvent;
+type IWheelEvent = WheelEvent | React.WheelEvent;
+
+export function Canvas({ sceneManager }: CanvasProps) {
   const [camera, setCamera] = useState<Camera2>(new Camera2());
   const [pointerState, setPointerState] = useState<PointerState | null>(null);
 
-  const ref = useRef(null);
+  const ref = useRef<HTMLCanvasElement | null>(null);
 
   const scene = sceneManager.scene();
 
@@ -217,16 +258,16 @@ export function Canvas({ sceneManager }) {
    * Return the position of the pointer event, in CSS pixels, relative to the
    * topleft corner of the browser windows (= "viewport coordinates").
    */
-  function getPointerWindowPosition(e) {
-    return new Vector2(e.clientX, e.clientY);
+  function getPointerWindowPosition(event: IMouseEvent) {
+    return new Vector2(event.clientX, event.clientY);
   }
 
   /**
    * Return the position of the pointer event, in hardware pixels, relative to the
    * topleft corner of the canvas (exluding border and padding).
    */
-  function getPointerViewPosition(e) {
-    return getPointerWindowPosition(e) //
+  function getPointerViewPosition(event: IMouseEvent) {
+    return getPointerWindowPosition(event) //
       .sub(getCanvasPosition())
       .multiplyScalar(window.devicePixelRatio);
   }
@@ -234,14 +275,14 @@ export function Canvas({ sceneManager }) {
   /**
    * Return the position of the pointer event in scene coordinates.
    */
-  function getEventScenePosition(e) {
+  function getEventScenePosition(event: IMouseEvent) {
     const viewToScene = camera.viewMatrix().invert();
-    return getPointerViewPosition(e).applyMatrix3(viewToScene);
+    return getPointerViewPosition(event).applyMatrix3(viewToScene);
   }
 
-  function onPointerDown(e) {
+  function onPointerDown(event: IPointerEvent) {
     // Ignore if for some reason e.button is null or undefined
-    if (e.button == null) {
+    if (event.button == null) {
       return;
     }
     // Prevent concurrent pointerdown-pointermove-pointerup sequences
@@ -249,15 +290,15 @@ export function Canvas({ sceneManager }) {
       return;
     }
     setPointerState({
-      button: e.button,
-      viewPosOnPress: getPointerViewPosition(e),
+      button: event.button,
+      viewPosOnPress: getPointerViewPosition(event),
       cameraOnPress: camera.clone(),
       isDrag: false,
       isDragAccepted: false,
     });
   }
 
-  function onPointerMove(e) {
+  function onPointerMove(event: IPointerEvent) {
     // Nothing to do unless we're part of pointerdown-pointermove-pointerup sequence
     if (!pointerState) {
       return;
@@ -265,39 +306,43 @@ export function Canvas({ sceneManager }) {
     // Disambiguate between drag and click actions
     let nextPointerState = null;
     const dragThreshold = 5;
-    const deltaPos = getPointerViewPosition(e).sub(pointerState.viewPosOnPress);
+    const deltaPos = getPointerViewPosition(event).sub(pointerState.viewPosOnPress);
     let isDragAccepted = pointerState.isDragAccepted;
     if (!pointerState.isDrag && deltaPos.manhattanLength() > dragThreshold) {
       nextPointerState = { ...pointerState };
       nextPointerState.isDrag = true;
-      nextPointerState.isDragAccepted = onDragStart(e);
+      nextPointerState.isDragAccepted = onDragStart(event);
       isDragAccepted = nextPointerState.isDragAccepted;
     }
     if (isDragAccepted) {
-      onDragMove(e);
+      onDragMove(event);
     }
     if (nextPointerState) {
       setPointerState(nextPointerState);
     }
   }
 
-  function onPointerUp(e) {
+  function onPointerUp(event: IPointerEvent) {
     // Nothing to do unless we're part of pointerdown-pointermove-pointerup sequence
     // and e.button matches the button of that sequence
-    if (!(pointerState && pointerState.button === e.button)) {
+    if (!(pointerState && pointerState.button === event.button)) {
       return;
     }
     if (pointerState.isDragAccepted) {
-      onDragEnd(e);
+      onDragEnd(/* event */);
     } else {
-      onClick(e);
+      onClick(event);
     }
     setPointerState(null);
   }
 
   // Returns whether there is a drag action available for the drag button.
   //
-  function onDragStart(/* e */): boolean {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  function onDragStart(_event: IPointerEvent): boolean {
+    if (!pointerState) {
+      return false;
+    }
     switch (pointerState.button) {
       case 1: {
         // middle drag: pan
@@ -311,8 +356,11 @@ export function Canvas({ sceneManager }) {
     return false;
   }
 
-  function onDragMove(e) {
-    const deltaPos = getPointerViewPosition(e).sub(pointerState.viewPosOnPress);
+  function onDragMove(event: IPointerEvent): void {
+    if (!pointerState) {
+      return;
+    }
+    const deltaPos = getPointerViewPosition(event).sub(pointerState.viewPosOnPress);
     switch (pointerState.button) {
       case 1: {
         // middle drag: pan
@@ -335,22 +383,26 @@ export function Canvas({ sceneManager }) {
     }
   }
 
-  function onDragEnd(/* e */) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  function onDragEnd(_event: IPointerEvent) {
     // Nothing for now
   }
 
-  function onClick(e) {
-    switch (e.button) {
+  function onClick(event: IPointerEvent) {
+    if (!pointerState) {
+      return;
+    }
+    switch (event.button) {
       case 0: {
         // left click: create point
-        const pos = getEventScenePosition(e);
+        const pos = getEventScenePosition(event);
         scene.addPoint(pos);
         sceneManager.commitChanges();
         break;
       }
       case 2: {
         // right click: reset rotation
-        const anchor = getPointerViewPosition(e);
+        const anchor = getPointerViewPosition(event);
         const nextCamera = pointerState.cameraOnPress.clone();
         nextCamera.setRotationAround(anchor, 0);
         setCamera(nextCamera);
@@ -359,16 +411,16 @@ export function Canvas({ sceneManager }) {
     }
   }
 
-  function onWheel(e) {
+  function onWheel(event: IWheelEvent) {
     // TODO: support all delta modes
     // 0 = pixels (120px for one scroll step)
     // 1 = lines
     // 2 = pages
-    if (e.deltaMode != 0) {
+    if (event.deltaMode != 0) {
       return;
     }
-    const anchor = getPointerViewPosition(e);
-    const steps = (-e.deltaY / 120) * window.devicePixelRatio;
+    const anchor = getPointerViewPosition(event);
+    const steps = (-event.deltaY / 120) * window.devicePixelRatio;
     const nextCamera = camera.clone().zoomAt(anchor, steps);
     setCamera(nextCamera);
   }
@@ -404,7 +456,7 @@ export function Canvas({ sceneManager }) {
         }
       }
     });
-    observer.observe(canvas, { box: ['device-pixel-content-box'] });
+    observer.observe(canvas, { box: 'device-pixel-content-box' });
     return () => {
       observer.disconnect();
     };

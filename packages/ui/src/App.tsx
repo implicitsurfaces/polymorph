@@ -30,7 +30,7 @@ function App() {
   // Application-wide shortcuts.
 
   const onKeyPress = useCallback(
-    event => {
+    (event: KeyboardEvent) => {
       if (event.ctrlKey && (event.key === 'z' || event.key === 'Z')) {
         if (event.shiftKey) {
           sceneManager.redo();

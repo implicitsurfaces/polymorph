@@ -12,7 +12,7 @@ export class Point {
   ) {}
 
   clone(): Point {
-    return new this.constructor().copy(this);
+    return new Point().copy(this);
   }
 
   copy(source: Point): Point {
@@ -32,7 +32,7 @@ export class Scene {
    * Returns a new scene with the same content as this one.
    */
   clone(): Scene {
-    return new this.constructor().copy(this);
+    return new Scene().copy(this);
   }
 
   /**
@@ -85,7 +85,8 @@ export class SceneManager {
     if (workingCopy !== undefined) {
       this._workingCopy = workingCopy;
     } else {
-      this._makeWorkingCopy();
+      // Same as `this._makeWorkingCopy();` but silences strictPropertyInitialization false positive
+      this._workingCopy = this._history[this._index].clone();
     }
   }
 
@@ -93,7 +94,7 @@ export class SceneManager {
    * Returns a shallow copy of this SceneManager.
    */
   shallowClone(): SceneManager {
-    return new this.constructor(this._onChange, this._history, this._index, this._workingCopy);
+    return new SceneManager(this._onChange, this._history, this._index, this._workingCopy);
   }
 
   /**

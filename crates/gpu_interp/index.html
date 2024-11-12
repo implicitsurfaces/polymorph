@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!--- See config options https://trunkrs.dev/assets/ --->
+    <link data-trunk rel="rust" data-wasm-opt="z" data-bin="web">
+    <link data-trunk rel="sass" href="src/web/style.sass" data-inline>
+  </head>
+
+  <body>
+    <div id="app">
+      <div id="canvas-container">
+        <canvas id="target-canvas"></canvas>
+      </div>
+      <pre id="debug"></pre>
+      <button onclick="reset_app()">Reset</button>
+    </div>
+    <script data-trunk type="module" src="src/web/main.js" data-inline></script>
+  </body>
+</html>

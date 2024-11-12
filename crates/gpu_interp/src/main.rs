@@ -65,7 +65,7 @@ async fn evaluate_tape(tape: &GPUTape, viewport: Viewport) -> Option<Vec<f32>> {
         &mut encoder,
         &pipeline,
         &bind_group,
-        &timestamp_query_set,
+        Some(&timestamp_query_set),
         &viewport,
     );
 

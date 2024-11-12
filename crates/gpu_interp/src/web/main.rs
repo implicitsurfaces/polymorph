@@ -1,8 +1,23 @@
-use fidget::{shape::EzShape, vm::VmShape};
+use fidget::context::Context;
+use gpu_interp::sdf::*;
 use gpu_interp::*;
 
+use wasm_bindgen::prelude::*;
+use web_sys::console;
+
+#[wasm_bindgen]
+pub struct JsSystem();
+
+#[wasm_bindgen]
+impl JsSystem {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        JsSystem()
+    }
+}
+
 use std::borrow::Cow;
-use std::time::Instant;
+
 use winit::{
     event::{Event, WindowEvent},
     event_loop::EventLoop,
@@ -20,22 +35,23 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
 
     let (adapter, device, queue) = create_device(&instance, &options).await;
 
-    // let viewport = {
-    //     let mut size = window.inner_size();
-    //     size.width = size.width.max(1);
-    //     size.height = size.height.max(1);
+    let mut circles = Vec::new();
+    for i in 0..10 {
+        for j in 0..10 {
+            let center_x = i as f64;
+            let center_y = j as f64;
+            circles.push(circle(center_x * 200.0, center_y * 200.0, 100.0));
+        }
+    }
+    let tree = smooth_union(circles);
 
-    //     Viewport {
-    //         width: size.width,
-    //         height: size.height,
-    //     }
-    // };
-
-    // let projection = Projection::default();
+    let mut ctx = Context::new();
+    let node = ctx.import(&tree);
+    let tape = GPUTape::new(ctx, node);
 
     let viewport = Viewport {
-        width: 64 * 10,
-        height: 16 * 4 * 10,
+        width: 1600,
+        height: 1200,
     };
 
     let projection = {
@@ -47,13 +63,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         }
     };
 
-    let tape = {
-        use fidget::context::Context;
-        let mut file = std::fs::File::open("prospero.vm").unwrap();
-        let (ctx, root) = Context::from_text(&mut file).unwrap();
-
-        GPUTape::new(ctx, root)
-    };
+    let projection = Default::default();
 
     let swapchain_capabilities = surface.get_capabilities(&adapter);
     let swapchain_format = swapchain_capabilities.formats[0];
@@ -113,7 +123,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     surface.configure(&device, &config);
 
     let window = &window;
-    let mut frame_start = Instant::now();
 
     let mut step_count = 0;
 
@@ -136,10 +145,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                         window.request_redraw();
                     }
                     WindowEvent::RedrawRequested => {
-                        let frame_time = frame_start.elapsed();
-                        frame_start = Instant::now();
-                        // eprintln!("Frame time: {:?}", frame_time);
-
                         // The step count is a "logical time" that is updated
                         // every frame.
                         step_count += 1;
@@ -156,13 +161,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                             .texture
                             .create_view(&wgpu::TextureViewDescriptor::default());
 
-                        let timestamp_query_set =
-                            device.create_query_set(&wgpu::QuerySetDescriptor {
-                                label: Some("Timestamp query set"),
-                                count: TIMESTAMP_COUNT as u32,
-                                ty: wgpu::QueryType::Timestamp,
-                            });
-
                         let mut encoder =
                             device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
                                 label: None,
@@ -172,7 +170,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                             &mut encoder,
                             &compute_pipeline,
                             &bind_group,
-                            Some(&timestamp_query_set),
+                            None,
                             &viewport,
                         );
 
@@ -191,11 +189,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                                         },
                                     })],
                                     depth_stencil_attachment: None,
-                                    timestamp_writes: Some(wgpu::RenderPassTimestampWrites {
-                                        beginning_of_pass_write_index: Some(2),
-                                        end_of_pass_write_index: Some(3),
-                                        query_set: &timestamp_query_set,
-                                    }),
+                                    timestamp_writes: None,
                                     occlusion_query_set: None,
                                 });
                             rpass.set_pipeline(&render_pipeline);
@@ -203,27 +197,8 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                             rpass.draw(0..6, 0..1);
                         }
 
-                        // Resolve timestamp query results
-                        encoder.resolve_query_set(
-                            &timestamp_query_set,
-                            0..TIMESTAMP_COUNT as u32,
-                            &buffers.timestamp_resolve_buffer,
-                            0,
-                        );
-
-                        // Copy timestamp results from resolve buffer to readback buffer
-                        encoder.copy_buffer_to_buffer(
-                            &buffers.timestamp_resolve_buffer,
-                            0,
-                            &buffers.timestamp_readback_buffer,
-                            0,
-                            TIMESTAMP_COUNT * std::mem::size_of::<u64>() as wgpu::BufferAddress,
-                        );
-
                         queue.submit(Some(encoder.finish()));
                         frame.present();
-
-                        pollster::block_on(print_timestamps(&device, &queue, &buffers));
 
                         window.request_redraw();
                     }
@@ -235,35 +210,29 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         .unwrap();
 }
 
-pub fn main() {
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+    console::log_1(&"Hello from Rust!!!".into());
+
     let event_loop = EventLoop::new().unwrap();
+
     #[allow(unused_mut)]
     let mut builder = winit::window::WindowBuilder::new();
-    #[cfg(target_arch = "wasm32")]
-    {
-        use wasm_bindgen::JsCast;
-        use winit::platform::web::WindowBuilderExtWebSys;
-        let canvas = web_sys::window()
-            .unwrap()
-            .document()
-            .unwrap()
-            .get_element_by_id("canvas")
-            .unwrap()
-            .dyn_into::<web_sys::HtmlCanvasElement>()
-            .unwrap();
-        builder = builder.with_canvas(Some(canvas));
-    }
+
+    use wasm_bindgen::JsCast;
+    use winit::platform::web::WindowBuilderExtWebSys;
+    let canvas = web_sys::window()
+        .unwrap()
+        .document()
+        .unwrap()
+        .get_element_by_id("target-canvas")
+        .unwrap()
+        .dyn_into::<web_sys::HtmlCanvasElement>()
+        .unwrap();
+    builder = builder.with_canvas(Some(canvas));
+
     let window = builder.build(&event_loop).unwrap();
 
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        env_logger::init();
-        pollster::block_on(run(event_loop, window));
-    }
-    #[cfg(target_arch = "wasm32")]
-    {
-        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-        console_log::init().expect("could not initialize logger");
-        wasm_bindgen_futures::spawn_local(run(event_loop, window));
-    }
+    wasm_bindgen_futures::spawn_local(run(event_loop, window));
 }

@@ -459,14 +459,14 @@ pub fn add_compute_pass<'a>(
     encoder: &'a mut wgpu::CommandEncoder,
     pipeline: &'a wgpu::ComputePipeline,
     bind_group: &'a wgpu::BindGroup,
-    timestamp_query_set: &'a wgpu::QuerySet,
+    timestamp_query_set: Option<&'a wgpu::QuerySet>,
     viewport: &Viewport,
 ) {
     let invoc_size = (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
     let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
         label: None,
-        timestamp_writes: Some(wgpu::ComputePassTimestampWrites {
-            query_set: &timestamp_query_set,
+        timestamp_writes: timestamp_query_set.map(|query_set| wgpu::ComputePassTimestampWrites {
+            query_set,
             beginning_of_pass_write_index: Some(0),
             end_of_pass_write_index: Some(1),
         }),

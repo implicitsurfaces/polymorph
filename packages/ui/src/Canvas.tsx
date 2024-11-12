@@ -460,7 +460,7 @@ export function Canvas({ sceneManager }: CanvasProps) {
     return () => {
       observer.disconnect();
     };
-  }, []);
+  }, [camera]);
 
   // Register for document-wide pointer events once drag starts.
   // This allows to keep dragging even after the pointer exits the canvas.

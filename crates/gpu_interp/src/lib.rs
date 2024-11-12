@@ -2,7 +2,7 @@ use bincode;
 use fidget::{
     compiler::RegOp,
     shape::EzShape,
-    vm::{VmData, VmShape},
+    vm::{VmFunction, VmShape},
 };
 
 use wgpu::{util::DeviceExt, ShaderStages};
@@ -13,8 +13,11 @@ pub const FRAGMENTS_PER_INVOCATION: u32 = 4;
 pub const TIMESTAMP_COUNT: u64 = 4;
 pub const WORKGROUP_SIZE_X: u32 = 16;
 pub const WORKGROUP_SIZE_Y: u32 = 16;
-pub const MAX_TAPE_LEN_REGOPS: u32 = 32768;
-pub const REG_COUNT: usize = 128;
+pub const MAX_TAPE_LEN_REGOPS: u32 = 32768 * 5;
+pub const REG_COUNT: usize = 255;
+pub const TILE_SIZE_X: u32 = 64;
+pub const TILE_SIZE_Y: u32 = 32;
+pub const MAX_TILE_COUNT: u32 = 256;
 
 pub fn shader_source() -> String {
     let shared_constants = format!(
@@ -24,6 +27,10 @@ const WORKGROUP_SIZE_Y: u32 = {WORKGROUP_SIZE_Y}u;
 const MAX_TAPE_LEN_REGOPS: u32 = {MAX_TAPE_LEN_REGOPS}u;
 const BYTECODE_ARRAY_LEN: u32 = MAX_TAPE_LEN_REGOPS * 2u;
 const REG_COUNT: u32 = {REG_COUNT}u;
+const TILE_SIZE_X: u32 = {TILE_SIZE_X}u;
+const TILE_SIZE_Y: u32 = {TILE_SIZE_Y}u;
+const MAX_TILE_COUNT: u32 = {MAX_TILE_COUNT}u;
+const MAX_TILE_COUNT_DIV_4: u32 = MAX_TILE_COUNT / 4u;
     "#
     );
     include_str!("shader-in.wgsl")
@@ -31,38 +38,116 @@ const REG_COUNT: u32 = {REG_COUNT}u;
         .replace("{ shared_constants }", shared_constants.as_ref())
 }
 
+// TODO: Find a better way to do  this.
+pub fn regops_remapping_vars(
+    point_tape: &fidget::shape::ShapeTape<fidget::vm::GenericVmFunction<255>>,
+) -> Vec<RegOp> {
+    let data = point_tape.raw_tape().data();
+    let varmap = point_tape.vars();
+    let mut remapping = [None; 3];
+
+    if let Some(idx) = varmap.get(&fidget::var::Var::X) {
+        remapping[idx] = Some(0);
+    }
+    if let Some(idx) = varmap.get(&fidget::var::Var::Y) {
+        remapping[idx] = Some(1);
+    }
+    if let Some(idx) = varmap.get(&fidget::var::Var::Z) {
+        remapping[idx] = Some(2);
+    }
+
+    data.iter_asm()
+        .map(|r| match r {
+            RegOp::Input(out, i) => RegOp::Input(out, remapping[i as usize].unwrap()),
+            other => other,
+        })
+        .collect()
+}
+
 pub struct GPUTape {
-    pub tape: Vec<fidget::compiler::RegOp>,
+    pub tape: Vec<RegOp>,
+    pub offsets: Vec<u32>,
+    pub lengths: Vec<u32>,
 }
 
 impl GPUTape {
-    pub fn new(ctx: fidget::Context, root: fidget::context::Node) -> Self {
-        let data = VmData::<REG_COUNT>::new(&ctx, &[root]).unwrap();
+    pub fn new(ctx: fidget::Context, root: fidget::context::Node, width: u32, height: u32) -> Self {
+        let start = std::time::Instant::now();
+
         let shape = VmShape::new(&ctx, root).unwrap();
-        let tape = shape.ez_point_tape();
 
-        // rewrite so x/y/z are always 0/1/2.
-        let varmap = tape.vars();
-        let mut remapping = [None; 3];
+        // The default (unsimplified) tape is always the first one we right.
+        // But not that it's *not* accounted for in `subtape_starts` and
+        // `subtape_ends` — those are only for looking up the simplified
+        // tapes.
+        // TODO: Find a cleaner way to do this?
+        let default_tape = shape.ez_point_tape();
+        let mut regops: Vec<RegOp> = regops_remapping_vars(&default_tape);
+        let default_tape_len = regops.len() as u32;
 
-        if let Some(idx) = varmap.get(&fidget::var::Var::X) {
-            remapping[idx] = Some(0);
-        }
-        if let Some(idx) = varmap.get(&fidget::var::Var::Y) {
-            remapping[idx] = Some(1);
-        }
-        if let Some(idx) = varmap.get(&fidget::var::Var::Z) {
-            remapping[idx] = Some(2);
-        }
-        GPUTape {
-            tape: data
-                .iter_asm()
-                .map(|r| match r {
-                    RegOp::Input(out, i) => RegOp::Input(out, remapping[i as usize].unwrap()),
-                    other => other,
-                })
-                .collect::<Vec<_>>(),
-        }
+        let mut subtape_starts: Vec<u32> = Vec::new();
+        let mut subtape_ends: Vec<u32> = Vec::new();
+
+        // tiling
+        let ret = {
+            let tape_i = shape.ez_interval_tape();
+            let mut eval_i = fidget::shape::Shape::<VmFunction>::new_interval_eval();
+
+            let unproject = |val: f32, bounds: f32| (2.0 * val / bounds) - 1.0;
+
+            for row in 0..(height / TILE_SIZE_Y) {
+                let y = row as f32 * TILE_SIZE_Y as f32;
+                let y_interval = fidget::types::Interval::new(
+                    -unproject(y + TILE_SIZE_Y as f32, height as f32),
+                    -unproject(y, height as f32),
+                );
+
+                for col in 0..(width / TILE_SIZE_X) {
+                    let x = col as f32 * TILE_SIZE_X as f32;
+                    let x_interval = fidget::types::Interval::new(
+                        unproject(x, width as f32),
+                        unproject(x + TILE_SIZE_X as f32, width as f32),
+                    );
+                    dbg!(x_interval, y_interval);
+
+                    let (out, trace) = eval_i
+                        .eval(&tape_i, x_interval, y_interval, 0.0.into())
+                        .unwrap();
+                    if out.lower() > 0.0 {
+                        // The entire tile is outside the shape -- write an empty tape.
+                        subtape_starts.push(regops.len() as u32 * 2);
+                        subtape_ends.push(regops.len() as u32 * 2);
+                        continue;
+                    }
+                    if out.upper() < 0.0 || trace.is_none() {
+                        // Tile is entirely inside the shape, or the tape could not
+                        // be simplified. Use the default tape.
+                        // TODO: Could we do better in the "entirely inside" case?
+                        subtape_starts.push(0);
+                        subtape_ends.push(default_tape_len * 2);
+                        continue;
+                    }
+                    let simplified_tape =
+                        shape.ez_simplify(trace.unwrap()).unwrap().ez_point_tape();
+                    subtape_starts.push(regops.len() as u32 * 2);
+                    regops.extend(regops_remapping_vars(&simplified_tape));
+                    subtape_ends.push(regops.len() as u32 * 2);
+                }
+            }
+            dbg!(&subtape_starts);
+            dbg!(&subtape_ends);
+            // dbg!(&regops);
+            GPUTape {
+                tape: regops,
+                offsets: dbg!(subtape_starts),
+                lengths: dbg!(subtape_ends),
+            }
+        };
+
+        let duration = start.elapsed();
+        eprintln!("GPUTape::new took {:?}", duration);
+
+        ret
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -216,6 +301,7 @@ pub async fn create_device(
 
 pub struct Buffers {
     pub bytecode_buffer: wgpu::Buffer,
+    pub offsets_buffer: wgpu::Buffer,
     pub pc_max_buffer: wgpu::Buffer,
     pub output_buffer: wgpu::Buffer,
     pub output_staging_buffer: wgpu::Buffer,
@@ -247,11 +333,30 @@ pub fn create_and_fill_buffers(
         })
     };
 
-    let pc_max_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("pc_max Buffer"),
-        contents: bytemuck::cast_slice(&[tape.tape.len() as u32 * 2]), // x2 because each instruction is 2 u32s
-        usage: wgpu::BufferUsages::UNIFORM,
-    });
+    let tile_count = (viewport.width / TILE_SIZE_X) * (viewport.height / TILE_SIZE_Y);
+    assert!(viewport.width % TILE_SIZE_X == 0);
+    assert!(viewport.height % TILE_SIZE_X == 0);
+    assert!(tape.lengths.len() == tile_count as usize);
+
+    let offsets_buffer = {
+        let mut contents = vec![0u32; MAX_TILE_COUNT as usize];
+        contents[..tape.offsets.len()].copy_from_slice(&tape.offsets);
+        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Offsets Buffer"),
+            contents: bytemuck::cast_slice(&contents),
+            usage: wgpu::BufferUsages::UNIFORM,
+        })
+    };
+
+    let pc_max_buffer = {
+        let mut contents = vec![0u32; MAX_TILE_COUNT as usize];
+        contents[..tape.lengths.len()].copy_from_slice(&tape.lengths);
+        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("pc_max Buffer"),
+            contents: bytemuck::cast_slice(&contents),
+            usage: wgpu::BufferUsages::UNIFORM,
+        })
+    };
 
     let output_size_bytes = viewport.byte_size();
 
@@ -304,6 +409,7 @@ pub fn create_and_fill_buffers(
     });
     Buffers {
         bytecode_buffer,
+        offsets_buffer,
         pc_max_buffer,
         output_buffer,
         output_staging_buffer,
@@ -330,22 +436,26 @@ pub fn create_bind_group(
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: buffers.pc_max_buffer.as_entire_binding(),
+                resource: buffers.offsets_buffer.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 2,
-                resource: buffers.output_buffer.as_entire_binding(),
+                resource: buffers.pc_max_buffer.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 3,
-                resource: buffers.dims_buffer.as_entire_binding(),
+                resource: buffers.output_buffer.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 4,
-                resource: buffers.step_count_buffer.as_entire_binding(),
+                resource: buffers.dims_buffer.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 5,
+                resource: buffers.step_count_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 6,
                 resource: buffers.projection_buffer.as_entire_binding(),
             },
         ],
@@ -383,7 +493,7 @@ pub fn setup_pipeline_layout(
                 binding: 2,
                 visibility: shader_stages,
                 ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: false },
+                    ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
                     min_binding_size: None,
                 },
@@ -393,7 +503,7 @@ pub fn setup_pipeline_layout(
                 binding: 3,
                 visibility: shader_stages,
                 ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
+                    ty: wgpu::BufferBindingType::Storage { read_only: false },
                     has_dynamic_offset: false,
                     min_binding_size: None,
                 },
@@ -411,6 +521,16 @@ pub fn setup_pipeline_layout(
             },
             wgpu::BindGroupLayoutEntry {
                 binding: 5,
+                visibility: shader_stages,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 6,
                 visibility: shader_stages,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,

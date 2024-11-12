@@ -52,7 +52,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         let mut file = std::fs::File::open("prospero.vm").unwrap();
         let (ctx, root) = Context::from_text(&mut file).unwrap();
 
-        GPUTape::new(ctx, root)
+        GPUTape::new(ctx, root, viewport.width, viewport.height)
     };
 
     let swapchain_capabilities = surface.get_capabilities(&adapter);

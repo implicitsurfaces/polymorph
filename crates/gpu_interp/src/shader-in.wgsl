@@ -15,21 +15,28 @@ struct Projection {
     translation: vec2<f32>,
 }
 
+
+
 @group(0) @binding(0) var<storage> bytecode: Bytecode;
 
-@group(0) @binding(1) var<uniform> pc_max: i32;
+@group(0) @binding(1) var<uniform> bc_offsets: array<vec4<u32>, MAX_TILE_COUNT_DIV_4>;
 
-@group(0) @binding(2) var<storage, read_write> output: array<vec4<f32>>;
+@group(0) @binding(2) var<uniform> bc_ends: array<vec4<u32>, MAX_TILE_COUNT_DIV_4>;
 
-@group(0) @binding(3) var<uniform> viewport: vec2<u32>;
+@group(0) @binding(3) var<storage, read_write> output: array<vec4<f32>>;
 
-@group(0) @binding(4) var<uniform> step_count: u32;
+@group(0) @binding(4) var<uniform> viewport: vec2<u32>;
 
-@group(0) @binding(5) var<uniform> projection: Projection;
+@group(0) @binding(5) var<uniform> step_count: u32;
 
-fn execute_bytecode(xs: vec4<f32>, y: f32) -> vec4<f32> {
-    var pc: i32 = 0;
+@group(0) @binding(6) var<uniform> projection: Projection;
+
+fn execute_bytecode(xs: vec4<f32>, y: f32, tile_idx: u32) -> vec4<f32> {
     var reg: array<vec4<f32>, REG_COUNT>;
+
+    // Uniforms need 16-byte alignment, so we use a vec4<u32>.
+    var pc = bc_offsets[tile_idx / 4u][tile_idx % 4u];
+    let pc_max = bc_ends[tile_idx / 4u][tile_idx % 4u];
 
     while (pc < pc_max) {
         /*
@@ -51,7 +58,7 @@ fn execute_bytecode(xs: vec4<f32>, y: f32) -> vec4<f32> {
         pc++;
 
         switch (lo[0]) {
-            case 0u /* Input */: {
+            case 1u /* Input */: {
               let out_reg = lo[1];
               let i = bitcast<u32>(hi);
               if (i == 0) {
@@ -60,36 +67,37 @@ fn execute_bytecode(xs: vec4<f32>, y: f32) -> vec4<f32> {
                 reg[out_reg] = vec4<f32>(y * projection.scale.y) - projection.translation.y;
               }
             }
-            case 1u /* Output */: {
+            case 0u /* Output */: {
               let src_reg = lo[1];
               let i = bitcast<u32>(hi);
               if (i == 0) {
                 return reg[src_reg];
               }
             }
-            case 2u /* NegReg */: { reg[lo[1]] = -reg[lo[2]]; }
-            case 5u /* SqrtReg */: { reg[lo[1]] = sqrt(reg[lo[2]]); }
-            case 6u /* SquareReg */: {
+            case 2u /* CopyReg */: { reg[lo[1]] = reg[lo[2]]; }
+            case 4u /* NegReg */: { reg[lo[1]] = -reg[lo[2]]; }
+            case 7u /* SqrtReg */: { reg[lo[1]] = sqrt(reg[lo[2]]); }
+            case 8u /* SquareReg */: {
               let val = reg[lo[2]];
               reg[lo[1]] = val * val;
             }
-            case 20u /* AddRegImm */: { reg[lo[1]] = reg[lo[2]] + hi; }
-            case 21u /* MulRegImm */: { reg[lo[1]] = reg[lo[2]] * hi; }
-            case 24u /* SubImmReg */: { reg[lo[1]] = hi - reg[lo[2]]; }
-            case 25u /* SubRegImm */: { reg[lo[1]] = reg[lo[2]] - hi; }
-            case 32u /* MinRegImm */: { reg[lo[1]] = min(reg[lo[2]], vec4<f32>(hi)); }
-            case 33u /* MaxRegImm */: { reg[lo[1]] = max(reg[lo[2]], vec4<f32>(hi)); }
-            case 38u /* AddRegReg */: { reg[lo[1]] = reg[lo[2]] + reg[lo[3]]; }
-            case 39u /* MulRegReg */: { reg[lo[1]] = reg[lo[2]] * reg[lo[3]]; }
-            case 41u /* SubRegReg */: { reg[lo[1]] = reg[lo[2]] - reg[lo[3]]; }
-            case 42u /* MinRegReg */: { reg[lo[1]] = min(reg[lo[2]], reg[lo[3]]); }
-            case 43u /* MaxRegReg */: { reg[lo[1]] = max(reg[lo[2]], reg[lo[3]]); }
+            case 21u /* AddRegImm */: { reg[lo[1]] = reg[lo[2]] + hi; }
+            case 22u /* MulRegImm */: { reg[lo[1]] = reg[lo[2]] * hi; }
+            case 29u /* SubImmReg */: { reg[lo[1]] = hi - reg[lo[2]]; }
+            case 24u /* SubRegImm */: { reg[lo[1]] = reg[lo[2]] - hi; }
+            case 33u /* MinRegImm */: { reg[lo[1]] = min(reg[lo[2]], vec4<f32>(hi)); }
+            case 34u /* MaxRegImm */: { reg[lo[1]] = max(reg[lo[2]], vec4<f32>(hi)); }
+            case 37u /* AddRegReg */: { reg[lo[1]] = reg[lo[2]] + reg[lo[3]]; }
+            case 38u /* MulRegReg */: { reg[lo[1]] = reg[lo[2]] * reg[lo[3]]; }
+            case 40u /* SubRegReg */: { reg[lo[1]] = reg[lo[2]] - reg[lo[3]]; }
+            case 44u /* MinRegReg */: { reg[lo[1]] = min(reg[lo[2]], reg[lo[3]]); }
+            case 45u /* MaxRegReg */: { reg[lo[1]] = max(reg[lo[2]], reg[lo[3]]); }
             default: {
-              return vec4<f32>(1.234567);
+              return vec4<f32>(669.0, f32(pc), f32(lo[0]), f32(lo[0]));
             }
           }
     }
-    return vec4<f32>(99.0);
+    return vec4<f32>(0.0);
 }
 
 @compute
@@ -97,11 +105,16 @@ fn execute_bytecode(xs: vec4<f32>, y: f32) -> vec4<f32> {
 fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     // Each shader invocation processes 4 horizontal pixels, and the output
     // is a vec4<f32> representing four pixels.
-    let quarter_width = viewport[0] / 4u;
+    let row_len = viewport[0] / 4u;
+    let tile_row_len = viewport[0] / TILE_SIZE_X;
 
-    let index = global_id.y * quarter_width + global_id.x;
+    let tile_x = global_id.x * 4u / TILE_SIZE_X; // tile size is in pixels
+    let tile_y = global_id.y / TILE_SIZE_Y;
+
     let xs = vec4<f32>(f32(global_id.x) * 4.0) + vec4<f32>(0.0, 1.0, 2.0, 3.0);
-    output[index] = execute_bytecode(xs, f32(global_id.y));
+    let out_idx = global_id.y * row_len + global_id.x;
+    let tile_idx = tile_y * tile_row_len + tile_x;
+    output[out_idx] = execute_bytecode(xs, f32(global_id.y), tile_idx);
 }
 
 @vertex

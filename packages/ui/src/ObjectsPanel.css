@@ -1,0 +1,14 @@
+
+.object-row-info {
+  margin: 2px 8px;
+  padding: 1px 8px;
+  
+  font-size: 12px;
+
+  user-select: none; /* disable caret cursor on hover */
+}
+
+.object-row-info:hover {
+  background-color: #4063d5;
+  border-radius: 5px;
+}

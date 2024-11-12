@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Canvas } from './Canvas.tsx';
 import { SceneManager } from './Scene.ts';
+import { ObjectsPanel } from './ObjectsPanel.tsx';
 import './App.css';
 
 function App() {
@@ -51,8 +52,10 @@ function App() {
 
   return (
     <>
+      <ObjectsPanel sceneManager={sceneManager} />
       <Canvas sceneManager={sceneManager} />
       <Canvas sceneManager={sceneManager} />
+      <ObjectsPanel sceneManager={sceneManager} />
     </>
   );
 }

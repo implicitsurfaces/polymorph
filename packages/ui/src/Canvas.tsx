@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Vector2 } from 'threejs-math';
 import { Camera2 } from './Camera2.ts';
 import { Point, Scene, SceneManager } from './Scene.ts';
@@ -184,6 +184,74 @@ function draw(canvas: HTMLCanvasElement, camera: Camera2, scene: Scene) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+//                            Position util
+
+/**
+ * Returns the offset, in CSS pixels, between the border box and the content box
+ * of the given HTML element.
+ */
+// Note: we need this because while ResizeObserver provides the size of the
+// content box, it does not provide its position in any coordinate systems,
+// and its position can change even without its size changing (e.g., if the
+// user scolls the page).
+//
+// Therefore, when a pointer event is triggered, the only way to reliably
+// access the canvas position in viewport coordinate is to query its border
+// box position via getBoundingClientRect(), and substracts the
+// padding/border using getComputedStyle(). It might be possible to keep the
+// latter cached, but it's probably not worth it.
+//
+function getBorderBoxToContentBoxOffset(element: HTMLElement): Vector2 {
+  const cs = getComputedStyle(element);
+  const paddingLeft = parseFloat(cs.paddingLeft);
+  const paddingTop = parseFloat(cs.paddingTop);
+  const borderLeft = parseFloat(cs.borderLeft);
+  const borderTop = parseFloat(cs.borderTop);
+  return new Vector2(paddingLeft + borderLeft, paddingTop + borderTop);
+}
+
+/**
+ * Returns the position of the topleft corner of the content box of the given
+ * HTML element (that is, exluding border and padding), in CSS pixels,
+ * relative to the topleft corner of the browser windows
+ * (= "viewport coordinates").
+ */
+function getContentBoxPosition(element: HTMLElement): Vector2 {
+  const borderBox = element.getBoundingClientRect();
+  const offset = getBorderBoxToContentBoxOffset(element);
+  return new Vector2(borderBox.left, borderBox.top).add(offset);
+}
+
+/**
+ * Return the position of the pointer event, in CSS pixels, relative to the
+ * topleft corner of the browser windows (= "viewport coordinates").
+ */
+function getMouseWindowPosition(event: IMouseEvent): Vector2 {
+  return new Vector2(event.clientX, event.clientY);
+}
+
+/**
+ * Return the position of the pointer event, in hardware pixels, relative to
+ * the topleft corner of the content box of the given HTML element (that is,
+ * exluding border and padding).
+ */
+function getMouseViewPosition(event: IMouseEvent, element: HTMLElement): Vector2 {
+  return getMouseWindowPosition(event) //
+    .sub(getContentBoxPosition(element))
+    .multiplyScalar(window.devicePixelRatio);
+}
+
+/**
+ * Return the position of the pointer event in scene coordinates, assuming the
+ * scene is drawn into the content box of the given HTML element using the
+ * given camera.
+ */
+function getMouseScenePosition(event: IMouseEvent, element: HTMLElement, camera: Camera2) {
+  const viewToScene = camera.viewMatrix().invert();
+  return getMouseViewPosition(event, element).applyMatrix3(viewToScene);
+}
+
+///////////////////////////////////////////////////////////////////////////////
 //                           Canvas React Component
 
 /**
@@ -212,218 +280,191 @@ export function Canvas({ sceneManager }: CanvasProps) {
 
   const ref = useRef<HTMLCanvasElement | null>(null);
 
-  const scene = sceneManager.scene();
-
-  /**
-   * We need this because while ResizeObserver provides the size of the
-   * content box, it does not provide its position in any coordinate systems,
-   * and its position can change even without its size changing (e.g., if the
-   * user scolls the page).
-   *
-   * Therefore, when a pointer event is triggered, the only way to reliably
-   * access the canvas position in viewport coordinate is to query its border
-   * box position via getBoundingClientRect(), and substracts the
-   * padding/border using getComputedStyle(). It might be possible to keep
-   * the latter cached, but it's probably not worth it.
-   */
-  function getCanvasBorderBoxToContentBoxOffset() {
-    const canvas = ref.current;
-    if (!canvas) {
-      return new Vector2(0, 0);
-    }
-    const cs = getComputedStyle(canvas);
-    const paddingLeft = parseFloat(cs.paddingLeft);
-    const paddingTop = parseFloat(cs.paddingTop);
-    const borderLeft = parseFloat(cs.borderLeft);
-    const borderTop = parseFloat(cs.borderTop);
-    return new Vector2(paddingLeft + borderLeft, paddingTop + borderTop);
-  }
-
-  /**
-   * Return the position of the topleft corner of the canvas(exluding border
-   * and padding), in CSS pixels, relative to the topleft corner of the
-   * browser windows (= "viewport coordinates").
-   */
-  function getCanvasPosition() {
-    const canvas = ref.current;
-    if (!canvas) {
-      return new Vector2(0, 0);
-    }
-    const borderBox = canvas.getBoundingClientRect();
-    const offset = getCanvasBorderBoxToContentBoxOffset();
-    return new Vector2(borderBox.left, borderBox.top).add(offset);
-  }
-
-  /**
-   * Return the position of the pointer event, in CSS pixels, relative to the
-   * topleft corner of the browser windows (= "viewport coordinates").
-   */
-  function getPointerWindowPosition(event: IMouseEvent) {
-    return new Vector2(event.clientX, event.clientY);
-  }
-
-  /**
-   * Return the position of the pointer event, in hardware pixels, relative to the
-   * topleft corner of the canvas (exluding border and padding).
-   */
-  function getPointerViewPosition(event: IMouseEvent) {
-    return getPointerWindowPosition(event) //
-      .sub(getCanvasPosition())
-      .multiplyScalar(window.devicePixelRatio);
-  }
-
-  /**
-   * Return the position of the pointer event in scene coordinates.
-   */
-  function getEventScenePosition(event: IMouseEvent) {
-    const viewToScene = camera.viewMatrix().invert();
-    return getPointerViewPosition(event).applyMatrix3(viewToScene);
-  }
-
-  function onPointerDown(event: IPointerEvent) {
-    // Ignore if for some reason e.button is null or undefined
-    if (event.button == null) {
-      return;
-    }
-    // Prevent concurrent pointerdown-pointermove-pointerup sequences
-    if (pointerState) {
-      return;
-    }
-    setPointerState({
-      button: event.button,
-      viewPosOnPress: getPointerViewPosition(event),
-      cameraOnPress: camera.clone(),
-      isDrag: false,
-      isDragAccepted: false,
-    });
-  }
-
-  function onPointerMove(event: IPointerEvent) {
-    // Nothing to do unless we're part of pointerdown-pointermove-pointerup sequence
-    if (!pointerState) {
-      return;
-    }
-    // Disambiguate between drag and click actions
-    let nextPointerState = null;
-    const dragThreshold = 5;
-    const deltaPos = getPointerViewPosition(event).sub(pointerState.viewPosOnPress);
-    let isDragAccepted = pointerState.isDragAccepted;
-    if (!pointerState.isDrag && deltaPos.manhattanLength() > dragThreshold) {
-      nextPointerState = { ...pointerState };
-      nextPointerState.isDrag = true;
-      nextPointerState.isDragAccepted = onDragStart(event);
-      isDragAccepted = nextPointerState.isDragAccepted;
-    }
-    if (isDragAccepted) {
-      onDragMove(event);
-    }
-    if (nextPointerState) {
-      setPointerState(nextPointerState);
-    }
-  }
-
-  function onPointerUp(event: IPointerEvent) {
-    // Nothing to do unless we're part of pointerdown-pointermove-pointerup sequence
-    // and e.button matches the button of that sequence
-    if (!(pointerState && pointerState.button === event.button)) {
-      return;
-    }
-    if (pointerState.isDragAccepted) {
-      onDragEnd(event);
-    } else {
-      onClick(event);
-    }
-    setPointerState(null);
-  }
-
   // Returns whether there is a drag action available for the drag button.
   //
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  function onDragStart(_event: IPointerEvent): boolean {
-    if (!pointerState) {
+  const onDragStart = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    (_event: IPointerEvent) => {
+      if (!pointerState) {
+        return false;
+      }
+      switch (pointerState.button) {
+        case 1: {
+          // middle drag: pan
+          return true;
+        }
+        case 2: {
+          // right drag: rotate
+          return true;
+        }
+      }
       return false;
-    }
-    switch (pointerState.button) {
-      case 1: {
-        // middle drag: pan
-        return true;
-      }
-      case 2: {
-        // right drag: rotate
-        return true;
-      }
-    }
-    return false;
-  }
+    },
+    [pointerState]
+  );
 
-  function onDragMove(event: IPointerEvent): void {
-    if (!pointerState) {
-      return;
-    }
-    const deltaPos = getPointerViewPosition(event).sub(pointerState.viewPosOnPress);
-    switch (pointerState.button) {
-      case 1: {
-        // middle drag: pan
-        const nextCenter = pointerState.cameraOnPress.center.clone().sub(deltaPos);
-        const nextCamera = camera.clone();
-        nextCamera.center = nextCenter;
-        setCamera(nextCamera);
-        break;
+  const onDragMove = useCallback(
+    (event: IPointerEvent) => {
+      const canvas = ref.current;
+      if (!canvas) {
+        return;
       }
-      case 2: {
-        // right drag: rotate
-        const rotateSensitivity = 0.01; // 100px -> 1rad
-        const anchor = pointerState.viewPosOnPress;
-        const angle = rotateSensitivity * (deltaPos.x - deltaPos.y);
-        const nextCamera = pointerState.cameraOnPress.clone();
-        nextCamera.rotateAround(anchor, angle);
-        setCamera(nextCamera);
-        break;
+      if (!pointerState) {
+        return;
       }
-    }
-  }
+      const deltaPos = getMouseViewPosition(event, canvas).sub(pointerState.viewPosOnPress);
+      switch (pointerState.button) {
+        case 1: {
+          // middle drag: pan
+          const nextCenter = pointerState.cameraOnPress.center.clone().sub(deltaPos);
+          const nextCamera = pointerState.cameraOnPress.clone();
+          nextCamera.center = nextCenter;
+          setCamera(nextCamera);
+          break;
+        }
+        case 2: {
+          // right drag: rotate
+          const rotateSensitivity = 0.01; // 100px -> 1rad
+          const anchor = pointerState.viewPosOnPress;
+          const angle = rotateSensitivity * (deltaPos.x - deltaPos.y);
+          const nextCamera = pointerState.cameraOnPress.clone();
+          nextCamera.rotateAround(anchor, angle);
+          setCamera(nextCamera);
+          break;
+        }
+      }
+    },
+    [pointerState]
+  );
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  function onDragEnd(_event: IPointerEvent) {
+  const onDragEnd = useCallback((_event: IPointerEvent) => {
     // Nothing for now
-  }
+  }, []);
 
-  function onClick(event: IPointerEvent) {
-    if (!pointerState) {
-      return;
-    }
-    switch (event.button) {
-      case 0: {
-        // left click: create point
-        const pos = getEventScenePosition(event);
-        scene.addPoint(pos);
-        sceneManager.commitChanges();
-        break;
+  const onClick = useCallback(
+    (event: IPointerEvent) => {
+      const canvas = ref.current;
+      if (!canvas) {
+        return;
       }
-      case 2: {
-        // right click: reset rotation
-        const anchor = getPointerViewPosition(event);
-        const nextCamera = pointerState.cameraOnPress.clone();
-        nextCamera.setRotationAround(anchor, 0);
-        setCamera(nextCamera);
-        break;
+      if (!pointerState) {
+        return;
       }
-    }
-  }
+      switch (event.button) {
+        case 0: {
+          // left click: create point
+          const pos = getMouseScenePosition(event, canvas, pointerState.cameraOnPress);
+          sceneManager.scene().addPoint(pos);
+          sceneManager.commitChanges();
+          break;
+        }
+        case 2: {
+          // right click: reset rotation
+          const anchor = getMouseViewPosition(event, canvas);
+          const nextCamera = pointerState.cameraOnPress.clone();
+          nextCamera.setRotationAround(anchor, 0);
+          setCamera(nextCamera);
+          break;
+        }
+      }
+    },
+    [pointerState, sceneManager]
+  );
 
-  function onWheel(event: IWheelEvent) {
-    // TODO: support all delta modes
-    // 0 = pixels (120px for one scroll step)
-    // 1 = lines
-    // 2 = pages
-    if (event.deltaMode != 0) {
-      return;
-    }
-    const anchor = getPointerViewPosition(event);
-    const steps = (-event.deltaY / 120) * window.devicePixelRatio;
-    const nextCamera = camera.clone().zoomAt(anchor, steps);
-    setCamera(nextCamera);
-  }
+  const onPointerDown = useCallback(
+    (event: IPointerEvent) => {
+      const canvas = ref.current;
+      if (!canvas) {
+        return;
+      }
+      // Ignore if for some reason e.button is null or undefined
+      if (event.button == null) {
+        return;
+      }
+      // Prevent concurrent pointerdown-pointermove-pointerup sequences
+      if (pointerState) {
+        return;
+      }
+      setPointerState({
+        button: event.button,
+        viewPosOnPress: getMouseViewPosition(event, canvas),
+        cameraOnPress: camera.clone(),
+        isDrag: false,
+        isDragAccepted: false,
+      });
+    },
+    [pointerState, camera]
+  );
+
+  const onPointerMove = useCallback(
+    (event: IPointerEvent) => {
+      const canvas = ref.current;
+      if (!canvas) {
+        return;
+      }
+      // Nothing to do unless we're part of pointerdown-pointermove-pointerup sequence
+      if (!pointerState) {
+        return;
+      }
+      // Disambiguate between drag and click actions
+      let nextPointerState = null;
+      const dragThreshold = 5;
+      const deltaPos = getMouseViewPosition(event, canvas).sub(pointerState.viewPosOnPress);
+      let isDragAccepted = pointerState.isDragAccepted;
+      if (!pointerState.isDrag && deltaPos.manhattanLength() > dragThreshold) {
+        nextPointerState = { ...pointerState };
+        nextPointerState.isDrag = true;
+        nextPointerState.isDragAccepted = onDragStart(event);
+        isDragAccepted = nextPointerState.isDragAccepted;
+      }
+      if (isDragAccepted) {
+        onDragMove(event);
+      }
+      if (nextPointerState) {
+        setPointerState(nextPointerState);
+      }
+    },
+    [pointerState, onDragStart, onDragMove]
+  );
+
+  const onPointerUp = useCallback(
+    (event: IPointerEvent) => {
+      // Nothing to do unless we're part of pointerdown-pointermove-pointerup sequence
+      // and e.button matches the button of that sequence
+      if (!(pointerState && pointerState.button === event.button)) {
+        return;
+      }
+      if (pointerState.isDragAccepted) {
+        onDragEnd(event);
+      } else {
+        onClick(event);
+      }
+      setPointerState(null);
+    },
+    [pointerState, onDragEnd, onClick]
+  );
+
+  const onWheel = useCallback(
+    (event: IWheelEvent) => {
+      const canvas = ref.current;
+      if (!canvas) {
+        return;
+      }
+      // TODO: support all delta modes
+      // 0 = pixels (120px for one scroll step)
+      // 1 = lines
+      // 2 = pages
+      if (event.deltaMode != 0) {
+        return;
+      }
+      const anchor = getMouseViewPosition(event, canvas);
+      const steps = (-event.deltaY / 120) * window.devicePixelRatio;
+      const nextCamera = camera.clone().zoomAt(anchor, steps);
+      setCamera(nextCamera);
+    },
+    [camera]
+  );
 
   // Redraw whenever the component state is updated, which includes a change
   // of the scene, of the camera, or of the canvas width/height trigerred via
@@ -432,9 +473,9 @@ export function Canvas({ sceneManager }: CanvasProps) {
   useEffect(() => {
     const canvas = ref.current;
     if (canvas && canvas.width > 0 && canvas.height > 0) {
-      draw(canvas, camera, scene);
+      draw(canvas, camera, sceneManager.scene());
     }
-  });
+  }, [camera, sceneManager]);
 
   // Update the camera (and therefore the canvas width/height attributes)
   // based on its computed device pixel size.
@@ -477,7 +518,7 @@ export function Canvas({ sceneManager }: CanvasProps) {
       document.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('pointerup', onPointerUp);
     };
-  }, [pointerState]);
+  }, [pointerState, onPointerMove, onPointerUp]);
 
   return (
     <div className="canvas-container">

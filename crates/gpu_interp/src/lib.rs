@@ -1,7 +1,7 @@
 use bincode;
 use fidget::{
     compiler::RegOp,
-    shape::EzShape,
+    shape::{self, EzShape},
     vm::{VmFunction, VmShape},
 };
 
@@ -38,6 +38,32 @@ const MAX_TILE_COUNT_DIV_4: u32 = MAX_TILE_COUNT / 4u;
         .replace("{ shared_constants }", shared_constants.as_ref())
 }
 
+// TODO: Find a better way to do  this.
+pub fn regops_remapping_vars(
+    point_tape: &fidget::shape::ShapeTape<fidget::vm::GenericVmFunction<255>>,
+) -> Vec<RegOp> {
+    let data = point_tape.raw_tape().data();
+    let varmap = point_tape.vars();
+    let mut remapping = [None; 3];
+
+    if let Some(idx) = varmap.get(&fidget::var::Var::X) {
+        remapping[idx] = Some(0);
+    }
+    if let Some(idx) = varmap.get(&fidget::var::Var::Y) {
+        remapping[idx] = Some(1);
+    }
+    if let Some(idx) = varmap.get(&fidget::var::Var::Z) {
+        remapping[idx] = Some(2);
+    }
+
+    data.iter_asm()
+        .map(|r| match r {
+            RegOp::Input(out, i) => RegOp::Input(out, remapping[i as usize].unwrap()),
+            other => other,
+        })
+        .collect()
+}
+
 pub struct GPUTape {
     pub tape: Vec<RegOp>,
     pub offsets: Vec<u32>,
@@ -48,20 +74,22 @@ impl GPUTape {
     pub fn new(ctx: fidget::Context, root: fidget::context::Node, width: u32, height: u32) -> Self {
         let start = std::time::Instant::now();
 
-        // let data = VmData::<REG_COUNT>::new(&ctx, &[root]).unwrap();
-
         let shape = VmShape::new(&ctx, root).unwrap();
 
-        let mut regops: Vec<RegOp> = Vec::new();
+        // The default (unsimplified) tape is always the first one we right.
+        // But not that it's *not* accounted for in `subtape_starts` and
+        // `subtape_ends` — those are only for looking up the simplified
+        // tapes.
+        // TODO: Find a cleaner way to do this?
+        let default_tape = shape.ez_point_tape();
+        let mut regops: Vec<RegOp> = regops_remapping_vars(&default_tape);
+        let default_tape_len = regops.len() as u32;
+
+        let mut subtape_starts: Vec<u32> = Vec::new();
+        let mut subtape_ends: Vec<u32> = Vec::new();
 
         // tiling
         let ret = {
-            let half_width = width as f32 / 2.;
-            let half_height = height as f32 / 2.;
-
-            let mut subtape_starts: Vec<u32> = Vec::new();
-            let mut subtape_ends: Vec<u32> = Vec::new();
-
             let tape_i = shape.ez_interval_tape();
             let mut eval_i = fidget::shape::Shape::<VmFunction>::new_interval_eval();
 
@@ -85,41 +113,21 @@ impl GPUTape {
                     let (out, trace) = eval_i
                         .eval(&tape_i, x_interval, y_interval, 0.0.into())
                         .unwrap();
-                    if out.lower() > 0.0 || out.upper() < 0.0 {
-                        // The entire tile is outside the shape -- write an emtpy tape.
+                    if out.lower() > 0.0 {
+                        // The entire tile is outside the shape -- write an empty tape.
                         subtape_starts.push(regops.len() as u32 * 2);
                         subtape_ends.push(regops.len() as u32 * 2);
                         continue;
+                    } else if out.upper() < 0.0 {
+                        // Tile is entirely inside the shape -- use the default tape.
+                        // TODO: Could we do better here?
+                        subtape_starts.push(0);
+                        subtape_ends.push(default_tape_len * 2);
                     }
-                    let point_tape = shape.ez_simplify(trace.unwrap()).unwrap().ez_point_tape();
-                    let data = point_tape.raw_tape().data();
-
-                    let remap_vars = {
-                        // rewrite so x/y/z are always 0/1/2.
-                        let varmap = point_tape.vars();
-                        let mut remapping = [None; 3];
-
-                        if let Some(idx) = varmap.get(&fidget::var::Var::X) {
-                            remapping[idx] = Some(0);
-                        }
-                        if let Some(idx) = varmap.get(&fidget::var::Var::Y) {
-                            remapping[idx] = Some(1);
-                        }
-                        if let Some(idx) = varmap.get(&fidget::var::Var::Z) {
-                            remapping[idx] = Some(2);
-                        }
-
-                        move |r| match r {
-                            RegOp::Input(out, i) => {
-                                RegOp::Input(out, remapping[i as usize].unwrap())
-                            }
-                            other => other,
-                        }
-                    };
-
-                    // dbg!(&regops);
+                    let simplified_tape =
+                        shape.ez_simplify(trace.unwrap()).unwrap().ez_point_tape();
                     subtape_starts.push(regops.len() as u32 * 2);
-                    regops.extend(data.iter_asm().map(remap_vars));
+                    regops.extend(regops_remapping_vars(&simplified_tape));
                     subtape_ends.push(regops.len() as u32 * 2);
                 }
             }

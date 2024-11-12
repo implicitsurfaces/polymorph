@@ -38,11 +38,6 @@ fn execute_bytecode(xs: vec4<f32>, y: f32, tile_idx: u32) -> vec4<f32> {
     var pc = bc_offsets[tile_idx / 4u][tile_idx % 4u];
     let pc_max = bc_ends[tile_idx / 4u][tile_idx % 4u];
 
-    // Handle the case where simplification results in an empty tape.
-    if (pc == pc_max) {
-        return vec4<f32>(0.0);
-    }
-
     while (pc < pc_max) {
         /*
           Memory layout notes:
@@ -102,7 +97,7 @@ fn execute_bytecode(xs: vec4<f32>, y: f32, tile_idx: u32) -> vec4<f32> {
             }
           }
     }
-    return vec4<f32>(99.0);
+    return vec4<f32>(0.0);
 }
 
 @compute

@@ -329,7 +329,7 @@ export function Canvas({ sceneManager }: CanvasProps) {
       return;
     }
     if (pointerState.isDragAccepted) {
-      onDragEnd(/* event */);
+      onDragEnd(event);
     } else {
       onClick(event);
     }

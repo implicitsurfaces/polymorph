@@ -141,7 +141,7 @@ const fidgetBinaryOp = (
 export async function fidgetEval(node: NumNode): Promise<number> {
   const context = await createContext();
   const fidgetNode = _fidgetEval(node, context);
-  return context.eval(fidgetNode);
+  return context.evalNode(fidgetNode);
 }
 
 export async function fidgetRender(
@@ -154,5 +154,5 @@ export async function fidgetRender(
     context.y(),
   ).pointFromOrigin();
   const fidgetNode = _fidgetEval(node.distanceTo(genericPoint).n, context);
-  return context.render(fidgetNode, imageSize);
+  return context.renderNode(fidgetNode, imageSize);
 }

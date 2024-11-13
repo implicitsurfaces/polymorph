@@ -1,0 +1,14 @@
+{
+  "include": ["index.ts", "pkg/*.js", "pkg/*.wasm"],
+  "compilerOptions": {
+    "allowJs": true,
+    "baseUrl": "./",
+    "rootDir": "./",
+    "declaration": true,
+    "emitDeclarationOnly": false,
+    "outDir": "dist",
+    "target": "esnext",
+    "module": "esnext",
+    "skipLibCheck": true
+  }
+}

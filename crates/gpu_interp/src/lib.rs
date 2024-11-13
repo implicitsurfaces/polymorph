@@ -108,7 +108,6 @@ impl GPUTape {
                         unproject(x, width as f32),
                         unproject(x + TILE_SIZE_X as f32, width as f32),
                     );
-                    dbg!(x_interval, y_interval);
 
                     let (out, trace) = eval_i
                         .eval(&tape_i, x_interval, y_interval, 0.0.into())
@@ -134,13 +133,10 @@ impl GPUTape {
                     subtape_ends.push(regops.len() as u32 * 2);
                 }
             }
-            dbg!(&subtape_starts);
-            dbg!(&subtape_ends);
-            // dbg!(&regops);
             GPUTape {
                 tape: regops,
-                offsets: dbg!(subtape_starts),
-                lengths: dbg!(subtape_ends),
+                offsets: subtape_starts,
+                lengths: subtape_ends,
             }
         };
 

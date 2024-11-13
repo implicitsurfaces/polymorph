@@ -45,14 +45,14 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     }
     let tree = smooth_union(circles);
 
-    let mut ctx = Context::new();
-    let node = ctx.import(&tree);
-    let tape = GPUTape::new(ctx, node);
-
     let viewport = Viewport {
         width: 1600,
         height: 1200,
     };
+
+    let mut ctx = Context::new();
+    let node = ctx.import(&tree);
+    let tape = GPUTape::new(ctx, node, viewport.width, viewport.height);
 
     let projection = {
         let w = viewport.width as f32;

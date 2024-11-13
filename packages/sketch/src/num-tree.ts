@@ -60,6 +60,13 @@ export class LiteralNum extends NumNode {
   }
 }
 
+export class Variable extends NumNode {
+  readonly operation = "VAR";
+  constructor(public name: string) {
+    super();
+  }
+}
+
 const simpleUnaryOp = (operation: UnaryOperation, operand: number) => {
   if (operation === "SQRT") {
     return Math.sqrt(operand);

@@ -1,11 +1,272 @@
 use fidget::context::{Context, Node};
 use fidget::render::{BitRenderMode, RenderConfig};
+use fidget::shape::Bounds;
 use fidget::var::Var;
 use fidget::vm::VmShape;
 use std::ffi::CString;
 use std::os::raw::c_char;
 
+extern crate console_error_panic_hook;
 use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+pub struct FidgetContext {
+    ctx: Box<fidget::context::Context>,
+}
+
+#[wasm_bindgen]
+pub struct FidgetNode {
+    node: Box<fidget::context::Node>,
+}
+
+impl FidgetNode {
+    pub fn new(node: Node) -> Self {
+        let node = Box::new(node);
+        Self { node }
+    }
+}
+
+#[wasm_bindgen]
+pub struct FidgetVar {
+    var: Box<fidget::var::Var>,
+}
+
+#[wasm_bindgen]
+impl FidgetVar {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        let var = Box::new(Var::new());
+        Self { var }
+    }
+
+    #[wasm_bindgen]
+    pub fn X() -> Self {
+        let var = Box::new(Var::X);
+        Self { var }
+    }
+
+    #[wasm_bindgen]
+    pub fn Y() -> Self {
+        let var = Box::new(Var::Y);
+        Self { var }
+    }
+
+    #[wasm_bindgen]
+    pub fn Z() -> Self {
+        let var = Box::new(Var::Z);
+        Self { var }
+    }
+}
+
+impl Default for FidgetVar {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[wasm_bindgen]
+impl FidgetContext {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        console_error_panic_hook::set_once();
+        let ctx = Box::new(Context::new());
+        Self { ctx }
+    }
+
+    #[wasm_bindgen]
+    pub fn x(&mut self) -> FidgetNode {
+        FidgetNode::new(self.ctx.x())
+    }
+
+    #[wasm_bindgen]
+    pub fn y(&mut self) -> FidgetNode {
+        FidgetNode::new(self.ctx.y())
+    }
+
+    #[wasm_bindgen]
+    pub fn z(&mut self) -> FidgetNode {
+        FidgetNode::new(self.ctx.z())
+    }
+
+    #[wasm_bindgen]
+    pub fn var(&mut self) -> FidgetNode {
+        FidgetNode::new(self.ctx.var(Var::new()))
+    }
+
+    #[wasm_bindgen(js_name = explicitVar)]
+    pub fn explicit_var(&mut self, var: &FidgetVar) -> FidgetNode {
+        FidgetNode::new(self.ctx.var(*var.var))
+    }
+
+    #[wasm_bindgen]
+    pub fn constant(&mut self, val: f64) -> FidgetNode {
+        FidgetNode::new(self.ctx.constant(val))
+    }
+
+    #[wasm_bindgen]
+    pub fn add(&mut self, a: &FidgetNode, b: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.add(*a.node, *b.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn sub(&mut self, a: &FidgetNode, b: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.sub(*a.node, *b.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn mul(&mut self, a: &FidgetNode, b: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.mul(*a.node, *b.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn div(&mut self, a: &FidgetNode, b: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.div(*a.node, *b.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn neg(&mut self, a: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.neg(*a.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn max(&mut self, a: &FidgetNode, b: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.max(*a.node, *b.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn min(&mut self, a: &FidgetNode, b: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.min(*a.node, *b.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn square(&mut self, a: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.square(*a.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn sqrt(&mut self, a: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.sqrt(*a.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn and(&mut self, a: &FidgetNode, b: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.and(*a.node, *b.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn or(&mut self, a: &FidgetNode, b: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.or(*a.node, *b.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn not(&mut self, a: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.not(*a.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn recip(&mut self, a: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.recip(*a.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn abs(&mut self, a: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.abs(*a.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn sin(&mut self, a: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.sin(*a.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn cos(&mut self, a: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.cos(*a.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn tan(&mut self, a: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.tan(*a.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn asin(&mut self, a: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.asin(*a.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn acos(&mut self, a: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.acos(*a.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn atan(&mut self, a: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.atan(*a.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn atan2(&mut self, a: &FidgetNode, b: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.atan2(*a.node, *b.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn exp(&mut self, a: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.exp(*a.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn ln(&mut self, a: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.ln(*a.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn compare(&mut self, a: &FidgetNode, b: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.compare(*a.node, *b.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn modulo(&mut self, a: &FidgetNode, b: &FidgetNode) -> FidgetNode {
+        FidgetNode::new(self.ctx.modulo(*a.node, *b.node).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn deriv(&mut self, node: &FidgetNode, var: &FidgetVar) -> FidgetNode {
+        FidgetNode::new(self.ctx.deriv(*node.node, *var.var).unwrap())
+    }
+
+    #[wasm_bindgen]
+    pub fn to_graphviz(&mut self) -> String {
+        self.ctx.dot()
+    }
+
+    #[wasm_bindgen(js_name = evalNode)]
+    pub fn eval_node(&mut self, node: &FidgetNode) -> f64 {
+        self.ctx.eval_xyz(*node.node, 0., 0., 0.).unwrap()
+    }
+
+    #[wasm_bindgen(js_name = renderNode)]
+    pub fn render_node(&self, node: &FidgetNode, image_size: usize) -> Vec<u8> {
+        let shape = VmShape::new(&self.ctx, *node.node).unwrap();
+
+        let cfg = RenderConfig::<2> {
+            image_size,
+            ..RenderConfig::default()
+        };
+
+        let out = cfg.run::<_, BitRenderMode>(shape).unwrap_throw();
+        out.into_iter()
+            .flat_map(|b| {
+                let b = b as u8 * u8::MAX;
+                [b, b, b, 255]
+            })
+            .collect()
+    }
+}
+
+impl Default for FidgetContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[no_mangle]
 pub fn new_context() -> Box<Context> {

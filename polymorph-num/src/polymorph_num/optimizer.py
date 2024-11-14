@@ -209,7 +209,7 @@ class Optimizer:
                 return False
 
     def spin_opt(self, expr: ir.Expr) -> ir.Expr:
-        print("Before:", len(topo(expr.find())))
+        print("Before:", len(topo(expr.find())), file=__import__("sys").stderr)
         cycles = 0
         while True:
             changed = False
@@ -233,12 +233,12 @@ class Optimizer:
                 assert (
                     range_before[1] >= range_after[1]
                 ), f"range max increased in optimization; was {range_before[1]}, now {range_after[1]}"
-            # with self.timer("cse"):
-            #     changed |= cse(expr)
+            with self.timer("cse"):
+                changed |= cse(expr)
             expr_opt = expr.find()
             if not changed:
                 self.cycles = cycles
-                print("After:", len(topo(expr.find())))
+                print("After:", len(topo(expr.find())), file=__import__("sys").stderr)
                 return expr_opt
             expr = expr_opt
             cycles += 1

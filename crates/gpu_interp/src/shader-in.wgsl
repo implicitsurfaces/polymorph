@@ -137,6 +137,11 @@ fn fragment_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let x = u32(pos.x);
     let y = u32(pos.y);
 
+    // nothing for us to do outside of the viewport
+    if (x >= viewport[0] || y >= viewport[1]) {
+        return vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    }
+
     // Each shader invocation processes 4 horizontal pixels, and the output
     // is a vec4<f32> representing four pixels.
     let row_len = viewport[0] / 4u;

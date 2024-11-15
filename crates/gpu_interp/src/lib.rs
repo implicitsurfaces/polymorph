@@ -17,7 +17,7 @@ pub const MAX_TAPE_LEN_REGOPS: u32 = 32768 * 5;
 pub const REG_COUNT: usize = 255;
 pub const TILE_SIZE_X: u32 = 64;
 pub const TILE_SIZE_Y: u32 = 32;
-pub const MAX_TILE_COUNT: u32 = 256;
+pub const MAX_TILE_COUNT: u32 = 512;
 
 pub fn shader_source() -> String {
     let shared_constants = format!(
@@ -72,8 +72,6 @@ pub struct GPUTape {
 
 impl GPUTape {
     pub fn new(ctx: fidget::Context, root: fidget::context::Node, width: u32, height: u32) -> Self {
-        let start = std::time::Instant::now();
-
         let shape = VmShape::new(&ctx, root).unwrap();
 
         // The default (unsimplified) tape is always the first one we right.
@@ -139,9 +137,6 @@ impl GPUTape {
                 lengths: subtape_ends,
             }
         };
-
-        let duration = start.elapsed();
-        eprintln!("GPUTape::new took {:?}", duration);
 
         ret
     }
@@ -330,6 +325,8 @@ pub fn create_and_fill_buffers(
     };
 
     let tile_count = (viewport.width / TILE_SIZE_X) * (viewport.height / TILE_SIZE_Y);
+    // web_sys::console::log_1(&viewport);
+
     assert!(viewport.width % TILE_SIZE_X == 0);
     assert!(viewport.height % TILE_SIZE_X == 0);
     assert!(tape.lengths.len() == tile_count as usize);

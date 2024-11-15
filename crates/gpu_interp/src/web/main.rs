@@ -46,8 +46,8 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     let tree = smooth_union(circles);
 
     let viewport = Viewport {
-        width: 1600,
-        height: 1200,
+        width: 64 * 20,
+        height: 64 * 10,
     };
 
     let mut ctx = Context::new();

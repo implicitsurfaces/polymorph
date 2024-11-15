@@ -337,7 +337,7 @@ pub fn create_and_fill_buffers(
         device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Offsets Buffer"),
             contents: bytemuck::cast_slice(&contents),
-            usage: wgpu::BufferUsages::UNIFORM,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         })
     };
 
@@ -347,7 +347,7 @@ pub fn create_and_fill_buffers(
         device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("pc_max Buffer"),
             contents: bytemuck::cast_slice(&contents),
-            usage: wgpu::BufferUsages::UNIFORM,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         })
     };
 
@@ -412,6 +412,20 @@ pub fn create_and_fill_buffers(
         timestamp_resolve_buffer,
         timestamp_readback_buffer,
     }
+}
+
+pub fn update_tape(queue: &wgpu::Queue, buffers: &Buffers, tape: &GPUTape) {
+    queue.write_buffer(&buffers.bytecode_buffer, 0, &tape.to_bytes());
+    queue.write_buffer(
+        &buffers.offsets_buffer,
+        0,
+        bytemuck::cast_slice(&tape.offsets),
+    );
+    queue.write_buffer(
+        &buffers.pc_max_buffer,
+        0,
+        bytemuck::cast_slice(&tape.lengths),
+    );
 }
 
 pub fn create_bind_group(

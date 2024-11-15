@@ -38,16 +38,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
 
     let (adapter, device, queue) = create_device(&instance, &options).await;
 
-    let mut circles = Vec::new();
-    for i in 0..10 {
-        for j in 0..10 {
-            let center_x = i as f64;
-            let center_y = j as f64;
-            circles.push(circle(center_x * 200.0, center_y * 200.0, 100.0));
-        }
-    }
-    let tree = smooth_union(circles);
-
     let window_size = window.inner_size();
 
     // viewport should be closest multiple of tile size
@@ -55,6 +45,12 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         width: (window_size.width / TILE_SIZE_X) * TILE_SIZE_X,
         height: (window_size.height / TILE_SIZE_Y) * TILE_SIZE_Y,
     };
+
+    let tree = circle(
+        viewport.width as f64 / 2.0,
+        viewport.height as f64 / 2.0,
+        1000.0,
+    );
 
     let mut ctx = Context::new();
     let node = ctx.import(&tree);
@@ -211,7 +207,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                     let mut ctx = Context::new();
                     let node = ctx.import(&tree);
                     let tape = GPUTape::new(ctx, node, viewport.width, viewport.height);
-                    queue.write_buffer(&buffers.bytecode_buffer, 0, &tape.to_bytes());
+                    update_tape(&queue, &buffers, &tape);
                 }
 
                 WindowEvent::CloseRequested => target.exit(),

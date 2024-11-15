@@ -202,8 +202,23 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
 
                     window.request_redraw();
                 }
+
+                WindowEvent::CursorMoved {
+                    position: winit::dpi::PhysicalPosition { x, y },
+                    ..
+                } => {
+                    let tree = circle(x, y, 100.0);
+                    let mut ctx = Context::new();
+                    let node = ctx.import(&tree);
+                    let tape = GPUTape::new(ctx, node, viewport.width, viewport.height);
+                    queue.write_buffer(&buffers.bytecode_buffer, 0, &tape.to_bytes());
+                }
+
                 WindowEvent::CloseRequested => target.exit(),
-                _ => {}
+
+                e => {
+                    //info!("{:?}", e)
+                }
             };
         }
     })

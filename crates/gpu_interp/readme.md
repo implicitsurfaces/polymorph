@@ -12,4 +12,4 @@ Install the CLI binaries:
 
 ## Build Web UI
 
-    trunk serve --release
+    trunk serve --release --features "web"

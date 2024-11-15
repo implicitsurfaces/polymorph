@@ -326,7 +326,6 @@ pub fn create_and_fill_buffers(
     };
 
     let tile_count = (viewport.width / TILE_SIZE_X) * (viewport.height / TILE_SIZE_Y);
-    // web_sys::console::log_1(&viewport);
 
     assert!(viewport.width % TILE_SIZE_X == 0);
     assert!(viewport.height % TILE_SIZE_X == 0);

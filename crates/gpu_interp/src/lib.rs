@@ -5,8 +5,9 @@ use fidget::{
     vm::{VmFunction, VmShape},
 };
 
-use wgpu::{util::DeviceExt, ShaderStages};
+pub use log::*;
 
+use wgpu::{util::DeviceExt, ShaderStages};
 pub mod sdf;
 
 pub const FRAGMENTS_PER_INVOCATION: u32 = 4;
@@ -313,7 +314,7 @@ pub fn create_and_fill_buffers(
         let mut contents = vec![0u8; MAX_TAPE_LEN_REGOPS as usize * std::mem::size_of::<RegOp>()];
         let tape_bytes = tape.to_bytes();
         contents[..tape_bytes.len()].copy_from_slice(&tape_bytes);
-        // eprintln!("tape bytes {:?}", tape_bytes);
+        // info!("tape bytes {:?}", tape_bytes);
 
         device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Bytecode Buffer"),
@@ -550,19 +551,19 @@ pub async fn print_timestamps(device: &wgpu::Device, queue: &wgpu::Queue, buffer
     timestamp_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
     device.poll(wgpu::Maintain::wait()).panic_on_timeout();
 
-    let p = queue.get_timestamp_period();
-
     if let Ok(Ok(())) = receiver.recv_async().await {
+        use std::time::Duration;
+        let p = queue.get_timestamp_period();
         let timestamp_data = timestamp_slice.get_mapped_range();
         let timestamps: &[u64] = bytemuck::cast_slice(&timestamp_data);
-        // eprintln!(
-        //     "Duration #1: {:?}",
-        //     Duration::from_nanos((p * (timestamps[1] - timestamps[0]) as f32) as u64)
-        // );
-        // eprintln!(
-        //     "Duration #2: {:?}",
-        //     Duration::from_nanos((p * (timestamps[3] - timestamps[2]) as f32) as u64)
-        // );
+        info!(
+            "Duration #1: {:?}",
+            Duration::from_nanos((p * (timestamps[1] - timestamps[0]) as f32) as u64)
+        );
+        info!(
+            "Duration #2: {:?}",
+            Duration::from_nanos((p * (timestamps[3] - timestamps[2]) as f32) as u64)
+        );
         drop(timestamp_data);
         buffers.timestamp_readback_buffer.unmap();
     }

@@ -3,7 +3,6 @@ use gpu_interp::sdf::*;
 use gpu_interp::*;
 
 use wasm_bindgen::prelude::*;
-use web_sys::console;
 
 #[wasm_bindgen]
 pub struct JsSystem();
@@ -54,14 +53,14 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     let node = ctx.import(&tree);
     let tape = GPUTape::new(ctx, node, viewport.width, viewport.height);
 
-    let projection = {
-        let w = viewport.width as f32;
-        let h = viewport.height as f32;
-        Projection {
-            scale: [1. / (w / 2.), -1. / (h / 2.)],
-            translation: [1., -1.],
-        }
-    };
+    // let projection = {
+    //     let w = viewport.width as f32;
+    //     let h = viewport.height as f32;
+    //     Projection {
+    //         scale: [1. / (w / 2.), -1. / (h / 2.)],
+    //         translation: [1., -1.],
+    //     }
+    // };
 
     let projection = Default::default();
 
@@ -140,7 +139,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                         let max_texture_size = device.limits().max_texture_dimension_2d;
                         config.width = new_size.width.max(1).min(max_texture_size);
                         config.height = new_size.height.max(1).min(max_texture_size);
-                        eprint!("{} {}", config.width, config.height);
+
                         surface.configure(&device, &config);
                         window.request_redraw();
                     }
@@ -213,7 +212,9 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
 #[cfg(target_arch = "wasm32")]
 fn main() {
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-    console::log_1(&"Hello from Rust!!!".into());
+    console_log::init_with_level(Level::Debug).unwrap();
+
+    info!("Hello from Rust");
 
     let event_loop = EventLoop::new().unwrap();
 

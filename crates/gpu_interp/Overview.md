@@ -10,7 +10,7 @@ Our project involves an interactive drawing app using [signed distance functions
 
 Fidget's author, Matthew Keeter, published [a technique for efficiently rendering SDFs on the GPU][mpr], but hasn't (hadn't) yet implemented a GPU-based interpreter in Fidget. Also, his implementation used CUDA, which is only available for NVIDIA hardware. We're interested in a cross-vendor, cross-platform approach, so we created our prototype using [wgpu][] a Rust library based on the WebGPU standard.
 
-[wgpu]: [WebGPU standard](https://github.com/gfx-rs/wgpu)
+[wgpu]: https://github.com/gfx-rs/wgpu
 
 [mpr]: https://www.mattkeeter.com/research/mpr/
 

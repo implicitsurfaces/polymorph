@@ -1,4 +1,4 @@
-import { Context, FidgetNode, createContext } from "fidget";
+import { Context, Node as FidgetNode, createContext } from "fidget";
 
 import {
   BinaryOp,
@@ -11,6 +11,7 @@ import {
 } from "./num-tree";
 import { DistField } from "./types";
 import { vecFromCartesianCoords } from "./geom";
+import { NumX, NumY } from "./num";
 
 export function _fidgetEval(node: NumNode, context: Context): FidgetNode {
   if (node instanceof LiteralNum) {
@@ -98,8 +99,8 @@ function fidgetUnaryOp(
 
 const fidgetBinaryOp = (
   operation: BinaryOperation,
-  left: number,
-  right: number,
+  left: FidgetNode,
+  right: FidgetNode,
   context: Context,
 ) => {
   if (operation === "ADD") {
@@ -115,7 +116,7 @@ const fidgetBinaryOp = (
     return context.div(left, right);
   }
   if (operation === "MOD") {
-    return context.mod(left, right);
+    return context.modulo(left, right);
   }
   if (operation === "ATAN2") {
     return context.atan2(left, right);
@@ -147,12 +148,9 @@ export async function fidgetEval(node: NumNode): Promise<number> {
 export async function fidgetRender(
   node: DistField,
   imageSize = 50,
-): Promise<string> {
+): Promise<Uint8Array> {
   const context = await createContext();
-  const genericPoint = vecFromCartesianCoords(
-    context.x(),
-    context.y(),
-  ).pointFromOrigin();
+  const genericPoint = vecFromCartesianCoords(NumX, NumY).pointFromOrigin();
   const fidgetNode = _fidgetEval(node.distanceTo(genericPoint).n, context);
   return context.renderNode(fidgetNode, imageSize);
 }

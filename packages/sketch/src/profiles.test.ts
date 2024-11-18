@@ -55,3 +55,19 @@ test("closed path", async () => {
     )
   ).toMatchSnapshot();
 });
+
+test("basic heart shape", async () => {
+  const p0 = asVec(0, -0.8).pointFromOrigin();
+  const p1 = asVec(-0.9, 0.3).pointFromOrigin();
+  const p2 = asVec(0, 0.3).pointFromOrigin();
+  const p3 = asVec(0.9, 0.3).pointFromOrigin();
+
+  const heart = new ClosedPath([
+    new LineSegment(p0, p1),
+    new BulgingSegment(p1, p2, asNum(-0.9)),
+    new BulgingSegment(p2, p3, asNum(-0.9)),
+    new LineSegment(p3, p0),
+  ]);
+
+  (await expectASCIIDistance(heart)).toMatchSnapshot();
+});

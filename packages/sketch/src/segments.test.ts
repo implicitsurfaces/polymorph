@@ -98,3 +98,11 @@ test("arc solid angle with positive bulge", async () => {
     )
   ).toMatchSnapshot();
 });
+
+test("arc pill", async () => {
+  const p0 = asVec(-0.5, -0.3).pointFromOrigin();
+  const p1 = asVec(0.3, 0.5).pointFromOrigin();
+  const pill = t(new BulgingSegment(p0, p1, asNum(0.9)));
+
+  (await expectASCIIDistance(pill)).toMatchSnapshot();
+});

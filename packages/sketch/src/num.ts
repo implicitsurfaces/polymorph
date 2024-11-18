@@ -1,5 +1,5 @@
 import type { BinaryOperation, UnaryOperation } from "./num-tree";
-import { NumNode, LiteralNum, BinaryOp, UnaryOp } from "./num-tree";
+import { NumNode, LiteralNum, BinaryOp, UnaryOp, Variable } from "./num-tree";
 
 export function asNum(n: number | Num): Num {
   if (n instanceof Num) {
@@ -134,3 +134,6 @@ export class Num {
 export const ZERO = new Num(new LiteralNum(0));
 export const ONE = new Num(new LiteralNum(1));
 export const TWO = new Num(new LiteralNum(2));
+
+export const NumX = new Num(new Variable("x"));
+export const NumY = new Num(new Variable("y"));

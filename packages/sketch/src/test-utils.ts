@@ -3,6 +3,7 @@ import { simpleEval, dedupeEval } from "./num-tree";
 import { Point, asVec } from "./geom";
 import { Num } from "./num";
 import { DistField, Segment } from "./types";
+import { fidgetRender } from "./num-tree-fidget";
 
 export function ex(num: Num) {
   return expect(simpleEval(num.n));
@@ -12,12 +13,25 @@ const FILLED_CHAR = "█";
 const EMPTY_CHAR = " ";
 
 type BooleanImageData = boolean[][];
-function booleansToASCII(imageData: BooleanImageData): string {
+function booleansToASCII(imageData: BooleanImageData, double = false): string {
+  const fillChar = double ? FILLED_CHAR + FILLED_CHAR : FILLED_CHAR;
+  const emptyChar = double ? EMPTY_CHAR + EMPTY_CHAR : EMPTY_CHAR;
+
   return imageData
-    .map((row) =>
-      row.map((pixel) => (pixel ? FILLED_CHAR : EMPTY_CHAR)).join(""),
-    )
+    .map((row) => row.map((pixel) => (pixel ? fillChar : emptyChar)).join(""))
     .join("\n");
+}
+
+function intArrayToImageData(imageData: Uint8Array): BooleanImageData {
+  const rowLength = Math.sqrt(imageData.length);
+  const result: BooleanImageData = [];
+  for (let i = 0; i < imageData.length; i += rowLength) {
+    const row = [...imageData.slice(i, i + rowLength)].map(
+      (value) => value > 0,
+    );
+    result.push(row);
+  }
+  return result;
 }
 
 const POSITIVE_GRADIENT_SCALE = ["˖", "░", "▒", "▓", "█"];
@@ -85,4 +99,10 @@ export async function expectASCIIDistance(distField: DistField) {
     dedupeEval(distField.distanceTo(point).n),
   );
   return expect(gradientToASCII(imageData, 0.5));
+}
+
+export async function expectFidgetRender(distField: DistField) {
+  const render = await fidgetRender(distField);
+  const imageData = intArrayToImageData(render);
+  return expect(booleansToASCII(imageData, true));
 }

@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ark-ui/react": "^4.4.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "threejs-math": "^0.147.0"

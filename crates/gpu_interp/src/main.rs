@@ -31,22 +31,10 @@ async fn evaluate_tape(tape: &GPUTape, viewport: Viewport) -> Option<Vec<f32>> {
     )
     .await;
 
-    let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: None,
-        source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source())),
-    });
-
-    let (pipeline_layout, bind_group_layout) =
-        setup_pipeline_layout(&device, wgpu::ShaderStages::COMPUTE);
-    let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-        label: None,
-        layout: Some(&pipeline_layout),
-        module: &shader_module,
-        entry_point: "compute_main",
-        compilation_options: Default::default(),
-        cache: None,
-    });
-
+    let (bind_group_layout, pipeline_layout) = create_pipeline_layout(
+        &device,
+        wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
+    );
     let buffers = create_and_fill_buffers(&device, &tape, viewport, Projection::default());
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
@@ -61,6 +49,8 @@ async fn evaluate_tape(tape: &GPUTape, viewport: Viewport) -> Option<Vec<f32>> {
     let mut encoder =
         device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
+    let pipeline =
+        create_compute_pipeline(&device, &pipeline_layout, &create_shader_module(&device));
     add_compute_pass(
         &mut encoder,
         &pipeline,

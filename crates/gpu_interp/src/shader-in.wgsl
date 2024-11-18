@@ -15,8 +15,6 @@ struct Projection {
     translation: vec2<f32>,
 }
 
-
-
 @group(0) @binding(0) var<storage> bytecode: Bytecode;
 
 @group(0) @binding(1) var<uniform> bc_offsets: array<vec4<u32>, MAX_TILE_COUNT_DIV_4>;

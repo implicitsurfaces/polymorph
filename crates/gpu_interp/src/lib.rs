@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use bincode;
 use fidget::{
     compiler::RegOp,
@@ -7,7 +9,10 @@ use fidget::{
 
 pub use log::*;
 
-use wgpu::{util::DeviceExt, ShaderStages};
+use wgpu::{
+    util::DeviceExt, BindGroupLayout, CommandEncoder, ComputePipeline, PipelineLayout,
+    RenderPipeline, ShaderModule, ShaderStages,
+};
 pub mod sdf;
 
 pub const FRAGMENTS_PER_INVOCATION: u32 = 4;
@@ -257,6 +262,7 @@ impl Projection {
         bytes
     }
 }
+
 impl Default for Projection {
     fn default() -> Self {
         Self {
@@ -264,6 +270,19 @@ impl Default for Projection {
             translation: [0., 0.],
         }
     }
+}
+
+pub struct Buffers {
+    pub bytecode_buffer: wgpu::Buffer,
+    pub offsets_buffer: wgpu::Buffer,
+    pub pc_max_buffer: wgpu::Buffer,
+    pub output_buffer: wgpu::Buffer,
+    pub output_staging_buffer: wgpu::Buffer,
+    pub dims_buffer: wgpu::Buffer,
+    pub step_count_buffer: wgpu::Buffer,
+    pub projection_buffer: wgpu::Buffer,
+    pub timestamp_resolve_buffer: wgpu::Buffer,
+    pub timestamp_readback_buffer: wgpu::Buffer,
 }
 
 pub async fn create_device(
@@ -291,17 +310,72 @@ pub async fn create_device(
     (adapter, device, queue)
 }
 
-pub struct Buffers {
-    pub bytecode_buffer: wgpu::Buffer,
-    pub offsets_buffer: wgpu::Buffer,
-    pub pc_max_buffer: wgpu::Buffer,
-    pub output_buffer: wgpu::Buffer,
-    pub output_staging_buffer: wgpu::Buffer,
-    pub dims_buffer: wgpu::Buffer,
-    pub step_count_buffer: wgpu::Buffer,
-    pub projection_buffer: wgpu::Buffer,
-    pub timestamp_resolve_buffer: wgpu::Buffer,
-    pub timestamp_readback_buffer: wgpu::Buffer,
+pub fn create_pipeline_layout(
+    device: &wgpu::Device,
+    shader_stages: ShaderStages,
+) -> (BindGroupLayout, PipelineLayout) {
+    let bind_group_layout = create_bind_group_layout(&device, shader_stages);
+    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: None,
+        bind_group_layouts: &[&bind_group_layout],
+        push_constant_ranges: &[],
+    });
+    (bind_group_layout, pipeline_layout)
+}
+
+pub fn create_shader_module(device: &wgpu::Device) -> ShaderModule {
+    device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: None,
+        source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source())),
+    })
+}
+
+pub fn create_compute_pipeline(
+    device: &wgpu::Device,
+    pipeline_layout: &wgpu::PipelineLayout,
+    shader_module: &wgpu::ShaderModule,
+) -> ComputePipeline {
+    device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+        label: Some("Compute pipeline"),
+        layout: Some(pipeline_layout),
+        module: shader_module,
+        entry_point: "compute_main",
+        compilation_options: Default::default(),
+        cache: None,
+    })
+}
+
+pub fn create_render_pipeline(
+    device: &wgpu::Device,
+    pipeline_layout: &wgpu::PipelineLayout,
+    shader_module: &wgpu::ShaderModule,
+    swapchain_format: wgpu::TextureFormat,
+) -> RenderPipeline {
+    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("Render Pipeline"),
+        layout: Some(&pipeline_layout),
+        vertex: wgpu::VertexState {
+            module: &shader_module,
+            entry_point: "vertex_main",
+            buffers: &[],
+            compilation_options: Default::default(),
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &shader_module,
+            entry_point: "fragment_main",
+            compilation_options: Default::default(),
+            targets: &[Some(swapchain_format.into())],
+        }),
+        primitive: wgpu::PrimitiveState::default(),
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState {
+            count: 1,
+            mask: !0,
+            alpha_to_coverage_enabled: false,
+        },
+        multiview: None,
+        cache: None,
+    })
 }
 
 pub fn create_and_fill_buffers(
@@ -455,11 +529,11 @@ pub fn create_bind_group(
     })
 }
 
-pub fn setup_pipeline_layout(
+fn create_bind_group_layout(
     device: &wgpu::Device,
     shader_stages: ShaderStages,
-) -> (wgpu::PipelineLayout, wgpu::BindGroupLayout) {
-    let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+) -> wgpu::BindGroupLayout {
+    device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: None,
         entries: &[
             wgpu::BindGroupLayoutEntry {
@@ -533,14 +607,7 @@ pub fn setup_pipeline_layout(
                 count: None,
             },
         ],
-    });
-
-    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: None,
-        bind_group_layouts: &[&bind_group_layout],
-        push_constant_ranges: &[],
-    });
-    (pipeline_layout, bind_group_layout)
+    })
 }
 
 pub async fn print_timestamps(device: &wgpu::Device, queue: &wgpu::Queue, buffers: &Buffers) {
@@ -568,11 +635,11 @@ pub async fn print_timestamps(device: &wgpu::Device, queue: &wgpu::Queue, buffer
     }
 }
 
-pub fn add_compute_pass<'a>(
-    encoder: &'a mut wgpu::CommandEncoder,
-    pipeline: &'a wgpu::ComputePipeline,
-    bind_group: &'a wgpu::BindGroup,
-    timestamp_query_set: Option<&'a wgpu::QuerySet>,
+pub fn add_compute_pass(
+    encoder: &mut wgpu::CommandEncoder,
+    pipeline: &wgpu::ComputePipeline,
+    bind_group: &wgpu::BindGroup,
+    timestamp_query_set: Option<&wgpu::QuerySet>,
     viewport: &Viewport,
 ) {
     let invoc_size = (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
@@ -594,4 +661,34 @@ pub fn add_compute_pass<'a>(
         invoc_size.1 / WORKGROUP_SIZE_Y,
         1,
     );
+}
+
+pub fn add_render_pass(
+    encoder: &mut wgpu::CommandEncoder,
+    view: &wgpu::TextureView,
+    pipeline: &wgpu::RenderPipeline,
+    bind_group: &wgpu::BindGroup,
+    timestamp_query_set: Option<&wgpu::QuerySet>,
+) {
+    let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        label: None,
+        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+            view: &view,
+            resolve_target: None,
+            ops: wgpu::Operations {
+                load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
+                store: wgpu::StoreOp::Store,
+            },
+        })],
+        depth_stencil_attachment: None,
+        timestamp_writes: timestamp_query_set.map(|query_set| wgpu::RenderPassTimestampWrites {
+            query_set,
+            beginning_of_pass_write_index: Some(2),
+            end_of_pass_write_index: Some(3),
+        }),
+        occlusion_query_set: None,
+    });
+    rpass.set_pipeline(pipeline);
+    rpass.set_bind_group(0, bind_group, &[]);
+    rpass.draw(0..6, 0..1);
 }

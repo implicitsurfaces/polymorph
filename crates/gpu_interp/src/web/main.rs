@@ -84,49 +84,18 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         ))),
     });
 
-    // Setup compute pipeline
-    let (pipeline_layout, bind_group_layout) = setup_pipeline_layout(
+    // Create resources shared by both pipelines.
+    let (bind_group_layout, pipeline_layout) = create_pipeline_layout(
         &device,
         wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
     );
-    let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-        label: None,
-        layout: Some(&pipeline_layout),
-        module: &shader_module,
-        entry_point: "compute_main",
-        compilation_options: Default::default(),
-        cache: None,
-    });
-
-    // Setup render pipeline
-    let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("Render Pipeline"),
-        layout: Some(&pipeline_layout),
-        vertex: wgpu::VertexState {
-            module: &shader_module,
-            entry_point: "vertex_main",
-            buffers: &[],
-            compilation_options: Default::default(),
-        },
-        fragment: Some(wgpu::FragmentState {
-            module: &shader_module,
-            entry_point: "fragment_main_web",
-            compilation_options: Default::default(),
-            targets: &[Some(swapchain_format.into())],
-        }),
-        primitive: wgpu::PrimitiveState::default(),
-        depth_stencil: None,
-        multisample: wgpu::MultisampleState {
-            count: 1,
-            mask: !0,
-            alpha_to_coverage_enabled: false,
-        },
-        multiview: None,
-        cache: None,
-    });
-
     let buffers = create_and_fill_buffers(&device, &tape, viewport, projection);
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
+
+    // Set up pipelines.
+    let compute_pipeline = create_compute_pipeline(&device, &pipeline_layout, &shader_module);
+    let render_pipeline =
+        create_render_pipeline(&device, &pipeline_layout, &shader_module, swapchain_format);
 
     let mut config = surface
         .get_default_config(&adapter, viewport.width, viewport.height)
@@ -179,28 +148,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                         None,
                         &viewport,
                     );
-
-                    // dropped and unlocks the encoder when we're done
-                    // with it.
-                    {
-                        let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                            label: None,
-                            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                                view: &view,
-                                resolve_target: None,
-                                ops: wgpu::Operations {
-                                    load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
-                                    store: wgpu::StoreOp::Store,
-                                },
-                            })],
-                            depth_stencil_attachment: None,
-                            timestamp_writes: None,
-                            occlusion_query_set: None,
-                        });
-                        rpass.set_pipeline(&render_pipeline);
-                        rpass.set_bind_group(0, &bind_group, &[]);
-                        rpass.draw(0..6, 0..1);
-                    }
+                    add_render_pass(&mut encoder, &view, &render_pipeline, &bind_group, None);
 
                     queue.submit(Some(encoder.finish()));
                     frame.present();

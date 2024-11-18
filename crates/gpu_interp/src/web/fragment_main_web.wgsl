@@ -68,10 +68,10 @@ fn fragment_main_web(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32
   let nv = pixel_value / pmax;
 
   // draw contour lines
-  let band_spacing = 30.0;
-  let distance_to_closest_band = min(abs(pixel_value)                 % band_spacing,
-                                    (abs(pixel_value) + band_spacing) % band_spacing);
-  if (distance_to_closest_band < 1) {
+  let contour_spacing = 30.0;
+  let nearest_contour = round(pixel_value / contour_spacing) * contour_spacing;
+  let distance_to_closest_contour = abs(pixel_value - nearest_contour);
+  if (distance_to_closest_contour < 1) {
     return vec4<f32>(0.2, 0.2, 0.2, 1.0);
   } else {
     return diverging_purple_orange(nv, -0.3, 1.0);

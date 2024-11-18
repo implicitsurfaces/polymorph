@@ -38,16 +38,17 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
 
     let (adapter, device, queue) = create_device(&instance, &options).await;
 
-    let mut circles = Vec::new();
-    for i in 0..10 {
-        for j in 0..10 {
-            let center_x = i as f64;
-            let center_y = j as f64;
-            circles.push(circle(center_x * 200.0, center_y * 200.0, 100.0));
-        }
-    }
-    let tree = smooth_union(circles);
+    // let mut circles = Vec::new();
+    // for i in 0..10 {
+    //     for j in 0..10 {
+    //         let center_x = i as f64;
+    //         let center_y = j as f64;
+    //         circles.push(circle(center_x * 200.0, center_y * 200.0, 100.0));
+    //     }
+    // }
+    // let tree = smooth_union(circles);
 
+    let tree = circle(0., 0., 80.0);
     let window_size = window.inner_size();
 
     // viewport should be closest multiple of tile size
@@ -76,7 +77,11 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
 
     let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: Some("Render Shader"),
-        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&shader_source())),
+        source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&format!(
+            "{}\n{}",
+            shader_source(),
+            include_str!("fragment_main_web.wgsl")
+        ))),
     });
 
     // Setup compute pipeline
@@ -105,7 +110,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         },
         fragment: Some(wgpu::FragmentState {
             module: &shader_module,
-            entry_point: "fragment_main",
+            entry_point: "fragment_main_web",
             compilation_options: Default::default(),
             targets: &[Some(swapchain_format.into())],
         }),

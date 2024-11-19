@@ -53,6 +53,48 @@ export class Scene {
   }
 }
 
+// https://stackoverflow.com/questions/424292/seedable-javascript-random-number-generator
+class PseudoRandomNumberGenerator {
+  private m;
+  private a;
+  private c;
+  private state;
+
+  constructor(seed?: number) {
+    // LCG using GCC's constants
+    this.m = 0x80000000; // 2**31;
+    this.a = 1103515245;
+    this.c = 12345;
+    this.state = seed !== undefined ? seed : Math.floor(Math.random() * (this.m - 1));
+  }
+
+  nextInt() {
+    this.state = (this.a * this.state + this.c) % this.m;
+    return this.state;
+  }
+
+  nextRange(start: number, end: number) {
+    // returns in range [start, end): including start, excluding end
+    // can't modulu nextInt because of weak randomness in lower bits
+    var rangeSize = end - start;
+    var randomUnder1 = this.nextInt() / this.m;
+    return start + Math.floor(randomUnder1 * rangeSize);
+  }
+}
+
+export function testScene(): Scene {
+  const prng = new PseudoRandomNumberGenerator(42);
+  const scene = new Scene();
+  const numPoints = 1000;
+  const sceneSize = 500;
+  for (let i = 0; i < numPoints; ++i) {
+    const x = prng.nextRange(-sceneSize, sceneSize);
+    const y = prng.nextRange(-sceneSize, sceneSize);
+    scene.addPoint(new Vector2(x, y));
+  }
+  return scene;
+}
+
 /**
  * Stores and manages the undo-redo history of the scene.
  *
@@ -80,7 +122,7 @@ export class SceneManager {
    */
   constructor(onChange?: () => void, history?: Array<Scene>, index?: number, workingCopy?: Scene) {
     this._onChange = onChange !== undefined ? onChange : () => {};
-    this._history = history !== undefined ? history : [new Scene()];
+    this._history = history !== undefined ? history : [testScene()];
     this._index = index !== undefined ? index : this._history.length - 1;
     if (workingCopy !== undefined) {
       this._workingCopy = workingCopy;

@@ -145,7 +145,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                             &compute_pipeline,
                             &bind_group,
                             Some(&timestamp_query_set),
-                            &viewport,
+                            (viewport.width, viewport.height, 1),
                         );
 
                         add_render_pass(

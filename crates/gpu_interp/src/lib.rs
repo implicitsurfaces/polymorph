@@ -14,7 +14,10 @@ use wgpu::{
 };
 pub mod sdf;
 
-pub const FRAGMENTS_PER_INVOCATION: u32 = 4;
+// The core interpreter loop deals with vectors, not scalars. We need to take
+// this into account when dispatching the compute workload.
+const INTERP_SIMD_WIDTH: u32 = 4;
+
 pub const TIMESTAMP_COUNT: u64 = 4;
 pub const WORKGROUP_SIZE_X: u32 = 16;
 pub const WORKGROUP_SIZE_Y: u32 = 16;
@@ -103,7 +106,7 @@ pub async fn evaluate_tape(tape: &GPUTape, viewport: Viewport) -> Option<Vec<f32
         &pipeline,
         &bind_group,
         Some(&timestamp_query_set),
-        &viewport,
+        (viewport.width, viewport.height, 1),
     );
 
     // Copy the result from the output buffer to the staging buffer
@@ -722,14 +725,29 @@ pub async fn print_timestamps(device: &wgpu::Device, queue: &wgpu::Queue, buffer
     }
 }
 
+/// Records a compute pass with the given encoder and pipeline.
+/// `bind_group` will be bound to index 0.
+/// For rendering, `output_dims` is the image dimensions.
 pub fn add_compute_pass(
     encoder: &mut wgpu::CommandEncoder,
     pipeline: &wgpu::ComputePipeline,
     bind_group: &wgpu::BindGroup,
     timestamp_query_set: Option<&wgpu::QuerySet>,
-    viewport: &Viewport,
+    output_dims: (u32, u32, u32),
 ) {
-    let invoc_size = (viewport.width / FRAGMENTS_PER_INVOCATION, viewport.height);
+    // For simplicity, we require the total work size in each dimension to be
+    // evenly divisible by the workgroup size in that dimension.
+    assert!(output_dims.0 % WORKGROUP_SIZE_X == 0);
+    assert!(output_dims.1 % WORKGROUP_SIZE_Y == 0);
+
+    // TODO: Handle 3D dispatch when required.
+    let dispatch_size = (
+        // A single invocation of the compute shader can process multiple
+        // points, as given by INTERP_SIMD_WIDTH.
+        (output_dims.0 / INTERP_SIMD_WIDTH) / WORKGROUP_SIZE_X,
+        output_dims.1 / WORKGROUP_SIZE_Y,
+        1,
+    );
     let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
         label: None,
         timestamp_writes: timestamp_query_set.map(|query_set| wgpu::ComputePassTimestampWrites {
@@ -741,13 +759,7 @@ pub fn add_compute_pass(
     cpass.set_pipeline(pipeline);
     cpass.set_bind_group(0, &bind_group, &[]);
     cpass.insert_debug_marker("execute bytecode");
-    assert!(invoc_size.0 % WORKGROUP_SIZE_X == 0);
-    assert!(invoc_size.1 % WORKGROUP_SIZE_Y == 0);
-    cpass.dispatch_workgroups(
-        invoc_size.0 / WORKGROUP_SIZE_X,
-        invoc_size.1 / WORKGROUP_SIZE_Y,
-        1,
-    );
+    cpass.dispatch_workgroups(dispatch_size.0, dispatch_size.1, dispatch_size.2);
 }
 
 pub fn add_render_pass(

@@ -151,7 +151,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                         &compute_pipeline,
                         &bind_group,
                         None,
-                        &viewport,
+                        (viewport.width, viewport.height, 1),
                     );
                     add_render_pass(&mut encoder, &view, &render_pipeline, &bind_group, None);
 

@@ -70,6 +70,98 @@ pub fn regops_remapping_vars(
         .collect()
 }
 
+pub async fn evaluate_tape(tape: &GPUTape, viewport: Viewport) -> Option<Vec<f32>> {
+    let (_, device, queue) = create_device(
+        &wgpu::Instance::default(),
+        &wgpu::RequestAdapterOptions::default(),
+    )
+    .await;
+
+    let (bind_group_layout, pipeline_layout) = create_pipeline_layout(
+        &device,
+        wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
+    );
+    let buffers = create_and_fill_buffers(&device, &tape, viewport, Projection::default());
+    let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
+
+    // Create timestamp query set
+    let timestamp_query_set = device.create_query_set(&wgpu::QuerySetDescriptor {
+        label: Some("Timestamp query set"),
+        count: TIMESTAMP_COUNT as u32,
+        ty: wgpu::QueryType::Timestamp,
+    });
+
+    // A command encoder executes one or many pipelines.
+    let mut encoder =
+        device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+
+    let pipeline =
+        create_compute_pipeline(&device, &pipeline_layout, &create_shader_module(&device));
+    add_compute_pass(
+        &mut encoder,
+        &pipeline,
+        &bind_group,
+        Some(&timestamp_query_set),
+        &viewport,
+    );
+
+    // Copy the result from the output buffer to the staging buffer
+    encoder.copy_buffer_to_buffer(
+        &buffers.output_buffer,
+        0,
+        &buffers.output_staging_buffer,
+        0,
+        viewport.byte_size() as wgpu::BufferAddress,
+    );
+
+    // Resolve timestamp query results
+    encoder.resolve_query_set(
+        &timestamp_query_set,
+        0..2,
+        &buffers.timestamp_resolve_buffer,
+        0,
+    );
+
+    // Copy timestamp results from resolve buffer to readback buffer
+    encoder.copy_buffer_to_buffer(
+        &buffers.timestamp_resolve_buffer,
+        0,
+        &buffers.timestamp_readback_buffer,
+        0,
+        16,
+    );
+
+    // Submits command encoder for processing
+    queue.submit(Some(encoder.finish()));
+
+    // Sets up staging buffer for mapping, sending the result back when finished.
+    let buffer_slice = buffers.output_staging_buffer.slice(..);
+    let (sender, receiver) = flume::bounded(1);
+    buffer_slice.map_async(wgpu::MapMode::Read, move |v| sender.send(v).unwrap());
+
+    // Poll the device in a blocking manner so that our future resolves.
+    device.poll(wgpu::Maintain::wait()).panic_on_timeout();
+
+    // Awaits until `buffer_future` can be read from
+    if let Ok(Ok(())) = receiver.recv_async().await {
+        // Gets contents of buffer
+        let data = buffer_slice.get_mapped_range();
+        // Convert contents to f32
+        let result: Vec<f32> = bytemuck::cast_slice(&data).to_vec();
+
+        // Unmap buffer
+        drop(data);
+        buffers.output_staging_buffer.unmap();
+
+        print_timestamps(&device, &queue, &buffers).await;
+
+        // Returns data from buffer
+        Some(result)
+    } else {
+        panic!("failed to run compute on gpu!")
+    }
+}
+
 pub struct GPUTape {
     pub tape: Vec<RegOp>,
     pub offsets: Vec<u32>,

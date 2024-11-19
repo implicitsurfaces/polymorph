@@ -15,7 +15,7 @@ impl JsSystem {
     }
 }
 
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashMap};
 
 use winit::{
     event::{Event, WindowEvent},
@@ -55,13 +55,20 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         width: (window_size.width / TILE_SIZE_X) * TILE_SIZE_X,
         height: (window_size.height / TILE_SIZE_Y) * TILE_SIZE_Y,
     };
-    let shape = {
-        let tree = circle(0., 0., 80.0);
-        let mut ctx = Context::new();
-        let node = ctx.import(&tree);
-        VmShape::new(&ctx, node).unwrap()
-    };
-    let tape = GPUTape::new(&shape, viewport.width, viewport.height);
+
+    let tree = circle(0., 0., 80.0);
+    let mut ctx = Context::new();
+    let f = ctx.import(&tree);
+
+    use fidget::var::Var;
+    let dfdx = ctx.deriv(f, Var::X).unwrap();
+    let dfdy = ctx.deriv(f, Var::Y).unwrap();
+
+    let tape = GPUTape::new(
+        &VmShape::new(&ctx, f).unwrap(),
+        viewport.width,
+        viewport.height,
+    );
 
     // let projection = {
     //     let w = viewport.width as f32;
@@ -167,14 +174,20 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                     position: winit::dpi::PhysicalPosition { x, y },
                     ..
                 } => {
-                    let shape = {
-                        let tree = circle(x, y, 100.0);
-                        let mut ctx = Context::new();
-                        let node = ctx.import(&tree);
-                        VmShape::new(&ctx, node).unwrap()
-                    };
-                    let tape = GPUTape::new(&shape, viewport.width, viewport.height);
-                    queue.write_buffer(&buffers.bytecode_buffer, 0, &tape.to_bytes());
+                    // let shape = {
+                    //     let tree = circle(x, y, 100.0);
+                    //     let mut ctx = Context::new();
+                    //     let node = ctx.import(&tree);
+                    //     VmShape::new(&ctx, node).unwrap()
+                    // };
+                    // let tape = GPUTape::new(&shape, viewport.width, viewport.height);
+                    // queue.write_buffer(&buffers.bytecode_buffer, 0, &tape.to_bytes());
+
+                    let mut cursor_vars = HashMap::<Var, f64>::new();
+                    cursor_vars.insert(Var::X, x);
+                    cursor_vars.insert(Var::Y, y);
+                    let dy = ctx.eval(dfdy.clone(), &cursor_vars).unwrap();
+                    let dx = ctx.eval(dfdx.clone(), &cursor_vars).unwrap();
                 }
 
                 WindowEvent::CloseRequested => target.exit(),
@@ -196,9 +209,6 @@ fn main() {
 
     let event_loop = EventLoop::new().unwrap();
 
-    #[allow(unused_mut)]
-    let mut builder = winit::window::WindowBuilder::new();
-
     use wasm_bindgen::JsCast;
     use winit::platform::web::WindowBuilderExtWebSys;
     let canvas = web_sys::window()
@@ -210,8 +220,9 @@ fn main() {
         .dyn_into::<web_sys::HtmlCanvasElement>()
         .unwrap();
 
-    builder = builder.with_canvas(Some(canvas));
+    let builder = winit::window::WindowBuilder::new().with_canvas(Some(canvas));
     let window = builder.build(&event_loop).unwrap();
+
     info!("monitor scale factor: {}", window.scale_factor());
     let _ = window.request_inner_size(winit::dpi::PhysicalSize::new(640, 640));
 

@@ -173,9 +173,7 @@ pub struct GPUTape {
 }
 
 impl GPUTape {
-    pub fn new(ctx: fidget::Context, root: fidget::context::Node, width: u32, height: u32) -> Self {
-        let shape = VmShape::new(&ctx, root).unwrap();
-
+    pub fn new(shape: &VmShape, width: u32, height: u32) -> Self {
         // The default (unsimplified) tape is always the first one we right.
         // But not that it's *not* accounted for in `subtape_starts` and
         // `subtape_ends` — those are only for looking up the simplified

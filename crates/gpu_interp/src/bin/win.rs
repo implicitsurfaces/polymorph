@@ -1,3 +1,4 @@
+use fidget::vm::VmShape;
 use gpu_interp::*;
 
 use std::borrow::Cow;
@@ -50,8 +51,9 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         use fidget::context::Context;
         let mut file = std::fs::File::open("prospero.vm").unwrap();
         let (ctx, root) = Context::from_text(&mut file).unwrap();
+        let shape = VmShape::new(&ctx, root).unwrap();
 
-        GPUTape::new(ctx, root, viewport.width, viewport.height)
+        GPUTape::new(&shape, viewport.width, viewport.height)
     };
 
     let swapchain_capabilities = surface.get_capabilities(&adapter);

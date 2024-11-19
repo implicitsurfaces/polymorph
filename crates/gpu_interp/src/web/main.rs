@@ -1,4 +1,4 @@
-use fidget::context::Context;
+use fidget::{context::Context, vm::VmShape};
 use gpu_interp::sdf::*;
 use gpu_interp::*;
 
@@ -48,7 +48,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     // }
     // let tree = smooth_union(circles);
 
-    let tree = circle(0., 0., 80.0);
     let window_size = window.inner_size();
 
     // viewport should be closest multiple of tile size
@@ -56,10 +55,13 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         width: (window_size.width / TILE_SIZE_X) * TILE_SIZE_X,
         height: (window_size.height / TILE_SIZE_Y) * TILE_SIZE_Y,
     };
-
-    let mut ctx = Context::new();
-    let node = ctx.import(&tree);
-    let tape = GPUTape::new(ctx, node, viewport.width, viewport.height);
+    let shape = {
+        let tree = circle(0., 0., 80.0);
+        let mut ctx = Context::new();
+        let node = ctx.import(&tree);
+        VmShape::new(&ctx, node).unwrap()
+    };
+    let tape = GPUTape::new(&shape, viewport.width, viewport.height);
 
     // let projection = {
     //     let w = viewport.width as f32;
@@ -165,10 +167,13 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                     position: winit::dpi::PhysicalPosition { x, y },
                     ..
                 } => {
-                    let tree = circle(x, y, 100.0);
-                    let mut ctx = Context::new();
-                    let node = ctx.import(&tree);
-                    let tape = GPUTape::new(ctx, node, viewport.width, viewport.height);
+                    let shape = {
+                        let tree = circle(x, y, 100.0);
+                        let mut ctx = Context::new();
+                        let node = ctx.import(&tree);
+                        VmShape::new(&ctx, node).unwrap()
+                    };
+                    let tape = GPUTape::new(&shape, viewport.width, viewport.height);
                     queue.write_buffer(&buffers.bytecode_buffer, 0, &tape.to_bytes());
                 }
 

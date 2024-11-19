@@ -8,6 +8,7 @@ use fidget::{
     context::{Context, Tree},
     jit::JitShape,
     shape::EzShape,
+    vm::VmShape,
 };
 use sdf::*;
 
@@ -22,14 +23,17 @@ fn test_fidget_four_circles() {
         }
     }
     let tree = smooth_union(circles);
-    let mut ctx = Context::new();
-    let node = ctx.import(&tree);
+    let shape = {
+        let mut ctx = Context::new();
+        let node = ctx.import(&tree);
+        VmShape::new(&ctx, node).unwrap()
+    };
     let viewport = Viewport {
         width: 64,
         height: 64,
     };
 
-    let tape = GPUTape::new(ctx, node, viewport.width, viewport.height);
+    let tape = GPUTape::new(&shape, viewport.width, viewport.height);
 
     let result = pollster::block_on(evaluate_tape(&tape, viewport));
     assert_relative_eq!(
@@ -50,15 +54,17 @@ fn test_fidget_many_circles() {
         }
     }
     let tree = smooth_union(circles);
+    let shape = {
+        let mut ctx = Context::new();
+        let node = ctx.import(&tree);
+        VmShape::new(&ctx, node).unwrap()
+    };
 
     let viewport = Viewport {
         width: 128,
         height: 128,
     };
-
-    let mut ctx = Context::new();
-    let node = ctx.import(&tree);
-    let tape = GPUTape::new(ctx, node, viewport.width, viewport.height);
+    let tape = GPUTape::new(&shape, viewport.width, viewport.height);
 
     // debug!("{:?}", bytecode);
     let result = pollster::block_on(evaluate_tape(&tape, viewport));

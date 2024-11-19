@@ -10,8 +10,7 @@ use fidget::{
 pub use log::*;
 
 use wgpu::{
-    util::DeviceExt, BindGroupLayout, CommandEncoder, ComputePipeline, PipelineLayout,
-    RenderPipeline, ShaderModule, ShaderStages,
+    util::DeviceExt, BindGroupLayout, ComputePipeline, PipelineLayout, RenderPipeline, ShaderStages,
 };
 pub mod sdf;
 
@@ -94,9 +93,11 @@ pub async fn evaluate_tape(tape: &GPUTape, viewport: Viewport) -> Option<Vec<f32
     // A command encoder executes one or many pipelines.
     let mut encoder =
         device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-
-    let pipeline =
-        create_compute_pipeline(&device, &pipeline_layout, &create_shader_module(&device));
+    let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: None,
+        source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source())),
+    });
+    let pipeline = create_compute_pipeline(&device, &pipeline_layout, &shader_module);
     add_compute_pass(
         &mut encoder,
         &pipeline,
@@ -415,13 +416,6 @@ pub fn create_pipeline_layout(
     (bind_group_layout, pipeline_layout)
 }
 
-pub fn create_shader_module(device: &wgpu::Device) -> ShaderModule {
-    device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: None,
-        source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source())),
-    })
-}
-
 pub fn create_compute_pipeline(
     device: &wgpu::Device,
     pipeline_layout: &wgpu::PipelineLayout,
@@ -442,6 +436,7 @@ pub fn create_render_pipeline(
     pipeline_layout: &wgpu::PipelineLayout,
     shader_module: &wgpu::ShaderModule,
     swapchain_format: wgpu::TextureFormat,
+    fragment_entry_point: &str,
 ) -> RenderPipeline {
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: Some("Render Pipeline"),
@@ -454,7 +449,7 @@ pub fn create_render_pipeline(
         },
         fragment: Some(wgpu::FragmentState {
             module: &shader_module,
-            entry_point: "fragment_main",
+            entry_point: fragment_entry_point,
             compilation_options: Default::default(),
             targets: &[Some(swapchain_format.into())],
         }),

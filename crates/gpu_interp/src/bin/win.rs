@@ -1,4 +1,3 @@
-use fidget::{shape::EzShape, vm::VmShape};
 use gpu_interp::*;
 
 use std::borrow::Cow;
@@ -63,14 +62,22 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         &device,
         wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
     );
-    let shader_module = create_shader_module(&device);
+    let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: None,
+        source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source())),
+    });
     let buffers = create_and_fill_buffers(&device, &tape, viewport, projection);
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
     // Create the piplines.
     let compute_pipeline = create_compute_pipeline(&device, &pipeline_layout, &shader_module);
-    let render_pipeline =
-        create_render_pipeline(&device, &pipeline_layout, &shader_module, swapchain_format);
+    let render_pipeline = create_render_pipeline(
+        &device,
+        &pipeline_layout,
+        &shader_module,
+        swapchain_format,
+        "fragment_main",
+    );
 
     let mut config = surface
         .get_default_config(&adapter, viewport.width, viewport.height)
@@ -101,9 +108,9 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                         window.request_redraw();
                     }
                     WindowEvent::RedrawRequested => {
-                        let frame_time = frame_start.elapsed();
+                        let _frame_time = frame_start.elapsed();
                         frame_start = Instant::now();
-                        // eprintln!("Frame time: {:?}", frame_time);
+                        // eprintln!("Frame time: {:?}", _frame_time);
 
                         // The step count is a "logical time" that is updated
                         // every frame.

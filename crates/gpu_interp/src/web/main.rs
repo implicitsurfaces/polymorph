@@ -94,8 +94,13 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
 
     // Set up pipelines.
     let compute_pipeline = create_compute_pipeline(&device, &pipeline_layout, &shader_module);
-    let render_pipeline =
-        create_render_pipeline(&device, &pipeline_layout, &shader_module, swapchain_format);
+    let render_pipeline = create_render_pipeline(
+        &device,
+        &pipeline_layout,
+        &shader_module,
+        swapchain_format,
+        "fragment_main_web",
+    );
 
     let mut config = surface
         .get_default_config(&adapter, viewport.width, viewport.height)
@@ -169,7 +174,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
 
                 WindowEvent::CloseRequested => target.exit(),
 
-                e => {
+                _e => {
                     //info!("{:?}", e)
                 }
             };

@@ -38,11 +38,11 @@ function App() {
 
   const onKeyPress = useCallback(
     (event: KeyboardEvent) => {
-      // Prevent browser doing its own undoing of input fields,
-      // interfering with our undo/redo mechanism.
-      event.preventDefault();
-
       if (event.ctrlKey && (event.key === 'z' || event.key === 'Z')) {
+        // Prevent browser doing its own undoing of input fields,
+        // interfering with our undo/redo mechanism.
+        event.preventDefault();
+
         if (event.shiftKey) {
           documentManager.redo();
         } else {

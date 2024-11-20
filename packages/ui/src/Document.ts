@@ -20,6 +20,10 @@ export class Point {
     this.position.copy(source.position);
     return this;
   }
+
+  equals(other: Point): boolean {
+    return this.name === other.name && this.position.equals(other.position);
+  }
 }
 
 /**
@@ -76,8 +80,8 @@ class PseudoRandomNumberGenerator {
   nextRange(start: number, end: number) {
     // returns in range [start, end): including start, excluding end
     // can't modulu nextInt because of weak randomness in lower bits
-    var rangeSize = end - start;
-    var randomUnder1 = this.nextInt() / this.m;
+    const rangeSize = end - start;
+    const randomUnder1 = this.nextInt() / this.m;
     return start + Math.floor(randomUnder1 * rangeSize);
   }
 }
@@ -130,13 +134,6 @@ export class DocumentManager {
       // Same as `this._makeWorkingCopy();` but silences strictPropertyInitialization false positive
       this._workingCopy = this._history[this._index].clone();
     }
-  }
-
-  /**
-   * Returns a shallow copy of this DocumentManager.
-   */
-  shallowClone(): DocumentManager {
-    return new DocumentManager(this._onChange, this._history, this._index, this._workingCopy);
   }
 
   /**

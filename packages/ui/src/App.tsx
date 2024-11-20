@@ -4,29 +4,35 @@ import { DocumentManager } from './Document.ts';
 import { ObjectsPanel } from './ObjectsPanel.tsx';
 import './App.css';
 
+let _uniqueVersion = 0;
+function generateUniqueVersion() {
+  _uniqueVersion += 1;
+  return _uniqueVersion;
+}
+
 function App() {
-  // Create and setup the DocumentManager.
+  const [version, setVersion] = useState(generateUniqueVersion());
+
+  // Update the version whenever the working document changes.
   //
-  // Note that the onChange callback stored on the DocumentManager recursively
-  // depends on documentManager itself (and on setDocumentManager), which is why we
-  // set it by directly mutating documentManager after the useState() call.
+  // This ensures we re-render the App despite having reference-equality of
+  // documentManager, since we allow direct mutations for performance
+  // reasons, especially during mouse drags.
   //
-  // This is technically a violation of React immutability assumption, but in
-  // practice it isn't a problem in this case since the onChange callback is
-  // (normally) never called at React render time, but only during mouse/key
-  // event processing, which happens after React is done rendering
-  // (generating the virtual DOM and updating the actual DOM).
+  // Note that this callback has no dependencies, since `setVersion` has
+  // stable identity for the lifetime of the component, which is a guarantee
+  // provided by the `useState()` hook.
   //
-  // It would be more "pure" not to store the onChange callback within the
-  // documentManager state, but instead pass it to child components as a
-  // separate prop. However, doing so would lead to an API that isn't as
-  // convenient as passing a single DocumentManager that knows itself how to
-  // call onChange whenever relevant.
+  const onDocumentChange = useCallback(() => {
+    setVersion(generateUniqueVersion());
+  }, []);
+
+  // Create the DocumentManager.
   //
-  const [documentManager, setDocumentManager] = useState(new DocumentManager());
-  documentManager.onChange(() => {
-    setDocumentManager(documentManager.shallowClone());
-  });
+  // It has stable identity but can be mutated, in which case
+  // `onDocumentChange` is called.
+  //
+  const [documentManager] = useState(new DocumentManager(onDocumentChange));
 
   // Application-wide shortcuts.
 
@@ -53,8 +59,8 @@ function App() {
   return (
     <>
       <ObjectsPanel documentManager={documentManager} />
-      <Canvas documentManager={documentManager} />
-      <Canvas documentManager={documentManager} />
+      <Canvas documentManager={documentManager} version={version} />
+      <Canvas documentManager={documentManager} version={version} />
       <ObjectsPanel documentManager={documentManager} />
     </>
   );

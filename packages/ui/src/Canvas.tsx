@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Vector2 } from 'threejs-math';
 import { Camera2 } from './Camera2.ts';
-import { Point, Scene, SceneManager } from './Scene.ts';
+import { Point, Document, DocumentManager } from './Document.ts';
 
 import './Canvas.css';
 
@@ -57,9 +57,9 @@ function pixelSnap(p1: Vector2, p2: Vector2) {
 }
 
 // Transform p1 and p2 to view coords, pixel snap them, then moveTo(p1) and lineTo(p2)
-function drawGridLine(ctx: CanvasRenderingContext2D, sceneToView: Camera2, p1: Vector2, p2: Vector2) {
-  p1.applyMatrix3(sceneToView);
-  p2.applyMatrix3(sceneToView);
+function drawGridLine(ctx: CanvasRenderingContext2D, documentToView: Camera2, p1: Vector2, p2: Vector2) {
+  p1.applyMatrix3(documentToView);
+  p2.applyMatrix3(documentToView);
   pixelSnap(p1, p2);
   moveTo(ctx, p1);
   lineTo(ctx, p2);
@@ -67,7 +67,7 @@ function drawGridLine(ctx: CanvasRenderingContext2D, sceneToView: Camera2, p1: V
 
 function drawGridCells(
   ctx: CanvasRenderingContext2D,
-  sceneToView: Camera2,
+  documentToView: Camera2,
   xMin: number,
   xMax: number,
   yMin: number,
@@ -75,7 +75,7 @@ function drawGridCells(
   size: number,
   strokeStyle: StrokeStyle
 ) {
-  // Get scene coords of the first visible horizontal and vertical grid line,
+  // Get document coords of the first visible horizontal and vertical grid line,
   // as well as how many of them are visible.
   const xStart = Math.floor(xMin / size) * size;
   const xNum = Math.floor((xMax - xMin) / size) + 2;
@@ -87,13 +87,13 @@ function drawGridCells(
   // Vertical lines
   for (let i = 0; i < xNum; ++i) {
     const x = xStart + i * size;
-    drawGridLine(ctx, sceneToView, new Vector2(x, yMin), new Vector2(x, yMax));
+    drawGridLine(ctx, documentToView, new Vector2(x, yMin), new Vector2(x, yMax));
   }
 
   // Horizontal lines
   for (let i = 0; i < yNum; ++i) {
     const y = yStart + i * size;
-    drawGridLine(ctx, sceneToView, new Vector2(xMin, y), new Vector2(xMax, y));
+    drawGridLine(ctx, documentToView, new Vector2(xMin, y), new Vector2(xMax, y));
   }
 
   ctx.lineWidth = 1;
@@ -103,7 +103,7 @@ function drawGridCells(
 
 function drawGridAxes(
   ctx: CanvasRenderingContext2D,
-  sceneToView: Camera2,
+  documentToView: Camera2,
   xMin: number,
   xMax: number,
   yMin: number,
@@ -111,41 +111,41 @@ function drawGridAxes(
   strokeStyle: StrokeStyle
 ) {
   ctx.beginPath();
-  drawGridLine(ctx, sceneToView, new Vector2(xMin, 0), new Vector2(xMax, 0));
-  drawGridLine(ctx, sceneToView, new Vector2(0, yMin), new Vector2(0, yMax));
+  drawGridLine(ctx, documentToView, new Vector2(xMin, 0), new Vector2(xMax, 0));
+  drawGridLine(ctx, documentToView, new Vector2(0, yMin), new Vector2(0, yMax));
   ctx.lineWidth = 1;
   ctx.strokeStyle = strokeStyle;
   ctx.stroke();
 }
 
 function drawGrid(ctx: CanvasRenderingContext2D, camera: Camera2) {
-  const sceneToView = camera.viewMatrix();
-  const viewToScene = sceneToView.clone().invert();
+  const documentToView = camera.viewMatrix();
+  const viewToDocument = documentToView.clone().invert();
   const w = camera.canvasSize.x;
   const h = camera.canvasSize.y;
   const axesColor = '#808080';
   const majorColor = '#b2b2b2';
   const minorColor = '#cccccc';
 
-  // Size of minor and major grid cells in scene coords
+  // Size of minor and major grid cells in document coords
   const minorSize = Math.pow(10, Math.ceil(0.6 - Math.log10(camera.zoom)));
   const majorSize = minorSize * 10;
 
-  // Express view rectangle in scene coordinates
-  const p1 = new Vector2(0, 0).applyMatrix3(viewToScene);
-  const p2 = new Vector2(w, 0).applyMatrix3(viewToScene);
-  const p3 = new Vector2(w, h).applyMatrix3(viewToScene);
-  const p4 = new Vector2(0, h).applyMatrix3(viewToScene);
+  // Express view rectangle in document coordinates
+  const p1 = new Vector2(0, 0).applyMatrix3(viewToDocument);
+  const p2 = new Vector2(w, 0).applyMatrix3(viewToDocument);
+  const p3 = new Vector2(w, h).applyMatrix3(viewToDocument);
+  const p4 = new Vector2(0, h).applyMatrix3(viewToDocument);
 
-  // Get min/max in scene coordinates
+  // Get min/max in document coordinates
   const xMin = Math.min(p1.x, p2.x, p3.x, p4.x);
   const xMax = Math.max(p1.x, p2.x, p3.x, p4.x);
   const yMin = Math.min(p1.y, p2.y, p3.y, p4.y);
   const yMax = Math.max(p1.y, p2.y, p3.y, p4.y);
 
-  drawGridCells(ctx, sceneToView, xMin, xMax, yMin, yMax, minorSize, minorColor);
-  drawGridCells(ctx, sceneToView, xMin, xMax, yMin, yMax, majorSize, majorColor);
-  drawGridAxes(ctx, sceneToView, xMin, xMax, yMin, yMax, axesColor);
+  drawGridCells(ctx, documentToView, xMin, xMax, yMin, yMax, minorSize, minorColor);
+  drawGridCells(ctx, documentToView, xMin, xMax, yMin, yMax, majorSize, majorColor);
+  drawGridAxes(ctx, documentToView, xMin, xMax, yMin, yMax, axesColor);
 }
 
 function drawDisk(ctx: CanvasRenderingContext2D, position: Vector2, radius: number, fillStyle: FillStyle) {
@@ -161,17 +161,17 @@ function drawPoint(ctx: CanvasRenderingContext2D, point: Point) {
   drawDisk(ctx, point.position, radius, fillStyle);
 }
 
-function drawPoints(ctx: CanvasRenderingContext2D, scene: Scene) {
-  scene.points.forEach(point => {
+function drawPoints(ctx: CanvasRenderingContext2D, document: Document) {
+  document.points.forEach(point => {
     drawPoint(ctx, point);
   });
 }
 
-function drawScene(ctx: CanvasRenderingContext2D, scene: Scene) {
-  drawPoints(ctx, scene);
+function drawDocument(ctx: CanvasRenderingContext2D, document: Document) {
+  drawPoints(ctx, document);
 }
 
-function draw(canvas: HTMLCanvasElement, camera: Camera2, scene: Scene) {
+function draw(canvas: HTMLCanvasElement, camera: Camera2, document: Document) {
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     return;
@@ -180,7 +180,7 @@ function draw(canvas: HTMLCanvasElement, camera: Camera2, scene: Scene) {
   drawBackground(ctx, canvas.width, canvas.height, '#e0e0e0');
   drawGrid(ctx, camera);
   initializeViewTransform(ctx, camera);
-  drawScene(ctx, scene);
+  drawDocument(ctx, document);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -213,7 +213,7 @@ function getBorderBoxToContentBoxOffset(element: HTMLElement): Vector2 {
 /**
  * Returns the position of the topleft corner of the content box of the given
  * HTML element (that is, exluding border and padding), in CSS pixels,
- * relative to the topleft corner of the browser windows
+ * relative to the topleft corner of the browser's window
  * (= "viewport coordinates").
  */
 function getContentBoxPosition(element: HTMLElement): Vector2 {
@@ -224,7 +224,7 @@ function getContentBoxPosition(element: HTMLElement): Vector2 {
 
 /**
  * Return the position of the pointer event, in CSS pixels, relative to the
- * topleft corner of the browser windows (= "viewport coordinates").
+ * topleft corner of the browser's window (= "viewport coordinates").
  */
 function getMouseWindowPosition(event: IMouseEvent): Vector2 {
   return new Vector2(event.clientX, event.clientY);
@@ -242,13 +242,13 @@ function getMouseViewPosition(event: IMouseEvent, element: HTMLElement): Vector2
 }
 
 /**
- * Return the position of the pointer event in scene coordinates, assuming the
- * scene is drawn into the content box of the given HTML element using the
+ * Return the position of the pointer event in document coordinates, assuming the
+ * document is drawn into the content box of the given HTML element using the
  * given camera.
  */
-function getMouseScenePosition(event: IMouseEvent, element: HTMLElement, camera: Camera2) {
-  const viewToScene = camera.viewMatrix().invert();
-  return getMouseViewPosition(event, element).applyMatrix3(viewToScene);
+function getMouseDocumentPosition(event: IMouseEvent, element: HTMLElement, camera: Camera2) {
+  const viewToDocument = camera.viewMatrix().invert();
+  return getMouseViewPosition(event, element).applyMatrix3(viewToDocument);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -267,14 +267,14 @@ interface PointerState {
 }
 
 interface CanvasProps {
-  sceneManager: SceneManager;
+  documentManager: DocumentManager;
 }
 
 type IMouseEvent = MouseEvent | React.MouseEvent;
 type IPointerEvent = PointerEvent | React.PointerEvent;
 type IWheelEvent = WheelEvent | React.WheelEvent;
 
-export function Canvas({ sceneManager }: CanvasProps) {
+export function Canvas({ documentManager }: CanvasProps) {
   const [camera, setCamera] = useState<Camera2>(new Camera2());
   const [pointerState, setPointerState] = useState<PointerState | null>(null);
 
@@ -354,9 +354,9 @@ export function Canvas({ sceneManager }: CanvasProps) {
       switch (event.button) {
         case 0: {
           // left click: create point
-          const pos = getMouseScenePosition(event, canvas, pointerState.cameraOnPress);
-          sceneManager.scene().addPoint(pos);
-          sceneManager.commitChanges();
+          const pos = getMouseDocumentPosition(event, canvas, pointerState.cameraOnPress);
+          documentManager.document().addPoint(pos);
+          documentManager.commitChanges();
           break;
         }
         case 2: {
@@ -369,7 +369,7 @@ export function Canvas({ sceneManager }: CanvasProps) {
         }
       }
     },
-    [pointerState, sceneManager]
+    [pointerState, documentManager]
   );
 
   const onPointerDown = useCallback(
@@ -467,15 +467,15 @@ export function Canvas({ sceneManager }: CanvasProps) {
   );
 
   // Redraw whenever the component state is updated, which includes a change
-  // of the scene, of the camera, or of the canvas width/height trigerred via
+  // of the document, of the camera, or of the canvas width/height trigerred via
   // the ResizeObserver.
   //
   useEffect(() => {
     const canvas = ref.current;
     if (canvas && canvas.width > 0 && canvas.height > 0) {
-      draw(canvas, camera, sceneManager.scene());
+      draw(canvas, camera, documentManager.document());
     }
-  }, [camera, sceneManager]);
+  }, [camera, documentManager]);
 
   // Update the camera (and therefore the canvas width/height attributes)
   // based on its computed device pixel size.

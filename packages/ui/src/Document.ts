@@ -1,6 +1,6 @@
 import { Vector2 } from 'threejs-math';
 
-// TODO: decides whether to use "strong typing" for Scene elements (e.g., with
+// TODO: decides whether to use "strong typing" for Document elements (e.g., with
 // a `Layer` class, `Point` class, etc.), or if we simply go with lose
 // typing, e.g., the same as the output of JSON.parse() (possibly defining a
 // `Layer` interface, `Point` interface, etc.).
@@ -23,30 +23,30 @@ export class Point {
 }
 
 /**
- * Stores all objects in the scene.
+ * Stores all objects in the document.
  */
-export class Scene {
+export class Document {
   constructor(public points: Array<Point> = []) {}
 
   /**
-   * Returns a new scene with the same content as this one.
+   * Returns a new document with the same content as this one.
    */
-  clone(): Scene {
-    return new Scene().copy(this);
+  clone(): Document {
+    return new Document().copy(this);
   }
 
   /**
-   * Copies the content from the source scene into this one.
+   * Copies the content from the source document into this one.
    */
-  copy(source: Scene): Scene {
+  copy(source: Document): Document {
     this.points = source.points.map(p => p.clone());
     return this;
   }
 
   /**
-   * Adds a point to the scene.
+   * Adds a point to the document.
    */
-  addPoint(position: Vector2): Scene {
+  addPoint(position: Vector2): Document {
     const name = 'Point ' + (this.points.length + 1);
     this.points.push(new Point(name, position));
     return this;
@@ -82,47 +82,47 @@ class PseudoRandomNumberGenerator {
   }
 }
 
-export function testScene(): Scene {
+export function testDocument(): Document {
   const prng = new PseudoRandomNumberGenerator(42);
-  const scene = new Scene();
+  const document = new Document();
   const numPoints = 1000;
-  const sceneSize = 500;
+  const documentSize = 500;
   for (let i = 0; i < numPoints; ++i) {
-    const x = prng.nextRange(-sceneSize, sceneSize);
-    const y = prng.nextRange(-sceneSize, sceneSize);
-    scene.addPoint(new Vector2(x, y));
+    const x = prng.nextRange(-documentSize, documentSize);
+    const y = prng.nextRange(-documentSize, documentSize);
+    document.addPoint(new Vector2(x, y));
   }
-  return scene;
+  return document;
 }
 
 /**
- * Stores and manages the undo-redo history of the scene.
+ * Stores and manages the undo-redo history of the document.
  *
- * The idea is to avoid cloning the whole scene at each
+ * The idea is to avoid cloning the whole document at each
  * mouse move when the user is modifying an object's
  * property via a mouse drag action.
  */
-export class SceneManager {
+export class DocumentManager {
   private _onChange;
-  private _history: Array<Scene>;
+  private _history: Array<Document>;
   private _index: number;
-  private _workingCopy: Scene;
+  private _workingCopy: Document;
 
   /**
-   * Constructs a new `SceneManager`.
+   * Constructs a new `DocumentManager`.
    *
    * The given `onChange` callback will be called whenever a change to the
-   * current scene is notified via the `stageChanges()` or `commitChanges()`
+   * current document is notified via the `stageChanges()` or `commitChanges()`
    * methods.
    *
    * For example, in the context of a React application, the `onChange()` callback
-   * can be creating a `shallowClone()` of the `SceneManager` and assigning it as
+   * can be creating a `shallowClone()` of the `DocumentManager` and assigning it as
    * new state, so that React knows that the component (and its subcomponents if the
-   * `SceneManager` is passed as prop) should be re-rendered.
+   * `DocumentManager` is passed as prop) should be re-rendered.
    */
-  constructor(onChange?: () => void, history?: Array<Scene>, index?: number, workingCopy?: Scene) {
+  constructor(onChange?: () => void, history?: Array<Document>, index?: number, workingCopy?: Document) {
     this._onChange = onChange !== undefined ? onChange : () => {};
-    this._history = history !== undefined ? history : [testScene()];
+    this._history = history !== undefined ? history : [testDocument()];
     this._index = index !== undefined ? index : this._history.length - 1;
     if (workingCopy !== undefined) {
       this._workingCopy = workingCopy;
@@ -133,10 +133,10 @@ export class SceneManager {
   }
 
   /**
-   * Returns a shallow copy of this SceneManager.
+   * Returns a shallow copy of this DocumentManager.
    */
-  shallowClone(): SceneManager {
-    return new SceneManager(this._onChange, this._history, this._index, this._workingCopy);
+  shallowClone(): DocumentManager {
+    return new DocumentManager(this._onChange, this._history, this._index, this._workingCopy);
   }
 
   /**
@@ -147,14 +147,14 @@ export class SceneManager {
   }
 
   /**
-   * Returns the current scene.
+   * Returns the current document.
    */
-  scene(): Scene {
+  document(): Document {
     return this._workingCopy;
   }
 
   /**
-   * Returns the current history index of the scene.
+   * Returns the current history index of the document.
    */
   index(): number {
     return this._index;
@@ -167,7 +167,7 @@ export class SceneManager {
   }
 
   /**
-   * Make the given history `index` the current scene.
+   * Make the given history `index` the current document.
    */
   goToIndex(index: number): void {
     const min = 0;
@@ -180,7 +180,7 @@ export class SceneManager {
 
     // Note: if the current index is already equal to clampedIndex,
     // we still need to make a new working copy since there may be
-    // changes (staged or not) in the scene which we need to discard,
+    // changes (staged or not) in the document which we need to discard,
     // and the current implementation is not aware of unstaged changes.
   }
 
@@ -199,8 +199,8 @@ export class SceneManager {
   }
 
   /**
-   * Notifies that the current scene has changed (and therefore that any views
-   * on the scene must be updated), but that these changes do not yet
+   * Notifies that the current document has changed (and therefore that any views
+   * on the document must be updated), but that these changes do not yet
    * represent a complete undoable action.
    *
    * Typically, this should be called on mouse move of a mouse drag action.
@@ -210,9 +210,9 @@ export class SceneManager {
   }
 
   /**
-   * Notifies that the current scene has changed (and therefore that any views
-   * on the scene must be updated), and that these changes represent a
-   * complete undoable action, therefore creating a new entry in the scene
+   * Notifies that the current document has changed (and therefore that any views
+   * on the document must be updated), and that these changes represent a
+   * complete undoable action, therefore creating a new entry in the document
    * history.
    *
    * Typically, this should be called for one-shot actions (e.g., menu items)
@@ -235,7 +235,7 @@ export class SceneManager {
   }
 
   /**
-   * Notifies that the current scene may have changed, but that we want to
+   * Notifies that the current document may have changed, but that we want to
    * discard these changes and go back to the latest commited changes.
    */
   discardChanges(): void {

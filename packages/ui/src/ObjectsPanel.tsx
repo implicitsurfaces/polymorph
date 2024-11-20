@@ -1,19 +1,19 @@
-import { Point, SceneManager } from './Scene.ts';
+import { Point, DocumentManager } from './Document.ts';
 import { NumberInput } from './NumberInput.tsx';
 
 import './Panel.css';
 import './ObjectsPanel.css';
 
 interface ObjectsPanelProps {
-  sceneManager: SceneManager;
+  documentManager: DocumentManager;
 }
 
-export function ObjectsPanel({ sceneManager }: ObjectsPanelProps) {
+export function ObjectsPanel({ documentManager }: ObjectsPanelProps) {
   return (
     <div className="panel">
       <h2 className="panel-title">Objects</h2>
       <div className="panel-body">
-        {sceneManager.scene().points.map((p: Point, index: number) => (
+        {documentManager.document().points.map((p: Point, index: number) => (
           <div className="object-row-info" key={p.name}>
             <p className="object-name">{p.name}</p>
             <NumberInput
@@ -21,8 +21,8 @@ export function ObjectsPanel({ sceneManager }: ObjectsPanelProps) {
               label="X"
               value={p.position.x}
               onChange={value => {
-                sceneManager.scene().points[index].position.x = value;
-                sceneManager.commitChanges();
+                documentManager.document().points[index].position.x = value;
+                documentManager.commitChanges();
               }}
             />
             <NumberInput
@@ -30,8 +30,8 @@ export function ObjectsPanel({ sceneManager }: ObjectsPanelProps) {
               label="Y"
               value={p.position.y}
               onChange={value => {
-                sceneManager.scene().points[index].position.y = value;
-                sceneManager.commitChanges();
+                documentManager.document().points[index].position.y = value;
+                documentManager.commitChanges();
               }}
             />
           </div>

@@ -10,6 +10,17 @@ body
 #canvas-container
   position: relative
 
-#target-canvas
-  display: block
+#demos
+  display: flex
+  flex-direction: column
+  width: 600px
   margin: auto
+
+  .demo
+    display: flex
+    textarea
+      flex: 1
+      font-size: 18px
+    canvas
+      display: block
+      margin: 0

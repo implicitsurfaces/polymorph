@@ -1,35 +1,24 @@
 use fidget::{context::Context, vm::VmShape};
 use gpu_interp::sdf::*;
 use gpu_interp::*;
-
+use std::sync::{Arc, Mutex};
 use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen]
-pub struct JsSystem();
-
-#[wasm_bindgen]
-impl JsSystem {
-    #[wasm_bindgen(constructor)]
-    pub fn new() -> Self {
-        JsSystem()
-    }
+pub enum ReDraw {
+    Shape(VmShape),
+    Mouse(i32, i32),
 }
 
 use std::{borrow::Cow, collections::HashMap};
 
-use winit::{
-    event::{Event, WindowEvent},
-    event_loop::EventLoop,
-    window::Window,
-};
-
-async fn run(event_loop: EventLoop<()>, window: Window) {
-    // Make ourselves a 'static Window we can reference from the event loop so we don't need this noise https://users.rust-lang.org/t/wgpu-winit-weird-exception/92604
-    static mut WINDOW: Option<Window> = None;
-    unsafe { WINDOW = Some(window) }
-    let window = unsafe { WINDOW.as_ref().unwrap() };
+pub async fn setup_gpu_pipeline(
+    canvas: web_sys::HtmlCanvasElement,
+) -> Arc<Mutex<dyn FnMut(ReDraw)>> {
     let instance = wgpu::Instance::default();
-    let surface = instance.create_surface(window).unwrap();
+
+    let surface_target = wgpu::SurfaceTarget::Canvas(canvas);
+    let surface = instance.create_surface(surface_target).unwrap();
+
     let options = wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::default(),
         force_fallback_adapter: false,
@@ -38,46 +27,30 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
 
     let (adapter, device, queue) = create_device(&instance, &options).await;
 
-    // let mut circles = Vec::new();
-    // for i in 0..10 {
-    //     for j in 0..10 {
-    //         let center_x = i as f64;
-    //         let center_y = j as f64;
-    //         circles.push(circle(center_x * 200.0, center_y * 200.0, 100.0));
-    //     }
-    // }
-    // let tree = smooth_union(circles);
-
-    let window_size = window.inner_size();
+    // TODO: get from canvas
+    let width = 256;
+    let height = 256;
 
     // viewport should be closest multiple of tile size
     let viewport = Viewport {
-        width: (window_size.width / TILE_SIZE_X) * TILE_SIZE_X,
-        height: (window_size.height / TILE_SIZE_Y) * TILE_SIZE_Y,
+        width: (width / TILE_SIZE_X) * TILE_SIZE_X,
+        height: (height / TILE_SIZE_Y) * TILE_SIZE_Y,
     };
 
     let tree = circle(0., 0., 80.0);
     let mut ctx = Context::new();
     let f = ctx.import(&tree);
 
-    use fidget::var::Var;
-    let dfdx = ctx.deriv(f, Var::X).unwrap();
-    let dfdy = ctx.deriv(f, Var::Y).unwrap();
+    // use fidget::var::Var;
+    // let dfdx = ctx.deriv(f, Var::X).unwrap();
+    // let dfdy = ctx.deriv(f, Var::Y).unwrap();
 
+    // TODO: would be nice to setup everything without needing a specific initial shape/tape
     let tape = GPUTape::new(
         &VmShape::new(&ctx, f).unwrap(),
         viewport.width,
         viewport.height,
     );
-
-    // let projection = {
-    //     let w = viewport.width as f32;
-    //     let h = viewport.height as f32;
-    //     Projection {
-    //         scale: [1. / (w / 2.), -1. / (h / 2.)],
-    //         translation: [1., -1.],
-    //     }
-    // };
 
     let projection = Default::default();
 
@@ -93,7 +66,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         ))),
     });
 
-    // Create resources shared by both pipelines.
     let (bind_group_layout, pipeline_layout) = create_pipeline_layout(
         &device,
         wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
@@ -101,7 +73,6 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     let buffers = create_and_fill_buffers(&device, &tape, viewport, projection);
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
-    // Set up pipelines.
     let compute_pipeline = create_compute_pipeline(&device, &pipeline_layout, &shader_module);
     let render_pipeline = create_render_pipeline(
         &device,
@@ -111,120 +82,141 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         "fragment_main_web",
     );
 
-    let mut config = surface
+    let config = surface
         .get_default_config(&adapter, viewport.width, viewport.height)
         .unwrap();
+
     surface.configure(&device, &config);
 
     let mut step_count = 0;
-    use winit::platform::web::EventLoopExtWebSys;
-    event_loop.spawn(move |event, target| {
-        let _ = (&instance, &adapter);
 
-        if let Event::WindowEvent {
-            window_id: _,
-            event,
-        } = event
-        {
-            match event {
-                WindowEvent::Resized(new_size) => {
-                    let max_texture_size = device.limits().max_texture_dimension_2d;
-                    config.width = new_size.width.max(1).min(max_texture_size);
-                    config.height = new_size.height.max(1).min(max_texture_size);
+    let draw = move |redraw| {
+        step_count += 1;
 
-                    surface.configure(&device, &config);
-                    window.request_redraw();
-                }
-                WindowEvent::RedrawRequested => {
-                    // The step count is a "logical time" that is updated
-                    // every frame.
-                    step_count += 1;
-                    queue.write_buffer(
-                        &buffers.step_count_buffer,
-                        0,
-                        bytemuck::cast_slice(&[step_count]),
-                    );
+        match redraw {
+            ReDraw::Shape(s) => {
+                // Update with new shape
+                let tape = GPUTape::new(&s, viewport.width, viewport.height);
+                queue.write_buffer(&buffers.bytecode_buffer, 0, &tape.to_bytes());
+            }
 
-                    let frame = surface
-                        .get_current_texture()
-                        .expect("Failed to acquire next swap chain texture");
-                    let view = frame
-                        .texture
-                        .create_view(&wgpu::TextureViewDescriptor::default());
-
-                    let mut encoder = device
-                        .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-
-                    add_compute_pass(
-                        &mut encoder,
-                        &compute_pipeline,
-                        &bind_group,
-                        None,
-                        (viewport.width, viewport.height, 1),
-                    );
-                    add_render_pass(&mut encoder, &view, &render_pipeline, &bind_group, None);
-
-                    queue.submit(Some(encoder.finish()));
-                    frame.present();
-
-                    window.request_redraw();
-                }
-
-                WindowEvent::CursorMoved {
-                    position: winit::dpi::PhysicalPosition { x, y },
-                    ..
-                } => {
-                    // let shape = {
-                    //     let tree = circle(x, y, 100.0);
-                    //     let mut ctx = Context::new();
-                    //     let node = ctx.import(&tree);
-                    //     VmShape::new(&ctx, node).unwrap()
-                    // };
-                    // let tape = GPUTape::new(&shape, viewport.width, viewport.height);
-                    // queue.write_buffer(&buffers.bytecode_buffer, 0, &tape.to_bytes());
-
-                    let mut cursor_vars = HashMap::<Var, f64>::new();
-                    cursor_vars.insert(Var::X, x);
-                    cursor_vars.insert(Var::Y, y);
-                    let dy = ctx.eval(dfdy.clone(), &cursor_vars).unwrap();
-                    let dx = ctx.eval(dfdx.clone(), &cursor_vars).unwrap();
-                }
-
-                WindowEvent::CloseRequested => target.exit(),
-
-                _e => {
-                    //info!("{:?}", e)
-                }
-            };
+            ReDraw::Mouse(x, y) => {
+                info!("TODO mouse update: {x}, {y}")
+            }
         }
-    })
+
+        queue.write_buffer(
+            &buffers.step_count_buffer,
+            0,
+            bytemuck::cast_slice(&[step_count]),
+        );
+
+        let frame = surface
+            .get_current_texture()
+            .expect("Failed to acquire next swap chain texture");
+        let view = frame
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+
+        let mut encoder =
+            device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+
+        add_compute_pass(
+            &mut encoder,
+            &compute_pipeline,
+            &bind_group,
+            None,
+            (viewport.width, viewport.height, 1),
+        );
+        add_render_pass(&mut encoder, &view, &render_pipeline, &bind_group, None);
+
+        queue.submit(Some(encoder.finish()));
+        frame.present();
+    };
+    Arc::new(Mutex::new(draw))
 }
 
-#[cfg(target_arch = "wasm32")]
 fn main() {
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
     console_log::init_with_level(Level::Debug).unwrap();
 
     info!("Hello from Rust");
+    let doc = web_sys::window().unwrap().document().unwrap();
 
-    let event_loop = EventLoop::new().unwrap();
+    let make_demo = |doc: &web_sys::Document, initial_text: &str| {
+        let demos_container = doc.get_element_by_id("demos").unwrap();
+        let demo = doc
+            .create_element("div")
+            .unwrap()
+            .dyn_into::<web_sys::HtmlElement>()
+            .unwrap();
+        demo.set_class_name("demo");
 
-    use wasm_bindgen::JsCast;
-    use winit::platform::web::WindowBuilderExtWebSys;
-    let canvas = web_sys::window()
-        .unwrap()
-        .document()
-        .unwrap()
-        .get_element_by_id("target-canvas")
-        .unwrap()
-        .dyn_into::<web_sys::HtmlCanvasElement>()
-        .unwrap();
+        let textarea = doc
+            .create_element("textarea")
+            .unwrap()
+            .dyn_into::<web_sys::HtmlTextAreaElement>()
+            .unwrap();
+        textarea.set_value(initial_text);
 
-    let builder = winit::window::WindowBuilder::new().with_canvas(Some(canvas));
-    let window = builder.build(&event_loop).unwrap();
+        let canvas = doc
+            .create_element("canvas")
+            .unwrap()
+            .dyn_into::<web_sys::HtmlCanvasElement>()
+            .unwrap();
 
-    info!("monitor scale factor: {}", window.scale_factor());
-    let _ = window.request_inner_size(winit::dpi::PhysicalSize::new(640, 640));
+        demo.append_child(&textarea).unwrap();
+        demo.append_child(&canvas).unwrap();
+        demos_container.append_child(&demo).unwrap();
+        wasm_bindgen_futures::spawn_local(async move {
+            let draw_fn = setup_gpu_pipeline(canvas.clone()).await;
 
-    wasm_bindgen_futures::spawn_local(run(event_loop, window));
+            let mut engine = fidget::rhai::Engine::new();
+            engine.set_limit(50_000); // ¯\_(ツ)_/¯
+
+            let mut try_parse_draw = {
+                let draw_fn = draw_fn.clone();
+                move |text: &str| match engine.eval(text) {
+                    Ok(tree) => {
+                        info!("{:?}", tree);
+                        let mut ctx = Context::new();
+                        let root = ctx.import(&tree);
+                        let shape = VmShape::new(&ctx, root).unwrap();
+                        draw_fn.lock().unwrap()(ReDraw::Shape(shape));
+                    }
+                    Err(e) => {
+                        info!("Couldn't eval text: {:?}", e)
+                    }
+                }
+            };
+
+            try_parse_draw(&textarea.value());
+
+            let onchange = Closure::<dyn FnMut(web_sys::Event)>::new({
+                move |e: web_sys::Event| {
+                    let textarea = e
+                        .target()
+                        .unwrap()
+                        .dyn_into::<web_sys::HtmlTextAreaElement>()
+                        .unwrap();
+                    let text = textarea.value();
+                    try_parse_draw(&text);
+                }
+            });
+
+            textarea.set_onchange(Some(onchange.as_ref().unchecked_ref()));
+            onchange.forget(); // Prevent closure from being dropped
+
+            let onmousemove =
+                Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+                    draw_fn.lock().unwrap()(ReDraw::Mouse(e.offset_x(), e.offset_y()));
+                });
+
+            canvas.set_onmousemove(Some(onmousemove.as_ref().unchecked_ref()));
+            onmousemove.forget(); // Prevent closure from being dropped
+        });
+    };
+
+    make_demo(&doc, "x");
+    make_demo(&doc, "y");
 }

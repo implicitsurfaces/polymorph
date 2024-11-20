@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "profile": "vite build --profile && vite preview",
+    "prod": "vite build --config vite.config.ts && vite preview",
+    "prof": "vite build --config vite.config.profiling.ts && vite preview",
+    "prod-nm": "vite build --config vite.config.nonmin.ts && vite preview",
+    "prof-nm": "vite build --config vite.config.profiling-nonmin.ts && vite preview",
     "lint": "eslint .",
     "preview": "vite preview"
   },

@@ -11,6 +11,9 @@ export const NumberInput = memo(function NumberInput({ idBase, label, value, onC
   const _onChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
       let newValue = parseFloat(event.target.value);
+      if (isNaN(newValue)) {
+        newValue = 0;
+      }
       onChange(newValue);
     },
     [onChange]

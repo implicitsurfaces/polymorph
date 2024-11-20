@@ -1,55 +1,31 @@
 # Overview
 
-Typical GPU workloads involve a fixed computation, with dynamic data provided through buffers. A _really_ dynamic approach is to put bytecode into a buffer, and write a shader program that interprets the bytecode.
+On a recent research project, we were building different kinds of physical models. They all involved:
 
-We prototyped a GPU-based bytecode interpreter for a research project we're working on. This page describes our approach and some of the things we learned.
+- repeatedly evaluating the same arithmetic expression with different inputs (aka _bulk evaluation_)
+- allowing the expressions to be adjusted interactively (think dragging shapes around on a canvas)
+- visualizing the results at 60 fps.
 
-## Why would you do this?
-
-Our project involves an interactive drawing app using [signed distance functions](https://en.wikipedia.org/wiki/Signed_distance_function). It's built on [a Rust library called Fidget](https://github.com/mkeeter/fidget), which provides an API for building scalar compute graphs and efficiently evaluating them on the CPU.
-
-Fidget's author, Matthew Keeter, published [a technique for efficiently rendering SDFs on the GPU][mpr], but hasn't (hadn't) yet implemented a GPU-based interpreter in Fidget. Also, his implementation used CUDA, which is only available for NVIDIA hardware. We're interested in a cross-vendor, cross-platform approach, so we created our prototype using [wgpu][] a Rust library based on the WebGPU standard.
-
-[wgpu]: https://github.com/gfx-rs/wgpu
-
-[mpr]: https://www.mattkeeter.com/research/mpr/
-
-<!--
-## Graveyard
-
-If the structure of the computation changes, you can  either load a new shader program — maybe dropping frames as it's compiled…
--->
-
-
-
-
-
-
-
-
-
-
-
-<!-- Hi Pat, here's my sketch of a post outline. Happy to discuss, and feel free to take whatever parts you want and integrate directly into a canonical version. -->
-
-# Bulk evaluation of arbitrary functions and their derivatives on the GPU
-
-
-We recently needed to bulk evaluate user-input mathematical functions and their derivatives at runtime to make interactive applications like this tiny solar system.
+Here's an example:
 
 [DEMO]
 
 The colors show the gravitational potential everywhere in the viewport, and the objects move based on the derivative of this potential.
-The sun follows your mouse cursor (try it!)
 
+The sun follows your mouse cursor (try it!
 
 This is powered by a bytecode interpreter running on the GPU. If those words don't make sense together (or at all), read on for how we ended up here =D
 
-
 ## Why GPU?
 
-We wanted to use the whole computer we paid for, which means doing some computation on the Graphics Processing Unit (GPU), which provides most of the number-crunching horsepower for modern computers.
-(E.g., on my M1 MacBook Air there are XXX CPUs with XXX cores, which can do XXX floating point operations per second (FLOPS); its GPU can do XXX FLOPS, about a factor XXX more compute.)
+Well, we wanted to use the whole computer we paid for.
+
+In terms of raw numerical compute power, the GPU in modern consumer laptops is often 2-2.5x more powerful than the CPU. Take the M1 MacBook Air from 2020: it comes with an 8-core CPU and 7-core GPU. From Philip Turner's excellent [Metal Benchmarks](https://github.com/philipturner/metal-benchmarks) repo, we learned that:
+
+- Apple's GPU cores are identical to the CPU cores in both transistor count.
+- A single GPU core has ~⅓ the frequency and ~8x the parallelism.
+
+Multiplying those numbers together, a GPU core is ~2.67x more powerful than a CPU core, and the MacBook Air has more than 2x the compute power on the GPU.
 
 We know how to evaluate a mathematical function using the CPU --- just write it in Python/Rust/C and run the resulting program --- but how can we use the GPU?
 There are two main ways we're aware of (i.e., learned about in this course of this exploration =P):
@@ -63,20 +39,16 @@ Plus we wanted something that'd work in a browser, so we turned to...
 
 ## Shaders
 
-Roughly, there are three types of GPU shader: vertex, fragment, and compute.
+Long ago, the term _shader_ meant something like: a function that runs over every pixel of an input image, producing an output image. The main use case was adding realistic lighting to 3D scenes, a process known as _shading_.
 
-They run within the context of *render pipeline*, which describes where each *shader pass* gets its input data and stores is result.
+Nowadays, a modern rendering pipeline has a number of different stages, and most of them have nothing to do with lighting or shading. But if you squint, they follow a similar pattern: parallel processing of a large number of input elements on the GPU, producing the outputs for the next stage. So the name _shader_ has stuck.
 
-For example, in the traditional graphics pipeline, the programmer provides (from the CPU) a list of vertices (points in 3d space), every three of which define the face of a triangle.
-Then on the GPU:
+A typical rendering pipeline consists of at least two shader stages:
 
-- the vertex shader runs for every input vertex to compute various attributes (position/transformation, color, etc.), and
-- the fragment shader runs for every pixel on the triangular faces and return the pixel's color.
+- a _vertex shader_ runs for every input vertex, doing things like transforming the 3D position to 2D screen coordinates.
+- a _pixel shader_ (aka _fragment shader_) runs for every pixel on the triangular faces and return the pixel's color.
 
-As people have realized GPUs are useful for general number crunching, *compute shaders* have become available, which run over abstract indices and compute whatever you want.
-
-Conceptually, each *shader pass* [?] runs in parallel and each [instance? invocation? what's the word here?] works on just its vertex/pixel/index input and cannot share data with its siblings.
-
+Over the years, people also noticed that GPUs are pretty great for general number crunching (i.e., nothing to do  with graphics). That led to _compute shaders_, which give a more general way to run parallel programs on the GPU, even if you're not rendering anything.
 
 ## What shader language?
 
@@ -139,4 +111,3 @@ In particular we haven't rigorously explored the performance characteristics:
 - Comparing the "expression update latency": Given a new expression at runtime, how long does it take the traditional approach (compile a shader, load new render pipeline, render a frame) compared to our approach (compile expression to bytecode, load onto existing render pipeline, render)?
 - How does the memory/size compare?
 - How does the faster shader approach compare to the GPU-platform-specific compute API as exposed by, e.g., JAX
-

@@ -15,6 +15,12 @@ struct Projection {
     translation: vec2<f32>,
 }
 
+struct BuiltinVars {
+    x: u32,
+    y: u32,
+    z: u32,
+}
+
 @group(0) @binding(0) var<storage> bytecode: Bytecode;
 
 @group(0) @binding(1) var<uniform> bc_offsets: array<vec4<u32>, MAX_TILE_COUNT_DIV_4>;
@@ -28,6 +34,11 @@ struct Projection {
 @group(0) @binding(5) var<uniform> step_count: u32;
 
 @group(0) @binding(6) var<uniform> projection: Projection;
+
+@group(0) @binding(7) var<uniform> var_values: array<vec4<f32>, MAX_VAR_COUNT_DIV_4>;
+
+@group(0) @binding(8) var<uniform> builtin_vars: BuiltinVars;
+
 
 fn execute_bytecode(xs: vec4<f32>, y: f32, tile_idx: u32) -> vec4<f32> {
     var reg: array<vec4<f32>, REG_COUNT>;
@@ -59,10 +70,12 @@ fn execute_bytecode(xs: vec4<f32>, y: f32, tile_idx: u32) -> vec4<f32> {
             case 1u /* Input */: {
               let out_reg = lo[1];
               let i = bitcast<u32>(hi);
-              if (i == 0) {
+              if (i == builtin_vars.x) {
                 reg[out_reg] = (xs * projection.scale.x) - projection.translation.x;
-              } else if (i == 1) {
+              } else if (i == builtin_vars.y) {
                 reg[out_reg] = vec4<f32>(y * projection.scale.y) - projection.translation.y;
+              } else {
+                reg[out_reg] = vec4<f32>(var_values[i / 4][i % 4]);
               }
             }
             case 0u /* Output */: {

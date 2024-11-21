@@ -1,8 +1,9 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashMap};
 
 use fidget::{
     compiler::RegOp,
     shape::EzShape,
+    var::Var,
     vm::{VmFunction, VmShape},
 };
 
@@ -26,6 +27,7 @@ pub const REG_COUNT: usize = 255;
 pub const TILE_SIZE_X: u32 = 64;
 pub const TILE_SIZE_Y: u32 = 32;
 pub const MAX_TILE_COUNT: u32 = 512;
+pub const MAX_VAR_COUNT: u32 = 32;
 
 pub fn shader_source() -> String {
     let shared_constants = format!(
@@ -39,6 +41,8 @@ const TILE_SIZE_X: u32 = {TILE_SIZE_X}u;
 const TILE_SIZE_Y: u32 = {TILE_SIZE_Y}u;
 const MAX_TILE_COUNT: u32 = {MAX_TILE_COUNT}u;
 const MAX_TILE_COUNT_DIV_4: u32 = MAX_TILE_COUNT / 4u;
+const MAX_VAR_COUNT: u32 = {MAX_VAR_COUNT}u;
+const MAX_VAR_COUNT_DIV_4: u32 = MAX_VAR_COUNT / 4u;
     "#
     );
     include_str!("shader-in.wgsl")
@@ -46,33 +50,7 @@ const MAX_TILE_COUNT_DIV_4: u32 = MAX_TILE_COUNT / 4u;
         .replace("{ shared_constants }", shared_constants.as_ref())
 }
 
-// TODO: Find a better way to do  this.
-pub fn regops_remapping_vars(
-    point_tape: &fidget::shape::ShapeTape<fidget::vm::GenericVmFunction<255>>,
-) -> Vec<RegOp> {
-    let data = point_tape.raw_tape().data();
-    let varmap = point_tape.vars();
-    let mut remapping = [None; 3];
-
-    if let Some(idx) = varmap.get(&fidget::var::Var::X) {
-        remapping[idx] = Some(0);
-    }
-    if let Some(idx) = varmap.get(&fidget::var::Var::Y) {
-        remapping[idx] = Some(1);
-    }
-    if let Some(idx) = varmap.get(&fidget::var::Var::Z) {
-        remapping[idx] = Some(2);
-    }
-
-    data.iter_asm()
-        .map(|r| match r {
-            RegOp::Input(out, i) => RegOp::Input(out, remapping[i as usize].unwrap()),
-            other => other,
-        })
-        .collect()
-}
-
-pub async fn evaluate_tape(tape: &GPUTape, viewport: Viewport) -> Option<Vec<f32>> {
+pub async fn evaluate_tape(tape: &GPUExpression, viewport: Viewport) -> Option<Vec<f32>> {
     let (_, device, queue) = create_device(
         &wgpu::Instance::default(),
         &wgpu::RequestAdapterOptions::default(),
@@ -101,6 +79,7 @@ pub async fn evaluate_tape(tape: &GPUTape, viewport: Viewport) -> Option<Vec<f32
         label: None,
         source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source())),
     });
+
     let pipeline = create_compute_pipeline(&device, &pipeline_layout, &shader_module);
     add_compute_pass(
         &mut encoder,
@@ -167,25 +146,40 @@ pub async fn evaluate_tape(tape: &GPUTape, viewport: Viewport) -> Option<Vec<f32
     }
 }
 
-pub struct GPUTape {
+#[derive(Clone)]
+pub struct BoundedVar {
+    pub var: Var,
+    pub bounds: [f64; 2],
+}
+
+pub struct GPUExpression {
     pub tape: Vec<RegOp>,
+    pub built_in_vars: BuiltInVars,
+    pub varmap: HashMap<Var, u32>,
     pub offsets: Vec<u32>,
     pub lengths: Vec<u32>,
 }
 
-impl GPUTape {
-    pub fn new(shape: &VmShape, width: u32, height: u32) -> Self {
+impl GPUExpression {
+    pub fn new<B>(shape: &VmShape, bvars: B, width: u32, height: u32) -> Self
+    where
+        B: Into<Vec<BoundedVar>>,
+    {
         // The default (unsimplified) tape is always the first one we right.
         // But not that it's *not* accounted for in `subtape_starts` and
-        // `subtape_ends` — those are only for looking up the simplified
+        // `subtape_ends` — those are only for looking up the simplified
         // tapes.
         // TODO: Find a cleaner way to do this?
         let default_tape = shape.ez_point_tape();
-        let mut regops: Vec<RegOp> = regops_remapping_vars(&default_tape);
+        let mut regops: Vec<RegOp> = default_tape.raw_tape().data().iter_asm().collect();
+
         let default_tape_len = regops.len() as u32;
 
         let mut subtape_starts: Vec<u32> = Vec::new();
         let mut subtape_ends: Vec<u32> = Vec::new();
+
+        // TODO: use the bounded vars to inform the interval simplification
+        let bvars: Vec<BoundedVar> = bvars.into();
 
         // tiling
         let tape_i = shape.ez_interval_tape();
@@ -224,20 +218,45 @@ impl GPUTape {
                     subtape_ends.push(default_tape_len * 2);
                     continue;
                 }
+                // TODO: handle situation where simplified tapes have non-equal varmaps.
                 let simplified_tape = shape.ez_simplify(trace.unwrap()).unwrap().ez_point_tape();
                 subtape_starts.push(regops.len() as u32 * 2);
-                regops.extend(regops_remapping_vars(&simplified_tape));
+                regops.extend(simplified_tape.raw_tape().data().iter_asm());
                 subtape_ends.push(regops.len() as u32 * 2);
             }
         }
-        GPUTape {
+
+        let varmap = default_tape.vars();
+
+        let built_in_vars = BuiltInVars {
+            x: varmap.get(&Var::X).unwrap_or(u32::MAX as usize) as u32,
+            y: varmap.get(&Var::Y).unwrap_or(u32::MAX as usize) as u32,
+            z: varmap.get(&Var::Z).unwrap_or(u32::MAX as usize) as u32,
+        };
+
+        let varmap: HashMap<Var, u32> = bvars
+            .into_iter()
+            .flat_map(|BoundedVar { var, .. }| varmap.get(&var).map(|idx| (var, idx as u32)))
+            .collect();
+
+        GPUExpression {
             tape: regops,
+            built_in_vars,
+            varmap,
             offsets: subtape_starts,
             lengths: subtape_ends,
         }
     }
 
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn var_values_bytes(&self, bindings: &HashMap<Var, f32>) -> Vec<u8> {
+        let mut var_values = vec![0f32; MAX_VAR_COUNT as usize];
+        for (v, idx) in &self.varmap {
+            var_values[*idx as usize] = *bindings.get(&v).expect(&format!("Unbound var: {:?}", v));
+        }
+        bytemuck::cast_slice(&var_values[..]).to_vec()
+    }
+
+    pub fn tape_bytes(&self) -> Vec<u8> {
         let mut ans: Vec<u8> = Vec::new();
         for op in &self.tape {
             // This is very naughty! bincode will serialize the enum discriminant
@@ -362,6 +381,14 @@ impl Default for Projection {
     }
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Zeroable, bytemuck::Pod)]
+pub struct BuiltInVars {
+    pub x: u32,
+    pub y: u32,
+    pub z: u32,
+}
+
 pub struct Buffers {
     pub bytecode_buffer: wgpu::Buffer,
     pub offsets_buffer: wgpu::Buffer,
@@ -371,6 +398,8 @@ pub struct Buffers {
     pub dims_buffer: wgpu::Buffer,
     pub step_count_buffer: wgpu::Buffer,
     pub projection_buffer: wgpu::Buffer,
+    pub var_values_buffer: wgpu::Buffer,
+    pub built_in_vars_buffer: wgpu::Buffer,
     pub timestamp_resolve_buffer: wgpu::Buffer,
     pub timestamp_readback_buffer: wgpu::Buffer,
 }
@@ -462,12 +491,17 @@ pub fn create_render_pipeline(
     })
 }
 
-pub fn update_tape(queue: &Queue, buffers: &mut Buffers, tape: &GPUTape, viewport: Viewport) {
-    queue.write_buffer(&buffers.bytecode_buffer, 0, &tape.to_bytes());
+pub fn update_tape(queue: &Queue, buffers: &mut Buffers, tape: &GPUExpression, viewport: Viewport) {
+    queue.write_buffer(&buffers.bytecode_buffer, 0, &tape.tape_bytes());
     queue.write_buffer(
         &buffers.offsets_buffer,
         0,
         bytemuck::cast_slice(&tape.offsets),
+    );
+    queue.write_buffer(
+        &buffers.built_in_vars_buffer,
+        0,
+        bytemuck::bytes_of(&tape.built_in_vars),
     );
     // Ensure that we have the correct number of subtapes.
     let tile_count = (viewport.width / TILE_SIZE_X) * (viewport.height / TILE_SIZE_Y);
@@ -545,6 +579,20 @@ pub fn create_buffers(
         usage: wgpu::BufferUsages::UNIFORM,
     });
 
+    let var_values_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Var Values Buffer"),
+        size: (MAX_VAR_COUNT * 4) as wgpu::BufferAddress,
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+
+    let built_in_vars_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("BuiltIn Vars Buffer"),
+        size: std::mem::size_of::<BuiltInVars>() as wgpu::BufferAddress,
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+
     // Create two buffers for timestamps
     let timestamp_resolve_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Timestamp Resolve Buffer"),
@@ -568,6 +616,8 @@ pub fn create_buffers(
         dims_buffer: viewport_buffer,
         step_count_buffer,
         projection_buffer,
+        var_values_buffer,
+        built_in_vars_buffer,
         timestamp_resolve_buffer,
         timestamp_readback_buffer,
     }
@@ -609,6 +659,14 @@ pub fn create_bind_group(
             wgpu::BindGroupEntry {
                 binding: 6,
                 resource: buffers.projection_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 7,
+                resource: buffers.var_values_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 8,
+                resource: buffers.built_in_vars_buffer.as_entire_binding(),
             },
         ],
     })
@@ -683,6 +741,26 @@ fn create_bind_group_layout(
             },
             wgpu::BindGroupLayoutEntry {
                 binding: 6,
+                visibility: shader_stages,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 7,
+                visibility: shader_stages,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 8,
                 visibility: shader_stages,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,

@@ -70,7 +70,8 @@ pub async fn setup_gpu_pipeline(
         &device,
         wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
     );
-    let buffers = create_and_fill_buffers(&device, &tape, viewport, projection);
+    let mut buffers = create_buffers(&device, viewport, projection);
+    update_tape(&queue, &mut buffers, &tape, viewport);
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
     let compute_pipeline = create_compute_pipeline(&device, &pipeline_layout, &shader_module);

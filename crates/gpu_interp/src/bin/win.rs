@@ -68,7 +68,8 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         label: None,
         source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source())),
     });
-    let buffers = create_and_fill_buffers(&device, &tape, viewport, projection);
+    let mut buffers = create_buffers(&device, viewport, projection);
+    update_tape(&queue, &mut buffers, &tape, viewport);
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
     // Create the piplines.

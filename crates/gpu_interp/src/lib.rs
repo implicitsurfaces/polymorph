@@ -9,7 +9,8 @@ use fidget::{
 pub use log::*;
 
 use wgpu::{
-    util::DeviceExt, BindGroupLayout, ComputePipeline, PipelineLayout, RenderPipeline, ShaderStages,
+    util::DeviceExt, BindGroupLayout, ComputePipeline, PipelineLayout, Queue, RenderPipeline,
+    ShaderStages,
 };
 pub mod sdf;
 
@@ -82,7 +83,8 @@ pub async fn evaluate_tape(tape: &GPUTape, viewport: Viewport) -> Option<Vec<f32
         &device,
         wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
     );
-    let buffers = create_and_fill_buffers(&device, tape, viewport, Projection::default());
+    let mut buffers = create_buffers(&device, viewport, Projection::default());
+    update_tape(&queue, &mut buffers, tape, viewport);
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
     // Create timestamp query set
@@ -460,52 +462,52 @@ pub fn create_render_pipeline(
     })
 }
 
-pub fn create_and_fill_buffers(
-    device: &wgpu::Device,
-    tape: &GPUTape,
-    viewport: Viewport,
-    projection: Projection,
-) -> Buffers {
-    let bytecode_buffer = {
-        let mut contents = vec![0u8; MAX_TAPE_LEN_REGOPS as usize * std::mem::size_of::<RegOp>()];
-        let tape_bytes = tape.to_bytes();
-        contents[..tape_bytes.len()].copy_from_slice(&tape_bytes);
-        // info!("tape bytes {:?}", tape_bytes);
-
-        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Bytecode Buffer"),
-            contents: &contents,
-            usage: wgpu::BufferUsages::STORAGE
-                | wgpu::BufferUsages::COPY_DST
-                | wgpu::BufferUsages::COPY_SRC,
-        })
-    };
-
+pub fn update_tape(queue: &Queue, buffers: &mut Buffers, tape: &GPUTape, viewport: Viewport) {
+    queue.write_buffer(&buffers.bytecode_buffer, 0, &tape.to_bytes());
+    queue.write_buffer(
+        &buffers.offsets_buffer,
+        0,
+        bytemuck::cast_slice(&tape.offsets),
+    );
+    // Ensure that we have the correct number of subtapes.
     let tile_count = (viewport.width / TILE_SIZE_X) * (viewport.height / TILE_SIZE_Y);
-
     assert!(viewport.width % TILE_SIZE_X == 0);
     assert!(viewport.height % TILE_SIZE_Y == 0);
     assert!(tape.lengths.len() == tile_count as usize);
+    queue.write_buffer(
+        &buffers.pc_max_buffer,
+        0,
+        bytemuck::cast_slice(&tape.lengths),
+    );
+}
 
-    let offsets_buffer = {
-        let mut contents = vec![0u32; MAX_TILE_COUNT as usize];
-        contents[..tape.offsets.len()].copy_from_slice(&tape.offsets);
-        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Offsets Buffer"),
-            contents: bytemuck::cast_slice(&contents),
-            usage: wgpu::BufferUsages::UNIFORM,
-        })
-    };
+pub fn create_buffers(
+    device: &wgpu::Device,
+    viewport: Viewport,
+    projection: Projection,
+) -> Buffers {
+    let bytecode_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Bytecode Buffer"),
+        size: (MAX_TAPE_LEN_REGOPS as usize * std::mem::size_of::<RegOp>()) as wgpu::BufferAddress,
+        usage: wgpu::BufferUsages::STORAGE
+            | wgpu::BufferUsages::COPY_DST
+            | wgpu::BufferUsages::COPY_SRC,
+        mapped_at_creation: false,
+    });
 
-    let pc_max_buffer = {
-        let mut contents = vec![0u32; MAX_TILE_COUNT as usize];
-        contents[..tape.lengths.len()].copy_from_slice(&tape.lengths);
-        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("pc_max Buffer"),
-            contents: bytemuck::cast_slice(&contents),
-            usage: wgpu::BufferUsages::UNIFORM,
-        })
-    };
+    let offsets_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Offsets Buffer"),
+        size: (MAX_TILE_COUNT as usize * std::mem::size_of::<u32>()) as wgpu::BufferAddress,
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+
+    let pc_max_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("pc_max Buffer"),
+        size: (MAX_TILE_COUNT as usize * std::mem::size_of::<u32>()) as wgpu::BufferAddress,
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
 
     let output_size_bytes = viewport.byte_size();
 
@@ -529,10 +531,11 @@ pub fn create_and_fill_buffers(
         usage: wgpu::BufferUsages::UNIFORM,
     });
 
-    let step_count_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+    let step_count_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Step Count Buffer"),
-        contents: bytemuck::cast_slice(&[0u32]),
+        size: std::mem::size_of::<u32>() as wgpu::BufferAddress,
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
     });
 
     let projection_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

@@ -2,5 +2,8 @@
   "name": "polymorph",
   "workspaces": [
     "packages/*"
-  ]
+  ],
+  "devDependencies": {
+    "vite-plugin-dts": "^4.3.0"
+  }
 }

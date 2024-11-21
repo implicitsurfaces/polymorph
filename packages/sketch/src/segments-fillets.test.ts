@@ -3,7 +3,7 @@ import { test } from "vitest";
 import { Dilatation } from "./sdf-operations";
 
 import { expectASCIIDistance } from "./test-utils";
-import { angleFromDeg, asVec } from "./geom";
+import { asVec } from "./geom";
 import { asNum } from "./num";
 import {
   filletArcArc,

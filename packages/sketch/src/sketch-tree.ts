@@ -50,6 +50,7 @@ import {
   Shell as ShellNode,
   Morph as MorphNode,
   SignedDistanceToProfile,
+  DistanceLiteral,
 } from "./sketch-nodes";
 import { LineSegment } from "./segments";
 import {
@@ -70,6 +71,8 @@ import {
   Morph,
   Shell,
 } from "./sdf-operations";
+import { cornerFillet } from "./segments-fillets";
+import { memoizeNodeEval } from "./utils/cache";
 
 export function evalRealValue(value: RealValueNode): Num {
   if (value instanceof DistanceNode) {
@@ -85,7 +88,12 @@ export function evalRealValue(value: RealValueNode): Num {
   throw new Error(`Unknown real value: ${value}`);
 }
 
-export function evalDistance(distance: DistanceNode): Num {
+export const evalDistance = memoizeNodeEval(function (
+  distance: DistanceNode,
+): Num {
+  if (distance instanceof DistanceLiteral) {
+    return asNum(distance.value);
+  }
   if (distance instanceof DistanceScaled) {
     return evalDistance(distance.distance).mul(evalRealValue(distance.scale));
   }
@@ -100,9 +108,9 @@ export function evalDistance(distance: DistanceNode): Num {
   }
 
   throw new Error(`Unknown distance: ${distance.constructor.name}`);
-}
+});
 
-export function evalAngle(angle: AngleNode): Angle {
+export const evalAngle = memoizeNodeEval(function (angle: AngleNode): Angle {
   if (angle instanceof AngleLiteral) {
     return angleFromDeg(evalRealValue(angle.degrees));
   }
@@ -132,9 +140,9 @@ export function evalAngle(angle: AngleNode): Angle {
   }
 
   throw new Error(`Unknown angle: ${angle.constructor.name}`);
-}
+});
 
-export function evalPoint(point: PointNode): Point {
+export const evalPoint = memoizeNodeEval(function (point: PointNode): Point {
   if (point instanceof PointAsVectorFromOrigin) {
     return evalVector(point.vector).pointFromOrigin();
   }
@@ -152,9 +160,11 @@ export function evalPoint(point: PointNode): Point {
   }
 
   throw new Error(`Unknown point: ${point.constructor.name}`);
-}
+});
 
-export function evalVector(vector: VectorNode): Vec2 {
+export const evalVector = memoizeNodeEval(function evalVector(
+  vector: VectorNode,
+): Vec2 {
   if (vector instanceof VectorFromPolarCoods) {
     return evalAngle(vector.angle).asVec().scale(evalDistance(vector.distance));
   }
@@ -184,9 +194,11 @@ export function evalVector(vector: VectorNode): Vec2 {
   }
 
   throw new Error(`Unknown vector: ${vector.constructor.name}`);
-}
+});
 
-export function evalEdge(edge: EdgeNode): (p0: Point, p1: Point) => Segment[] {
+export const evalEdge = memoizeNodeEval(function (
+  edge: EdgeNode,
+): (p0: Point, p1: Point) => Segment[] {
   if (edge instanceof Line) {
     return (p0: Point, p1: Point) => [new LineSegment(p0, p1)];
   }
@@ -213,17 +225,17 @@ export function evalEdge(edge: EdgeNode): (p0: Point, p1: Point) => Segment[] {
   }
 
   throw new Error(`Unknown edge: ${edge.constructor.name}`);
-}
+});
 
 class PartialPath {
   public segments: Segment[];
   private endPoint: Point;
 
-  private firstRadius: Num;
+  private firstRadius?: Num;
   private endRadius?: Num;
   private first: Point;
 
-  constructor(point: Point, radius: Num) {
+  constructor(point: Point, radius?: Num) {
     this.segments = [];
     this.endPoint = point;
     this.firstRadius = radius;
@@ -232,14 +244,15 @@ class PartialPath {
 
   _appendSegments(segments: Segment[]): PartialPath {
     if (this.endRadius) {
-      const filletedCorner = filletCorner(
-        this.segments.pop(),
-        segments.shift(),
+      const filletedCorner = cornerFillet(
+        this.segments.pop()!,
+        segments.shift()!,
         this.endRadius,
       );
       this.segments.push(...filletedCorner);
     }
     this.segments.push(...segments);
+    return this;
   }
 
   append(
@@ -259,9 +272,9 @@ class PartialPath {
     this._appendSegments(segments);
 
     if (this.firstRadius) {
-      const filletedCorner = filletCorner(
-        this.segments.pop(),
-        this.segments.shift(),
+      const filletedCorner = cornerFillet(
+        this.segments.pop()!,
+        this.segments.shift()!,
         this.firstRadius,
       );
       this.segments.push(...filletedCorner);
@@ -270,10 +283,13 @@ class PartialPath {
   }
 }
 
-export function evalPath(node: PathNode): PartialPath {
+export const evalPath = memoizeNodeEval(function (node: PathNode): PartialPath {
   if (node instanceof PathStart) {
     const startPoint = evalPoint(node.point);
-    const startRadius = evalDistance(node.cornerRadius);
+    const startRadius =
+      node.cornerRadius || node.cornerRadius === 0
+        ? evalDistance(node.cornerRadius)
+        : undefined;
 
     return new PartialPath(startPoint, startRadius);
   }
@@ -281,7 +297,10 @@ export function evalPath(node: PathNode): PartialPath {
   if (node instanceof PathEdge) {
     const path = evalPath(node.path);
     const point = evalPoint(node.point);
-    const radius = evalDistance(node.cornerRadius);
+    const radius =
+      node.cornerRadius || node.cornerRadius === 0
+        ? evalDistance(node.cornerRadius)
+        : undefined;
 
     const edgeFn = evalEdge(node.edge);
 
@@ -289,9 +308,11 @@ export function evalPath(node: PathNode): PartialPath {
   }
 
   throw new Error(`Unknown path: ${node.constructor.name}`);
-}
+});
 
-export function evalProfile(node: PathNode): DistField {
+export const evalProfile = memoizeNodeEval(function (
+  node: PathNode,
+): DistField {
   if (node instanceof PathClose) {
     const path = evalPath(node.path);
     const edgeFn = evalEdge(node.edge);
@@ -353,4 +374,4 @@ export function evalProfile(node: PathNode): DistField {
   }
 
   throw new Error(`Unknown profile: ${node.constructor.name}`);
-}
+});

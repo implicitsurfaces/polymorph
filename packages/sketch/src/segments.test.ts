@@ -10,6 +10,7 @@ import {
 } from "./test-utils";
 import { asVec } from "./geom";
 import { asNum } from "./num";
+import { Segment } from "./types";
 
 const p = (x: number, y: number) => asVec(x, y).pointFromOrigin();
 

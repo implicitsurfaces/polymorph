@@ -209,48 +209,31 @@ export class VectorScaled extends VectorNode {
 }
 
 export class Line extends EdgeNode {
-  constructor(
-    public readonly p0: PointNode,
-    public readonly p1: PointNode,
-  ) {
+  constructor() {
     super();
   }
 }
 
 export class ArcFromStartControl extends EdgeNode {
-  constructor(
-    public readonly p0: PointNode,
-    public readonly p1: PointNode,
-    public readonly control: PointNode,
-  ) {
+  constructor(public readonly control: PointNode) {
     super();
   }
 }
 
 export class ArcFromEndControl extends EdgeNode {
-  constructor(
-    public readonly p0: PointNode,
-    public readonly p1: PointNode,
-    public readonly control: PointNode,
-  ) {
+  constructor(public readonly control: PointNode) {
     super();
   }
 }
 
 export class BiarcC extends EdgeNode {
-  constructor(
-    public readonly p0: PointNode,
-    public readonly p1: PointNode,
-    public readonly control: PointNode,
-  ) {
+  constructor(public readonly control: PointNode) {
     super();
   }
 }
 
 export class BiarcS extends EdgeNode {
   constructor(
-    public readonly p0: PointNode,
-    public readonly p1: PointNode,
     public readonly control0: PointNode,
     public readonly control1: PointNode,
   ) {
@@ -261,7 +244,7 @@ export class BiarcS extends EdgeNode {
 export class PathStart extends PathNode {
   constructor(
     public readonly point: PointNode,
-    public readonly cornerRadius: DistanceNode,
+    public readonly cornerRadius?: DistanceNode,
   ) {
     super();
   }
@@ -272,7 +255,7 @@ export class PathEdge extends PathNode {
     public readonly path: PathNode,
     public readonly edge: EdgeNode,
     public readonly point: PointNode,
-    public readonly cornerRadius: DistanceNode,
+    public readonly cornerRadius?: DistanceNode,
   ) {
     super();
   }

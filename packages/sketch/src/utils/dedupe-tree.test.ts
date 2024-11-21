@@ -62,7 +62,9 @@ describe("dedupeTree", () => {
 
     const deduped = await dedupeTree(top);
     expect(deduped.a).toBe(deduped.b);
+    // @ts-expect-error we know it's a TwoNodes
     expect(deduped.a.a.a).toBe(deduped.b.a.a);
+    // @ts-expect-error we know it's a TwoNodes
     expect(deduped.a.a.b).toBe(deduped.b.a.a);
   });
 
@@ -105,7 +107,9 @@ describe("dedupeTree", () => {
 
     const deduped = await dedupeTree(top);
     expect(deduped.a).toBe(deduped.b);
+    // @ts-expect-error we know it's a TwoNodes
     expect(deduped.a.a).toBe(deduped.b.a);
+    // @ts-expect-error we know it's a TwoNodes
     expect(deduped.a.a.a).toBe(deduped.b.a.a);
   });
 
@@ -126,7 +130,9 @@ describe("dedupeTree", () => {
 
     const deduped = await dedupeTree(top);
     expect(deduped.a).not.toBe(deduped.b);
+    // @ts-expect-error we know it's a TwoNodes
     expect(deduped.a.a).not.toBe(deduped.b.a);
+    // @ts-expect-error we know it's a TwoNodes
     expect(deduped.a.a.a).not.toBe(deduped.b.a.a);
   });
 });

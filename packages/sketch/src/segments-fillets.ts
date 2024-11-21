@@ -2,6 +2,7 @@ import { Point, Vec2, angleFromCos } from "./geom";
 import { Num } from "./num";
 import { BulgingSegment, LineSegment } from "./segments";
 import { bulgingSegmentUsingStartTangent } from "./segments-helpers";
+import { Segment } from "./types";
 
 function lineDirection(line: LineSegment) {
   return line.p1.vecTo(line.p2).normalize();
@@ -213,8 +214,8 @@ export function filletArcArc(
 }
 
 export function cornerFillet(
-  segment1: BulgingSegment | LineSegment,
-  segment2: BulgingSegment | LineSegment,
+  segment1: Segment,
+  segment2: Segment,
   radius: Num,
 ) {
   if (segment1 instanceof LineSegment && segment2 instanceof LineSegment) {

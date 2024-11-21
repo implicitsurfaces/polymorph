@@ -13,7 +13,30 @@ import { DistField } from "./types";
 import { vecFromCartesianCoords } from "./geom";
 import { NumX, NumY } from "./num";
 
-export function _fidgetEval(node: NumNode, context: Context): FidgetNode {
+interface EvalFn {
+  (
+    node: NumNode,
+    context: Context,
+    cache: Map<NumNode, FidgetNode>,
+  ): FidgetNode;
+}
+
+function wrapForCaching(fn: EvalFn): EvalFn {
+  return (n: NumNode, context: Context, cache: Map<NumNode, FidgetNode>) => {
+    if (cache.has(n)) {
+      return cache.get(n)!;
+    }
+    const result = fn(n, context, cache);
+    cache.set(n, result);
+    return result;
+  };
+}
+
+export const _fidgetEval = wrapForCaching(function (
+  node: NumNode,
+  context: Context,
+  cache: Map<NumNode, FidgetNode>,
+): FidgetNode {
   if (node instanceof LiteralNum) {
     return context.constant(node.value);
   } else if (node instanceof Variable) {
@@ -26,21 +49,21 @@ export function _fidgetEval(node: NumNode, context: Context): FidgetNode {
     }
     return context.var();
   } else if (node instanceof UnaryOp) {
-    const operand = _fidgetEval(node.original, context);
+    const operand = _fidgetEval(node.original, context, cache);
     return fidgetUnaryOp(node.operation, operand, context);
   } else if (node instanceof BinaryOp) {
-    const left = _fidgetEval(node.left, context);
-    const right = _fidgetEval(node.right, context);
+    const left = _fidgetEval(node.left, context, cache);
+    const right = _fidgetEval(node.right, context, cache);
 
     return fidgetBinaryOp(node.operation, left, right, context);
   }
 
   throw new Error(`Unknown node type: ${node?.operation}`);
-}
+});
 
 function fidgetUnaryOp(
   operation: UnaryOperation,
-  operand: number,
+  operand: FidgetNode,
   context: Context,
 ): FidgetNode {
   if (operation === "SQRT") {
@@ -141,7 +164,7 @@ const fidgetBinaryOp = (
 
 export async function fidgetEval(node: NumNode): Promise<number> {
   const context = await createContext();
-  const fidgetNode = _fidgetEval(node, context);
+  const fidgetNode = _fidgetEval(node, context, new Map());
   return context.evalNode(fidgetNode);
 }
 
@@ -150,7 +173,13 @@ export async function fidgetRender(
   imageSize = 50,
 ): Promise<Uint8Array> {
   const context = await createContext();
+
   const genericPoint = vecFromCartesianCoords(NumX, NumY).pointFromOrigin();
-  const fidgetNode = _fidgetEval(node.distanceTo(genericPoint).n, context);
-  return context.renderNode(fidgetNode, imageSize);
+  const fidgetNode = _fidgetEval(
+    node.distanceTo(genericPoint).n,
+    context,
+    new Map(),
+  );
+  const render = context.renderNode(fidgetNode, imageSize);
+  return render;
 }

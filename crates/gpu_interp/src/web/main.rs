@@ -9,7 +9,7 @@ pub enum ReDraw {
     Mouse(i32, i32),
 }
 
-use std::{borrow::Cow, collections::HashMap};
+use std::borrow::Cow;
 
 pub async fn setup_gpu_pipeline(
     canvas: web_sys::HtmlCanvasElement,

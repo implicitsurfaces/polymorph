@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 
-use bincode;
 use fidget::{
     compiler::RegOp,
     shape::EzShape,
@@ -83,7 +82,7 @@ pub async fn evaluate_tape(tape: &GPUTape, viewport: Viewport) -> Option<Vec<f32
         &device,
         wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
     );
-    let buffers = create_and_fill_buffers(&device, &tape, viewport, Projection::default());
+    let buffers = create_and_fill_buffers(&device, tape, viewport, Projection::default());
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
     // Create timestamp query set
@@ -187,58 +186,53 @@ impl GPUTape {
         let mut subtape_ends: Vec<u32> = Vec::new();
 
         // tiling
-        let ret = {
-            let tape_i = shape.ez_interval_tape();
-            let mut eval_i = fidget::shape::Shape::<VmFunction>::new_interval_eval();
+        let tape_i = shape.ez_interval_tape();
+        let mut eval_i = fidget::shape::Shape::<VmFunction>::new_interval_eval();
 
-            let unproject = |val: f32, bounds: f32| (2.0 * val / bounds) - 1.0;
+        let unproject = |val: f32, bounds: f32| (2.0 * val / bounds) - 1.0;
 
-            for row in 0..(height / TILE_SIZE_Y) {
-                let y = row as f32 * TILE_SIZE_Y as f32;
-                let y_interval = fidget::types::Interval::new(
-                    -unproject(y + TILE_SIZE_Y as f32, height as f32),
-                    -unproject(y, height as f32),
+        for row in 0..(height / TILE_SIZE_Y) {
+            let y = row as f32 * TILE_SIZE_Y as f32;
+            let y_interval = fidget::types::Interval::new(
+                -unproject(y + TILE_SIZE_Y as f32, height as f32),
+                -unproject(y, height as f32),
+            );
+
+            for col in 0..(width / TILE_SIZE_X) {
+                let x = col as f32 * TILE_SIZE_X as f32;
+                let x_interval = fidget::types::Interval::new(
+                    unproject(x, width as f32),
+                    unproject(x + TILE_SIZE_X as f32, width as f32),
                 );
 
-                for col in 0..(width / TILE_SIZE_X) {
-                    let x = col as f32 * TILE_SIZE_X as f32;
-                    let x_interval = fidget::types::Interval::new(
-                        unproject(x, width as f32),
-                        unproject(x + TILE_SIZE_X as f32, width as f32),
-                    );
-
-                    let (out, trace) = eval_i
-                        .eval(&tape_i, x_interval, y_interval, 0.0.into())
-                        .unwrap();
-                    if out.lower() > 0.0 {
-                        // The entire tile is outside the shape -- write an empty tape.
-                        subtape_starts.push(regops.len() as u32 * 2);
-                        subtape_ends.push(regops.len() as u32 * 2);
-                        continue;
-                    }
-                    if out.upper() < 0.0 || trace.is_none() {
-                        // Tile is entirely inside the shape, or the tape could not
-                        // be simplified. Use the default tape.
-                        // TODO: Could we do better in the "entirely inside" case?
-                        subtape_starts.push(0);
-                        subtape_ends.push(default_tape_len * 2);
-                        continue;
-                    }
-                    let simplified_tape =
-                        shape.ez_simplify(trace.unwrap()).unwrap().ez_point_tape();
+                let (out, trace) = eval_i
+                    .eval(&tape_i, x_interval, y_interval, 0.0.into())
+                    .unwrap();
+                if out.lower() > 0.0 {
+                    // The entire tile is outside the shape -- write an empty tape.
                     subtape_starts.push(regops.len() as u32 * 2);
-                    regops.extend(regops_remapping_vars(&simplified_tape));
                     subtape_ends.push(regops.len() as u32 * 2);
+                    continue;
                 }
+                if out.upper() < 0.0 || trace.is_none() {
+                    // Tile is entirely inside the shape, or the tape could not
+                    // be simplified. Use the default tape.
+                    // TODO: Could we do better in the "entirely inside" case?
+                    subtape_starts.push(0);
+                    subtape_ends.push(default_tape_len * 2);
+                    continue;
+                }
+                let simplified_tape = shape.ez_simplify(trace.unwrap()).unwrap().ez_point_tape();
+                subtape_starts.push(regops.len() as u32 * 2);
+                regops.extend(regops_remapping_vars(&simplified_tape));
+                subtape_ends.push(regops.len() as u32 * 2);
             }
-            GPUTape {
-                tape: regops,
-                offsets: subtape_starts,
-                lengths: subtape_ends,
-            }
-        };
-
-        ret
+        }
+        GPUTape {
+            tape: regops,
+            offsets: subtape_starts,
+            lengths: subtape_ends,
+        }
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -408,7 +402,7 @@ pub fn create_pipeline_layout(
     device: &wgpu::Device,
     shader_stages: ShaderStages,
 ) -> (BindGroupLayout, PipelineLayout) {
-    let bind_group_layout = create_bind_group_layout(&device, shader_stages);
+    let bind_group_layout = create_bind_group_layout(device, shader_stages);
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: None,
         bind_group_layouts: &[&bind_group_layout],
@@ -441,15 +435,15 @@ pub fn create_render_pipeline(
 ) -> RenderPipeline {
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: Some("Render Pipeline"),
-        layout: Some(&pipeline_layout),
+        layout: Some(pipeline_layout),
         vertex: wgpu::VertexState {
-            module: &shader_module,
+            module: shader_module,
             entry_point: "vertex_main",
             buffers: &[],
             compilation_options: Default::default(),
         },
         fragment: Some(wgpu::FragmentState {
-            module: &shader_module,
+            module: shader_module,
             entry_point: fragment_entry_point,
             compilation_options: Default::default(),
             targets: &[Some(swapchain_format.into())],
@@ -755,7 +749,7 @@ pub fn add_compute_pass(
         }),
     });
     cpass.set_pipeline(pipeline);
-    cpass.set_bind_group(0, &bind_group, &[]);
+    cpass.set_bind_group(0, bind_group, &[]);
     cpass.insert_debug_marker("execute bytecode");
     cpass.dispatch_workgroups(dispatch_size.0, dispatch_size.1, dispatch_size.2);
 }
@@ -770,7 +764,7 @@ pub fn add_render_pass(
     let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
         label: None,
         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-            view: &view,
+            view,
             resolve_target: None,
             ops: wgpu::Operations {
                 load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),

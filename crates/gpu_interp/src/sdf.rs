@@ -4,7 +4,7 @@ pub fn circle(center_x: f64, center_y: f64, radius: f64) -> Tree {
     let dx = Tree::constant(center_x) - Tree::x();
     let dy = Tree::constant(center_y) - Tree::y();
     let dist = (dx.square() + dy.square()).sqrt();
-    return dist - radius;
+    dist - radius
 }
 
 pub fn smooth_union(trees: Vec<Tree>) -> Tree {

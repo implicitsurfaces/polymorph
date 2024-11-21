@@ -142,6 +142,13 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                                 label: None,
                             });
 
+                        // TODO: Move this into `update_tape`.
+                        queue.write_buffer(
+                            &buffers.built_in_vars_buffer,
+                            0,
+                            bytemuck::bytes_of(&tape.built_in_vars),
+                        );
+
                         add_compute_pass(
                             &mut encoder,
                             &compute_pipeline,

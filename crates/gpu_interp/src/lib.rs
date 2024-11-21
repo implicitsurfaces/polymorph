@@ -78,6 +78,7 @@ pub async fn evaluate_tape(tape: &GPUExpression, viewport: Viewport) -> Option<V
         source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source())),
     });
 
+    // TODO: Move this into `update_tape`.
     queue.write_buffer(
         &buffers.built_in_vars_buffer,
         0,

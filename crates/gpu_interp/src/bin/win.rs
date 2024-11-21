@@ -53,7 +53,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         let (ctx, root) = Context::from_text(&mut file).unwrap();
         let shape = VmShape::new(&ctx, root).unwrap();
 
-        GPUExpression::new(&shape, viewport.width, viewport.height)
+        GPUExpression::new(&shape, [], viewport.width, viewport.height)
     };
 
     let swapchain_capabilities = surface.get_capabilities(&adapter);

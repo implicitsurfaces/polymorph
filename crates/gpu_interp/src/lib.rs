@@ -251,7 +251,9 @@ impl GPUExpression {
     pub fn var_values_bytes(&self, bindings: &HashMap<Var, f32>) -> Vec<u8> {
         let mut var_values = vec![0f32; MAX_VAR_COUNT as usize];
         for (v, idx) in &self.varmap {
-            var_values[*idx as usize] = *bindings.get(&v).expect(&format!("Unbound var: {:?}", v));
+            var_values[*idx as usize] = *bindings
+                .get(v)
+                .unwrap_or_else(|| panic!("Unbound var: {:?}", v));
         }
         bytemuck::cast_slice(&var_values[..]).to_vec()
     }

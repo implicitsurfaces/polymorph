@@ -77,6 +77,13 @@ pub async fn evaluate_tape(tape: &GPUExpression, viewport: Viewport) -> Option<V
         label: None,
         source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source())),
     });
+
+    queue.write_buffer(
+        &buffers.built_in_vars_buffer,
+        0,
+        bytemuck::bytes_of(&tape.built_in_vars),
+    );
+
     let pipeline = create_compute_pipeline(&device, &pipeline_layout, &shader_module);
     add_compute_pass(
         &mut encoder,

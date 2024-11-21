@@ -1,8 +1,15 @@
-use fidget::{context::Context, vm::VmShape};
+use fidget::{context::Context, var::Var, vm::VmShape};
 use gpu_interp::sdf::*;
 use gpu_interp::*;
-use std::sync::{Arc, Mutex};
+use std::{
+    cell::LazyCell,
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 use wasm_bindgen::prelude::*;
+
+const VAR_MOUSE_X: LazyCell<Var> = LazyCell::new(|| Var::new());
+const VAR_MOUSE_Y: LazyCell<Var> = LazyCell::new(|| Var::new());
 
 pub enum ReDraw {
     Shape(VmShape),
@@ -46,8 +53,9 @@ pub async fn setup_gpu_pipeline(
     // let dfdy = ctx.deriv(f, Var::Y).unwrap();
 
     // TODO: would be nice to setup everything without needing a specific initial shape/tape
-    let tape = GPUTape::new(
+    let expression = GPUExpression::new(
         &VmShape::new(&ctx, f).unwrap(),
+        [],
         viewport.width,
         viewport.height,
     );
@@ -70,7 +78,7 @@ pub async fn setup_gpu_pipeline(
         &device,
         wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
     );
-    let buffers = create_and_fill_buffers(&device, &tape, viewport, projection);
+    let buffers = create_and_fill_buffers(&device, &expression, viewport, projection);
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
     let compute_pipeline = create_compute_pipeline(&device, &pipeline_layout, &shader_module);
@@ -90,20 +98,48 @@ pub async fn setup_gpu_pipeline(
 
     let mut step_count = 0;
 
+    let bvars = [
+        BoundedVar {
+            var: *VAR_MOUSE_X,
+            bounds: [0.0, viewport.width.into()],
+        },
+        BoundedVar {
+            var: *VAR_MOUSE_Y,
+            bounds: [0.0, viewport.height.into()],
+        },
+    ];
+
+    let mut bindings = HashMap::new();
+    bindings.insert(*VAR_MOUSE_X, 10.);
+    bindings.insert(*VAR_MOUSE_Y, 10.);
+
     let draw = move |redraw| {
         step_count += 1;
 
         match redraw {
             ReDraw::Shape(s) => {
                 // Update with new shape
-                let tape = GPUTape::new(&s, viewport.width, viewport.height);
-                queue.write_buffer(&buffers.bytecode_buffer, 0, &tape.to_bytes());
+                let expression = GPUExpression::new(&s, &bvars, viewport.width, viewport.height);
+                queue.write_buffer(&buffers.bytecode_buffer, 0, &expression.tape_bytes());
+
+                queue.write_buffer(
+                    &buffers.built_in_vars_buffer,
+                    0,
+                    bytemuck::bytes_of(&expression.built_in_vars),
+                );
             }
 
             ReDraw::Mouse(x, y) => {
-                info!("TODO mouse update: {x}, {y}")
+                bindings.insert(*VAR_MOUSE_X, x as f32);
+                bindings.insert(*VAR_MOUSE_Y, y as f32);
             }
         }
+
+        queue.write_buffer(
+            &buffers.var_values_buffer,
+            0,
+            &expression.var_values_bytes(&bindings),
+        );
 
         queue.write_buffer(
             &buffers.step_count_buffer,
@@ -172,7 +208,7 @@ fn main() {
             let draw_fn = setup_gpu_pipeline(canvas.clone()).await;
 
             let mut engine = fidget::rhai::Engine::new();
-            engine.set_limit(50_000); // ¯\_(ツ)_/¯
+            engine.set_limit(50_000); //¯\_(ツ)_/¯
 
             let mut try_parse_draw = {
                 let draw_fn = draw_fn.clone();

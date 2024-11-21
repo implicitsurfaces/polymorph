@@ -13,6 +13,9 @@ export default defineConfig({
       fileName: "sketch",
       formats: ["es"],
     },
+    rollupOptions: {
+      external: ["fidget"],
+    },
   },
   plugins: [dts()],
 });

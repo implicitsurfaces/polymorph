@@ -171,6 +171,7 @@ export async function fidgetEval(node: NumNode): Promise<number> {
 export async function fidgetRender(
   node: DistField,
   imageSize = 50,
+  colorPlot = false,
 ): Promise<Uint8Array> {
   const context = await createContext();
 
@@ -180,6 +181,6 @@ export async function fidgetRender(
     context,
     new Map(),
   );
-  const render = context.renderNode(fidgetNode, imageSize);
+  const render = context.renderNode(fidgetNode, imageSize, colorPlot);
   return render;
 }

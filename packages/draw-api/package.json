@@ -3,6 +3,8 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "main": "dist/draw-api.js",
+  "types": "dist/main.d.ts",
   "scripts": {
     "test": "vitest",
     "dev": "vite",
@@ -20,7 +22,8 @@
     "vite-plugin-dts": "^4.3.0",
     "vitest": "^2.1.4"
   },
-  "dependencies": {
-    "sketch": "*"
+  "peerDependencies": {
+    "sketch": "*",
+    "fidget": "*"
   }
 }

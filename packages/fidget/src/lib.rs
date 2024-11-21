@@ -1,4 +1,4 @@
-use fidget::render::{BitRenderMode, RenderConfig};
+use fidget::render::{BitRenderMode, RenderConfig, SdfRenderMode};
 use fidget::vm::VmShape;
 
 extern crate console_error_panic_hook;
@@ -216,7 +216,7 @@ impl Context {
     }
 
     #[wasm_bindgen(js_name = renderNode)]
-    pub fn render_node(&self, node: &Node, image_size: usize) -> Vec<u8> {
+    pub fn render_node(&self, node: &Node, image_size: usize, sdf_mode: Option<bool>) -> Vec<u8> {
         let shape = VmShape::new(&self.inner, node.inner).unwrap();
 
         let cfg = RenderConfig::<2> {
@@ -224,8 +224,15 @@ impl Context {
             ..RenderConfig::default()
         };
 
-        let out = cfg.run::<_, BitRenderMode>(shape).unwrap_throw();
-        out.into_iter().map(|b| if b { 1 } else { 0 }).collect()
+        if sdf_mode.unwrap_or(false) {
+            let out = cfg.run::<_, SdfRenderMode>(shape).unwrap_throw();
+            out.into_iter()
+                .flat_map(|[r, g, b]| [r, g, b, 255])
+                .collect()
+        } else {
+            let out = cfg.run::<_, BitRenderMode>(shape).unwrap_throw();
+            out.into_iter().map(|b| if b { 1 } else { 0 }).collect()
+        }
     }
 }
 

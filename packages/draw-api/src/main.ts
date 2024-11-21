@@ -117,11 +117,18 @@ export class ProfileEditor {
   public morph(other: ProfileEditor, t: number | DistanceNode): ProfileEditor {
     return new ProfileEditor(new Morph(this.shape, other.shape, asDistance(t)));
   }
+  
 
   async debugRender(size = 50): Promise<string> {
     const distField = evalProfile(this.shape);
     const render = await fidgetRender(distField, size);
     return booleansToASCII(intArrayToImageData(render), true);
+  }
+
+  async render(size = 250): Promise<Uint8ClampedArray> {
+    const distField = evalProfile(this.shape);
+    const render = await fidgetRender(distField, size, true);
+    return new Uint8ClampedArray(render);
   }
 }
 
@@ -179,7 +186,7 @@ export class PointMaker {
   }
 
   public verticalMoveBy(y: number, cornerRadius?: number): EdgeMaker {
-    this.moveBy(0, y, cornerRadius);
+    return this.moveBy(0, y, cornerRadius);
   }
 
   public close(): ProfileEditor {

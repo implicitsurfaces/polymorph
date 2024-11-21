@@ -17,5 +17,5 @@ export default defineConfig({
       external: ["fidget"],
     },
   },
-  plugins: [dts()],
+  plugins: [dts({ rollupTypes: true})],
 });

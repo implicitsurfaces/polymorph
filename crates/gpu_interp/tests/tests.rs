@@ -33,9 +33,9 @@ fn test_fidget_four_circles() {
         height: 64,
     };
 
-    let tape = GPUExpression::new(&shape, [], viewport.width, viewport.height);
+    let expr = GPUExpression::new(&shape, [], viewport.width, viewport.height);
 
-    let result = pollster::block_on(evaluate_tape(&tape, viewport));
+    let result = pollster::block_on(evaluate(&expr, viewport));
     assert_relative_eq!(
         result.unwrap().as_slice(),
         jit_evaluate(&tree, viewport).as_slice(),
@@ -64,10 +64,10 @@ fn test_fidget_many_circles() {
         width: 128,
         height: 128,
     };
-    let tape = GPUExpression::new(&shape, [], viewport.width, viewport.height);
+    let expr = GPUExpression::new(&shape, [], viewport.width, viewport.height);
 
     // debug!("{:?}", bytecode);
-    let result = pollster::block_on(evaluate_tape(&tape, viewport));
+    let result = pollster::block_on(evaluate(&expr, viewport));
     assert_relative_eq!(
         result.unwrap().as_slice(),
         jit_evaluate(&tree, viewport).as_slice(),

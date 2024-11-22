@@ -50,7 +50,7 @@ const MAX_VAR_COUNT_DIV_4: u32 = MAX_VAR_COUNT / 4u;
         .replace("{ shared_constants }", shared_constants.as_ref())
 }
 
-pub async fn evaluate_tape(tape: &GPUExpression, viewport: Viewport) -> Option<Vec<f32>> {
+pub async fn evaluate(expr: &GPUExpression, viewport: Viewport) -> Option<Vec<f32>> {
     let (_, device, queue) = create_device(
         &wgpu::Instance::default(),
         &wgpu::RequestAdapterOptions::default(),
@@ -62,7 +62,7 @@ pub async fn evaluate_tape(tape: &GPUExpression, viewport: Viewport) -> Option<V
         wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
     );
     let mut buffers = create_buffers(&device, viewport, Projection::default());
-    update_tape(&queue, &mut buffers, tape, viewport);
+    update_buffers(&queue, &mut buffers, expr, viewport);
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
     // Create timestamp query set
@@ -493,7 +493,12 @@ pub fn create_render_pipeline(
     })
 }
 
-pub fn update_tape(queue: &Queue, buffers: &mut Buffers, tape: &GPUExpression, viewport: Viewport) {
+pub fn update_buffers(
+    queue: &Queue,
+    buffers: &mut Buffers,
+    tape: &GPUExpression,
+    viewport: Viewport,
+) {
     queue.write_buffer(&buffers.bytecode_buffer, 0, &tape.tape_bytes());
     queue.write_buffer(
         &buffers.offsets_buffer,

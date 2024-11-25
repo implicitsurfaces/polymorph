@@ -48,6 +48,10 @@ export const HeaderButton = styled("button")`
     `}
 `;
 
+export const Spacer = styled("div")`
+  flex: 1;
+`;
+
 export const HeaderSelect = styled("select")`
   margin-right: 1.5em;
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { styled } from "goober";
 import { observer } from "mobx-react";
 import Splitter, { GutterTheme } from "@devbookhq/splitter";
@@ -7,35 +7,7 @@ import useEditorStore, { EditorContextProvider } from "./state/useEditorStore";
 
 import { Pane } from "./components/panes";
 import { EditorPane } from "./components/EditorPane";
-
-const Canvas = styled("canvas", React.forwardRef)`
-  width: 100%;
-  aspect-ratio: 1;
-  margin: auto;
-`;
-
-const VisualizerPane = observer(() => {
-  const store = useEditorStore();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  if (canvasRef?.current && store.currentImage) {
-    canvasRef.current
-      .getContext("2d")
-      ?.putImageData(
-        new ImageData(store.currentImage, store.definition, store.definition),
-        0,
-        0,
-      );
-  }
-
-  return (
-    <Canvas
-      width={store.definition}
-      height={store.definition}
-      ref={canvasRef}
-    ></Canvas>
-  );
-});
+import { VisualizerPane, VisualizerButtons } from "./components/VisualizerPane";
 
 export const WorkbenchStructure = observer(function WorkbenchStructure() {
   const store = useEditorStore();
@@ -52,7 +24,7 @@ export const WorkbenchStructure = observer(function WorkbenchStructure() {
         <Pane aboveOthers>
           <EditorPane />
         </Pane>
-        <Pane>
+        <Pane buttons={<VisualizerButtons />}>
           <VisualizerPane />
         </Pane>
       </Splitter>

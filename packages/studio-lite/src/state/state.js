@@ -31,6 +31,7 @@ const inSeries = (func) => {
 const AppState = types
   .model("AppState", {
     code: CodeState,
+    definition: types.optional(types.number, 750),
     config: types.optional(
       types.model({
         code: types.optional(types.string, ""),
@@ -52,9 +53,9 @@ const AppState = types
   }))
   .volatile(() => ({
     currentImage: null,
+    currentDefinition: null,
     processing: false,
     shapeLoaded: false,
-    definition: 750,
     error: false,
     faceInfo: null,
     processingInfo: null,
@@ -65,6 +66,10 @@ const AppState = types
       self.config.code = newCode;
     },
 
+    changeDefinition(newDefinition) {
+      self.definition = newDefinition;
+    },
+
     initCode: flow(function* () {
       const code = yield codeInit();
       self.updateCode(code);
@@ -73,11 +78,11 @@ const AppState = types
     process: flow(function* process() {
       self.processing = true;
       try {
-        console.log("processing");
         self.currentImage = yield api.render(
           self.currentValues.code,
           self.definition,
         );
+        self.currentDefinition = self.definition;
         self.error = false;
       } catch (e) {
         console.error(e);
@@ -93,6 +98,8 @@ const AppState = types
 
     const run = async () => {
       if (!self.currentValues.code) return;
+      if (!self.definition) return;
+
       await processor();
     };
 

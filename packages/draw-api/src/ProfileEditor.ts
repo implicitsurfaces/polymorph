@@ -1,7 +1,6 @@
 import {
-  AngleNode,
   Difference,
-  DistanceNode,
+  Dilate,
   evalProfile,
   fidgetRender,
   Intersection,
@@ -10,62 +9,109 @@ import {
   Rotation,
   Scale,
   Shell,
+  SmoothDifference,
+  SmoothIntersection,
+  SmoothUnion,
   Translation,
   Union,
-  VectorNode,
 } from "sketch";
 import { booleansToASCII, intArrayToImageData } from "./utils";
-import { asAngle, asDistance, asVector } from "./convert";
+import {
+  AngleLike,
+  asAngle,
+  asDistance,
+  asVector,
+  DistanceLike,
+  VectorLike,
+} from "./convert";
 
 export class ProfileEditor {
   constructor(public shape: ProfileNode) {}
 
-  public translate(vector: [number, number] | VectorNode): ProfileEditor {
+  public translate(vector: VectorLike): ProfileEditor {
     return new ProfileEditor(new Translation(this.shape, asVector(vector)));
   }
 
-  public translateX(x: number | DistanceNode): ProfileEditor {
+  public translateX(x: DistanceLike): ProfileEditor {
     return this.translate([x, 0]);
   }
 
-  public translateY(y: number | DistanceNode): ProfileEditor {
+  public translateY(y: DistanceLike): ProfileEditor {
     return this.translate([0, y]);
   }
 
-  public rotate(theta: number | AngleNode): ProfileEditor {
+  public rotate(theta: AngleLike): ProfileEditor {
     return new ProfileEditor(new Rotation(this.shape, asAngle(theta)));
   }
 
-  public union(other: ProfileEditor): ProfileEditor {
+  public union(
+    other: ProfileEditor,
+    smoothRadius: null | DistanceLike = null,
+  ): ProfileEditor {
+    if (smoothRadius !== null) {
+      return new ProfileEditor(
+        new SmoothUnion(this.shape, other.shape, asDistance(smoothRadius)),
+      );
+    }
     return new ProfileEditor(new Union(this.shape, other.shape));
   }
 
-  public fuse(other: ProfileEditor): ProfileEditor {
-    return this.union(other);
+  public fuse(
+    other: ProfileEditor,
+    smoothRadius: null | DistanceLike = null,
+  ): ProfileEditor {
+    return this.union(other, smoothRadius);
   }
 
-  public intersect(other: ProfileEditor): ProfileEditor {
+  public intersect(
+    other: ProfileEditor,
+    smoothRadius: DistanceLike | null = null,
+  ): ProfileEditor {
+    if (smoothRadius !== null) {
+      return new ProfileEditor(
+        new SmoothIntersection(
+          this.shape,
+          other.shape,
+          asDistance(smoothRadius),
+        ),
+      );
+    }
     return new ProfileEditor(new Intersection(this.shape, other.shape));
   }
 
-  public diff(other: ProfileEditor): ProfileEditor {
+  public diff(
+    other: ProfileEditor,
+    smoothRadius: DistanceLike | null = null,
+  ): ProfileEditor {
+    if (smoothRadius !== null) {
+      return new ProfileEditor(
+        new SmoothDifference(this.shape, other.shape, asDistance(smoothRadius)),
+      );
+    }
     return new ProfileEditor(new Difference(this.shape, other.shape));
   }
 
-  public cut(other: ProfileEditor): ProfileEditor {
-    return this.diff(other);
+  public cut(
+    other: ProfileEditor,
+    smoothRadius: DistanceLike | null = null,
+  ): ProfileEditor {
+    return this.diff(other, smoothRadius);
   }
 
-  public shell(thickness: number | DistanceNode): ProfileEditor {
+  public shell(thickness: DistanceLike): ProfileEditor {
     return new ProfileEditor(new Shell(this.shape, asDistance(thickness)));
   }
 
-  public scale(factor: number | DistanceNode): ProfileEditor {
+  public scale(factor: DistanceLike): ProfileEditor {
     return new ProfileEditor(new Scale(this.shape, asDistance(factor)));
   }
 
-  public morph(other: ProfileEditor, t: number | DistanceNode): ProfileEditor {
+  public morph(other: ProfileEditor, t: DistanceLike): ProfileEditor {
     return new ProfileEditor(new Morph(this.shape, other.shape, asDistance(t)));
+  }
+
+  public dilate(factor: DistanceLike): ProfileEditor {
+    return new ProfileEditor(new Dilate(this.shape, asDistance(factor)));
   }
 
   async debugRender(size = 50): Promise<string> {

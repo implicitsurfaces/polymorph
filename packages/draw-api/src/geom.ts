@@ -88,7 +88,7 @@ export class Vector implements NodeWrapper<VectorNode> {
 export class Point implements NodeWrapper<PointNode> {
   constructor(public inner: PointNode) {}
 
-  public translate(vector: [number, number] | VectorNode): Point {
+  public translate(vector: VectorLike): Point {
     return new Point(new PointVectorSum(this.inner, asVector(vector)));
   }
 
@@ -120,6 +120,25 @@ export class Point implements NodeWrapper<PointNode> {
         new VectorFromPolarCoods(asDistance(radius), asAngle(angle)),
       ),
     );
+  }
+
+  public tr(vect: VectorLike): Point {
+    return this.translate(vect);
+  }
+
+  public trX(x: number | DistanceNode): Point {
+    return this.translateX(x);
+  }
+
+  public trY(y: number | DistanceNode): Point {
+    return this.translateY(y);
+  }
+
+  public trPolar(
+    angle: number | AngleNode,
+    radius: number | DistanceNode = 1,
+  ): Point {
+    return this.translatePolar(angle, radius);
   }
 
   public rotate(angle: number | AngleNode): Point {

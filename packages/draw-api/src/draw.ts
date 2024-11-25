@@ -18,8 +18,8 @@ import {
   VectorFromCartesianCoords,
   VectorFromPolarCoods,
 } from "sketch";
-import { asAngle, asDistance, asPoint } from "./convert";
-import { point, angle } from "./geom";
+import { asAngle, asDistance, asPoint, PointLike } from "./convert";
+import { point, angle, Point } from "./geom";
 import { ProfileEditor } from "./ProfileEditor";
 
 export class PointMaker {
@@ -31,6 +31,19 @@ export class PointMaker {
 
   private returnPoint(p: PointNode, cornerRadius?: number): EdgeMaker {
     return this.done(p, cornerRadius);
+  }
+
+  public to(
+    p: PointLike | ((p: Point) => PointLike),
+    cornerRadius?: number,
+  ): EdgeMaker {
+    if (typeof p === "function") {
+      return this.returnPoint(
+        asPoint(p(point(this.currentPoint))),
+        cornerRadius,
+      );
+    }
+    return this.returnPoint(asPoint(p), cornerRadius);
   }
 
   public goTo(x: number, y: number, cornerRadius?: number): EdgeMaker {
@@ -102,14 +115,26 @@ export class EdgeMaker {
     return this.done(() => edge);
   }
 
+  private withControl(
+    EdgeFactory: new (control: PointNode) => EdgeNode,
+    control: PointLike | ((p0: Point, p1: Point) => PointLike),
+  ): PointMaker {
+    if (typeof control === "function") {
+      return this.done((p0, p1) => {
+        return new EdgeFactory(asPoint(control(point(p0), point(p1))));
+      });
+    }
+    return this.returnEdge(new EdgeFactory(asPoint(control)));
+  }
+
   public line(): PointMaker {
     return this.returnEdge(new Line());
   }
 
   public arcFromStartControl(
-    control: PointNode | [number, number],
+    control: PointLike | ((p0: Point, p1: Point) => PointLike),
   ): PointMaker {
-    return this.returnEdge(new ArcFromStartControl(asPoint(control)));
+    return this.withControl(ArcFromStartControl, control);
   }
 
   public arcFromChordAngle(theta: number | AngleNode): PointMaker {
@@ -123,19 +148,31 @@ export class EdgeMaker {
     });
   }
 
-  public arcFromEndControl(control: PointNode | [number, number]): PointMaker {
-    return this.returnEdge(new ArcFromEndControl(asPoint(control)));
+  public arcFromEndControl(
+    control: PointLike | ((p0: Point, p1: Point) => PointLike),
+  ): PointMaker {
+    return this.withControl(ArcFromEndControl, control);
   }
 
-  public biarcC(control: PointNode | [number, number]): PointMaker {
-    return this.returnEdge(new BiarcC(asPoint(control)));
+  public biarcC(
+    control: PointLike | ((p0: Point, p1: Point) => PointLike),
+  ): PointMaker {
+    return this.withControl(BiarcC, control);
   }
 
   public biarcS(
-    control0: PointNode | [number, number],
-    control1: PointNode | [number, number],
+    control0: PointLike | ((p0: Point, p1: Point) => PointLike),
+    control1: PointLike | ((p0: Point, p1: Point) => PointLike),
   ): PointMaker {
-    return this.returnEdge(new BiarcS(asPoint(control0), asPoint(control1)));
+    return this.done((p0_, p1_) => {
+      const p0 = point(p0_);
+      const p1 = point(p1_);
+
+      const c0 = typeof control0 === "function" ? control0(p0, p1) : control0;
+      const c1 = typeof control1 === "function" ? control1(p0, p1) : control1;
+
+      return new BiarcS(asPoint(c0), asPoint(c1));
+    });
   }
 }
 

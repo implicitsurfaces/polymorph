@@ -11,16 +11,26 @@ import {
 } from "sketch";
 import { isNodeWrapper, NodeWrapper } from "./types";
 
-export function asDistance(distance: number | DistanceNode): DistanceNode {
+export type DistanceLike = number | DistanceNode | NodeWrapper<DistanceNode>;
+
+export function asDistance(distance: DistanceLike): DistanceNode {
   if (distance instanceof DistanceNode) {
     return distance;
+  }
+  if (isNodeWrapper(distance, VectorNode)) {
+    return distance.inner;
   }
   return new DistanceLiteral(distance);
 }
 
-export function asAngle(angle: number | AngleNode): AngleNode {
+export type AngleLike = number | AngleNode | NodeWrapper<AngleNode>;
+
+export function asAngle(angle: AngleLike): AngleNode {
   if (angle instanceof AngleNode) {
     return angle;
+  }
+  if (isNodeWrapper(angle, VectorNode)) {
+    return angle.inner;
   }
   return new AngleLiteral(angle);
 }
@@ -55,7 +65,6 @@ export function asPolarVector(vector: VectorLike): VectorNode {
 export type PointLike = [number, number] | PointNode | NodeWrapper<PointNode>;
 
 export function asPoint(point: PointLike): PointNode {
-  console.log("asPoint", point, isNodeWrapper(point, PointNode));
   if (point instanceof PointNode) {
     return point;
   }

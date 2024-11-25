@@ -1,14 +1,13 @@
 use fidget::{context::Context, var::Var, vm::VmShape};
 use gpu_interp::*;
 use std::{
-    cell::LazyCell,
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, LazyLock, Mutex},
 };
 use wasm_bindgen::prelude::*;
 
-const VAR_MOUSE_X: LazyCell<Var> = LazyCell::new(|| Var::new());
-const VAR_MOUSE_Y: LazyCell<Var> = LazyCell::new(|| Var::new());
+static VAR_MOUSE_X: LazyLock<Var> = LazyLock::new(|| Var::new());
+static VAR_MOUSE_Y: LazyLock<Var> = LazyLock::new(|| Var::new());
 
 pub enum ReDraw {
     Shape(VmShape),
@@ -85,11 +84,11 @@ pub async fn setup_gpu_pipeline(
     let bvars = [
         BoundedVar {
             var: *VAR_MOUSE_X,
-            bounds: [0.0, viewport.width.into()],
+            bounds: [0.0, viewport.width as f32],
         },
         BoundedVar {
             var: *VAR_MOUSE_Y,
-            bounds: [0.0, viewport.height.into()],
+            bounds: [0.0, viewport.height as f32],
         },
     ];
 
@@ -97,9 +96,10 @@ pub async fn setup_gpu_pipeline(
     bindings.insert(*VAR_MOUSE_X, 10.);
     bindings.insert(*VAR_MOUSE_Y, 10.);
 
+    let mut expression = None;
+
     let draw = move |redraw| {
         step_count += 1;
-        let mut expression = None;
 
         match redraw {
             ReDraw::Shape(s) => {
@@ -113,14 +113,14 @@ pub async fn setup_gpu_pipeline(
                 update_buffers(
                     &queue,
                     &mut buffers,
-                    &expression.unwrap(),
+                    expression.as_ref().unwrap(),
                     Some(&bindings),
                     viewport.clone(),
                 );
             }
 
             ReDraw::Mouse(x, y) => {
-                if let Some(expression) = expression {
+                if let Some(expression) = &expression {
                     bindings.insert(*VAR_MOUSE_X, x as f32);
                     bindings.insert(*VAR_MOUSE_Y, y as f32);
 
@@ -198,10 +198,9 @@ fn main() {
             let mut engine = fidget::rhai::Engine::new();
             engine.set_limit(50_000); //¯\_(ツ)_/¯
             let extra_bindings = vec![("mouse_x", *VAR_MOUSE_X), ("mouse_y", *VAR_MOUSE_Y)];
-            // &extra_bindings[..]
             let mut try_parse_draw = {
                 let draw_fn = draw_fn.clone();
-                move |text: &str| match engine.eval(text) {
+                move |text: &str| match engine.eval(text, &extra_bindings[..]) {
                     Ok(tree) => {
                         info!("{:?}", tree);
                         let mut ctx = Context::new();
@@ -242,6 +241,6 @@ fn main() {
         });
     };
 
-    make_demo(&doc, "x");
+    make_demo(&doc, "x + mouse_x");
     make_demo(&doc, "y");
 }

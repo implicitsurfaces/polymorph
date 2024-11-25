@@ -11,7 +11,7 @@ env_logger = "0.11.5"
 fidget = { workspace = true }
 flume = "0.11.0"
 pollster = "0.3.0"
-wgpu = "22.1.0"
+wgpu.workspace = true
 bincode = "1.3.3"
 winit = "0.29"
 log = "0.4.22"

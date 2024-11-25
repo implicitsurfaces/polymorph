@@ -1,7 +1,5 @@
-use fidget::render::{BitRenderMode, RenderConfig};
+use fidget::render::{BitRenderMode, ImageRenderConfig, ImageSize, SdfRenderMode};
 use fidget::vm::VmShape;
-
-use gpu_interp::{GPUExpression, Viewport};
 
 extern crate console_error_panic_hook;
 use wasm_bindgen::prelude::*;
@@ -218,32 +216,33 @@ impl Context {
     }
 
     #[wasm_bindgen(js_name = renderNode)]
-    pub fn render_node(&self, node: &Node, image_size: usize, sdf_mode: Option<bool>) -> Vec<u8> {
+    pub async fn render_node(
+        &self,
+        node: &Node,
+        image_size: usize,
+        sdf_mode: Option<bool>,
+    ) -> Vec<u8> {
         let shape = VmShape::new(&self.inner, node.inner).unwrap();
 
-        let cfg = RenderConfig::<2> {
-            image_size,
-            ..RenderConfig::default()
+        let cfg = ImageRenderConfig {
+            image_size: ImageSize::from(image_size as u32),
+            ..ImageRenderConfig::default()
         };
 
         if sdf_mode.unwrap_or(false) {
-            let (width, height) = (image_size as u32, image_size as u32);
-            let expr = GPUExpression::new(&shape, [], width, height);
-            pollster::block_on(gpu_interp::evaluate(&expr, Viewport { width, height }))
-                .unwrap()
-                .iter()
-                .flat_map(|x| {
-                    if *x > 0.0 {
-                        [1, 1, 1, 255]
-                    } else {
-                        [0, 0, 0, 0]
-                    }
-                })
-                .collect()
+            let out = cfg
+                .run::<_, SdfRenderMode>(shape)
+                .into_iter()
+                .flat_map(|[r, g, b]| [r, g, b, 255])
+                .collect();
+            out
         } else {
-            // TODO: Switch this to use GPU-based rendering too?
-            let out = cfg.run::<_, BitRenderMode>(shape).unwrap_throw();
-            out.into_iter().map(|b| if b { 1 } else { 0 }).collect()
+            let out = cfg
+                .run::<_, BitRenderMode>(shape)
+                .into_iter()
+                .map(|b| if b { 1 } else { 0 })
+                .collect();
+            out
         }
     }
 }

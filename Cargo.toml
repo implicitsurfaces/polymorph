@@ -19,4 +19,5 @@ opt-level = 2
 opt-level = "s" # Optimize for small code size.
 
 [workspace.dependencies]
-fidget = { git = "https://github.com/mkeeter/fidget", branch = "wgpu-bytecode", features = [ "rhai" ] }
+fidget = { path = "crates/gpu_interp/vendor/fidget/fidget", features = [ "rhai" ] }
+wgpu = "22.1.0"

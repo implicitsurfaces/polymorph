@@ -1629,8 +1629,8 @@ dependencies = [
  "console_error_panic_hook",
  "fidget",
  "gpu_interp",
- "pollster",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
  "wasm-bindgen-test",
 ]
 

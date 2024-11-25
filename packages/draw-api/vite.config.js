@@ -17,5 +17,10 @@ export default defineConfig({
       external: ["fidget"],
     },
   },
-  plugins: [dts({ rollupTypes: true})],
+  plugins: [
+    dts({
+      rollupTypes: true,
+      bundledPackages: ["sketch"],
+    }),
+  ],
 });

@@ -5,7 +5,7 @@ import Editor from "@monaco-editor/react";
 
 import Splitter, { GutterTheme, SplitDirection } from "@devbookhq/splitter";
 
-import drawAPI from "draw-api/dist/main.d.ts?raw";
+import drawAPITypes from "draw-api/dist/main.d.ts?raw";
 
 import "../loadMonaco";
 import useEditorStore from "../state/useEditorStore";
@@ -49,22 +49,26 @@ export const InfoOverlay = styled("div")`
   background-color: #f2e0de;
 `;
 
+const DRAW_API = `
+  import * as modAll from 'drawAPImod';
+  declare global {
+  import * as modAll from 'drawAPImod';
+      declare const drawAPI = modAll;
+  }
+`;
+
 export const EditorPane = observer(function EditorPane() {
   const store = useEditorStore();
 
   const handleEditorDidMount = (_, monaco) => {
     monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
+
     monaco.languages.typescript.javascriptDefaults.setExtraLibs([
       {
-        content: `declare module 'drawAPImod' { ${drawAPI} }`,
+        content: `declare module 'drawAPImod' { ${drawAPITypes} }`,
       },
       {
-        content: `
-  import * as modAll from 'drawAPImod';
-  declare global {
-  declare const drawAPI = modAll;
-  }
-`,
+        content: DRAW_API,
       },
     ]);
   };

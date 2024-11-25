@@ -3,9 +3,13 @@ import { point, angle, vector, distance } from "./geom";
 import { ProfileEditor } from "./ProfileEditor";
 import { asDistance, DistanceLike, PointLike } from "./convert";
 
+export type { Point, Vector, Distance, Angle } from "./geom";
+export type { ProfileEditor } from "./ProfileEditor";
+
 export { draw } from "./draw";
 
 export { point, angle, vector, distance };
+export type { DistanceLike, PointLike, AngleLike, VectorLike } from "./convert";
 
 export function drawCircle(
   radius: DistanceLike,

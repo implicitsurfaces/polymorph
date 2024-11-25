@@ -6,7 +6,7 @@
   "main": "dist/sketch.js",
   "types": "dist/main.d.ts",
   "scripts": {
-    "test": "deno run -A npm:vitest",
+    "test": "vitest",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview"

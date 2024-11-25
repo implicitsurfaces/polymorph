@@ -10,7 +10,6 @@ export async function initLib() {
   try {
     lib = await init();
   } catch (e) {
-    // @ts-expect-error we use this as a way to fake being in a browserj
     const { readFile } = await import("node:fs/promises");
     const wasmUrl = new URL("./pkg/fidget_bg.wasm", import.meta.url);
     const buffer = await readFile(wasmUrl);

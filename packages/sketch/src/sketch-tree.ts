@@ -45,12 +45,16 @@ import {
   Rotation as RotationNode,
   Scale as ScaleNode,
   Union as UnionNode,
+  SmoothUnion as SmoothUnionNode,
   Difference as DifferenceNode,
+  SmoothDifference as SmoothDifferenceNode,
   Intersection as IntersectionNode,
+  SmoothIntersection as SmoothIntersectionNode,
   Shell as ShellNode,
   Morph as MorphNode,
   SignedDistanceToProfile,
   DistanceLiteral,
+  Dilate,
 } from "./sketch-nodes";
 import { LineSegment } from "./segments";
 import {
@@ -66,10 +70,14 @@ import {
   Translation,
   Scaling,
   Union,
+  SmoothUnion,
   Difference,
+  SmoothDifference,
   Intersection,
+  SmoothIntersection,
   Morph,
   Shell,
+  Dilatation,
 } from "./sdf-operations";
 import { cornerFillet } from "./segments-fillets";
 import { memoizeNodeEval } from "./utils/cache";
@@ -353,12 +361,36 @@ export const evalProfile = memoizeNodeEval(function (
     return new Union(evalProfile(node.left), evalProfile(node.right));
   }
 
+  if (node instanceof SmoothUnionNode) {
+    return new SmoothUnion(
+      evalDistance(node.radius),
+      evalProfile(node.left),
+      evalProfile(node.right),
+    );
+  }
+
   if (node instanceof DifferenceNode) {
     return new Difference(evalProfile(node.left), evalProfile(node.right));
   }
 
+  if (node instanceof SmoothDifferenceNode) {
+    return new SmoothDifference(
+      evalDistance(node.radius),
+      evalProfile(node.left),
+      evalProfile(node.right),
+    );
+  }
+
   if (node instanceof IntersectionNode) {
     return new Intersection(evalProfile(node.left), evalProfile(node.right));
+  }
+
+  if (node instanceof SmoothIntersectionNode) {
+    return new SmoothIntersection(
+      evalDistance(node.radius),
+      evalProfile(node.left),
+      evalProfile(node.right),
+    );
   }
 
   if (node instanceof ShellNode) {
@@ -370,6 +402,13 @@ export const evalProfile = memoizeNodeEval(function (
       evalRealValue(node.t),
       evalProfile(node.start),
       evalProfile(node.end),
+    );
+  }
+
+  if (node instanceof Dilate) {
+    return new Dilatation(
+      evalRealValue(node.factor),
+      evalProfile(node.profile),
     );
   }
 

@@ -1,6 +1,6 @@
 import { Angle, Point, Vec2 } from "./geom";
-import { Num, asNum } from "./num";
-import { max, min } from "./num-ops";
+import { Num, ONE, asNum } from "./num";
+import { max, min, clamp } from "./num-ops";
 import { DistField } from "./types";
 
 export class Translation implements DistField {
@@ -92,6 +92,22 @@ export class Union implements DistField {
   }
 }
 
+export class SmoothUnion implements DistField {
+  constructor(
+    readonly k: Num,
+    readonly first: DistField,
+    readonly second: DistField,
+  ) {}
+
+  distanceTo(point: Point): Num {
+    const d1 = this.first.distanceTo(point);
+    const d2 = this.second.distanceTo(point);
+
+    const h = clamp(d2.sub(d1).div(this.k).mul(0.5).add(0.5), 0, 1);
+    return d2.add(d1.sub(d2).mul(h)).sub(this.k.mul(h).mul(ONE.sub(h)));
+  }
+}
+
 export class Intersection implements DistField {
   readonly first: DistField;
   readonly others: DistField[];
@@ -109,6 +125,26 @@ export class Intersection implements DistField {
   }
 }
 
+function smoothIntersect(k: Num, d1: Num, d2: Num) {
+  const h = clamp(d2.sub(d1).div(k).mul(0.5).neg().add(0.5), 0, 1);
+  return d2.add(d1.sub(d2).mul(h)).sub(k.mul(h).mul(asNum(1).sub(h)));
+}
+
+export class SmoothIntersection implements DistField {
+  constructor(
+    readonly k: Num,
+    readonly first: DistField,
+    readonly second: DistField,
+  ) {}
+
+  distanceTo(point: Point): Num {
+    const d1 = this.first.distanceTo(point);
+    const d2 = this.second.distanceTo(point);
+
+    return smoothIntersect(this.k, d1, d2);
+  }
+}
+
 export class Difference implements DistField {
   constructor(
     readonly first: DistField,
@@ -120,5 +156,20 @@ export class Difference implements DistField {
       this.first.distanceTo(point),
       this.other.distanceTo(point).neg(),
     );
+  }
+}
+
+export class SmoothDifference implements DistField {
+  constructor(
+    readonly k: Num,
+    readonly first: DistField,
+    readonly second: DistField,
+  ) {}
+
+  distanceTo(point: Point): Num {
+    const d1 = this.first.distanceTo(point);
+    const d2 = this.second.distanceTo(point);
+
+    return smoothIntersect(this.k, d1, d2.neg());
   }
 }

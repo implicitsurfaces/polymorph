@@ -327,6 +327,16 @@ export class Union extends ProfileNode {
   }
 }
 
+export class SmoothUnion extends ProfileNode {
+  constructor(
+    public readonly left: ProfileNode,
+    public readonly right: ProfileNode,
+    public readonly radius: DistanceNode,
+  ) {
+    super();
+  }
+}
+
 export class Intersection extends ProfileNode {
   constructor(
     public readonly left: ProfileNode,
@@ -336,10 +346,30 @@ export class Intersection extends ProfileNode {
   }
 }
 
+export class SmoothIntersection extends ProfileNode {
+  constructor(
+    public readonly left: ProfileNode,
+    public readonly right: ProfileNode,
+    public readonly radius: DistanceNode,
+  ) {
+    super();
+  }
+}
+
 export class Difference extends ProfileNode {
   constructor(
     public readonly left: ProfileNode,
     public readonly right: ProfileNode,
+  ) {
+    super();
+  }
+}
+
+export class SmoothDifference extends ProfileNode {
+  constructor(
+    public readonly left: ProfileNode,
+    public readonly right: ProfileNode,
+    public readonly radius: DistanceNode,
   ) {
     super();
   }
@@ -359,6 +389,15 @@ export class Morph extends ProfileNode {
     public readonly start: ProfileNode,
     public readonly end: ProfileNode,
     public readonly t: DistanceNode,
+  ) {
+    super();
+  }
+}
+
+export class Dilate extends ProfileNode {
+  constructor(
+    public readonly profile: ProfileNode,
+    public readonly factor: DistanceNode,
   ) {
     super();
   }

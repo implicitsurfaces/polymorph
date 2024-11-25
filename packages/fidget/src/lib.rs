@@ -1,5 +1,7 @@
-use fidget::render::{BitRenderMode, RenderConfig, SdfRenderMode};
+use fidget::render::{BitRenderMode, RenderConfig};
 use fidget::vm::VmShape;
+
+use gpu_interp::{GPUExpression, Viewport};
 
 extern crate console_error_panic_hook;
 use wasm_bindgen::prelude::*;
@@ -225,11 +227,21 @@ impl Context {
         };
 
         if sdf_mode.unwrap_or(false) {
-            let out = cfg.run::<_, SdfRenderMode>(shape).unwrap_throw();
-            out.into_iter()
-                .flat_map(|[r, g, b]| [r, g, b, 255])
+            let (width, height) = (image_size as u32, image_size as u32);
+            let expr = GPUExpression::new(&shape, [], width, height);
+            pollster::block_on(gpu_interp::evaluate(&expr, Viewport { width, height }))
+                .unwrap()
+                .iter()
+                .flat_map(|x| {
+                    if *x > 0.0 {
+                        [1, 1, 1, 255]
+                    } else {
+                        [0, 0, 0, 0]
+                    }
+                })
                 .collect()
         } else {
+            // TODO: Switch this to use GPU-based rendering too?
             let out = cfg.run::<_, BitRenderMode>(shape).unwrap_throw();
             out.into_iter().map(|b| if b { 1 } else { 0 }).collect()
         }

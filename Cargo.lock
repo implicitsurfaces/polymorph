@@ -1598,32 +1598,6 @@ dependencies = [
 
 [[package]]
 name = "fidget"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c24320d4b4419f9efddf1f03b5cd756b44d37a3165bb51e48190a52f13e1ce9"
-dependencies = [
- "arrayvec",
- "bimap",
- "crossbeam-deque",
- "document-features",
- "dynasmrt",
- "getrandom",
- "ieee754",
- "libc",
- "nalgebra 0.33.2",
- "num-traits",
- "ordered-float",
- "rand",
- "rhai",
- "serde",
- "static_assertions",
- "thiserror",
- "windows 0.54.0",
- "workspace-hack 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "fidget"
 version = "0.3.4"
 source = "git+https://github.com/mkeeter/fidget?branch=wgpu-bytecode#d4abcd82c4e4b31985cfdc76a046fccdebe052e0"
 dependencies = [
@@ -1645,7 +1619,7 @@ dependencies = [
  "strum",
  "thiserror",
  "windows 0.54.0",
- "workspace-hack 0.1.0 (git+https://github.com/mkeeter/fidget?branch=wgpu-bytecode)",
+ "workspace-hack",
  "zerocopy 0.8.9",
 ]
 
@@ -1654,7 +1628,8 @@ name = "fidget-ts"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
- "fidget 0.3.3",
+ "fidget",
+ "gpu_interp",
  "wasm-bindgen",
  "wasm-bindgen-test",
 ]
@@ -2027,7 +2002,7 @@ dependencies = [
  "console_error_panic_hook",
  "console_log",
  "env_logger 0.11.5",
- "fidget 0.3.4",
+ "fidget",
  "flume",
  "js-sys",
  "log",
@@ -5036,12 +5011,6 @@ checksum = "36c1fec1a2bb5866f07c25f68c26e565c4c200aebb96d7e55710c19d3e8ac49b"
 dependencies = [
  "memchr",
 ]
-
-[[package]]
-name = "workspace-hack"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "beffa227304dbaea3ad6a06ac674f9bc83a3dec3b7f63eeb442de37e7cb6bb01"
 
 [[package]]
 name = "workspace-hack"

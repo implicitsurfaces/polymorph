@@ -17,3 +17,6 @@ opt-level = 2
 # WASM-specific settings
 [profile.release.package."*".target.'cfg(target_arch = "wasm32")']
 opt-level = "s" # Optimize for small code size.
+
+[workspace.dependencies]
+fidget = { git = "https://github.com/mkeeter/fidget", branch = "wgpu-bytecode", features = [ "rhai" ] }

@@ -1,6 +1,8 @@
 // Based on the hello_compute example from the wgpu repo.
 // See https://github.com/gfx-rs/wgpu/tree/trunk/examples/src/hello_compute
 
+use std::collections::HashMap;
+
 use gpu_interp::*;
 
 use approx::assert_relative_eq;
@@ -8,6 +10,7 @@ use fidget::{
     context::{Context, Tree},
     jit::JitShape,
     shape::EzShape,
+    var::Var,
     vm::VmShape,
 };
 use sdf::*;
@@ -38,7 +41,7 @@ fn test_fidget_four_circles() {
     let result = pollster::block_on(evaluate(&expr, None, viewport));
     assert_relative_eq!(
         result.unwrap().as_slice(),
-        jit_evaluate(&tree, viewport).as_slice(),
+        jit_evaluate(&tree, None, viewport).as_slice(),
         epsilon = 1e-1
     );
 }
@@ -70,7 +73,93 @@ fn test_fidget_many_circles() {
     let result = pollster::block_on(evaluate(&expr, None, viewport));
     assert_relative_eq!(
         result.unwrap().as_slice(),
-        jit_evaluate(&tree, viewport).as_slice(),
+        jit_evaluate(&tree, None, viewport).as_slice(),
+        epsilon = 1.0
+    );
+}
+
+#[test]
+fn test_variable_evaluation() {
+    let var_a = Var::new();
+    let var_b = Var::new();
+
+    let tree = Tree::from(var_a.clone()) + Tree::from(var_b.clone());
+
+    let shape = {
+        let mut ctx = Context::new();
+        let node = ctx.import(&tree);
+        VmShape::new(&ctx, node).unwrap()
+    };
+
+    let viewport = Viewport {
+        width: 256,
+        height: 256,
+    };
+
+    let bounded_vars = vec![
+        BoundedVar {
+            var: var_a.clone(),
+            bounds: [0., 100.],
+        },
+        BoundedVar {
+            var: var_b.clone(),
+            bounds: [0., 100.],
+        },
+    ];
+
+    let expr = GPUExpression::new(&shape, bounded_vars, viewport.width, viewport.height);
+
+    let mut bindings = HashMap::new();
+    bindings.insert(var_a, 1.0);
+    bindings.insert(var_b, 2.0);
+
+    let result = pollster::block_on(evaluate(&expr, Some(&bindings), viewport));
+    assert_relative_eq!(
+        result.unwrap().as_slice(),
+        jit_evaluate(&tree, Some(&bindings), viewport).as_slice(),
+        epsilon = 1.0
+    );
+}
+
+#[test]
+fn test_variable_evaluation_with_unused_var() {
+    let var_a = Var::new();
+    let var_b = Var::new();
+
+    let tree = Tree::from(var_a.clone());
+
+    let shape = {
+        let mut ctx = Context::new();
+        let node = ctx.import(&tree);
+        VmShape::new(&ctx, node).unwrap()
+    };
+
+    let viewport = Viewport {
+        width: 256,
+        height: 256,
+    };
+
+    let bounded_vars = vec![
+        BoundedVar {
+            var: var_a.clone(),
+            bounds: [0., 100.],
+        },
+        BoundedVar {
+            var: var_b.clone(),
+            bounds: [0., 100.],
+        },
+    ];
+
+    let expr = GPUExpression::new(&shape, bounded_vars, viewport.width, viewport.height);
+
+    let mut bindings = HashMap::new();
+    bindings.insert(var_a, 1.0);
+    bindings.insert(var_b, 2.0);
+
+    let result = pollster::block_on(evaluate(&expr, Some(&bindings), viewport));
+    assert_relative_eq!(
+        result.unwrap().as_slice(),
+        jit_evaluate(&tree, Some(&bindings), viewport).as_slice(),
         epsilon = 1.0
     );
 }
@@ -109,7 +198,7 @@ fn grid_sample(
     (x, y, z)
 }
 
-fn jit_evaluate(tree: &Tree, viewport: Viewport) -> Vec<f32> {
+fn jit_evaluate(tree: &Tree, bindings: Option<&Bindings>, viewport: Viewport) -> Vec<f32> {
     let shape = JitShape::from(tree.clone());
     let tape = shape.ez_float_slice_tape();
     let mut eval = JitShape::new_float_slice_eval();
@@ -121,12 +210,24 @@ fn jit_evaluate(tree: &Tree, viewport: Viewport) -> Vec<f32> {
         viewport.height,
     );
 
+    let n = x.len();
+
     let start = std::time::Instant::now();
-    let _ = eval.eval(&tape, x.as_slice(), y.as_slice(), z.as_slice());
+    let mut vars = HashMap::new();
+    if let Some(bindings) = bindings {
+        for (var, value) in bindings {
+            // Only pass along vars that actually appear in the tree
+            if tape.vars().get(var).is_some() {
+                vars.insert(var.index().unwrap(), vec![*value; n]);
+            }
+        }
+    }
+
+    let _ = eval.eval_v(&tape, x.as_slice(), y.as_slice(), z.as_slice(), &vars);
     eprintln!("Jit eval took {:?}", start.elapsed());
 
     let start = std::time::Instant::now();
-    let r = eval.eval(&tape, x.as_slice(), y.as_slice(), z.as_slice());
+    let r = eval.eval_v(&tape, x.as_slice(), y.as_slice(), z.as_slice(), &vars);
     eprintln!("Jit eval #2 took {:?}", start.elapsed());
     r.unwrap().to_vec()
 }

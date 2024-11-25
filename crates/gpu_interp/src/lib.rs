@@ -29,6 +29,8 @@ pub const TILE_SIZE_Y: u32 = 256;
 pub const MAX_TILE_COUNT: u32 = 512;
 pub const MAX_VAR_COUNT: u32 = 32;
 
+pub type Bindings = HashMap<Var, f32>;
+
 pub fn shader_source() -> String {
     let shared_constants = format!(
         r#"
@@ -52,7 +54,7 @@ const MAX_VAR_COUNT_DIV_4: u32 = MAX_VAR_COUNT / 4u;
 
 pub async fn evaluate(
     expr: &GPUExpression,
-    bindings: Option<&HashMap<Var, f32>>,
+    bindings: Option<&Bindings>,
     viewport: Viewport,
 ) -> Option<Vec<f32>> {
     let (_, device, queue) = create_device(
@@ -153,7 +155,7 @@ pub async fn evaluate(
 #[derive(Clone)]
 pub struct BoundedVar {
     pub var: Var,
-    pub bounds: [f64; 2],
+    pub bounds: [f32; 2],
 }
 
 pub struct GPUExpression {
@@ -175,6 +177,7 @@ impl GPUExpression {
         // tapes.
         // TODO: Find a cleaner way to do this?
         let default_tape = shape.ez_point_tape();
+
         let mut regops: Vec<RegOp> = default_tape.raw_tape().data().iter_asm().collect();
 
         let default_tape_len = regops.len() as u32;
@@ -185,8 +188,29 @@ impl GPUExpression {
         // TODO: use the bounded vars to inform the interval simplification
         let bvars: Vec<BoundedVar> = bvars.into();
 
+        let vars: HashMap<fidget::var::VarIndex, fidget::types::Interval> = bvars
+            .iter()
+            .filter_map(
+                |BoundedVar {
+                     var,
+                     bounds: [lower, upper],
+                 }| {
+                    // We should only pass vars into fidget if they actually appear in the tape
+                    if default_tape.vars().get(var).is_some() {
+                        Some((
+                            var.index().unwrap(),
+                            fidget::types::Interval::new(*lower, *upper),
+                        ))
+                    } else {
+                        None
+                    }
+                },
+            )
+            .collect();
+
         // tiling
         let tape_i = shape.ez_interval_tape();
+
         let mut eval_i = fidget::shape::Shape::<VmFunction>::new_interval_eval();
 
         let unproject = |val: f32, bounds: f32| (2.0 * val / bounds) - 1.0;
@@ -206,7 +230,7 @@ impl GPUExpression {
                 );
 
                 let (out, trace) = eval_i
-                    .eval(&tape_i, x_interval, y_interval, 0.0.into())
+                    .eval_v(&tape_i, x_interval, y_interval, 0.0.into(), &vars)
                     .unwrap();
                 if out.lower() > 0.0 {
                     // The entire tile is outside the shape -- write an empty tape.
@@ -240,6 +264,7 @@ impl GPUExpression {
 
         let varmap: HashMap<Var, u32> = bvars
             .into_iter()
+            .filter(|BoundedVar { var, .. }| default_tape.vars().get(var).is_some())
             .flat_map(|BoundedVar { var, .. }| varmap.get(&var).map(|idx| (var, idx as u32)))
             .collect();
 
@@ -252,7 +277,7 @@ impl GPUExpression {
         }
     }
 
-    pub fn var_values_bytes(&self, bindings: &HashMap<Var, f32>) -> Vec<u8> {
+    pub fn var_values_bytes(&self, bindings: &Bindings) -> Vec<u8> {
         let mut var_values = vec![0f32; MAX_VAR_COUNT as usize];
         for (v, idx) in &self.varmap {
             var_values[*idx as usize] = *bindings
@@ -501,7 +526,7 @@ pub fn update_buffers(
     queue: &Queue,
     buffers: &mut Buffers,
     expression: &GPUExpression,
-    bindings: Option<&HashMap<Var, f32>>,
+    bindings: Option<&Bindings>,
     viewport: Viewport,
 ) {
     queue.write_buffer(&buffers.bytecode_buffer, 0, &expression.tape_bytes());
@@ -535,7 +560,7 @@ pub fn update_var_buffers(
     queue: &Queue,
     buffers: &mut Buffers,
     expression: &GPUExpression,
-    bindings: &HashMap<Var, f32>,
+    bindings: &Bindings,
 ) {
     queue.write_buffer(
         &buffers.var_values_buffer,

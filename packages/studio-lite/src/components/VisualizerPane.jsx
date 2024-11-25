@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import { useRef, forwardRef } from "react";
 import { styled } from "goober";
 import { observer } from "mobx-react";
 
@@ -6,7 +6,7 @@ import { HeaderSelect, Spacer } from "./panes";
 
 import useEditorStore from "../state/useEditorStore";
 
-const Canvas = styled("canvas", React.forwardRef)`
+const Canvas = styled("canvas", forwardRef)`
   width: 100%;
   aspect-ratio: 1;
   margin: auto;
@@ -16,7 +16,9 @@ export const VisualizerPane = observer(() => {
   const store = useEditorStore();
   const canvasRef = useRef(null);
 
-  if (canvasRef?.current && store.currentImage) {
+  console.log("Rendering VisualizerPane");
+
+  if (store.currentImage && canvasRef?.current) {
     canvasRef.current.width = store.currentDefinition;
     canvasRef.current.height = store.currentDefinition;
     canvasRef.current

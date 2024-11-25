@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -20,11 +20,11 @@
     "mobx-state-tree": "^6.0.1",
     "prettier": "^3.3.3",
     "react": "^18.3.1",
+    "fidget": "*",
     "react-dom": "^18.3.1"
   },
   "peerDependencies": {
     "draw-api": "*",
-    "fidget": "*",
     "sketch": "*"
   },
   "devDependencies": {

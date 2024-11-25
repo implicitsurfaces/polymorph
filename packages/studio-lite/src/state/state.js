@@ -77,17 +77,21 @@ const AppState = types
 
     process: flow(function* process() {
       self.processing = true;
+      console.log("Processing...");
       try {
         self.currentImage = yield api.render(
           self.currentValues.code,
           self.definition,
         );
+        console.log("image updated...", self.currentImage);
         self.currentDefinition = self.definition;
         self.error = false;
       } catch (e) {
         console.error(e);
         self.error = e;
       }
+
+      console.log("Processed...");
       self.processing = false;
     }),
   }))

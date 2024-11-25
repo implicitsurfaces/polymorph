@@ -10,6 +10,11 @@ Setup pre-commit hooks:
 
     git config --unset-all core.hooksPath && rye run pre-commit install
 
+Ensure submodules are initialized:
+
+    git submodule update --init
+
+
 ## Things that work
 
 Run

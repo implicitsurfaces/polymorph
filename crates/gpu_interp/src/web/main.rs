@@ -1,5 +1,4 @@
 use fidget::{context::Context, var::Var, vm::VmShape};
-use gpu_interp::sdf::*;
 use gpu_interp::*;
 use std::{
     cell::LazyCell,
@@ -44,22 +43,6 @@ pub async fn setup_gpu_pipeline(
         height: (height / TILE_SIZE_Y) * TILE_SIZE_Y,
     };
 
-    let tree = circle(0., 0., 80.0);
-    let mut ctx = Context::new();
-    let f = ctx.import(&tree);
-
-    // use fidget::var::Var;
-    // let dfdx = ctx.deriv(f, Var::X).unwrap();
-    // let dfdy = ctx.deriv(f, Var::Y).unwrap();
-
-    // TODO: would be nice to setup everything without needing a specific initial shape/tape
-    let expression = GPUExpression::new(
-        &VmShape::new(&ctx, f).unwrap(),
-        [],
-        viewport.width,
-        viewport.height,
-    );
-
     let projection = Default::default();
 
     let swapchain_capabilities = surface.get_capabilities(&adapter);
@@ -79,7 +62,7 @@ pub async fn setup_gpu_pipeline(
         wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
     );
     let mut buffers = create_buffers(&device, viewport, projection);
-    update_buffers(&queue, &mut buffers, &expression, viewport);
+
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
     let compute_pipeline = create_compute_pipeline(&device, &pipeline_layout, &shader_module);
@@ -116,31 +99,35 @@ pub async fn setup_gpu_pipeline(
 
     let draw = move |redraw| {
         step_count += 1;
+        let mut expression = None;
 
         match redraw {
             ReDraw::Shape(s) => {
                 // Update with new shape
-                let expression = GPUExpression::new(&s, &bvars, viewport.width, viewport.height);
-                queue.write_buffer(&buffers.bytecode_buffer, 0, &expression.tape_bytes());
-
-                queue.write_buffer(
-                    &buffers.built_in_vars_buffer,
-                    0,
-                    bytemuck::bytes_of(&expression.built_in_vars),
+                expression = Some(GPUExpression::new(
+                    &s,
+                    &bvars,
+                    viewport.width,
+                    viewport.height,
+                ));
+                update_buffers(
+                    &queue,
+                    &mut buffers,
+                    &expression.unwrap(),
+                    Some(&bindings),
+                    viewport.clone(),
                 );
             }
 
             ReDraw::Mouse(x, y) => {
-                bindings.insert(*VAR_MOUSE_X, x as f32);
-                bindings.insert(*VAR_MOUSE_Y, y as f32);
+                if let Some(expression) = expression {
+                    bindings.insert(*VAR_MOUSE_X, x as f32);
+                    bindings.insert(*VAR_MOUSE_Y, y as f32);
+
+                    update_var_buffers(&queue, &mut buffers, &expression, &bindings);
+                }
             }
         }
-
-        queue.write_buffer(
-            &buffers.var_values_buffer,
-            0,
-            &expression.var_values_bytes(&bindings),
-        );
 
         queue.write_buffer(
             &buffers.step_count_buffer,
@@ -210,7 +197,8 @@ fn main() {
 
             let mut engine = fidget::rhai::Engine::new();
             engine.set_limit(50_000); //¯\_(ツ)_/¯
-
+            let extra_bindings = vec![("mouse_x", *VAR_MOUSE_X), ("mouse_y", *VAR_MOUSE_Y)];
+            // &extra_bindings[..]
             let mut try_parse_draw = {
                 let draw_fn = draw_fn.clone();
                 move |text: &str| match engine.eval(text) {

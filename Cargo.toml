@@ -1,7 +1,7 @@
 [workspace]
 
 resolver = "2"
-members = ["crates/*", "packages/fidget/"]
+members = ["crates/*"]
 exclude = ["pat/", "crates/gpu_interp/vendor/"]
 
 # Profile stuff from https://github.com/emilk/eframe_template
@@ -13,11 +13,3 @@ opt-level = 2 # fast and small wasm
 [profile.dev.package."*"]
 opt-level = 2
 # End of profile stuff from eframe_template
-
-# WASM-specific settings
-[profile.release.package."*".target.'cfg(target_arch = "wasm32")']
-opt-level = "s" # Optimize for small code size.
-
-[workspace.dependencies]
-fidget = { path = "crates/gpu_interp/vendor/fidget/fidget", features = [ "rhai" ] }
-wgpu = "22.1.0"

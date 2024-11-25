@@ -24,8 +24,8 @@ pub const WORKGROUP_SIZE_X: u32 = 16;
 pub const WORKGROUP_SIZE_Y: u32 = 16;
 pub const MAX_TAPE_LEN_REGOPS: u32 = 32768 * 5;
 pub const REG_COUNT: usize = 255;
-pub const TILE_SIZE_X: u32 = 64;
-pub const TILE_SIZE_Y: u32 = 32;
+pub const TILE_SIZE_X: u32 = 256;
+pub const TILE_SIZE_Y: u32 = 256;
 pub const MAX_TILE_COUNT: u32 = 512;
 pub const MAX_VAR_COUNT: u32 = 32;
 
@@ -50,7 +50,11 @@ const MAX_VAR_COUNT_DIV_4: u32 = MAX_VAR_COUNT / 4u;
         .replace("{ shared_constants }", shared_constants.as_ref())
 }
 
-pub async fn evaluate(expr: &GPUExpression, viewport: Viewport) -> Option<Vec<f32>> {
+pub async fn evaluate(
+    expr: &GPUExpression,
+    bindings: Option<&HashMap<Var, f32>>,
+    viewport: Viewport,
+) -> Option<Vec<f32>> {
     let (_, device, queue) = create_device(
         &wgpu::Instance::default(),
         &wgpu::RequestAdapterOptions::default(),
@@ -62,7 +66,7 @@ pub async fn evaluate(expr: &GPUExpression, viewport: Viewport) -> Option<Vec<f3
         wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
     );
     let mut buffers = create_buffers(&device, viewport, Projection::default());
-    update_buffers(&queue, &mut buffers, expr, viewport);
+    update_buffers(&queue, &mut buffers, expr, bindings, viewport);
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
     // Create timestamp query set
@@ -496,29 +500,47 @@ pub fn create_render_pipeline(
 pub fn update_buffers(
     queue: &Queue,
     buffers: &mut Buffers,
-    tape: &GPUExpression,
+    expression: &GPUExpression,
+    bindings: Option<&HashMap<Var, f32>>,
     viewport: Viewport,
 ) {
-    queue.write_buffer(&buffers.bytecode_buffer, 0, &tape.tape_bytes());
+    queue.write_buffer(&buffers.bytecode_buffer, 0, &expression.tape_bytes());
     queue.write_buffer(
         &buffers.offsets_buffer,
         0,
-        bytemuck::cast_slice(&tape.offsets),
+        bytemuck::cast_slice(&expression.offsets),
     );
     queue.write_buffer(
         &buffers.built_in_vars_buffer,
         0,
-        bytemuck::bytes_of(&tape.built_in_vars),
+        bytemuck::bytes_of(&expression.built_in_vars),
     );
     // Ensure that we have the correct number of subtapes.
     let tile_count = (viewport.width / TILE_SIZE_X) * (viewport.height / TILE_SIZE_Y);
     assert!(viewport.width % TILE_SIZE_X == 0);
     assert!(viewport.height % TILE_SIZE_Y == 0);
-    assert!(tape.lengths.len() == tile_count as usize);
+    assert!(expression.lengths.len() == tile_count as usize);
     queue.write_buffer(
         &buffers.pc_max_buffer,
         0,
-        bytemuck::cast_slice(&tape.lengths),
+        bytemuck::cast_slice(&expression.lengths),
+    );
+
+    if let Some(bindings) = bindings {
+        update_var_buffers(queue, buffers, expression, bindings);
+    }
+}
+
+pub fn update_var_buffers(
+    queue: &Queue,
+    buffers: &mut Buffers,
+    expression: &GPUExpression,
+    bindings: &HashMap<Var, f32>,
+) {
+    queue.write_buffer(
+        &buffers.var_values_buffer,
+        0,
+        &expression.var_values_bytes(&bindings),
     );
 }
 

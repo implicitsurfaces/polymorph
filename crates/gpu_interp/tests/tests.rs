@@ -29,8 +29,8 @@ fn test_fidget_four_circles() {
         VmShape::new(&ctx, node).unwrap()
     };
     let viewport = Viewport {
-        width: 64,
-        height: 64,
+        width: 256,
+        height: 256,
     };
 
     let expr = GPUExpression::new(&shape, [], viewport.width, viewport.height);
@@ -61,8 +61,8 @@ fn test_fidget_many_circles() {
     };
 
     let viewport = Viewport {
-        width: 128,
-        height: 128,
+        width: 256,
+        height: 256,
     };
     let expr = GPUExpression::new(&shape, [], viewport.width, viewport.height);
 

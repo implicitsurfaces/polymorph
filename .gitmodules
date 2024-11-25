@@ -1,0 +1,3 @@
+[submodule "crates/gpu_interp/vendor/fidget"]
+	path = crates/gpu_interp/vendor/fidget
+	url = ssh://git@github.com/implicitsurfaces/fidget

@@ -1598,32 +1598,6 @@ dependencies = [
 
 [[package]]
 name = "fidget"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c24320d4b4419f9efddf1f03b5cd756b44d37a3165bb51e48190a52f13e1ce9"
-dependencies = [
- "arrayvec",
- "bimap",
- "crossbeam-deque",
- "document-features",
- "dynasmrt",
- "getrandom",
- "ieee754",
- "libc",
- "nalgebra 0.33.2",
- "num-traits",
- "ordered-float",
- "rand",
- "rhai",
- "serde",
- "static_assertions",
- "thiserror",
- "windows 0.54.0",
- "workspace-hack 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "fidget"
 version = "0.3.4"
 dependencies = [
  "arrayvec",
@@ -1644,7 +1618,7 @@ dependencies = [
  "strum",
  "thiserror",
  "windows 0.54.0",
- "workspace-hack 0.1.0",
+ "workspace-hack",
  "zerocopy 0.8.11",
 ]
 
@@ -1653,7 +1627,7 @@ name = "fidget-ts"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
- "fidget 0.3.3",
+ "fidget",
  "wasm-bindgen",
  "wasm-bindgen-test",
 ]
@@ -2026,7 +2000,7 @@ dependencies = [
  "console_error_panic_hook",
  "console_log",
  "env_logger 0.11.5",
- "fidget 0.3.4",
+ "fidget",
  "flume",
  "js-sys",
  "log",
@@ -5061,12 +5035,6 @@ dependencies = [
  "serde",
  "syn 2.0.87",
 ]
-
-[[package]]
-name = "workspace-hack"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "beffa227304dbaea3ad6a06ac674f9bc83a3dec3b7f63eeb442de37e7cb6bb01"
 
 [[package]]
 name = "write16"

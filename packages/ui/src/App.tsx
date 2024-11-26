@@ -1,8 +1,18 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Canvas } from './Canvas.tsx';
+import { Panel, PanelGroup, PanelResizeHandle, PointerHitAreaMargins } from 'react-resizable-panels';
+
 import { DocumentManager } from './Document.ts';
+
+import { Canvas } from './Canvas.tsx';
 import { ObjectsPanel } from './ObjectsPanel.tsx';
+
 import './App.css';
+import './Panel.css';
+
+function panelHitMargins(): PointerHitAreaMargins {
+  // separator (0-2px) + 2 * margins (3px) = 6-8px total hit area
+  return { coarse: 3, fine: 3 };
+}
 
 function App() {
   // Create the DocumentManager.
@@ -56,12 +66,31 @@ function App() {
   }, [onKeyPress]);
 
   return (
-    <>
-      <ObjectsPanel documentManager={documentManager} />
-      <Canvas documentManager={documentManager} />
-      <Canvas documentManager={documentManager} />
-      <ObjectsPanel documentManager={documentManager} />
-    </>
+    <PanelGroup className="root-panel-group" direction="vertical">
+      <Panel>
+        <PanelGroup className="canvas-panel-group" direction="horizontal">
+          <Panel defaultSize={50} minSize={10}>
+            <Canvas documentManager={documentManager} />
+          </Panel>
+          <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
+          <Panel minSize={10}>
+            <Canvas documentManager={documentManager} />
+          </Panel>
+        </PanelGroup>
+      </Panel>
+      <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
+      <Panel>
+        <PanelGroup className="panels-panel-group" direction="horizontal">
+          <Panel defaultSize={30} minSize={2}>
+            <ObjectsPanel documentManager={documentManager} />
+          </Panel>
+          <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
+          <Panel minSize={2}>
+            <div className="panel" />
+          </Panel>
+        </PanelGroup>
+      </Panel>
+    </PanelGroup>
   );
 }
 

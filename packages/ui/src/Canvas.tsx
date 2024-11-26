@@ -521,16 +521,14 @@ export function Canvas({ documentManager }: CanvasProps) {
   }, [pointerState, onPointerMove, onPointerUp]);
 
   return (
-    <div className="canvas-container">
-      <canvas
-        ref={ref}
-        width={camera.canvasSize.x}
-        height={camera.canvasSize.y}
-        onPointerDown={onPointerDown}
-        onWheel={onWheel}
-        onContextMenu={e => e.preventDefault()}
-      />
-    </div>
+    <canvas
+      ref={ref}
+      width={camera.canvasSize.x}
+      height={camera.canvasSize.y}
+      onPointerDown={onPointerDown}
+      onWheel={onWheel}
+      onContextMenu={e => e.preventDefault()}
+    />
   );
 }
 

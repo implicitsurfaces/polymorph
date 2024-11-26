@@ -1,7 +1,21 @@
 
+/* Note: if needed, the panel div elements themselves
+   can be targeted via `.my-panel-group > div:not([role="separator"])`
+ */
+
+.canvas-panel-group > div[role="separator"] {
+  width: 2px;
+  background: #797979;
+}
+
+.panels-panel-group > div[role="separator"] {
+  width: 1px;
+  background: #1a1a1a;
+}
+
 .panel {
-  width: 230px;
-  flex-grow: 0;
+  width: 100%;
+  height: 100%;
 
   display: flex;
   flex-direction: column;
@@ -33,18 +47,28 @@
 
 /* Scrollbar styling */
 
+.panel::-webkit-scrollbar,
 .panel-body::-webkit-scrollbar {
   width: 10px;
+  height: 10px;
 }
 
+.panel::-webkit-scrollbar-track,
 .panel-body::-webkit-scrollbar-track {
   background: #333;
 }
 
+.panel::-webkit-scrollbar-thumb,
 .panel-body::-webkit-scrollbar-thumb {
   background: #555;
 }
 
+.panel::-webkit-scrollbar-thumb:hover,
 .panel-body::-webkit-scrollbar-thumb:hover {
   background: #666;
+}
+
+.panel::-webkit-scrollbar-corner,
+.panel-body::-webkit-scrollbar-corner {
+  background: #333;
 }

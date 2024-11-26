@@ -12,7 +12,6 @@ body {
 
 #root {
   background-color: #e0e0e0;
-  display: flex;
 
   font-family: "Open Sans", serif;
   font-optical-sizing: auto;

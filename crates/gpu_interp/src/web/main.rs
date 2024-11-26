@@ -1,20 +1,31 @@
 use fidget::{context::Context, var::Var, vm::VmShape};
 use gpu_interp::*;
 use std::{
+    cell::RefCell,
     collections::HashMap,
+    rc::Rc,
     sync::{Arc, LazyLock, Mutex},
 };
 use wasm_bindgen::prelude::*;
 
 static VAR_MOUSE_X: LazyLock<Var> = LazyLock::new(|| Var::new());
 static VAR_MOUSE_Y: LazyLock<Var> = LazyLock::new(|| Var::new());
+static VAR_TIME: LazyLock<Var> = LazyLock::new(|| Var::new());
 
 pub enum ReDraw {
     Shape(VmShape),
     Mouse(i32, i32),
+    Tick,
 }
 
 use std::borrow::Cow;
+
+fn request_animation_frame(f: &Closure<dyn FnMut()>) {
+    web_sys::window()
+        .unwrap()
+        .request_animation_frame(f.as_ref().unchecked_ref())
+        .unwrap();
+}
 
 pub async fn setup_gpu_pipeline(
     canvas: web_sys::HtmlCanvasElement,
@@ -80,6 +91,7 @@ pub async fn setup_gpu_pipeline(
     surface.configure(&device, &config);
 
     let mut step_count = 0;
+    let mut time: f32 = 0.;
 
     let bvars = [
         BoundedVar {
@@ -90,19 +102,28 @@ pub async fn setup_gpu_pipeline(
             var: *VAR_MOUSE_Y,
             bounds: [0.0, viewport.height as f32],
         },
+        BoundedVar {
+            var: *VAR_TIME,
+            bounds: [0.0, f32::MAX],
+        },
     ];
 
     let mut bindings = HashMap::new();
     bindings.insert(*VAR_MOUSE_X, 10.);
     bindings.insert(*VAR_MOUSE_Y, 10.);
+    bindings.insert(*VAR_TIME, 10.);
 
     let mut expression = None;
 
     let draw = move |redraw| {
         step_count += 1;
+        bindings.insert(*VAR_TIME, time);
 
         match redraw {
             ReDraw::Shape(s) => {
+                time = 0.0;
+                bindings.insert(*VAR_TIME, time);
+
                 // Update with new shape
                 expression = Some(GPUExpression::new(
                     &s,
@@ -124,6 +145,13 @@ pub async fn setup_gpu_pipeline(
                     bindings.insert(*VAR_MOUSE_X, x as f32);
                     bindings.insert(*VAR_MOUSE_Y, y as f32);
 
+                    update_var_buffers(&queue, &mut buffers, &expression, &bindings);
+                }
+            }
+
+            ReDraw::Tick => {
+                time += 1.0;
+                if let Some(expression) = &expression {
                     update_var_buffers(&queue, &mut buffers, &expression, &bindings);
                 }
             }
@@ -197,7 +225,11 @@ fn main() {
 
             let mut engine = fidget::rhai::Engine::new();
             engine.set_limit(50_000); //¯\_(ツ)_/¯
-            let extra_bindings = vec![("mouse_x", *VAR_MOUSE_X), ("mouse_y", *VAR_MOUSE_Y)];
+            let extra_bindings = vec![
+                ("mouse_x", *VAR_MOUSE_X),
+                ("mouse_y", *VAR_MOUSE_Y),
+                ("t", *VAR_TIME),
+            ];
             let mut try_parse_draw = {
                 let draw_fn = draw_fn.clone();
                 move |text: &str| match engine.eval(text, &extra_bindings[..]) {
@@ -231,16 +263,36 @@ fn main() {
             textarea.set_onchange(Some(onchange.as_ref().unchecked_ref()));
             onchange.forget(); // Prevent closure from being dropped
 
-            let onmousemove =
+            let onmousemove = {
+                let draw_fn = draw_fn.clone();
                 Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
                     draw_fn.lock().unwrap()(ReDraw::Mouse(e.offset_x(), e.offset_y()));
-                });
+                })
+            };
 
             canvas.set_onmousemove(Some(onmousemove.as_ref().unchecked_ref()));
             onmousemove.forget(); // Prevent closure from being dropped
+
+            let f = Rc::new(RefCell::new(None));
+            let g = f.clone();
+
+            *g.borrow_mut() = Some(Closure::new(move || {
+                draw_fn.lock().unwrap()(ReDraw::Tick);
+                // Schedule ourself for another requestAnimationFrame callback.
+                request_animation_frame(f.borrow().as_ref().unwrap());
+            }));
+
+            request_animation_frame(g.borrow().as_ref().unwrap());
         });
     };
-
     make_demo(&doc, "x + mouse_x");
-    make_demo(&doc, "y");
+    make_demo(
+        &doc,
+        "
+let r = t % 60;
+let cx = 5;
+let cy = 5;
+((x - cx) * (x - cx)) + ((y - cy) * (y - cy)) - r
+",
+    );
 }

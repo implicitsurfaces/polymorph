@@ -216,7 +216,12 @@ impl Context {
     }
 
     #[wasm_bindgen(js_name = renderNode)]
-    pub fn render_node(&self, node: &Node, image_size: usize, sdf_mode: Option<bool>) -> Vec<u8> {
+    pub async fn render_node(
+        &self,
+        node: &Node,
+        image_size: usize,
+        sdf_mode: Option<bool>,
+    ) -> Vec<u8> {
         let shape = VmShape::new(&self.inner, node.inner).unwrap();
 
         let cfg = ImageRenderConfig {

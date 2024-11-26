@@ -1629,6 +1629,7 @@ dependencies = [
  "console_error_panic_hook",
  "fidget",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
  "wasm-bindgen-test",
 ]
 

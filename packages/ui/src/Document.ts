@@ -107,7 +107,8 @@ export function testDocument(): Document {
  * property via a mouse drag action.
  */
 export class DocumentManager {
-  private _onChange;
+  private _version: number;
+  private _onChange: () => void;
   private _history: Array<Document>;
   private _index: number;
   private _workingCopy: Document;
@@ -125,6 +126,7 @@ export class DocumentManager {
    * `DocumentManager` is passed as prop) should be re-rendered.
    */
   constructor(onChange?: () => void, history?: Array<Document>, index?: number, workingCopy?: Document) {
+    this._version = 0;
     this._onChange = onChange !== undefined ? onChange : () => {};
     this._history = history !== undefined ? history : [testDocument()];
     this._index = index !== undefined ? index : this._history.length - 1;
@@ -137,7 +139,24 @@ export class DocumentManager {
   }
 
   /**
-   * Update what happens on change.
+   * Returns the current version. This is a number that starts at 0 and is
+   * incremented whenever (and just before) the `onChange()` callback is
+   * called.
+   *
+   * You can use this version in dependency arrays to cause rerenders or
+   * re-evaluate callbacks/effects.
+   */
+  version(): number {
+    return this._version;
+  }
+
+  private _notify(): void {
+    this._version += 1;
+    this._onChange();
+  }
+
+  /**
+   * Provides a callback that is called each time the `version()` changes.
    */
   onChange(fn: () => void): void {
     this._onChange = fn;
@@ -173,7 +192,7 @@ export class DocumentManager {
 
     this._index = clampedIndex;
     this._makeWorkingCopy();
-    this._onChange();
+    this._notify();
 
     // Note: if the current index is already equal to clampedIndex,
     // we still need to make a new working copy since there may be
@@ -203,7 +222,7 @@ export class DocumentManager {
    * Typically, this should be called on mouse move of a mouse drag action.
    */
   stageChanges(): void {
-    this._onChange();
+    this._notify();
   }
 
   /**
@@ -228,7 +247,7 @@ export class DocumentManager {
     this._makeWorkingCopy();
 
     // Notify
-    this._onChange();
+    this._notify();
   }
 
   /**
@@ -237,6 +256,6 @@ export class DocumentManager {
    */
   discardChanges(): void {
     this._makeWorkingCopy();
-    this._onChange();
+    this._notify();
   }
 }

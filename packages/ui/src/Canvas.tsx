@@ -268,14 +268,13 @@ interface PointerState {
 
 interface CanvasProps {
   documentManager: DocumentManager;
-  version: number;
 }
 
 type IMouseEvent = MouseEvent | React.MouseEvent;
 type IPointerEvent = PointerEvent | React.PointerEvent;
 type IWheelEvent = WheelEvent | React.WheelEvent;
 
-export function Canvas({ documentManager, version }: CanvasProps) {
+export function Canvas({ documentManager }: CanvasProps) {
   const [camera, setCamera] = useState<Camera2>(new Camera2());
   const [pointerState, setPointerState] = useState<PointerState | null>(null);
 
@@ -476,7 +475,7 @@ export function Canvas({ documentManager, version }: CanvasProps) {
     if (canvas && canvas.width > 0 && canvas.height > 0) {
       draw(canvas, camera, documentManager.document());
     }
-  }, [camera, documentManager, version]);
+  }, [camera, documentManager, documentManager.version()]);
 
   // Update the camera (and therefore the canvas width/height attributes)
   // based on its computed device pixel size.

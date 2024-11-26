@@ -12,6 +12,9 @@ static VAR_MOUSE_X: LazyLock<Var> = LazyLock::new(|| Var::new());
 static VAR_MOUSE_Y: LazyLock<Var> = LazyLock::new(|| Var::new());
 static VAR_TIME: LazyLock<Var> = LazyLock::new(|| Var::new());
 
+const CANVAS_WIDTH: u32 = 256;
+const CANVAS_HEIGHT: u32 = 256;
+
 pub enum ReDraw {
     Shape(VmShape),
     Mouse(i32, i32),
@@ -43,14 +46,10 @@ pub async fn setup_gpu_pipeline(
 
     let (adapter, device, queue) = create_device(&instance, &options).await;
 
-    // TODO: get from canvas
-    let width = 256;
-    let height = 256;
-
     // viewport should be closest multiple of tile size
     let viewport = Viewport {
-        width: (width / TILE_SIZE_X) * TILE_SIZE_X,
-        height: (height / TILE_SIZE_Y) * TILE_SIZE_Y,
+        width: (CANVAS_WIDTH / TILE_SIZE_X) * TILE_SIZE_X,
+        height: (CANVAS_HEIGHT / TILE_SIZE_Y) * TILE_SIZE_Y,
     };
 
     let projection = Default::default();
@@ -211,17 +210,32 @@ fn main() {
             .unwrap();
         textarea.set_value(initial_text);
 
-        let canvas = doc
-            .create_element("canvas")
-            .unwrap()
-            .dyn_into::<web_sys::HtmlCanvasElement>()
-            .unwrap();
-
         demo.append_child(&textarea).unwrap();
-        demo.append_child(&canvas).unwrap();
+
+        let mut canvases = vec![];
+        for _ in 0..4 {
+            let canvas = doc
+                .create_element("canvas")
+                .unwrap()
+                .dyn_into::<web_sys::HtmlCanvasElement>()
+                .unwrap();
+            demo.append_child(&canvas).unwrap();
+            canvases.push(canvas);
+        }
+
         demos_container.append_child(&demo).unwrap();
         wasm_bindgen_futures::spawn_local(async move {
-            let draw_fn = setup_gpu_pipeline(canvas.clone()).await;
+            let draw_fn = setup_gpu_pipeline(canvases[0].clone()).await;
+            let draw_fn_dx = setup_gpu_pipeline(canvases[1].clone()).await;
+            let draw_fn_dy = setup_gpu_pipeline(canvases[2].clone()).await;
+            let draw_fn_dt = setup_gpu_pipeline(canvases[3].clone()).await;
+
+            let draw_fns = vec![
+                draw_fn.clone(),
+                draw_fn_dx.clone(),
+                draw_fn_dy.clone(),
+                draw_fn_dt.clone(),
+            ];
 
             let mut engine = fidget::rhai::Engine::new();
             engine.set_limit(50_000); //¯\_(ツ)_/¯
@@ -236,9 +250,20 @@ fn main() {
                     Ok(tree) => {
                         info!("{:?}", tree);
                         let mut ctx = Context::new();
+
                         let root = ctx.import(&tree);
                         let shape = VmShape::new(&ctx, root).unwrap();
                         draw_fn.lock().unwrap()(ReDraw::Shape(shape));
+
+                        for (v, draw_fn) in [
+                            (Var::X, &draw_fn_dx),
+                            (Var::Y, &draw_fn_dy),
+                            (*VAR_TIME, &draw_fn_dt),
+                        ] {
+                            let dfdv = ctx.deriv(root, v).unwrap();
+                            let shape = VmShape::new(&ctx, dfdv).unwrap();
+                            draw_fn.lock().unwrap()(ReDraw::Shape(shape));
+                        }
                     }
                     Err(e) => {
                         info!("Couldn't eval text: {:?}", e)
@@ -264,22 +289,28 @@ fn main() {
             onchange.forget(); // Prevent closure from being dropped
 
             let onmousemove = {
-                let draw_fn = draw_fn.clone();
+                let draw_fns = draw_fns.clone();
                 Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
-                    draw_fn.lock().unwrap()(ReDraw::Mouse(e.offset_x(), e.offset_y()));
+                    for draw_fn in &draw_fns {
+                        draw_fn.lock().unwrap()(ReDraw::Mouse(e.offset_x(), e.offset_y()));
+                    }
                 })
             };
 
-            canvas.set_onmousemove(Some(onmousemove.as_ref().unchecked_ref()));
+            canvases[0].set_onmousemove(Some(onmousemove.as_ref().unchecked_ref()));
             onmousemove.forget(); // Prevent closure from being dropped
 
             let f = Rc::new(RefCell::new(None));
             let g = f.clone();
 
-            *g.borrow_mut() = Some(Closure::new(move || {
-                draw_fn.lock().unwrap()(ReDraw::Tick);
-                // Schedule ourself for another requestAnimationFrame callback.
-                request_animation_frame(f.borrow().as_ref().unwrap());
+            *g.borrow_mut() = Some(Closure::new({
+                move || {
+                    for draw_fn in &draw_fns {
+                        draw_fn.lock().unwrap()(ReDraw::Tick);
+                    }
+                    // Schedule ourself for another requestAnimationFrame callback.
+                    request_animation_frame(f.borrow().as_ref().unwrap());
+                }
             }));
 
             request_animation_frame(g.borrow().as_ref().unwrap());
@@ -292,7 +323,7 @@ fn main() {
 let r = t % 60;
 let cx = 5;
 let cy = 5;
-((x - cx) * (x - cx)) + ((y - cy) * (y - cy)) - r
+((x - cx) * (x - cx)) + ((y - cy) * (y - cy)) - (r*r)
 ",
     );
 }

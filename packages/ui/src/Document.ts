@@ -128,7 +128,7 @@ export class DocumentManager {
   constructor(onChange?: () => void, history?: Array<Document>, index?: number, workingCopy?: Document) {
     this._version = 0;
     this._onChange = onChange !== undefined ? onChange : () => {};
-    this._history = history !== undefined ? history : [testDocument()];
+    this._history = history !== undefined ? history : [new Document()];
     this._index = index !== undefined ? index : this._history.length - 1;
     if (workingCopy !== undefined) {
       this._workingCopy = workingCopy;

@@ -1598,6 +1598,32 @@ dependencies = [
 
 [[package]]
 name = "fidget"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c24320d4b4419f9efddf1f03b5cd756b44d37a3165bb51e48190a52f13e1ce9"
+dependencies = [
+ "arrayvec",
+ "bimap",
+ "crossbeam-deque",
+ "document-features",
+ "dynasmrt",
+ "getrandom",
+ "ieee754",
+ "libc",
+ "nalgebra 0.33.2",
+ "num-traits",
+ "ordered-float",
+ "rand",
+ "rhai",
+ "serde",
+ "static_assertions",
+ "thiserror",
+ "windows 0.54.0",
+ "workspace-hack 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "fidget"
 version = "0.3.4"
 dependencies = [
  "arrayvec",
@@ -1618,8 +1644,18 @@ dependencies = [
  "strum",
  "thiserror",
  "windows 0.54.0",
- "workspace-hack",
+ "workspace-hack 0.1.0",
  "zerocopy 0.8.11",
+]
+
+[[package]]
+name = "fidget-ts"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "fidget 0.3.3",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
 ]
 
 [[package]]
@@ -1990,7 +2026,7 @@ dependencies = [
  "console_error_panic_hook",
  "console_log",
  "env_logger 0.11.5",
- "fidget",
+ "fidget 0.3.4",
  "flume",
  "js-sys",
  "log",
@@ -2590,6 +2626,16 @@ dependencies = [
  "log",
  "objc",
  "paste",
+]
+
+[[package]]
+name = "minicov"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f27fe9f1cc3c22e1687f9446c2083c4c5fc7f0bcf1c7a86bdbded14985895b4b"
+dependencies = [
+ "cc",
+ "walkdir",
 ]
 
 [[package]]
@@ -4279,6 +4325,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "65fc09f10666a9f147042251e0dda9c18f166ff7de300607007e96bdebc1068d"
 
 [[package]]
+name = "wasm-bindgen-test"
+version = "0.3.45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d381749acb0943d357dcbd8f0b100640679883fcdeeef04def49daf8d33a5426"
+dependencies = [
+ "console_error_panic_hook",
+ "js-sys",
+ "minicov",
+ "scoped-tls",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-bindgen-test-macro",
+]
+
+[[package]]
+name = "wasm-bindgen-test-macro"
+version = "0.3.45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c97b2ef2c8d627381e51c071c2ab328eac606d3f69dd82bcbca20a9e389d95f0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.87",
+]
+
+[[package]]
 name = "wayland-backend"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4989,6 +5061,12 @@ dependencies = [
  "serde",
  "syn 2.0.87",
 ]
+
+[[package]]
+name = "workspace-hack"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "beffa227304dbaea3ad6a06ac674f9bc83a3dec3b7f63eeb442de37e7cb6bb01"
 
 [[package]]
 name = "write16"

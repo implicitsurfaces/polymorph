@@ -95,7 +95,9 @@ fn execute_bytecode(xs: vec4<f32>, y: f32, tile_idx: u32) -> vec4<f32> {
             case 21u /* AddRegImm */: { reg[lo[1]] = reg[lo[2]] + hi; }
             case 22u /* MulRegImm */: { reg[lo[1]] = reg[lo[2]] * hi; }
             case 29u /* SubImmReg */: { reg[lo[1]] = hi - reg[lo[2]]; }
+            case 30u /* ModImmReg */: { reg[lo[1]] = vec4<f32>(hi % reg[lo[2]]); }
             case 24u /* SubRegImm */: { reg[lo[1]] = reg[lo[2]] - hi; }
+            case 25u /* ModRegImm */: { reg[lo[1]] = reg[lo[2]] % vec4<f32>(hi); }
             case 33u /* MinRegImm */: { reg[lo[1]] = min(reg[lo[2]], vec4<f32>(hi)); }
             case 34u /* MaxRegImm */: { reg[lo[1]] = max(reg[lo[2]], vec4<f32>(hi)); }
             case 37u /* AddRegReg */: { reg[lo[1]] = reg[lo[2]] + reg[lo[3]]; }

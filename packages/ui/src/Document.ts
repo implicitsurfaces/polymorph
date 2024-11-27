@@ -147,6 +147,9 @@ export class DocumentManager {
   private _history: Array<Document>;
   private _index: number;
   private _workingCopy: Document;
+
+  // TODO: better way to store which layer is active (e.g., some unique ID),
+  // making it invariant to inserting/deleting layers or undoing such operations.
   private _activeLayerIndex: number;
 
   /**

@@ -15,7 +15,13 @@ export const LayerListItem = memo(
         // Click: insert after
         // Alt+Click: insert before
         const insertIndex = event.altKey ? index : index + 1;
+        const prevActiveLayer = documentManager.activeLayerIndex();
+        let nextActiveLayer = prevActiveLayer;
+        if (insertIndex <= prevActiveLayer) {
+          nextActiveLayer += 1;
+        }
         documentManager.document().addLayer(insertIndex);
+        documentManager.setActiveLayer(nextActiveLayer);
         documentManager.commitChanges();
       },
       [documentManager, index]
@@ -28,7 +34,13 @@ export const LayerListItem = memo(
       if (documentManager.document().layers.length == 1) {
         return;
       }
+      const prevActiveLayer = documentManager.activeLayerIndex();
+      let nextActiveLayer = prevActiveLayer;
+      if (index < prevActiveLayer) {
+        nextActiveLayer -= 1;
+      }
       documentManager.document().removeLayer(index);
+      documentManager.setActiveLayer(nextActiveLayer);
       documentManager.commitChanges();
     }, [documentManager, index]);
 

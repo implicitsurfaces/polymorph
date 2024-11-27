@@ -124,7 +124,7 @@ pub async fn setup_gpu_pipeline(
                 bindings.insert(*VAR_TIME, time);
 
                 // Update with new shape
-                expression = Some(GPUExpression::new(&s, &bvars, viewport));
+                expression = Some(GPUExpression::new(&s, &bvars, viewport, projection));
                 update_buffers(
                     &queue,
                     &mut buffers,

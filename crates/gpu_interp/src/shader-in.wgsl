@@ -67,6 +67,13 @@ fn execute_bytecode(xs: vec4<f32>, y: f32, tile_idx: u32) -> vec4<f32> {
         pc++;
 
         switch (lo[0]) {
+            case 0u /* Output */: {
+              let src_reg = lo[1];
+              let i = bitcast<u32>(hi);
+              if (i == 0) {
+                return reg[src_reg];
+              }
+            }
             case 1u /* Input */: {
               let out_reg = lo[1];
               let i = bitcast<u32>(hi);
@@ -78,14 +85,8 @@ fn execute_bytecode(xs: vec4<f32>, y: f32, tile_idx: u32) -> vec4<f32> {
                 reg[out_reg] = vec4<f32>(var_values[i / 4][i % 4]);
               }
             }
-            case 0u /* Output */: {
-              let src_reg = lo[1];
-              let i = bitcast<u32>(hi);
-              if (i == 0) {
-                return reg[src_reg];
-              }
-            }
             case 2u /* CopyReg */: { reg[lo[1]] = reg[lo[2]]; }
+            case 3u /* CopyImm */: { reg[lo[1]] = vec4<f32>(hi); }
             case 4u /* NegReg */: { reg[lo[1]] = -reg[lo[2]]; }
             case 7u /* SqrtReg */: { reg[lo[1]] = sqrt(reg[lo[2]]); }
             case 8u /* SquareReg */: {

@@ -3,6 +3,7 @@ use std::{borrow::Cow, collections::HashMap};
 use fidget::{
     compiler::RegOp,
     shape::EzShape,
+    types::Interval,
     var::Var,
     vm::{VmFunction, VmShape},
 };
@@ -168,7 +169,12 @@ pub struct GPUExpression {
 }
 
 impl GPUExpression {
-    pub fn new<B>(shape: &VmShape, bvars: B, Viewport { width, height }: Viewport) -> Self
+    pub fn new<B>(
+        shape: &VmShape,
+        bvars: B,
+        Viewport { width, height }: Viewport,
+        projection: Projection,
+    ) -> Self
     where
         B: Into<Vec<BoundedVar>>,
     {
@@ -214,35 +220,28 @@ impl GPUExpression {
 
         let mut eval_i = fidget::shape::Shape::<VmFunction>::new_interval_eval();
 
-        let unproject = |val: f32, bounds: f32| (2.0 * val / bounds) - 1.0;
+        let make_intervals = |a: [f32; 2], b: [f32; 2]| -> [Interval; 2] {
+            let new_a = projection.unproject(a);
+            let new_b = projection.unproject(b);
+            dbg!([
+                Interval::new(new_a[0].min(new_b[0]), new_a[0].max(new_b[0])),
+                Interval::new(new_a[1].min(new_b[1]), new_a[1].max(new_b[1])),
+            ])
+        };
 
+        // Tiles are in framebuffer coordinates: origin top left, y+ down, x+ right.
         for row in 0..(height / TILE_SIZE_Y) {
             let y = row as f32 * TILE_SIZE_Y as f32;
-            let y_interval = fidget::types::Interval::new(
-                -unproject(y + TILE_SIZE_Y as f32, height as f32),
-                -unproject(y, height as f32),
-            );
 
             for col in 0..(width / TILE_SIZE_X) {
                 let x = col as f32 * TILE_SIZE_X as f32;
-                let x_interval = fidget::types::Interval::new(
-                    unproject(x, width as f32),
-                    unproject(x + TILE_SIZE_X as f32, width as f32),
-                );
 
-                let (out, trace) = eval_i
-                    .eval_v(&tape_i, x_interval, y_interval, 0.0.into(), &vars)
-                    .unwrap();
-                if out.lower() > 0.0 {
-                    // The entire tile is outside the shape -- write an empty tape.
-                    subtape_starts.push(regops.len() as u32 * 2);
-                    subtape_ends.push(regops.len() as u32 * 2);
-                    continue;
-                }
-                if out.upper() < 0.0 || trace.is_none() {
-                    // Tile is entirely inside the shape, or the tape could not
-                    // be simplified. Use the default tape.
-                    // TODO: Could we do better in the "entirely inside" case?
+                let [ix, iy] =
+                    make_intervals([x, y], [x + TILE_SIZE_X as f32, y + TILE_SIZE_Y as f32]);
+
+                let (_, trace) = eval_i.eval_v(&tape_i, ix, iy, 0.0.into(), &vars).unwrap();
+                if trace.is_none() {
+                    // Tape could not be simplified — use the default tape.
                     subtape_starts.push(0);
                     subtape_ends.push(default_tape_len * 2);
                     continue;
@@ -416,6 +415,20 @@ impl Projection {
         bytes[12..16].copy_from_slice(&self.translation[1].to_le_bytes());
         bytes
     }
+
+    pub fn unproject(&self, p: [f32; 2]) -> [f32; 2] {
+        [
+            (p[0] + self.translation[0]) / self.scale[0],
+            (p[1] + self.translation[1]) / self.scale[1],
+        ]
+    }
+
+    pub fn project(&self, p: [f32; 2]) -> [f32; 2] {
+        [
+            p[0] * self.scale[0] - self.translation[0],
+            p[1] * self.scale[1] - self.translation[1],
+        ]
+    }
 }
 
 impl Default for Projection {
@@ -560,11 +573,14 @@ pub fn update_buffers(
     assert!(viewport.width % TILE_SIZE_X == 0);
     assert!(viewport.height % TILE_SIZE_Y == 0);
     assert!(expression.lengths.len() == tile_count as usize);
-    queue.write_buffer(
-        &buffers.pc_max_buffer,
-        0,
-        bytemuck::cast_slice(&expression.lengths),
-    );
+
+    let pc_maxes: Vec<u32> = expression
+        .offsets
+        .iter()
+        .zip(expression.lengths.iter())
+        .map(|(a, b)| *a + *b)
+        .collect();
+    queue.write_buffer(&buffers.pc_max_buffer, 0, bytemuck::cast_slice(&pc_maxes));
 
     if let Some(bindings) = bindings {
         update_var_buffers(queue, buffers, expression, bindings);
@@ -580,7 +596,7 @@ pub fn update_var_buffers(
     queue.write_buffer(
         &buffers.var_values_buffer,
         0,
-        &expression.var_values_bytes(&bindings),
+        &expression.var_values_bytes(bindings),
     );
 }
 

@@ -32,7 +32,7 @@ fn test_fidget_four_circles() {
         VmShape::new(&ctx, node).unwrap()
     };
     let viewport = Viewport::new(256, 256);
-    let expr = GPUExpression::new(&shape, [], viewport);
+    let expr = GPUExpression::new(&shape, [], viewport, Projection::default());
 
     let result = pollster::block_on(evaluate(&expr, None, viewport, Default::default()));
     assert_relative_eq!(
@@ -60,7 +60,7 @@ fn test_fidget_many_circles() {
     };
 
     let viewport = Viewport::new(256, 256);
-    let expr = GPUExpression::new(&shape, [], viewport);
+    let expr = GPUExpression::new(&shape, [], viewport, Projection::default());
 
     // debug!("{:?}", bytecode);
     let result = pollster::block_on(evaluate(&expr, None, viewport, Default::default()));
@@ -97,7 +97,7 @@ fn test_variable_evaluation() {
         },
     ];
 
-    let expr = GPUExpression::new(&shape, bounded_vars, viewport);
+    let expr = GPUExpression::new(&shape, bounded_vars, viewport, Projection::default());
 
     let mut bindings = HashMap::new();
     bindings.insert(var_a, 1.0);
@@ -145,7 +145,7 @@ fn test_variable_evaluation_with_unused_var() {
         },
     ];
 
-    let expr = GPUExpression::new(&shape, bounded_vars, viewport);
+    let expr = GPUExpression::new(&shape, bounded_vars, viewport, Projection::default());
 
     let mut bindings = HashMap::new();
     bindings.insert(var_a, 1.0);
@@ -162,6 +162,23 @@ fn test_variable_evaluation_with_unused_var() {
         jit_evaluate(&tree, Some(&bindings), viewport).as_slice(),
         epsilon = 1.0
     );
+}
+
+#[test]
+fn test_constants() {
+    let tree = Tree::from(1.0);
+
+    let shape = {
+        let mut ctx = Context::new();
+        let node = ctx.import(&tree);
+        VmShape::new(&ctx, node).unwrap()
+    };
+
+    let viewport = Viewport::new(256, 256);
+    let expr = GPUExpression::new(&shape, [], viewport, Projection::default());
+
+    let result = pollster::block_on(evaluate(&expr, None, viewport, Projection::default()));
+    assert_eq!(result.unwrap().as_slice(), &[1.0f32; 256 * 256]);
 }
 
 fn circle(center_x: f64, center_y: f64, radius: f64) -> Tree {

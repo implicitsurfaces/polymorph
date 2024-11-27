@@ -247,7 +247,7 @@ impl Context {
         if use_gpu {
             let viewport = Viewport::new(image_size as u32, image_size as u32);
             let proj = Projection::normalized_device_coords_for_viewport(viewport);
-            let expr = GPUExpression::new(&shape, [], viewport);
+            let expr = GPUExpression::new(&shape, [], viewport, proj);
             let dists = gpu_interp::evaluate(&expr, None, viewport, proj)
                 .await
                 .unwrap();

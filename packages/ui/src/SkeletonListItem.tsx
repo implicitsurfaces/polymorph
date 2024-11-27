@@ -5,15 +5,15 @@ import { NumberInput } from './NumberInput.tsx';
 // TODO: use some sort of unique ID instead of layerIndex/pointIndex,
 // in order to support moving the point or layer in the hierarchy?
 
-interface PointRowInfoProps {
+interface SkeletonListItemProps {
   documentManager: DocumentManager;
   layerIndex: number;
   pointIndex: number;
   point: Point; // we need this for memoization
 }
 
-export const PointRowInfo = memo(
-  function PointRowInfo({ documentManager, layerIndex, pointIndex, point }: PointRowInfoProps) {
+export const SkeletonListItem = memo(
+  function SkeletonListItem({ documentManager, layerIndex, pointIndex, point }: SkeletonListItemProps) {
     const onXChange = useCallback(
       (value: number) => {
         documentManager.document().layers[layerIndex].points[pointIndex].position.x = value;
@@ -74,4 +74,4 @@ export const PointRowInfo = memo(
   }
 );
 
-export default PointRowInfo;
+export default SkeletonListItem;

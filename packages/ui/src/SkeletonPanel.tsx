@@ -1,18 +1,18 @@
 import { Point, DocumentManager } from './Document.ts';
-import { PointRowInfo } from './PointRowInfo.tsx';
+import { SkeletonListItem } from './SkeletonListItem.tsx';
 
-interface ObjectsPanelProps {
+interface SkeletonPanelProps {
   documentManager: DocumentManager;
 }
 
-export function ObjectsPanel({ documentManager }: ObjectsPanelProps) {
+export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
   const layerIndex = documentManager.activeLayerIndex();
   const layer = documentManager.activeLayer();
 
   let panelBody;
   if (layer) {
     panelBody = layer.points.map((point: Point, pointIndex: number) => (
-      <PointRowInfo
+      <SkeletonListItem
         key={pointIndex}
         documentManager={documentManager}
         layerIndex={layerIndex}
@@ -26,10 +26,10 @@ export function ObjectsPanel({ documentManager }: ObjectsPanelProps) {
 
   return (
     <div className="panel">
-      <h2 className="panel-title">Objects</h2>
+      <h2 className="panel-title">Skeleton</h2>
       <div className="panel-body">{panelBody}</div>
     </div>
   );
 }
 
-export default ObjectsPanel;
+export default SkeletonPanel;

@@ -5,7 +5,7 @@ import { DocumentManager } from './Document.ts';
 
 import { Canvas } from './Canvas.tsx';
 import { LayersPanel } from './LayersPanel.tsx';
-import { ObjectsPanel } from './ObjectsPanel.tsx';
+import { SkeletonPanel } from './SkeletonPanel.tsx';
 
 import './App.css';
 import './Panel.css';
@@ -174,7 +174,7 @@ function App() {
             </Panel>
             <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
             <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
-              <ObjectsPanel documentManager={documentManager} />
+              <SkeletonPanel documentManager={documentManager} />
             </Panel>
             <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
             <Panel minSize={0}>

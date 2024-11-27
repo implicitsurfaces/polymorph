@@ -1,6 +1,6 @@
 use std::sync::Once;
 
-use fidget::render::{BitRenderMode, ImageRenderConfig, SdfRenderMode};
+use fidget::render::{BitRenderMode, ImageRenderConfig, SdfPixelRenderMode};
 use fidget::vm::VmShape;
 
 use gpu_interp::{GPUExpression, Projection, Viewport};
@@ -268,7 +268,7 @@ impl Context {
         }
 
         if sdf_mode {
-            cfg.run::<_, SdfRenderMode>(shape)
+            cfg.run::<_, SdfPixelRenderMode>(shape)
                 .into_iter()
                 .flat_map(|[r, g, b]| [r, g, b, 255])
                 .collect()

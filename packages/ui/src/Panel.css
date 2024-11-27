@@ -23,7 +23,7 @@
   background-color: #333333;
   color: #f9f9f9;
 
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .panel-title {
@@ -42,6 +42,7 @@
 
 .panel-body {
   flex-grow: 1;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
@@ -73,25 +74,64 @@
   background: #333;
 }
 
+/* List items */
+
 .panel-list-item {
   margin: 2px 8px;
-  padding: 1px 8px;
+  padding: 0;
   
 
   display: flex;
   flex-direction: row;
-  gap: 10px;
+  gap: 2px;
   font-size: 12px;
 
   user-select: none; /* disable caret cursor on hover */
 
   overflow: hidden;
+  height: 20px;
 }
 
-.panel-list-item:hover {
+/* Reduce left margin when there are "secret buttons"
+ * on the left that only appear on hover, otherwise
+ * the left-margin seems too wide when there is no hover
+ */
+.panel-list-item.has-secret-zone {
+  margin-left: 2px;
+  padding: 0;
+}
+  
+.panel-list-item > .highlight-zone {
+  flex: 0 0 auto;
+
+  display: flex;
+  padding: 0px 8px;
+  height: 100%;
+}
+
+.panel-list-item:hover > .highlight-zone {
   background-color: #4063d5;
   border-radius: 5px;
-  overflow: hidden;
+}
+
+.panel-list-item > .extra-zone {
+  flex: 0 0 auto;
+
+  display: flex;
+  gap: 8px;
+  height: 100%;
+}
+
+.panel-list-item > .secret-zone {
+  flex: 0 0 auto;
+
+  display: flex;
+  color: transparent;
+  height: 100%;
+}
+
+.panel-list-item:hover > .secret-zone {
+  color: inherit;
 }
 
 .panel-list-item .name {
@@ -99,13 +139,50 @@
   flex-grow: 0;
 
   white-space: nowrap;
+  height: 20px;
+  line-height: 20px;
 }
 
-[data-scope='number-input'][data-part='root'] {
-  flex-basis: 0px;
-  flex-grow: 0;
+.panel-list-item .single-line-text,
+.panel-list-item [data-scope='number-input'][data-part='label']
+ {
+  white-space: nowrap;
+  height: 20px;
+  line-height: 20px;
+}
 
+/* button */
+
+.panel-list-item button {
+  height: 100%;
+  display: inline-block;
+  border: none;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  color: inherit;
+
+  margin: 0;
+  padding: 0 4px;
+  background: none;
+  border-radius: 5px;
+}
+
+.panel-list-item button:hover {
+  color: #fff;
+  background: #555;
+}
+
+.panel-list-item button.single-character {
+  width: 12px;
+  padding: 0px;
+}
+
+/* NumberInput */
+
+[data-scope='number-input'][data-part='root'] {
   width: 60px;
+  height: 100%;
 
   display: flex;
   flex-direction: row;
@@ -135,5 +212,5 @@
 }
 
 [data-scope='number-input'][data-part='input']:focus {
-  outline: 1px solid #fff;
+  outline: none;
 }

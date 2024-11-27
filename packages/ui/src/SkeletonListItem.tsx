@@ -32,19 +32,23 @@ export const SkeletonListItem = memo(
 
     return (
       <div className="panel-list-item object-row-info">
-        <p className="name">{point.name}</p>
-        <NumberInput
-          idBase={`number-input::x${pointIndex}`}
-          label="X"
-          value={point.position.x}
-          onChange={onXChange}
-        />
-        <NumberInput
-          idBase={`number-input::y${pointIndex}`}
-          label="Y"
-          value={point.position.y}
-          onChange={onYChange}
-        />
+        <div className="highlight-zone">
+          <p className="name single-line-text">{point.name}</p>
+        </div>
+        <div className="extra-zone">
+          <NumberInput
+            idBase={`number-input::x${pointIndex}`}
+            label="X"
+            value={point.position.x}
+            onChange={onXChange}
+          />
+          <NumberInput
+            idBase={`number-input::y${pointIndex}`}
+            label="Y"
+            value={point.position.y}
+            onChange={onYChange}
+          />
+        </div>
       </div>
     );
   },

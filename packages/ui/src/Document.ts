@@ -109,12 +109,27 @@ export class Document {
   }
 
   /**
-   * Adds a layer to the document.
+   * Adds a layer to the document at the given index.
+   *
+   * If `index` is -1 (the default), the layer is added last.
    */
-  addLayer(): Document {
+  addLayer(index: number = -1): Document {
     const name = 'Layer ' + (this.layers.length + 1);
     const props = new LayerProperties(name);
-    this.layers.push(new Layer(props));
+    const layer = new Layer(props);
+    if (index < 0) {
+      this.layers.push(layer);
+    } else {
+      this.layers.splice(index, 0, layer);
+    }
+    return this;
+  }
+
+  /**
+   * Removes the layer at the given index.
+   */
+  removeLayer(index: number): Document {
+    this.layers.splice(index, 1);
     return this;
   }
 }

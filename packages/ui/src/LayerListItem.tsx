@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useCallback, MouseEvent } from 'react';
 import { LayerProperties, DocumentManager } from './Document.ts';
 
 interface LayerListItemProps {
@@ -8,10 +8,42 @@ interface LayerListItemProps {
 }
 
 export const LayerListItem = memo(
-  function LayerListItem({ layerProperties }: LayerListItemProps) {
+  function LayerListItem({ documentManager, index, layerProperties }: LayerListItemProps) {
+    const onCreateLayer = useCallback(
+      (event: MouseEvent<HTMLButtonElement>) => {
+        // Click: insert after
+        // Alt+Click: insert before
+        const insertIndex = event.altKey ? index : index + 1;
+        documentManager.document().addLayer(insertIndex);
+        documentManager.commitChanges();
+      },
+      [documentManager, index]
+    );
+
+    const onDeleteLayer = useCallback(() => {
+      // Prevent deleting the last layer: this is important with the current
+      // design (+/- buttons next to each layer), otherwise after the last
+      // layer is deleted, it is impossible to create layers.
+      if (documentManager.document().layers.length == 1) {
+        return;
+      }
+      documentManager.document().removeLayer(index);
+      documentManager.commitChanges();
+    }, [documentManager, index]);
+
     return (
-      <div className="panel-list-item">
-        <p className="name">{layerProperties.name}</p>
+      <div className="panel-list-item has-secret-zone">
+        <div className="secret-zone">
+          <button className="single-character" onClick={onDeleteLayer}>
+            -
+          </button>
+          <button className="single-character" onClick={onCreateLayer}>
+            +
+          </button>
+        </div>
+        <div className="highlight-zone">
+          <p className="name single-line-text">{layerProperties.name}</p>
+        </div>
       </div>
     );
   },

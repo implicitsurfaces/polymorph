@@ -1,9 +1,6 @@
 import { Point, DocumentManager } from './Document.ts';
 import { PointRowInfo } from './PointRowInfo.tsx';
 
-import './Panel.css';
-import './ObjectsPanel.css';
-
 interface ObjectsPanelProps {
   documentManager: DocumentManager;
 }

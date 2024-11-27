@@ -2,9 +2,6 @@ import { memo, useCallback } from 'react';
 import { DocumentManager, Point } from './Document.ts';
 import { NumberInput } from './NumberInput.tsx';
 
-import './Panel.css';
-import './ObjectsPanel.css';
-
 // TODO: use some sort of unique ID instead of layerIndex/pointIndex,
 // in order to support moving the point or layer in the hierarchy?
 

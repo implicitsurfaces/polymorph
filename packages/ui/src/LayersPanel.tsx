@@ -1,9 +1,6 @@
 import { Layer, DocumentManager } from './Document.ts';
 import { LayerListItem } from './LayerListItem.tsx';
 
-import './Panel.css';
-import './ObjectsPanel.css';
-
 interface LayersPanelProps {
   documentManager: DocumentManager;
 }

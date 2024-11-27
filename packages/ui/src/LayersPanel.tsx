@@ -6,6 +6,7 @@ interface LayersPanelProps {
 }
 
 export function LayersPanel({ documentManager }: LayersPanelProps) {
+  const activeLayerIndex = documentManager.activeLayerIndex();
   return (
     <div className="panel">
       <h2 className="panel-title">Layers</h2>
@@ -15,6 +16,7 @@ export function LayersPanel({ documentManager }: LayersPanelProps) {
             key={index}
             documentManager={documentManager}
             index={index}
+            isActive={index === activeLayerIndex}
             layerProperties={layer.properties.clone()}
           />
         ))}

@@ -4,11 +4,12 @@ import { LayerProperties, DocumentManager } from './Document.ts';
 interface LayerListItemProps {
   documentManager: DocumentManager;
   index: number; // TODO: use some sort of unique ID instead? (e.g., if moved in hierarchy)
+  isActive: boolean;
   layerProperties: LayerProperties; // we need this for memoization
 }
 
 export const LayerListItem = memo(
-  function LayerListItem({ documentManager, index, layerProperties }: LayerListItemProps) {
+  function LayerListItem({ documentManager, index, isActive, layerProperties }: LayerListItemProps) {
     const onCreateLayer = useCallback(
       (event: MouseEvent<HTMLButtonElement>) => {
         // Click: insert after
@@ -31,8 +32,13 @@ export const LayerListItem = memo(
       documentManager.commitChanges();
     }, [documentManager, index]);
 
+    const onSelectLayer = useCallback(() => {
+      console.log('onSelectLayer');
+      documentManager.setActiveLayer(index);
+    }, [documentManager, index]);
+
     return (
-      <div className="panel-list-item has-secret-zone">
+      <div className={'panel-list-item has-secret-zone' + (isActive ? ' is-active' : '')}>
         <div className="secret-zone">
           <button className="single-character" onClick={onDeleteLayer}>
             -
@@ -41,7 +47,7 @@ export const LayerListItem = memo(
             +
           </button>
         </div>
-        <div className="highlight-zone">
+        <div className="highlight-zone" onClick={onSelectLayer}>
           <p className="name single-line-text">{layerProperties.name}</p>
         </div>
       </div>
@@ -54,6 +60,7 @@ export const LayerListItem = memo(
     return (
       prevProps.documentManager === nextProps.documentManager &&
       prevProps.index === nextProps.index &&
+      prevProps.isActive === nextProps.isActive &&
       prevProps.layerProperties.equals(nextProps.layerProperties)
     );
   }

@@ -147,6 +147,7 @@ export class DocumentManager {
   private _history: Array<Document>;
   private _index: number;
   private _workingCopy: Document;
+  private _activeLayerIndex: number;
 
   /**
    * Constructs a new `DocumentManager`.
@@ -171,6 +172,7 @@ export class DocumentManager {
       // Same as `this._makeWorkingCopy();` but silences strictPropertyInitialization false positive
       this._workingCopy = this._history[this._index].clone();
     }
+    this._activeLayerIndex = 0;
   }
 
   /**
@@ -296,17 +298,24 @@ export class DocumentManager {
 
   // TODO: move activeLayer to SelectionState class
 
+  // -1 if no active layer
   activeLayerIndex(): number {
-    // -1 if no active layer
     const doc = this.document();
-    if (!doc) {
+    if (!doc || doc.layers.length === 0) {
       return -1;
     }
-    if (doc.layers.length > 0) {
-      return 0; // TODO: from SelectionState
-    } else {
-      return -1;
+
+    // clamp index to valid range, so that it
+    // behaves nicely if the active layer is
+    // the last layer and is deleted.
+    let index = this._activeLayerIndex;
+    if (index < 0) {
+      index = 0;
     }
+    if (index >= doc.layers.length) {
+      index = doc.layers.length - 1;
+    }
+    return index;
   }
 
   activeLayer(): Layer | null {
@@ -319,6 +328,15 @@ export class DocumentManager {
       return doc.layers[index];
     } else {
       return null;
+    }
+  }
+
+  setActiveLayer(index: number) {
+    // Note: activeLayerIndex() and _activeLayerIndex might differ
+    const prevIndex = this.activeLayerIndex();
+    this._activeLayerIndex = index;
+    if (this.activeLayerIndex() !== prevIndex) {
+      this._notify();
     }
   }
 }

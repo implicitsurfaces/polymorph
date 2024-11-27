@@ -1,6 +1,8 @@
 use fidget::render::{BitRenderMode, ImageRenderConfig, SdfRenderMode};
 use fidget::vm::VmShape;
 
+use gpu_interp::{GPUExpression, Viewport};
+
 extern crate console_error_panic_hook;
 use wasm_bindgen::prelude::*;
 
@@ -220,7 +222,8 @@ impl Context {
         &self,
         node: &Node,
         image_size: usize,
-        sdf_mode: Option<bool>,
+        sdf_mode: bool,
+        use_gpu: bool,
     ) -> Vec<u8> {
         let shape = VmShape::new(&self.inner, node.inner).unwrap();
 
@@ -229,20 +232,36 @@ impl Context {
             ..ImageRenderConfig::default()
         };
 
-        if sdf_mode.unwrap_or(false) {
-            let out = cfg
-                .run::<_, SdfRenderMode>(shape)
+        if use_gpu {
+            let viewport = Viewport::new(image_size as u32, image_size as u32);
+            let expr = GPUExpression::new(&shape, [], viewport);
+            let dists = gpu_interp::evaluate(&expr, None, viewport).await.unwrap();
+
+            return if sdf_mode {
+                let inside = [255, 255, 255, 255];
+                let outside = [255, 0, 0, 255];
+                dists
+                    .into_iter()
+                    .flat_map(|d| if d < 0.0 { inside } else { outside })
+                    .collect()
+            } else {
+                dists
+                    .into_iter()
+                    .map(|d| if d < 0.0 { 1 } else { 0 })
+                    .collect()
+            };
+        }
+
+        if sdf_mode {
+            cfg.run::<_, SdfRenderMode>(shape)
                 .into_iter()
                 .flat_map(|[r, g, b]| [r, g, b, 255])
-                .collect();
-            out
+                .collect()
         } else {
-            let out = cfg
-                .run::<_, BitRenderMode>(shape)
+            cfg.run::<_, BitRenderMode>(shape)
                 .into_iter()
                 .map(|b| if b { 1 } else { 0 })
-                .collect();
-            out
+                .collect()
         }
     }
 }

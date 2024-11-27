@@ -173,6 +173,7 @@ export async function fidgetRender(
   imageSize = 50,
   colorPlot = false,
 ): Promise<Uint8Array> {
+  const useGPU = false;
   const context = await createContext();
 
   const genericPoint = vecFromCartesianCoords(NumX, NumY).pointFromOrigin();
@@ -181,6 +182,6 @@ export async function fidgetRender(
     context,
     new Map(),
   );
-  const render = context.renderNode(fidgetNode, imageSize, colorPlot);
+  const render = context.renderNode(fidgetNode, imageSize, colorPlot, useGPU);
   return render;
 }

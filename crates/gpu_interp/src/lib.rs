@@ -167,7 +167,7 @@ pub struct GPUExpression {
 }
 
 impl GPUExpression {
-    pub fn new<B>(shape: &VmShape, bvars: B, width: u32, height: u32) -> Self
+    pub fn new<B>(shape: &VmShape, bvars: B, Viewport { width, height }: Viewport) -> Self
     where
         B: Into<Vec<BoundedVar>>,
     {
@@ -381,6 +381,9 @@ pub struct Viewport {
 }
 
 impl Viewport {
+    pub fn new(width: u32, height: u32) -> Self {
+        Viewport { width, height }
+    }
     pub fn byte_size(&self) -> u32 {
         self.width * self.height * std::mem::size_of::<f32>() as u32
     }

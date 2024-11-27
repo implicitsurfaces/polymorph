@@ -31,12 +31,8 @@ fn test_fidget_four_circles() {
         let node = ctx.import(&tree);
         VmShape::new(&ctx, node).unwrap()
     };
-    let viewport = Viewport {
-        width: 256,
-        height: 256,
-    };
-
-    let expr = GPUExpression::new(&shape, [], viewport.width, viewport.height);
+    let viewport = Viewport::new(256, 256);
+    let expr = GPUExpression::new(&shape, [], viewport);
 
     let result = pollster::block_on(evaluate(&expr, None, viewport));
     assert_relative_eq!(
@@ -63,11 +59,8 @@ fn test_fidget_many_circles() {
         VmShape::new(&ctx, node).unwrap()
     };
 
-    let viewport = Viewport {
-        width: 256,
-        height: 256,
-    };
-    let expr = GPUExpression::new(&shape, [], viewport.width, viewport.height);
+    let viewport = Viewport::new(256, 256);
+    let expr = GPUExpression::new(&shape, [], viewport);
 
     // debug!("{:?}", bytecode);
     let result = pollster::block_on(evaluate(&expr, None, viewport));
@@ -91,10 +84,7 @@ fn test_variable_evaluation() {
         VmShape::new(&ctx, node).unwrap()
     };
 
-    let viewport = Viewport {
-        width: 256,
-        height: 256,
-    };
+    let viewport = Viewport::new(256, 256);
 
     let bounded_vars = vec![
         BoundedVar {
@@ -107,7 +97,7 @@ fn test_variable_evaluation() {
         },
     ];
 
-    let expr = GPUExpression::new(&shape, bounded_vars, viewport.width, viewport.height);
+    let expr = GPUExpression::new(&shape, bounded_vars, viewport);
 
     let mut bindings = HashMap::new();
     bindings.insert(var_a, 1.0);
@@ -150,7 +140,7 @@ fn test_variable_evaluation_with_unused_var() {
         },
     ];
 
-    let expr = GPUExpression::new(&shape, bounded_vars, viewport.width, viewport.height);
+    let expr = GPUExpression::new(&shape, bounded_vars, viewport);
 
     let mut bindings = HashMap::new();
     bindings.insert(var_a, 1.0);

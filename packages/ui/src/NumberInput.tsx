@@ -21,23 +21,15 @@ export const NumberInput = memo(function NumberInput({ idBase, label, value, onC
 
   return (
     <div id={idBase} data-scope="number-input" data-part="root" dir="ltr">
-      <div
+      <label
         data-scope="number-input"
-        data-part="scrubber"
+        data-part="label"
         dir="ltr"
-        id={`${idBase}::scrubber`}
-        role="presentation"
+        id={`${idBase}::label`}
+        htmlFor={`${idBase}::input`}
       >
-        <label
-          data-scope="number-input"
-          data-part="label"
-          dir="ltr"
-          id={`${idBase}::label`}
-          htmlFor={`${idBase}::input`}
-        >
-          {label}
-        </label>
-      </div>
+        {label}
+      </label>
       <input
         data-scope="number-input"
         data-part="input"

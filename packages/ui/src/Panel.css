@@ -115,7 +115,7 @@
 [data-scope='number-input'][data-part='label'] {
   flex-basis: auto;
   flex-grow: 0;
-  cursor: ew-resize;
+  padding: 0 2px;
 }
 
 [data-scope='number-input'][data-part='input'] {
@@ -136,10 +136,4 @@
 
 [data-scope='number-input'][data-part='input']:focus {
   outline: 1px solid #fff;
-}
-
-[data-scope='number-input'][data-part='scrubber'] {
-  flex-basis: 0px;
-  flex-grow: 1;
-  min-width: 10px;
 }

@@ -27,10 +27,71 @@ export class Point {
 }
 
 /**
+ * Stores information about a given layer.
+ */
+export class LayerProperties {
+  constructor(public name: string = 'New Layer') {}
+
+  /**
+   * Returns a new LayerProperties with the same content as this one.
+   */
+  clone(): LayerProperties {
+    return new LayerProperties().copy(this);
+  }
+
+  /**
+   * Copies the content from the source layer into this one.
+   */
+  copy(source: LayerProperties): LayerProperties {
+    this.name = source.name;
+    return this;
+  }
+
+  equals(other: LayerProperties): boolean {
+    return this.name === other.name;
+  }
+}
+
+/**
+ * Stores the data in a given Document layer.
+ */
+export class Layer {
+  constructor(
+    public properties: LayerProperties = new LayerProperties(),
+    public points: Array<Point> = []
+  ) {}
+
+  /**
+   * Returns a new layer with the same content as this one.
+   */
+  clone(): Layer {
+    return new Layer().copy(this);
+  }
+
+  /**
+   * Copies the content from the source layer into this one.
+   */
+  copy(source: Layer): Layer {
+    this.properties = source.properties.clone();
+    this.points = source.points.map(p => p.clone());
+    return this;
+  }
+
+  /**
+   * Adds a point to the layer.
+   */
+  addPoint(position: Vector2): Layer {
+    const name = 'Point ' + (this.points.length + 1);
+    this.points.push(new Point(name, position));
+    return this;
+  }
+}
+
+/**
  * Stores all objects in the document.
  */
 export class Document {
-  constructor(public points: Array<Point> = []) {}
+  constructor(public layers: Array<Layer> = []) {}
 
   /**
    * Returns a new document with the same content as this one.
@@ -43,16 +104,17 @@ export class Document {
    * Copies the content from the source document into this one.
    */
   copy(source: Document): Document {
-    this.points = source.points.map(p => p.clone());
+    this.layers = source.layers.map(l => l.clone());
     return this;
   }
 
   /**
-   * Adds a point to the document.
+   * Adds a layer to the document.
    */
-  addPoint(position: Vector2): Document {
-    const name = 'Point ' + (this.points.length + 1);
-    this.points.push(new Point(name, position));
+  addLayer(): Document {
+    const name = 'Layer ' + (this.layers.length + 1);
+    const props = new LayerProperties(name);
+    this.layers.push(new Layer(props));
     return this;
   }
 }
@@ -86,7 +148,7 @@ export class DocumentManager {
   constructor(onChange?: () => void, history?: Array<Document>, index?: number, workingCopy?: Document) {
     this._version = 0;
     this._onChange = onChange !== undefined ? onChange : () => {};
-    this._history = history !== undefined ? history : [new Document()];
+    this._history = history !== undefined ? history : [new Document().addLayer()];
     this._index = index !== undefined ? index : this._history.length - 1;
     if (workingCopy !== undefined) {
       this._workingCopy = workingCopy;
@@ -215,5 +277,33 @@ export class DocumentManager {
   discardChanges(): void {
     this._makeWorkingCopy();
     this._notify();
+  }
+
+  // TODO: move activeLayer to SelectionState class
+
+  activeLayerIndex(): number {
+    // -1 if no active layer
+    const doc = this.document();
+    if (!doc) {
+      return -1;
+    }
+    if (doc.layers.length > 0) {
+      return 0; // TODO: from SelectionState
+    } else {
+      return -1;
+    }
+  }
+
+  activeLayer(): Layer | null {
+    const doc = this.document();
+    if (!doc) {
+      return null;
+    }
+    const index = this.activeLayerIndex();
+    if (0 <= index && index < doc.layers.length) {
+      return doc.layers[index];
+    } else {
+      return null;
+    }
   }
 }

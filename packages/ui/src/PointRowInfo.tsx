@@ -5,41 +5,45 @@ import { NumberInput } from './NumberInput.tsx';
 import './Panel.css';
 import './ObjectsPanel.css';
 
+// TODO: use some sort of unique ID instead of layerIndex/pointIndex,
+// in order to support moving the point or layer in the hierarchy?
+
 interface PointRowInfoProps {
   documentManager: DocumentManager;
-  index: number; // TODO: use some sort of unique ID instead? (e.g., if moved in hierarchy)
+  layerIndex: number;
+  pointIndex: number;
   point: Point; // we need this for memoization
 }
 
 export const PointRowInfo = memo(
-  function PointRowInfo({ documentManager, index, point }: PointRowInfoProps) {
+  function PointRowInfo({ documentManager, layerIndex, pointIndex, point }: PointRowInfoProps) {
     const onXChange = useCallback(
       (value: number) => {
-        documentManager.document().points[index].position.x = value;
+        documentManager.document().layers[layerIndex].points[pointIndex].position.x = value;
         documentManager.commitChanges();
       },
-      [documentManager, index]
+      [documentManager, layerIndex, pointIndex]
     );
 
     const onYChange = useCallback(
       (value: number) => {
-        documentManager.document().points[index].position.y = value;
+        documentManager.document().layers[layerIndex].points[pointIndex].position.y = value;
         documentManager.commitChanges();
       },
-      [documentManager, index]
+      [documentManager, layerIndex, pointIndex]
     );
 
     return (
-      <div className="object-row-info">
-        <p className="object-name">{point.name}</p>
+      <div className="panel-list-item object-row-info">
+        <p className="name">{point.name}</p>
         <NumberInput
-          idBase={`number-input::x${index}`}
+          idBase={`number-input::x${pointIndex}`}
           label="X"
           value={point.position.x}
           onChange={onXChange}
         />
         <NumberInput
-          idBase={`number-input::y${index}`}
+          idBase={`number-input::y${pointIndex}`}
           label="Y"
           value={point.position.y}
           onChange={onYChange}
@@ -66,7 +70,8 @@ export const PointRowInfo = memo(
     //
     return (
       prevProps.documentManager === nextProps.documentManager &&
-      prevProps.index === nextProps.index &&
+      prevProps.layerIndex === nextProps.layerIndex &&
+      prevProps.pointIndex === nextProps.pointIndex &&
       prevProps.point.equals(nextProps.point)
     );
   }

@@ -1,5 +1,5 @@
 
-.object-row-info {
+.panel-list-item {
   margin: 2px 8px;
   padding: 1px 8px;
   
@@ -14,13 +14,13 @@
   overflow: hidden;
 }
 
-.object-row-info:hover {
+.panel-list-item:hover {
   background-color: #4063d5;
   border-radius: 5px;
   overflow: hidden;
 }
 
-.object-row-info .object-name {
+.panel-list-item .name {
   flex-basis: 0px;
   flex-grow: 0;
 

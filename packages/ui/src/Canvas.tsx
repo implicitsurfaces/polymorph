@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Vector2 } from 'threejs-math';
 import { Camera2 } from './Camera2.ts';
-import { Point, Document, DocumentManager } from './Document.ts';
+import { Point, Layer, Document, DocumentManager } from './Document.ts';
 
 import './Canvas.css';
 
@@ -161,14 +161,16 @@ function drawPoint(ctx: CanvasRenderingContext2D, point: Point) {
   drawDisk(ctx, point.position, radius, fillStyle);
 }
 
-function drawPoints(ctx: CanvasRenderingContext2D, document: Document) {
-  document.points.forEach(point => {
+function drawLayer(ctx: CanvasRenderingContext2D, layer: Layer) {
+  layer.points.forEach(point => {
     drawPoint(ctx, point);
   });
 }
 
 function drawDocument(ctx: CanvasRenderingContext2D, document: Document) {
-  drawPoints(ctx, document);
+  document.layers.forEach(layer => {
+    drawLayer(ctx, layer);
+  });
 }
 
 function draw(canvas: HTMLCanvasElement, camera: Camera2, document: Document) {
@@ -354,9 +356,12 @@ export function Canvas({ documentManager }: CanvasProps) {
       switch (event.button) {
         case 0: {
           // left click: create point
-          const pos = getMouseDocumentPosition(event, canvas, pointerState.cameraOnPress);
-          documentManager.document().addPoint(pos);
-          documentManager.commitChanges();
+          const layer = documentManager.activeLayer();
+          if (layer) {
+            const pos = getMouseDocumentPosition(event, canvas, pointerState.cameraOnPress);
+            layer.addPoint(pos);
+            documentManager.commitChanges();
+          }
           break;
         }
         case 2: {

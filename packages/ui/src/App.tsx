@@ -4,6 +4,7 @@ import { Panel, PanelGroup, PanelResizeHandle, PointerHitAreaMargins } from 'rea
 import { DocumentManager } from './Document.ts';
 
 import { Canvas } from './Canvas.tsx';
+import { LayersPanel } from './LayersPanel.tsx';
 import { ObjectsPanel } from './ObjectsPanel.tsx';
 
 import './App.css';
@@ -168,6 +169,10 @@ function App() {
         <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
         <Panel>
           <PanelGroup className="panels-panel-group" direction="horizontal">
+            <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
+              <LayersPanel documentManager={documentManager} />
+            </Panel>
+            <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
             <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
               <ObjectsPanel documentManager={documentManager} />
             </Panel>

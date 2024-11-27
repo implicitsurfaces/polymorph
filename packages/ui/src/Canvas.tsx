@@ -470,12 +470,13 @@ export function Canvas({ documentManager }: CanvasProps) {
   // of the document, of the camera, or of the canvas width/height trigerred via
   // the ResizeObserver.
   //
+  const version = documentManager.version();
   useEffect(() => {
     const canvas = ref.current;
     if (canvas && canvas.width > 0 && canvas.height > 0) {
       draw(canvas, camera, documentManager.document());
     }
-  }, [camera, documentManager, documentManager.version()]);
+  }, [camera, documentManager, version]);
 
   // Update the camera (and therefore the canvas width/height attributes)
   // based on its computed device pixel size.

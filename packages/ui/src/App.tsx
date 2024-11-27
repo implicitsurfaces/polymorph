@@ -93,7 +93,7 @@ function App() {
         width: element.clientWidth,
       });
     });
-  }, [ref.current]);
+  }, []);
 
   useEffect(() => {
     const element = ref.current;
@@ -104,7 +104,7 @@ function App() {
     return () => {
       elementObserver.unobserve(element);
     };
-  }, [ref.current, elementObserver]);
+  }, [elementObserver]);
 
   // Do not create any Panel components until we know the size of the app via
   // the ResizeObserver, so that we can provide an appropriate defaultSize to

@@ -1,9 +1,12 @@
+use std::sync::Once;
+
 use fidget::render::{BitRenderMode, ImageRenderConfig, SdfRenderMode};
 use fidget::vm::VmShape;
 
-use gpu_interp::{GPUExpression, Viewport};
+use gpu_interp::{GPUExpression, Projection, Viewport};
 
 extern crate console_error_panic_hook;
+use log::*;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -33,10 +36,19 @@ impl From<fidget::var::Var> for Var {
     }
 }
 
+static INIT: Once = Once::new();
+
 #[wasm_bindgen]
 impl Context {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
+        INIT.call_once(|| {
+            std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+
+            // Initialize a logger that routes `info!`, `debug!` etc. to the console.
+            console_log::init_with_level(log::Level::Debug).unwrap();
+            info!("Hello from Rust!");
+        });
         Self {
             inner: fidget::context::Context::new(),
         }
@@ -234,12 +246,15 @@ impl Context {
 
         if use_gpu {
             let viewport = Viewport::new(image_size as u32, image_size as u32);
+            let proj = Projection::normalized_device_coords_for_viewport(viewport);
             let expr = GPUExpression::new(&shape, [], viewport);
-            let dists = gpu_interp::evaluate(&expr, None, viewport).await.unwrap();
+            let dists = gpu_interp::evaluate(&expr, None, viewport, proj)
+                .await
+                .unwrap();
 
             return if sdf_mode {
                 let inside = [255, 255, 255, 255];
-                let outside = [255, 0, 0, 255];
+                let outside = [0, 0, 0, 255];
                 dists
                     .into_iter()
                     .flat_map(|d| if d < 0.0 { inside } else { outside })

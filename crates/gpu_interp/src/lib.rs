@@ -56,6 +56,7 @@ pub async fn evaluate(
     expr: &GPUExpression,
     bindings: Option<&Bindings>,
     viewport: Viewport,
+    projection: Projection,
 ) -> Option<Vec<f32>> {
     let (_, device, queue) = create_device(
         &wgpu::Instance::default(),
@@ -67,7 +68,7 @@ pub async fn evaluate(
         &device,
         wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
     );
-    let mut buffers = create_buffers(&device, viewport, Projection::default());
+    let mut buffers = create_buffers(&device, viewport, projection);
     update_buffers(&queue, &mut buffers, expr, bindings, viewport);
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
@@ -396,6 +397,17 @@ pub struct Projection {
 }
 
 impl Projection {
+    /// Create a projection that scales [-1, 1] with origin at the center
+    /// to fill the given viewport.
+    pub fn normalized_device_coords_for_viewport(viewport: Viewport) -> Self {
+        let w = viewport.width as f32;
+        let h = viewport.height as f32;
+        Self {
+            scale: [1. / (w / 2.), -1. / (h / 2.)],
+            translation: [1., -1.],
+        }
+    }
+
     pub fn as_bytes(&self) -> [u8; 4 * std::mem::size_of::<f32>()] {
         let mut bytes = [0u8; 16];
         bytes[0..4].copy_from_slice(&self.scale[0].to_le_bytes());

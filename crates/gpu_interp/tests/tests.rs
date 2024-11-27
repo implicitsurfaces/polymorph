@@ -34,7 +34,7 @@ fn test_fidget_four_circles() {
     let viewport = Viewport::new(256, 256);
     let expr = GPUExpression::new(&shape, [], viewport);
 
-    let result = pollster::block_on(evaluate(&expr, None, viewport));
+    let result = pollster::block_on(evaluate(&expr, None, viewport, Default::default()));
     assert_relative_eq!(
         result.unwrap().as_slice(),
         jit_evaluate(&tree, None, viewport).as_slice(),
@@ -63,7 +63,7 @@ fn test_fidget_many_circles() {
     let expr = GPUExpression::new(&shape, [], viewport);
 
     // debug!("{:?}", bytecode);
-    let result = pollster::block_on(evaluate(&expr, None, viewport));
+    let result = pollster::block_on(evaluate(&expr, None, viewport, Default::default()));
     assert_relative_eq!(
         result.unwrap().as_slice(),
         jit_evaluate(&tree, None, viewport).as_slice(),
@@ -103,7 +103,12 @@ fn test_variable_evaluation() {
     bindings.insert(var_a, 1.0);
     bindings.insert(var_b, 2.0);
 
-    let result = pollster::block_on(evaluate(&expr, Some(&bindings), viewport));
+    let result = pollster::block_on(evaluate(
+        &expr,
+        Some(&bindings),
+        viewport,
+        Default::default(),
+    ));
     assert_relative_eq!(
         result.unwrap().as_slice(),
         jit_evaluate(&tree, Some(&bindings), viewport).as_slice(),
@@ -146,7 +151,12 @@ fn test_variable_evaluation_with_unused_var() {
     bindings.insert(var_a, 1.0);
     bindings.insert(var_b, 2.0);
 
-    let result = pollster::block_on(evaluate(&expr, Some(&bindings), viewport));
+    let result = pollster::block_on(evaluate(
+        &expr,
+        Some(&bindings),
+        viewport,
+        Default::default(),
+    ));
     assert_relative_eq!(
         result.unwrap().as_slice(),
         jit_evaluate(&tree, Some(&bindings), viewport).as_slice(),

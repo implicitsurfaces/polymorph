@@ -31,7 +31,7 @@ const inSeries = (func) => {
 const AppState = types
   .model("AppState", {
     code: CodeState,
-    definition: types.optional(types.number, 750),
+    definition: types.optional(types.number, 768),
     config: types.optional(
       types.model({
         code: types.optional(types.string, ""),

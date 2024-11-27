@@ -33,7 +33,6 @@ export const LayerListItem = memo(
     }, [documentManager, index]);
 
     const onSelectLayer = useCallback(() => {
-      console.log('onSelectLayer');
       documentManager.setActiveLayer(index);
     }, [documentManager, index]);
 

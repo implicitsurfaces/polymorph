@@ -129,6 +129,10 @@ export class Num {
   greaterThanOrEqual(other: Num | number) {
     return asNum(other).lessThanOrEqual(this);
   }
+
+  asDot(): string {
+    return renderNodeAsDot(this.n);
+  }
 }
 
 export const ZERO = new Num(new LiteralNum(0));

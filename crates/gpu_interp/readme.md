@@ -46,3 +46,5 @@ At a high level, there are two ways to use this:
 2. The fine-grained APIs (`create_device`, `create_pipeline_layout`, etc.), as src/bin/win.rs and src/web/main.rs do.
 
 Using the fine-grained APIs is recommended for an interactive application, because it avoids a lot of overheading with creating and freeing the buffers, multiple round-trips between main memory and GPU memory, etc.
+
+<img width="801" alt="shapes at 24-11-28 15 08 21" src="https://github.com/user-attachments/assets/998011ee-87f4-4657-83e1-0cb182b7a33e">

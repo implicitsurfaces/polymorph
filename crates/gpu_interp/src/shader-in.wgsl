@@ -21,12 +21,21 @@ struct BuiltinVars {
     z: u32,
 }
 
+// Holds the bytecode representation of one or more Fidget point tapes.
+// Each "tape" represents a sequence of Fidget RegOps. Generally this will
+// hold the default (unsimplified) tape, followed by a tape for each tile.
 @group(0) @binding(0) var<storage> bytecode: Bytecode;
 
+// Given a tile index, returns the start offset of the bytecode for that tile.
+// We use an array<vec4<u32>> because uniforms require 16-byte alignment.
+// Surely there's a better way to do this?
 @group(0) @binding(1) var<uniform> bc_offsets: array<vec4<u32>, MAX_TILE_COUNT_DIV_4>;
 
+// Given a tile index, returns the end offset of the bytecode for that tile.
 @group(0) @binding(2) var<uniform> bc_ends: array<vec4<u32>, MAX_TILE_COUNT_DIV_4>;
 
+// Output buffer for the compute shader. Each vec4<f32> represents 4 conseutive
+// pixels along the x axis.
 @group(0) @binding(3) var<storage, read_write> output: array<vec4<f32>>;
 
 @group(0) @binding(4) var<uniform> viewport: vec2<u32>;

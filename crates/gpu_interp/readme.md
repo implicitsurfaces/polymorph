@@ -48,3 +48,20 @@ At a high level, there are two ways to use this:
 Using the fine-grained APIs is recommended for an interactive application, because it avoids a lot of overheading with creating and freeing the buffers, multiple round-trips between main memory and GPU memory, etc.
 
 <img width="801" alt="shapes at 24-11-28 15 08 21" src="https://github.com/user-attachments/assets/998011ee-87f4-4657-83e1-0cb182b7a33e">
+
+The diagram above shows the high-level flow, with some aspects simplified. Here are some more details:
+
+- We start by turning the Fidget shape into a `Vec<RegOp>`. This is the same representation Fidget's JIT evaluator uses to generate native code.
+  - **Optimization:** we split the image up into tiles, and use Fidget's tape simplification to compute a simplified tape for each tile. (Basically the same approach Fidget uses.) We concatenate all these together into the same Vec.
+- `GPUExpression::tape_bytes` does a custom serialization of a `Vec<RegOp>` into a `Vec<u8>`.
+  - **Note:** we did it this way because Fidget didn't have a built-in way to serialize RegOps. In the meantime, Matt implemented a canonical bytecode format on his [wgpu-bytecode branch][wgpu-bytecode]. We could switch to that.
+- `update_buffers` takes the bytecode and stuffs it into a GPU storage buffer (named `bytecode` in the shader). It also writes some uniforms with info about where the simplified tape for each tile is found.
+- Then we dispatch the compute shader. It operates on vec4<f32>, so a single invocation computes the result for four pixels (along the x axis) at once. It writes the results to another storage buffer.
+- In the web and native demos, we then have a trivial vertex shader (just two triangles covering the screen) and then a fragment shader which reads from the output buffer.
+
+[wgpu-bytecode]: https://github.com/mkeeter/fidget/tree/wgpu-bytecode
+[mpr]: https://www.mattkeeter.com/research/mpr/keeter_mpr20.pdf
+
+### Workgroup size
+
+We didn't put a lot  of thought into the workgroup size. Some quick experimention didn't show any big differences. In theory, we should choose a combination of workgroup size and tile size that ensures that a single SIMD group (32 invocations) is always executing the same bytecode.

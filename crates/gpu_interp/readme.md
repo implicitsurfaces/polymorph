@@ -4,7 +4,8 @@ A 2D renderer for Fidget expressions that uses the GPU.
 
 ## What's in here
 
-- The implementation of the GPU-based renderer in src/lib.rs
+- All of the Rust rendering stuff in src/lib.rs
+- The interpreter itself is defined in shader-in.wgsl.
 - Unit tests in tests/tests.rs
 - A native application demo (src/bin/win.rs)
 - A web app demo (src/web)
@@ -36,3 +37,12 @@ You can also install trunk another way, but things may not work due to version i
 #### Building
 
     trunk serve --release --features "web"
+
+## Implementation notes
+
+At a high level, there are two ways to use this:
+
+1. `evaluate()` initializes all the wgpu machinery (pipelines, buffers, etc.) and then discards it. This is roughly analogous to Fidget's [RenderConfig::run](https://docs.rs/fidget/latest/fidget/render/struct.RenderConfig.html#method.run).
+2. The fine-grained APIs (`create_device`, `create_pipeline_layout`, etc.), as src/bin/win.rs and src/web/main.rs do.
+
+Using the fine-grained APIs is recommended for an interactive application, because it avoids a lot of overheading with creating and freeing the buffers, multiple round-trips between main memory and GPU memory, etc.

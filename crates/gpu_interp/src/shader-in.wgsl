@@ -39,13 +39,17 @@ struct BuiltinVars {
 
 @group(0) @binding(8) var<uniform> builtin_vars: BuiltinVars;
 
-
 fn execute_bytecode(xs: vec4<f32>, y: f32, tile_idx: u32) -> vec4<f32> {
     var reg: array<vec4<f32>, REG_COUNT>;
 
     // Uniforms need 16-byte alignment, so we use a vec4<u32>.
     var pc = bc_offsets[tile_idx / 4u][tile_idx % 4u];
     let pc_max = bc_ends[tile_idx / 4u][tile_idx % 4u];
+
+    // WGSL makes it hard to have a NaN constant. Defining it as a local
+    // and doing bitcast<f32>() seems to be the only way that works with both
+    // wgppu and in the browser.
+    let nan_f32 = 0x7FC00000;
 
     while (pc < pc_max) {
         /*
@@ -107,7 +111,7 @@ fn execute_bytecode(xs: vec4<f32>, y: f32, tile_idx: u32) -> vec4<f32> {
             case 44u /* MinRegReg */: { reg[lo[1]] = min(reg[lo[2]], reg[lo[3]]); }
             case 45u /* MaxRegReg */: { reg[lo[1]] = max(reg[lo[2]], reg[lo[3]]); }
             default: {
-              return vec4<f32>(669.0, f32(pc), f32(lo[0]), f32(lo[0]));
+              return vec4<f32>(bitcast<f32>(nan_f32));
             }
           }
     }

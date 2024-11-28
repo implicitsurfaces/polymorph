@@ -15,6 +15,12 @@ use fidget::{
 };
 use sdf::*;
 
+#[derive(Debug)]
+enum RenderError {
+    #[allow(dead_code)]
+    ContainsNaN(Vec<f32>),
+}
+
 #[test]
 fn test_fidget_four_circles() {
     let mut circles = Vec::new();
@@ -32,9 +38,10 @@ fn test_fidget_four_circles() {
         VmShape::new(&ctx, node).unwrap()
     };
     let viewport = Viewport::new(256, 256);
-    let expr = GPUExpression::new(&shape, [], viewport, Projection::default());
+    let projection = Projection::default();
+    let expr = GPUExpression::new(&shape, [], viewport, projection);
+    let result = evaluate_sync(&expr, None, viewport, projection);
 
-    let result = pollster::block_on(evaluate(&expr, None, viewport, Default::default()));
     assert_relative_eq!(
         result.unwrap().as_slice(),
         jit_evaluate(&tree, None, viewport).as_slice(),
@@ -63,7 +70,7 @@ fn test_fidget_many_circles() {
     let expr = GPUExpression::new(&shape, [], viewport, Projection::default());
 
     // debug!("{:?}", bytecode);
-    let result = pollster::block_on(evaluate(&expr, None, viewport, Default::default()));
+    let result = evaluate_sync(&expr, None, viewport, Default::default());
     assert_relative_eq!(
         result.unwrap().as_slice(),
         jit_evaluate(&tree, None, viewport).as_slice(),
@@ -103,12 +110,7 @@ fn test_variable_evaluation() {
     bindings.insert(var_a, 1.0);
     bindings.insert(var_b, 2.0);
 
-    let result = pollster::block_on(evaluate(
-        &expr,
-        Some(&bindings),
-        viewport,
-        Default::default(),
-    ));
+    let result = evaluate_sync(&expr, Some(&bindings), viewport, Default::default());
     assert_relative_eq!(
         result.unwrap().as_slice(),
         jit_evaluate(&tree, Some(&bindings), viewport).as_slice(),
@@ -151,12 +153,7 @@ fn test_variable_evaluation_with_unused_var() {
     bindings.insert(var_a, 1.0);
     bindings.insert(var_b, 2.0);
 
-    let result = pollster::block_on(evaluate(
-        &expr,
-        Some(&bindings),
-        viewport,
-        Default::default(),
-    ));
+    let result = evaluate_sync(&expr, Some(&bindings), viewport, Default::default());
     assert_relative_eq!(
         result.unwrap().as_slice(),
         jit_evaluate(&tree, Some(&bindings), viewport).as_slice(),
@@ -177,8 +174,24 @@ fn test_constants() {
     let viewport = Viewport::new(256, 256);
     let expr = GPUExpression::new(&shape, [], viewport, Projection::default());
 
-    let result = pollster::block_on(evaluate(&expr, None, viewport, Projection::default()));
+    let result = evaluate_sync(&expr, None, viewport, Projection::default());
     assert_eq!(result.unwrap().as_slice(), &[1.0f32; 256 * 256]);
+}
+
+#[test]
+fn test_nan_checker() {
+    let tree = Tree::from(-1.0).sqrt();
+    let shape = {
+        let mut ctx = Context::new();
+        let node = ctx.import(&tree);
+        VmShape::new(&ctx, node).unwrap()
+    };
+
+    let viewport = Viewport::new(256, 256);
+    let expr = GPUExpression::new(&shape, [], viewport, Projection::default());
+
+    let result = evaluate_sync(&expr, None, viewport, Projection::default());
+    assert!(result.is_err());
 }
 
 fn circle(center_x: f64, center_y: f64, radius: f64) -> Tree {
@@ -247,4 +260,18 @@ fn jit_evaluate(tree: &Tree, bindings: Option<&Bindings>, viewport: Viewport) ->
     let r = eval.eval_v(&tape, x.as_slice(), y.as_slice(), z.as_slice(), &vars);
     eprintln!("Jit eval #2 took {:?}", start.elapsed());
     r.unwrap().to_vec()
+}
+
+fn evaluate_sync(
+    expr: &GPUExpression,
+    bindings: Option<&Bindings>,
+    viewport: Viewport,
+    projection: Projection,
+) -> Result<Vec<f32>, RenderError> {
+    let buf = pollster::block_on(evaluate(&expr, bindings, viewport, projection)).unwrap();
+    if buf.iter().find(|v| v.is_nan()).is_some() {
+        Err(RenderError::ContainsNaN(buf))
+    } else {
+        Ok(buf)
+    }
 }

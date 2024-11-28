@@ -1,4 +1,5 @@
 import { Num, asNum, binaryOpNum, unaryOpNum } from "./num";
+import { fullDerivative } from "./num-diff";
 
 export function add(a: Num | number, b: Num | number): Num {
   return binaryOpNum("ADD", asNum(a), asNum(b));
@@ -105,4 +106,8 @@ export function clamp(
 ): Num {
   const bottomClamped = max(minVal, a);
   return min(maxVal, bottomClamped);
+}
+
+export function diff(num: Num): Num {
+  return new Num(fullDerivative(num.n));
 }

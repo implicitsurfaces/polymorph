@@ -34,6 +34,12 @@ export class NumNode {
   readonly operation: string = "NONE";
 }
 
+export class Derivative extends NumNode {
+  constructor(readonly variable: Variable) {
+    super();
+  }
+}
+
 export class UnaryOp extends NumNode {
   constructor(
     readonly operation: UnaryOperation,
@@ -155,6 +161,45 @@ const simpleBinaryOp = (
     return left || right;
   }
   throw new Error(`Unknown binary operation: ${operation}`);
+};
+
+export const ZERO_NODE = new LiteralNum(0);
+export const ONE_NODE = new LiteralNum(1);
+export const TWO_NODE = new LiteralNum(2);
+export const NEG_ONE_NODE = new LiteralNum(-1);
+
+export const naiveEval = (
+  node: NumNode,
+  variables: Map<string, number>,
+): number => {
+  if (node instanceof LiteralNum) {
+    return node.value;
+  } else if (node instanceof Variable) {
+    const value = variables.get(node.name);
+    if (value === undefined) {
+      throw new Error(`Variable not found: ${node.name}`);
+    }
+    return value;
+  } else if (node instanceof Derivative) {
+    const derivativeName = `d_${node.variable.name}`;
+    const value = variables.get(derivativeName);
+    if (value === undefined) {
+      throw new Error(`Variable not found: ${derivativeName}`);
+    }
+    return value;
+  } else if (node instanceof UnaryOp) {
+    const operand = naiveEval(node.original, variables);
+    return simpleUnaryOp(node.operation, operand);
+  } else if (node instanceof BinaryOp) {
+    const left = naiveEval(node.left, variables);
+    const right = naiveEval(node.right, variables);
+
+    return simpleBinaryOp(node.operation, left, right);
+  }
+
+  throw new Error(
+    `Unknown node type: ${node?.operation} ${node.constructor.name}`,
+  );
 };
 
 const simpleEval = memoizeNodeEval(function (node: NumNode): number {

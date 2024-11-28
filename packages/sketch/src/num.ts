@@ -1,5 +1,15 @@
 import type { BinaryOperation, UnaryOperation } from "./num-tree";
-import { NumNode, LiteralNum, BinaryOp, UnaryOp, Variable } from "./num-tree";
+import {
+  NumNode,
+  LiteralNum,
+  BinaryOp,
+  UnaryOp,
+  Variable,
+  ZERO_NODE,
+  ONE_NODE,
+  TWO_NODE,
+} from "./num-tree";
+import { renderNodeAsDot } from "./utils/num-to-dot";
 
 export function asNum(n: number | Num): Num {
   if (n instanceof Num) {
@@ -89,6 +99,9 @@ export class Num {
   exp() {
     return unaryOpNum("EXP", this);
   }
+  tanh() {
+    return unaryOpNum("TANH", this);
+  }
   log() {
     return unaryOpNum("LOG", this);
   }
@@ -135,9 +148,11 @@ export class Num {
   }
 }
 
-export const ZERO = new Num(new LiteralNum(0));
-export const ONE = new Num(new LiteralNum(1));
-export const TWO = new Num(new LiteralNum(2));
+export const ZERO = new Num(ZERO_NODE);
+export const ONE = new Num(ONE_NODE);
+export const TWO = new Num(TWO_NODE);
+
+export const variable = (name: string) => new Num(new Variable(name));
 
 export const NumX = new Num(new Variable("x"));
 export const NumY = new Num(new Variable("y"));

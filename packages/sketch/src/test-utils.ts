@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { simpleEval, dedupeEval } from "./num-tree";
+import { simpleEval, dedupeEval, naiveEval } from "./num-tree";
 import { Point, asVec } from "./geom";
 import { Num } from "./num";
 import { DistField, Segment } from "./types";
@@ -7,6 +7,10 @@ import { fidgetRender } from "./num-tree-fidget";
 
 export function ex(num: Num) {
   return expect(simpleEval(num.n));
+}
+
+export function exVar(num: Num, vars: Record<string, number>) {
+  return expect(naiveEval(num.n, new Map(Object.entries(vars))));
 }
 
 const FILLED_CHAR = "█";

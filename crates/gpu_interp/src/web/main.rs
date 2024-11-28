@@ -51,9 +51,10 @@ pub async fn setup_gpu_pipeline(
         width: (CANVAS_WIDTH / TILE_SIZE_X) * TILE_SIZE_X,
         height: (CANVAS_HEIGHT / TILE_SIZE_Y) * TILE_SIZE_Y,
     };
-
-    let projection = Default::default();
-
+    let config = GPURenderConfig {
+        viewport,
+        projection: Projection::default(),
+    };
     let swapchain_capabilities = surface.get_capabilities(&adapter);
     let swapchain_format = swapchain_capabilities.formats[0];
 
@@ -70,7 +71,7 @@ pub async fn setup_gpu_pipeline(
         &device,
         wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
     );
-    let mut buffers = create_buffers(&device, viewport, projection);
+    let mut buffers = create_buffers(&device, config);
 
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
@@ -83,11 +84,10 @@ pub async fn setup_gpu_pipeline(
         "fragment_main_web",
     );
 
-    let config = surface
+    let surface_config = surface
         .get_default_config(&adapter, viewport.width, viewport.height)
         .unwrap();
-
-    surface.configure(&device, &config);
+    surface.configure(&device, &surface_config);
 
     let mut step_count = 0;
     let mut time: f32 = 0.;
@@ -124,13 +124,13 @@ pub async fn setup_gpu_pipeline(
                 bindings.insert(*VAR_TIME, time);
 
                 // Update with new shape
-                expression = Some(GPUExpression::new(&s, &bvars, viewport, projection));
+                expression = Some(GPUExpression::new(&s, &bvars, config));
                 update_buffers(
                     &queue,
                     &mut buffers,
                     expression.as_ref().unwrap(),
                     Some(&bindings),
-                    viewport.clone(),
+                    config,
                 );
             }
 
@@ -243,7 +243,6 @@ fn main() {
                 let draw_fn = draw_fn.clone();
                 move |text: &str| match engine.eval(text, &extra_bindings[..]) {
                     Ok(tree) => {
-                        info!("{:?}", tree);
                         let mut ctx = Context::new();
 
                         let root = ctx.import(&tree);

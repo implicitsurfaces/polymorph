@@ -3,7 +3,7 @@ use std::sync::Once;
 use fidget::render::{BitRenderMode, ImageRenderConfig, SdfPixelRenderMode};
 use fidget::vm::VmShape;
 
-use gpu_interp::{GPUExpression, Projection, Viewport};
+use gpu_interp::{GPUExpression, GPURenderConfig, Projection, Viewport};
 
 extern crate console_error_panic_hook;
 use log::*;
@@ -247,10 +247,9 @@ impl Context {
         if use_gpu {
             let viewport = Viewport::new(image_size as u32, image_size as u32);
             let proj = Projection::normalized_device_coords_for_viewport(viewport);
-            let expr = GPUExpression::new(&shape, [], viewport, proj);
-            let dists = gpu_interp::evaluate(&expr, None, viewport, proj)
-                .await
-                .unwrap();
+            let config = GPURenderConfig::new(viewport, proj);
+            let expr = GPUExpression::new(&shape, [], config);
+            let dists = gpu_interp::evaluate(&expr, None, config).await.unwrap();
 
             return if sdf_mode {
                 let inside = [255, 255, 255, 255];

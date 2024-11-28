@@ -20,25 +20,12 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
 
     let (adapter, device, queue) = create_device(&instance, &options).await;
 
-    // let viewport = {
-    //     let mut size = window.inner_size();
-    //     size.width = size.width.max(1);
-    //     size.height = size.height.max(1);
-
-    //     Viewport {
-    //         width: size.width,
-    //         height: size.height,
-    //     }
-    // };
-
-    // let projection = Projection::default();
-
     let viewport = Viewport {
         width: 4 * TILE_SIZE_X,
         height: 4 * TILE_SIZE_Y,
     };
-
     let projection = Projection::normalized_device_coords_for_viewport(viewport);
+    let config = GPURenderConfig::new(viewport, projection);
 
     let expr = {
         use fidget::context::Context;
@@ -46,7 +33,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         let (ctx, root) = Context::from_text(&mut file).unwrap();
         let shape = VmShape::new(&ctx, root).unwrap();
 
-        GPUExpression::new(&shape, [], viewport, projection)
+        GPUExpression::new(&shape, [], config)
     };
 
     let swapchain_capabilities = surface.get_capabilities(&adapter);
@@ -61,8 +48,8 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         label: None,
         source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source())),
     });
-    let mut buffers = create_buffers(&device, viewport, projection);
-    update_buffers(&queue, &mut buffers, &expr, None, viewport);
+    let mut buffers = create_buffers(&device, config);
+    update_buffers(&queue, &mut buffers, &expr, None, config);
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
     // Create the piplines.

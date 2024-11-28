@@ -49,14 +49,16 @@ fn test_fidget_four_circles() {
         let node = ctx.import(&tree);
         VmShape::new(&ctx, node).unwrap()
     };
-    let viewport = Viewport::new(256, 256);
-    let projection = Projection::default();
-    let expr = GPUExpression::new(&shape, [], viewport, projection);
-    let result = evaluate_sync(&expr, None, viewport, projection);
+    let config = GPURenderConfig {
+        viewport: Viewport::new(256, 256),
+        projection: Projection::default(),
+    };
+    let expr = GPUExpression::new(&shape, [], config);
+    let result = evaluate_sync(&expr, None, config);
 
     assert_relative_eq!(
         result.unwrap().as_slice(),
-        jit_evaluate(&tree, None, viewport).as_slice(),
+        jit_evaluate(&tree, None, config.viewport).as_slice(),
         epsilon = 1e-1
     );
 }
@@ -78,14 +80,17 @@ fn test_fidget_many_circles() {
         VmShape::new(&ctx, node).unwrap()
     };
 
-    let viewport = Viewport::new(256, 256);
-    let expr = GPUExpression::new(&shape, [], viewport, Projection::default());
+    let config = GPURenderConfig {
+        viewport: Viewport::new(256, 256),
+        projection: Projection::default(),
+    };
+    let expr = GPUExpression::new(&shape, [], config);
 
     // debug!("{:?}", bytecode);
-    let result = evaluate_sync(&expr, None, viewport, Default::default());
+    let result = evaluate_sync(&expr, None, config);
     assert_relative_eq!(
         result.unwrap().as_slice(),
-        jit_evaluate(&tree, None, viewport).as_slice(),
+        jit_evaluate(&tree, None, config.viewport).as_slice(),
         epsilon = 1.0
     );
 }
@@ -103,7 +108,10 @@ fn test_variable_evaluation() {
         VmShape::new(&ctx, node).unwrap()
     };
 
-    let viewport = Viewport::new(256, 256);
+    let config = GPURenderConfig {
+        viewport: Viewport::new(256, 256),
+        projection: Projection::default(),
+    };
 
     let bounded_vars = vec![
         BoundedVar {
@@ -116,16 +124,16 @@ fn test_variable_evaluation() {
         },
     ];
 
-    let expr = GPUExpression::new(&shape, bounded_vars, viewport, Projection::default());
+    let expr = GPUExpression::new(&shape, bounded_vars, config);
 
     let mut bindings = HashMap::new();
     bindings.insert(var_a, 1.0);
     bindings.insert(var_b, 2.0);
 
-    let result = evaluate_sync(&expr, Some(&bindings), viewport, Default::default());
+    let result = evaluate_sync(&expr, Some(&bindings), config);
     assert_relative_eq!(
         result.unwrap().as_slice(),
-        jit_evaluate(&tree, Some(&bindings), viewport).as_slice(),
+        jit_evaluate(&tree, Some(&bindings), config.viewport).as_slice(),
         epsilon = 1.0
     );
 }
@@ -143,9 +151,9 @@ fn test_variable_evaluation_with_unused_var() {
         VmShape::new(&ctx, node).unwrap()
     };
 
-    let viewport = Viewport {
-        width: 256,
-        height: 256,
+    let config = GPURenderConfig {
+        viewport: Viewport::new(256, 256),
+        projection: Projection::default(),
     };
 
     let bounded_vars = vec![
@@ -159,16 +167,16 @@ fn test_variable_evaluation_with_unused_var() {
         },
     ];
 
-    let expr = GPUExpression::new(&shape, bounded_vars, viewport, Projection::default());
+    let expr = GPUExpression::new(&shape, bounded_vars, config);
 
     let mut bindings = HashMap::new();
     bindings.insert(var_a, 1.0);
     bindings.insert(var_b, 2.0);
 
-    let result = evaluate_sync(&expr, Some(&bindings), viewport, Default::default());
+    let result = evaluate_sync(&expr, Some(&bindings), config);
     assert_relative_eq!(
         result.unwrap().as_slice(),
-        jit_evaluate(&tree, Some(&bindings), viewport).as_slice(),
+        jit_evaluate(&tree, Some(&bindings), config.viewport).as_slice(),
         epsilon = 1.0
     );
 }
@@ -183,10 +191,13 @@ fn test_constants() {
         VmShape::new(&ctx, node).unwrap()
     };
 
-    let viewport = Viewport::new(256, 256);
-    let expr = GPUExpression::new(&shape, [], viewport, Projection::default());
+    let config = GPURenderConfig {
+        viewport: Viewport::new(256, 256),
+        projection: Projection::default(),
+    };
+    let expr = GPUExpression::new(&shape, [], config);
 
-    let result = evaluate_sync(&expr, None, viewport, Projection::default());
+    let result = evaluate_sync(&expr, None, config);
     assert_eq!(result.unwrap().as_slice(), &[1.0f32; 256 * 256]);
 }
 
@@ -199,10 +210,13 @@ fn test_nan_checker() {
         VmShape::new(&ctx, node).unwrap()
     };
 
-    let viewport = Viewport::new(256, 256);
-    let expr = GPUExpression::new(&shape, [], viewport, Projection::default());
+    let config = GPURenderConfig {
+        viewport: Viewport::new(256, 256),
+        projection: Projection::default(),
+    };
+    let expr = GPUExpression::new(&shape, [], config);
 
-    let result = evaluate_sync(&expr, None, viewport, Projection::default());
+    let result = evaluate_sync(&expr, None, config);
     assert!(result.is_err());
 }
 
@@ -277,10 +291,9 @@ fn jit_evaluate(tree: &Tree, bindings: Option<&Bindings>, viewport: Viewport) ->
 fn evaluate_sync(
     expr: &GPUExpression,
     bindings: Option<&Bindings>,
-    viewport: Viewport,
-    projection: Projection,
+    config: GPURenderConfig,
 ) -> Result<Vec<f32>, RenderError> {
-    let buf = pollster::block_on(evaluate(&expr, bindings, viewport, projection)).unwrap();
+    let buf = pollster::block_on(evaluate(&expr, bindings, config)).unwrap();
     if buf.iter().find(|v| v.is_nan()).is_some() {
         Err(RenderError::ContainsNaN(buf))
     } else {

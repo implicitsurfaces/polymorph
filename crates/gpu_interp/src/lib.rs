@@ -56,8 +56,7 @@ const MAX_VAR_COUNT_DIV_4: u32 = MAX_VAR_COUNT / 4u;
 pub async fn evaluate(
     expr: &GPUExpression,
     bindings: Option<&Bindings>,
-    viewport: Viewport,
-    projection: Projection,
+    config: GPURenderConfig,
 ) -> Option<Vec<f32>> {
     let (_, device, queue) = create_device(
         &wgpu::Instance::default(),
@@ -69,8 +68,8 @@ pub async fn evaluate(
         &device,
         wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
     );
-    let mut buffers = create_buffers(&device, viewport, projection);
-    update_buffers(&queue, &mut buffers, expr, bindings, viewport);
+    let mut buffers = create_buffers(&device, config);
+    update_buffers(&queue, &mut buffers, expr, bindings, config);
     let bind_group = create_bind_group(&device, &buffers, &bind_group_layout);
 
     // Create timestamp query set
@@ -94,7 +93,7 @@ pub async fn evaluate(
         &pipeline,
         &bind_group,
         Some(&timestamp_query_set),
-        (viewport.width, viewport.height, 1),
+        (config.viewport.width, config.viewport.height, 1),
     );
 
     // Copy the result from the output buffer to the staging buffer
@@ -103,7 +102,7 @@ pub async fn evaluate(
         0,
         &buffers.output_staging_buffer,
         0,
-        viewport.byte_size() as wgpu::BufferAddress,
+        config.viewport.byte_size() as wgpu::BufferAddress,
     );
 
     // Resolve timestamp query results
@@ -169,12 +168,7 @@ pub struct GPUExpression {
 }
 
 impl GPUExpression {
-    pub fn new<B>(
-        shape: &VmShape,
-        bvars: B,
-        Viewport { width, height }: Viewport,
-        projection: Projection,
-    ) -> Self
+    pub fn new<B>(shape: &VmShape, bvars: B, config: GPURenderConfig) -> Self
     where
         B: Into<Vec<BoundedVar>>,
     {
@@ -221,8 +215,8 @@ impl GPUExpression {
         let mut eval_i = fidget::shape::Shape::<VmFunction>::new_interval_eval();
 
         let make_intervals = |a: [f32; 2], b: [f32; 2]| -> [Interval; 2] {
-            let new_a = projection.unproject(a);
-            let new_b = projection.unproject(b);
+            let new_a = config.projection.unproject(a);
+            let new_b = config.projection.unproject(b);
             [
                 Interval::new(new_a[0].min(new_b[0]), new_a[0].max(new_b[0])),
                 Interval::new(new_a[1].min(new_b[1]), new_a[1].max(new_b[1])),
@@ -230,10 +224,10 @@ impl GPUExpression {
         };
 
         // Tiles are in framebuffer coordinates: origin top left, y+ down, x+ right.
-        for row in 0..(height / TILE_SIZE_Y) {
+        for row in 0..(config.viewport.height / TILE_SIZE_Y) {
             let y = row as f32 * TILE_SIZE_Y as f32;
 
-            for col in 0..(width / TILE_SIZE_X) {
+            for col in 0..(config.viewport.width / TILE_SIZE_X) {
                 let x = col as f32 * TILE_SIZE_X as f32;
 
                 let [ix, iy] =
@@ -371,6 +365,21 @@ impl GPUExpression {
             ans.extend_from_slice(&repr);
         }
         ans
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct GPURenderConfig {
+    pub viewport: Viewport,
+    pub projection: Projection,
+}
+
+impl GPURenderConfig {
+    pub fn new(viewport: Viewport, projection: Projection) -> Self {
+        GPURenderConfig {
+            viewport,
+            projection,
+        }
     }
 }
 
@@ -556,7 +565,7 @@ pub fn update_buffers(
     buffers: &mut Buffers,
     expression: &GPUExpression,
     bindings: Option<&Bindings>,
-    viewport: Viewport,
+    config: GPURenderConfig,
 ) {
     queue.write_buffer(&buffers.bytecode_buffer, 0, &expression.tape_bytes());
     queue.write_buffer(
@@ -570,6 +579,7 @@ pub fn update_buffers(
         bytemuck::bytes_of(&expression.built_in_vars),
     );
     // Ensure that we have the correct number of subtapes.
+    let viewport = config.viewport;
     let tile_count = (viewport.width / TILE_SIZE_X) * (viewport.height / TILE_SIZE_Y);
     assert!(viewport.width % TILE_SIZE_X == 0);
     assert!(viewport.height % TILE_SIZE_Y == 0);
@@ -601,11 +611,7 @@ pub fn update_var_buffers(
     );
 }
 
-pub fn create_buffers(
-    device: &wgpu::Device,
-    viewport: Viewport,
-    projection: Projection,
-) -> Buffers {
+pub fn create_buffers(device: &wgpu::Device, config: GPURenderConfig) -> Buffers {
     let bytecode_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Bytecode Buffer"),
         size: (MAX_TAPE_LEN_REGOPS as usize * std::mem::size_of::<RegOp>()) as wgpu::BufferAddress,
@@ -629,7 +635,7 @@ pub fn create_buffers(
         mapped_at_creation: false,
     });
 
-    let output_size_bytes = viewport.byte_size();
+    let output_size_bytes = config.viewport.byte_size();
 
     let output_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Output Buffer"),
@@ -647,7 +653,7 @@ pub fn create_buffers(
 
     let viewport_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Viewport Buffer"),
-        contents: bytemuck::cast_slice(&[viewport.width, viewport.height]),
+        contents: bytemuck::cast_slice(&[config.viewport.width, config.viewport.height]),
         usage: wgpu::BufferUsages::UNIFORM,
     });
 
@@ -661,7 +667,7 @@ pub fn create_buffers(
     let projection_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Projection Buffer"),
         // maps screen space to world space: scale, then translate
-        contents: { bytemuck::cast_slice(&projection.as_bytes()) },
+        contents: { bytemuck::cast_slice(&config.projection.as_bytes()) },
         usage: wgpu::BufferUsages::UNIFORM,
     });
 

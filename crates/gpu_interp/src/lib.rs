@@ -390,6 +390,7 @@ impl Viewport {
 }
 
 #[derive(Copy, Clone, Debug)]
+/// From world to screen space.
 pub struct Projection {
     pub scale: [f32; 2],
     pub translation: [f32; 2],
@@ -418,15 +419,15 @@ impl Projection {
 
     pub fn unproject(&self, p: [f32; 2]) -> [f32; 2] {
         [
-            (p[0] + self.translation[0]) / self.scale[0],
-            (p[1] + self.translation[1]) / self.scale[1],
+            p[0] * self.scale[0] - self.translation[0],
+            p[1] * self.scale[1] - self.translation[1],
         ]
     }
 
     pub fn project(&self, p: [f32; 2]) -> [f32; 2] {
         [
-            p[0] * self.scale[0] - self.translation[0],
-            p[1] * self.scale[1] - self.translation[1],
+            (p[0] + self.translation[0]) / self.scale[0],
+            (p[1] + self.translation[1]) / self.scale[1],
         ]
     }
 }

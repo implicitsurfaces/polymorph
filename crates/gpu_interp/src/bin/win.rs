@@ -34,18 +34,11 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     // let projection = Projection::default();
 
     let viewport = Viewport {
-        width: 64 * 10,
-        height: 16 * 4 * 10,
+        width: 4 * TILE_SIZE_X,
+        height: 4 * TILE_SIZE_Y,
     };
 
-    let projection = {
-        let w = viewport.width as f32;
-        let h = viewport.height as f32;
-        Projection {
-            scale: [1. / (w / 2.), -1. / (h / 2.)],
-            translation: [1., -1.],
-        }
-    };
+    let projection = Projection::normalized_device_coords_for_viewport(viewport);
 
     let expr = {
         use fidget::context::Context;

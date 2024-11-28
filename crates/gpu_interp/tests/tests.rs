@@ -1,6 +1,3 @@
-// Based on the hello_compute example from the wgpu repo.
-// See https://github.com/gfx-rs/wgpu/tree/trunk/examples/src/hello_compute
-
 use std::collections::HashMap;
 
 use gpu_interp::*;
@@ -14,6 +11,21 @@ use fidget::{
     vm::VmShape,
 };
 use sdf::*;
+
+#[test]
+fn test_projection() {
+    let viewport = Viewport {
+        width: 100,
+        height: 200,
+    };
+
+    let projection = Projection::normalized_device_coords_for_viewport(viewport);
+    assert!(projection.project([0., 0.]) == [50.0, 100.0]);
+    assert!(projection.unproject([0., 0.]) == [-1.0, 1.0]);
+
+    assert!(projection.unproject([50., 100.]) == [0.0, 0.0]);
+    assert!(projection.project([-1.0, 1.0]) == [0.0, 0.0]);
+}
 
 #[derive(Debug)]
 enum RenderError {

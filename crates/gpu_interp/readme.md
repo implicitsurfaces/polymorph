@@ -65,3 +65,15 @@ The diagram above shows the high-level flow, with some aspects simplified. Here 
 ### Workgroup size
 
 We didn't put a lot  of thought into the workgroup size. Some quick experimention didn't show any big differences. In theory, we should choose a combination of workgroup size and tile size that ensures that a single SIMD group (32 invocations) is always executing the same bytecode.
+
+### Tiling
+
+There's an optimization possible in the tiling, that if we know we are rendering an SDF (as opposed to some arbitrary function), if the tile is entirely inside or outside the shape, we don't need to evaluate anything. We don't current do that however.
+
+### Missing opcodes
+
+Not all Fidget opcodes are implemented! When an unimplemented opcode is encountered, the compute shader returns NaN. If this happens in a test, it will be flagged. We could consider adding a flag to the GPURenderConfig or something to be able to detect this scenario more easily in other cases.
+
+### Opcode constants
+
+When we first wrote the compute shader, we didn't have a good way to define constants for each bytecode in the shader code, so we just hardcoded the constants. Matt later implemented a solution on his [wgpu-bytecode branch][]. It would make sense to use that.

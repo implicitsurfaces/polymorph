@@ -223,10 +223,10 @@ impl GPUExpression {
         let make_intervals = |a: [f32; 2], b: [f32; 2]| -> [Interval; 2] {
             let new_a = projection.unproject(a);
             let new_b = projection.unproject(b);
-            dbg!([
+            [
                 Interval::new(new_a[0].min(new_b[0]), new_a[0].max(new_b[0])),
                 Interval::new(new_a[1].min(new_b[1]), new_a[1].max(new_b[1])),
-            ])
+            ]
         };
 
         // Tiles are in framebuffer coordinates: origin top left, y+ down, x+ right.

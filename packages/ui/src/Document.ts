@@ -1,5 +1,10 @@
 import { Vector2 } from 'threejs-math';
 
+/* Note: for now, we use the `A` prefix for classes meant to be used with
+   Automerge, while both the old and new document definitions are in the
+   repo.
+*/
+
 // TODO: decides whether to use "strong typing" for Document elements (e.g., with
 // a `Layer` class, `Point` class, etc.), or if we simply go with lose
 // typing, e.g., the same as the output of JSON.parse() (possibly defining a
@@ -26,6 +31,11 @@ export class Point {
   }
 }
 
+export interface APoint {
+  name: string;
+  position: Vector2;
+}
+
 /**
  * Stores information about a given layer.
  */
@@ -50,6 +60,10 @@ export class LayerProperties {
   equals(other: LayerProperties): boolean {
     return this.name === other.name;
   }
+}
+
+export interface ALayerProperties {
+  name: string;
 }
 
 /**
@@ -85,6 +99,11 @@ export class Layer {
     this.points.push(new Point(name, position));
     return this;
   }
+}
+
+export interface ALayer {
+  properties: ALayerProperties;
+  points: Array<APoint>;
 }
 
 /**
@@ -132,6 +151,11 @@ export class Document {
     this.layers.splice(index, 1);
     return this;
   }
+}
+
+export interface ADocument {
+  layers: Array<ALayer>;
+  activeLayerIndex: number /* XXX: move out of document? */;
 }
 
 /**

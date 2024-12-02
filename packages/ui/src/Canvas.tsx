@@ -1,7 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Vector2 } from 'threejs-math';
 import { Camera2 } from './Camera2.ts';
+
+import type { AutomergeUrl } from '@automerge/automerge-repo';
+import { useDocument } from '@automerge/automerge-repo-react-hooks';
+
 import { Point, Layer, Document, DocumentManager } from './Document.ts';
+import { ADocument, ALayer, APoint } from './Document.ts';
 
 import './Canvas.css';
 
@@ -155,25 +160,25 @@ function drawDisk(ctx: CanvasRenderingContext2D, position: Vector2, radius: numb
   ctx.fill();
 }
 
-function drawPoint(ctx: CanvasRenderingContext2D, point: Point) {
+function drawPoint(ctx: CanvasRenderingContext2D, point: APoint) {
   const radius = 5;
   const fillStyle = 'black';
   drawDisk(ctx, point.position, radius, fillStyle);
 }
 
-function drawLayer(ctx: CanvasRenderingContext2D, layer: Layer) {
+function drawLayer(ctx: CanvasRenderingContext2D, layer: ALayer) {
   layer.points.forEach(point => {
     drawPoint(ctx, point);
   });
 }
 
-function drawDocument(ctx: CanvasRenderingContext2D, document: Document) {
+function drawDocument(ctx: CanvasRenderingContext2D, document: ADocument) {
   document.layers.forEach(layer => {
     drawLayer(ctx, layer);
   });
 }
 
-function draw(canvas: HTMLCanvasElement, camera: Camera2, document: Document) {
+function draw(canvas: HTMLCanvasElement, camera: Camera2, document: ADocument) {
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     return;
@@ -270,17 +275,20 @@ interface PointerState {
 
 interface CanvasProps {
   documentManager: DocumentManager;
+  docUrl: AutomergeUrl;
 }
 
 type IMouseEvent = MouseEvent | React.MouseEvent;
 type IPointerEvent = PointerEvent | React.PointerEvent;
 type IWheelEvent = WheelEvent | React.WheelEvent;
 
-export function Canvas({ documentManager }: CanvasProps) {
+export function Canvas({ documentManager, docUrl }: CanvasProps) {
   const [camera, setCamera] = useState<Camera2>(new Camera2());
   const [pointerState, setPointerState] = useState<PointerState | null>(null);
 
   const ref = useRef<HTMLCanvasElement | null>(null);
+
+  const [doc, changeDoc] = useDocument<ADocument>(docUrl);
 
   // Returns whether there is a drag action available for the drag button.
   //
@@ -356,12 +364,12 @@ export function Canvas({ documentManager }: CanvasProps) {
       switch (event.button) {
         case 0: {
           // left click: create point
-          const layer = documentManager.activeLayer();
-          if (layer) {
-            const pos = getMouseDocumentPosition(event, canvas, pointerState.cameraOnPress);
-            layer.addPoint(pos);
-            documentManager.commitChanges();
-          }
+          const pos = getMouseDocumentPosition(event, canvas, pointerState.cameraOnPress);
+          changeDoc(d => {
+            const i = d.activeLayerIndex;
+            const name = 'Point ' + (d.layers[i].points.length + 1);
+            d.layers[i].points.push({ name: name, position: pos });
+          });
           break;
         }
         case 2: {
@@ -374,7 +382,7 @@ export function Canvas({ documentManager }: CanvasProps) {
         }
       }
     },
-    [pointerState, documentManager]
+    [pointerState, changeDoc]
   );
 
   const onPointerDown = useCallback(
@@ -478,10 +486,10 @@ export function Canvas({ documentManager }: CanvasProps) {
   const version = documentManager.version();
   useEffect(() => {
     const canvas = ref.current;
-    if (canvas && canvas.width > 0 && canvas.height > 0) {
-      draw(canvas, camera, documentManager.document());
+    if (doc && canvas && canvas.width > 0 && canvas.height > 0) {
+      draw(canvas, camera, doc);
     }
-  }, [camera, documentManager, version]);
+  }, [camera, doc]);
 
   // Update the camera (and therefore the canvas width/height attributes)
   // based on its computed device pixel size.

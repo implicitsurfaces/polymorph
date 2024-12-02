@@ -3,6 +3,8 @@ import { Panel, PanelGroup, PanelResizeHandle, PointerHitAreaMargins } from 'rea
 
 import { DocumentManager } from './Document.ts';
 
+import type { AutomergeUrl } from '@automerge/automerge-repo';
+
 import { Canvas } from './Canvas.tsx';
 import { LayersPanel } from './LayersPanel.tsx';
 import { SkeletonPanel } from './SkeletonPanel.tsx';
@@ -20,7 +22,11 @@ type ClientSize = {
   height: number;
 };
 
-function App() {
+interface AppProps {
+  docUrl: AutomergeUrl;
+}
+
+function App({ docUrl }: AppProps) {
   // Create the DocumentManager.
   //
   // It has stable identity and stores the document history as well as a
@@ -158,11 +164,11 @@ function App() {
         <Panel>
           <PanelGroup className="canvas-panel-group" direction="horizontal">
             <Panel defaultSize={50} minSize={10}>
-              <Canvas documentManager={documentManager} />
+              <Canvas documentManager={documentManager} docUrl={docUrl} />
             </Panel>
             <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
             <Panel minSize={10}>
-              <Canvas documentManager={documentManager} />
+              <Canvas documentManager={documentManager} docUrl={docUrl} />
             </Panel>
           </PanelGroup>
         </Panel>

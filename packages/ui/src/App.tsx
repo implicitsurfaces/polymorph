@@ -176,7 +176,7 @@ function App({ docUrl }: AppProps) {
         <Panel>
           <PanelGroup className="panels-panel-group" direction="horizontal">
             <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
-              <LayersPanel documentManager={documentManager} />
+              <LayersPanel documentManager={documentManager} docUrl={docUrl} />
             </Panel>
             <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
             <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>

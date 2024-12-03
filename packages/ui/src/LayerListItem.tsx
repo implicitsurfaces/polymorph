@@ -1,52 +1,68 @@
 import { memo, useCallback, MouseEvent } from 'react';
-import { LayerProperties, DocumentManager } from './Document.ts';
+import { DocumentManager } from './Document.ts';
+import { ALayerProperties, ADocument } from './Document.ts';
+
+import type { AutomergeUrl } from '@automerge/automerge-repo';
+import { useDocument } from '@automerge/automerge-repo-react-hooks';
 
 interface LayerListItemProps {
   documentManager: DocumentManager;
+  docUrl: AutomergeUrl;
   index: number; // TODO: use some sort of unique ID instead? (e.g., if moved in hierarchy)
   isActive: boolean;
-  layerProperties: LayerProperties; // we need this for memoization
+  layerProperties: ALayerProperties; // we need this for memoization
 }
 
 export const LayerListItem = memo(
-  function LayerListItem({ documentManager, index, isActive, layerProperties }: LayerListItemProps) {
+  function LayerListItem({ documentManager, docUrl, index, isActive, layerProperties }: LayerListItemProps) {
+    const [doc, changeDoc] = useDocument<ADocument>(docUrl);
+
     const onCreateLayer = useCallback(
       (event: MouseEvent<HTMLButtonElement>) => {
         // Click: insert after
         // Alt+Click: insert before
-        const insertIndex = event.altKey ? index : index + 1;
-        const prevActiveLayer = documentManager.activeLayerIndex();
-        let nextActiveLayer = prevActiveLayer;
-        if (insertIndex <= prevActiveLayer) {
-          nextActiveLayer += 1;
+        if (!doc) {
+          return;
         }
-        documentManager.document().addLayer(insertIndex);
-        documentManager.setActiveLayer(nextActiveLayer);
-        documentManager.commitChanges();
+        const insertIndex = event.altKey ? index : index + 1;
+        changeDoc(d => {
+          const name = 'Layer ' + (doc.layers.length + 1);
+          const prevActiveLayer = d.activeLayerIndex;
+          let nextActiveLayer = prevActiveLayer;
+          if (insertIndex <= prevActiveLayer) {
+            nextActiveLayer += 1;
+          }
+          // XXX: Why isn't insertAt from Automerge available?
+          d.layers.splice(insertIndex, 0, { properties: { name: name }, points: [] });
+          d.activeLayerIndex = nextActiveLayer;
+        });
       },
-      [documentManager, index]
+      [doc, changeDoc, index]
     );
 
     const onDeleteLayer = useCallback(() => {
       // Prevent deleting the last layer: this is important with the current
       // design (+/- buttons next to each layer), otherwise after the last
       // layer is deleted, it is impossible to create layers.
-      if (documentManager.document().layers.length == 1) {
+      if (!doc || doc.layers.length == 1) {
         return;
       }
-      const prevActiveLayer = documentManager.activeLayerIndex();
-      let nextActiveLayer = prevActiveLayer;
-      if (index < prevActiveLayer) {
-        nextActiveLayer -= 1;
-      }
-      documentManager.document().removeLayer(index);
-      documentManager.setActiveLayer(nextActiveLayer);
-      documentManager.commitChanges();
+
+      changeDoc(d => {
+        const prevActiveLayer = d.activeLayerIndex;
+        let nextActiveLayer = prevActiveLayer;
+        if (index < prevActiveLayer) {
+          nextActiveLayer -= 1;
+        }
+        // XXX: Why isn't deleteAt from Automerge available?
+        d.layers.splice(index, 1);
+        d.activeLayerIndex = nextActiveLayer;
+      });
     }, [documentManager, index]);
 
     const onSelectLayer = useCallback(() => {
       documentManager.setActiveLayer(index);
-    }, [documentManager, index]);
+    }, [doc, changeDoc, index]);
 
     return (
       <div className={'panel-list-item has-secret-zone' + (isActive ? ' is-active' : '')}>
@@ -68,12 +84,15 @@ export const LayerListItem = memo(
     // We need re-rendering only if the layer's properties (name, color, etc.)
     // change, but not if the layer's inner objects change.
     //
+    /*
     return (
       prevProps.documentManager === nextProps.documentManager &&
       prevProps.index === nextProps.index &&
       prevProps.isActive === nextProps.isActive &&
-      prevProps.layerProperties.equals(nextProps.layerProperties)
+      prevProps.layerProperties === prevProps.layerProperties
     );
+    */
+    return false;
   }
 );
 

@@ -415,7 +415,7 @@ export class SignedDistanceToProfile extends RealValueNode {
 export class ConstraintOnDistance extends ConstraintNode {
   constructor(
     public readonly distance: DistanceNode,
-    public readonly value: DistanceNode,
+    public readonly target: DistanceNode,
     public readonly tolerance: DistanceNode,
   ) {
     super();
@@ -425,7 +425,8 @@ export class ConstraintOnDistance extends ConstraintNode {
 export class ConstraintOnAngle extends ConstraintNode {
   constructor(
     public readonly angle: AngleNode,
-    public readonly value: AngleNode,
+    public readonly target: AngleNode,
+    public readonly tolerance: DistanceNode,
   ) {
     super();
   }
@@ -434,7 +435,7 @@ export class ConstraintOnAngle extends ConstraintNode {
 export class ConstraintOnPoint extends ConstraintNode {
   constructor(
     public readonly point: PointNode,
-    public readonly value: PointNode,
+    public readonly target: PointNode,
     public readonly tolerance: DistanceNode,
   ) {
     super();

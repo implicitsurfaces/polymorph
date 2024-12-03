@@ -1,4 +1,4 @@
-import { Num, asNum } from "./num";
+import { Num, ONE, TWO, asNum } from "./num";
 import { Vec2, Angle, angleFromDeg, Point } from "./geom";
 import {
   DistanceNode,
@@ -55,6 +55,11 @@ import {
   SignedDistanceToProfile,
   DistanceLiteral,
   Dilate,
+  ConstraintOnDistance,
+  ConstraintNode,
+  ConstraintOnAngle,
+  ConstraintOnPoint,
+  ConstraintOnProfileBoundary,
 } from "./sketch-nodes";
 import { LineSegment } from "./segments";
 import {
@@ -413,4 +418,46 @@ export const evalProfile = memoizeNodeEval(function (
   }
 
   throw new Error(`Unknown profile: ${node.constructor.name}`);
+});
+
+export const evalConstraint = memoizeNodeEval(function (
+  node: ConstraintNode,
+): Num {
+  if (node instanceof ConstraintOnDistance) {
+    const dist = evalDistance(node.distance);
+    const target = evalDistance(node.target);
+    const tol = evalDistance(node.tolerance);
+
+    const weightedDiff = dist.sub(target).div(tol);
+    return weightedDiff.square();
+  }
+
+  if (node instanceof ConstraintOnAngle) {
+    const angle = evalAngle(node.angle);
+    const target = evalAngle(node.target);
+    const tol = evalDistance(node.tolerance);
+
+    const loss = TWO.sub(angle.sub(target).cos().add(ONE));
+    return loss.div(tol.mul(TWO));
+  }
+
+  if (node instanceof ConstraintOnPoint) {
+    const point = evalPoint(node.point);
+    const target = evalPoint(node.target);
+    const tol = evalDistance(node.tolerance);
+
+    const diff = point.vecFrom(target).norm();
+    return diff.div(tol);
+  }
+
+  if (node instanceof ConstraintOnProfileBoundary) {
+    const profile = evalProfile(node.profile);
+    const point = evalPoint(node.point);
+    const tol = evalDistance(node.tolerance);
+
+    const dist = profile.distanceTo(point);
+    return dist.abs().div(tol);
+  }
+
+  throw new Error(`Unknown constraint: ${node.constructor.name}`);
 });

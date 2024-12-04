@@ -1,24 +1,42 @@
 import { Vector2 } from "threejs-math";
+import { v4 as uuidv4 } from "uuid";
 
-// TODO: decides whether to use "strong typing" for Document elements (e.g., with
-// a `Layer` class, `Point` class, etc.), or if we simply go with lose
-// typing, e.g., the same as the output of JSON.parse() (possibly defining a
-// `Layer` interface, `Point` interface, etc.).
+type ElementId = string;
 
-export class Point {
-  constructor(
-    public name: string = "New Point",
-    public position: Vector2 = new Vector2(0, 0),
-  ) {}
+export class Element {
+  constructor(readonly id: ElementId) {}
+}
 
-  clone(): Point {
-    return new Point().copy(this);
+function createVector2(data: any): Vector2 {
+  let x = 0;
+  let y = 0;
+  if (data) {
+    if (typeof data.x === "number") {
+      x = data.x;
+    } else if (typeof data[0] === "number") {
+      x = data[0];
+    }
+    if (typeof data.y === "number") {
+      y = data.y;
+    } else if (typeof data[1] === "number") {
+      y = data[1];
+    }
+  }
+  return new Vector2(x, y);
+}
+
+export class Point extends Element {
+  public name: string;
+  public position: Vector2;
+
+  constructor(id: ElementId, data: any) {
+    super(id);
+    this.name = typeof data.name === "string" ? data.name : "New Point";
+    this.position = createVector2(data.position);
   }
 
-  copy(source: Point): Point {
-    this.name = source.name;
-    this.position.copy(source.position);
-    return this;
+  clone(): Point {
+    return new Point(this.id, this);
   }
 
   equals(other: Point): boolean {
@@ -26,72 +44,48 @@ export class Point {
   }
 }
 
-/**
- * Stores information about a given layer.
- */
 export class LayerProperties {
   constructor(public name: string = "New Layer") {}
 
-  /**
-   * Returns a new LayerProperties with the same content as this one.
-   */
   clone(): LayerProperties {
-    return new LayerProperties().copy(this);
+    return new LayerProperties(this.name);
+  }
+}
+export class Layer extends Element {
+  public properties: LayerProperties = new LayerProperties();
+  public points: Array<ElementId> = [];
+
+  constructor(id: ElementId, data: any) {
+    super(id);
+    if (data.properties instanceof LayerProperties) {
+      this.properties = data.properties.clone();
+    }
+    if (Array.isArray(data.points)) {
+      this.points = data.points;
+    }
   }
 
-  /**
-   * Copies the content from the source layer into this one.
-   */
-  copy(source: LayerProperties): LayerProperties {
-    this.name = source.name;
-    return this;
-  }
-
-  equals(other: LayerProperties): boolean {
-    return this.name === other.name;
+  clone(): Layer {
+    return new Layer(this.id, this);
   }
 }
 
-/**
- * Stores the data in a given Document layer.
- */
-export class Layer {
-  constructor(
-    public properties: LayerProperties = new LayerProperties(),
-    public points: Array<Point> = [],
-  ) {}
-
-  /**
-   * Returns a new layer with the same content as this one.
-   */
-  clone(): Layer {
-    return new Layer().copy(this);
-  }
-
-  /**
-   * Copies the content from the source layer into this one.
-   */
-  copy(source: Layer): Layer {
-    this.properties = source.properties.clone();
-    this.points = source.points.map((p) => p.clone());
-    return this;
-  }
-
-  /**
-   * Adds a point to the layer.
-   */
-  addPoint(position: Vector2): Layer {
-    const name = "Point " + (this.points.length + 1);
-    this.points.push(new Point(name, position));
-    return this;
-  }
+function cloneMap<ElementId, T>(source: Map<ElementId, any>) {
+  const dest = new Map<ElementId, T>();
+  source.forEach((element, id) => {
+    dest.set(id, element.clone());
+  });
+  return dest;
 }
 
 /**
  * Stores all objects in the document.
  */
 export class Document {
-  constructor(public layers: Array<Layer> = []) {}
+  private _pointsMap: Map<ElementId, Point> = new Map();
+  private _layersMap: Map<ElementId, Layer> = new Map();
+
+  public layers: Array<ElementId> = [];
 
   /**
    * Returns a new document with the same content as this one.
@@ -104,23 +98,47 @@ export class Document {
    * Copies the content from the source document into this one.
    */
   copy(source: Document): Document {
-    this.layers = source.layers.map((l) => l.clone());
+    this._pointsMap = cloneMap(source._pointsMap);
+    this._layersMap = cloneMap(source._layersMap);
+    this.layers = [...source.layers];
     return this;
   }
 
+  getPointFromId(id: ElementId): Point | undefined {
+    return this._pointsMap.get(id);
+  }
+
+  getLayerFromId(id: ElementId): Layer | undefined {
+    return this._layersMap.get(id);
+  }
+
+  createPoint(data: any): Point {
+    const id = uuidv4();
+    const point = new Point(id, data);
+    this._pointsMap.set(id, point);
+    return point;
+  }
+
+  createLayer(data: any): Layer {
+    const id = uuidv4();
+    const layer = new Layer(id, data);
+    this._layersMap.set(id, layer);
+    return layer;
+  }
+
   /**
-   * Adds a layer to the document at the given index.
+   * Creates a new layer and add it to the document at the given index.
    *
    * If `index` is -1 (the default), the layer is added last.
    */
   addLayer(index: number = -1): Document {
     const name = "Layer " + (this.layers.length + 1);
     const props = new LayerProperties(name);
-    const layer = new Layer(props);
+    const layer = this.createLayer({ properties: props });
     if (index < 0) {
-      this.layers.push(layer);
+      this.layers.push(layer.id);
     } else {
-      this.layers.splice(index, 0, layer);
+      this.layers.splice(index, 0, layer.id);
     }
     return this;
   }
@@ -148,9 +166,7 @@ export class DocumentManager {
   private _index: number;
   private _workingCopy: Document;
 
-  // TODO: better way to store which layer is active (e.g., some unique ID),
-  // making it invariant to inserting/deleting layers or undoing such operations.
-  private _activeLayerIndex: number;
+  private _activeLayerId: ElementId;
 
   /**
    * Constructs a new `DocumentManager`.
@@ -181,7 +197,7 @@ export class DocumentManager {
       // Same as `this._makeWorkingCopy();` but silences strictPropertyInitialization false positive
       this._workingCopy = this._history[this._index].clone();
     }
-    this._activeLayerIndex = 0;
+    this._activeLayerId = this._workingCopy.layers[0];
   }
 
   /**
@@ -307,44 +323,21 @@ export class DocumentManager {
 
   // TODO: move activeLayer to SelectionState class
 
-  // -1 if no active layer
-  activeLayerIndex(): number {
-    const doc = this.document();
-    if (!doc || doc.layers.length === 0) {
-      return -1;
-    }
-
-    // clamp index to valid range, so that it
-    // behaves nicely if the active layer is
-    // the last layer and is deleted.
-    let index = this._activeLayerIndex;
-    if (index < 0) {
-      index = 0;
-    }
-    if (index >= doc.layers.length) {
-      index = doc.layers.length - 1;
-    }
-    return index;
+  activeLayerId(): ElementId {
+    return this._activeLayerId;
   }
 
-  activeLayer(): Layer | null {
+  activeLayer(): Layer | undefined {
     const doc = this.document();
     if (!doc) {
-      return null;
+      return undefined;
     }
-    const index = this.activeLayerIndex();
-    if (0 <= index && index < doc.layers.length) {
-      return doc.layers[index];
-    } else {
-      return null;
-    }
+    return doc.getLayerFromId(this._activeLayerId);
   }
 
-  setActiveLayer(index: number) {
-    // Note: activeLayerIndex() and _activeLayerIndex might differ
-    const prevIndex = this.activeLayerIndex();
-    this._activeLayerIndex = index;
-    if (this.activeLayerIndex() !== prevIndex) {
+  setActiveLayer(id: ElementId) {
+    if (this._activeLayerId !== id) {
+      this._activeLayerId = id;
       this._notify();
     }
   }

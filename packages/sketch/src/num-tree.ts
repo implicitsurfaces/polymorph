@@ -230,4 +230,17 @@ export async function dedupeEval(node: NumNode): Promise<number> {
   return Promise.resolve(simpleEval(node));
 }
 
-export { simpleEval };
+const allVariables = memoizeNodeEval(function (node: NumNode): Set<string> {
+  if (node instanceof Variable) {
+    return new Set([node.name]);
+  } else if (node instanceof UnaryOp) {
+    return allVariables(node.original);
+  } else if (node instanceof BinaryOp) {
+    const left = allVariables(node.left);
+    const right = allVariables(node.right);
+    return new Set([...left, ...right]);
+  }
+  return new Set();
+});
+
+export { simpleEval, allVariables };

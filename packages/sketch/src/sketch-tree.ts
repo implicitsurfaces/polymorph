@@ -312,24 +312,24 @@ class PartialPath {
   }
 }
 
+function evalDistanceWithDefault<T>(
+  distance: DistanceNode | undefined,
+  defaultValue: T,
+): Num | T {
+  return distance || distance === 0 ? evalDistance(distance) : defaultValue;
+}
+
 export const evalPath = memoizeNodeEval(function (node: PathNode): PartialPath {
   if (node instanceof PathStart) {
     const startPoint = evalPoint(node.point);
-    const startRadius =
-      node.cornerRadius || node.cornerRadius === 0
-        ? evalDistance(node.cornerRadius)
-        : undefined;
-
+    const startRadius = evalDistanceWithDefault(node.cornerRadius, undefined);
     return new PartialPath(startPoint, startRadius);
   }
 
   if (node instanceof PathEdge) {
     const path = evalPath(node.path);
     const point = evalPoint(node.point);
-    const radius =
-      node.cornerRadius || node.cornerRadius === 0
-        ? evalDistance(node.cornerRadius)
-        : undefined;
+    const radius = evalDistanceWithDefault(node.cornerRadius, undefined);
 
     const edgeFn = evalEdge(node.edge);
 
@@ -436,13 +436,15 @@ export const evalProfile = memoizeNodeEval(function (
   throw new Error(`Unknown profile: ${node.constructor.name}`);
 });
 
+const DEFAULT_WEIGHT = ONE;
+
 export const evalConstraint = memoizeNodeEval(function (
   node: ConstraintNode,
 ): Num {
   if (node instanceof ConstraintOnDistance) {
     const dist = evalDistance(node.distance);
     const target = evalDistance(node.target);
-    const tol = evalDistance(node.tolerance);
+    const tol = evalDistanceWithDefault(node.weigth, DEFAULT_WEIGHT);
 
     const weightedDiff = dist.sub(target).div(tol);
     return weightedDiff.square();
@@ -451,7 +453,7 @@ export const evalConstraint = memoizeNodeEval(function (
   if (node instanceof ConstraintOnAngle) {
     const angle = evalAngle(node.angle);
     const target = evalAngle(node.target);
-    const tol = evalDistance(node.tolerance);
+    const tol = evalDistanceWithDefault(node.weigth, DEFAULT_WEIGHT);
 
     const loss = TWO.sub(angle.sub(target).cos().add(ONE));
     return loss.div(tol.mul(TWO));
@@ -460,7 +462,7 @@ export const evalConstraint = memoizeNodeEval(function (
   if (node instanceof ConstraintOnPoint) {
     const point = evalPoint(node.point);
     const target = evalPoint(node.target);
-    const tol = evalDistance(node.tolerance);
+    const tol = evalDistanceWithDefault(node.weigth, DEFAULT_WEIGHT);
 
     const diff = point.vecFrom(target).norm();
     return diff.div(tol);
@@ -469,7 +471,7 @@ export const evalConstraint = memoizeNodeEval(function (
   if (node instanceof ConstraintOnProfileBoundary) {
     const profile = evalProfile(node.profile);
     const point = evalPoint(node.point);
-    const tol = evalDistance(node.tolerance);
+    const tol = evalDistanceWithDefault(node.weigth, DEFAULT_WEIGHT);
 
     const dist = profile.distanceTo(point);
     return dist.abs().div(tol);

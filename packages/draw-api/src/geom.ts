@@ -19,6 +19,7 @@ import {
   VectorDirection,
   AnglePerpendicular,
   AngleOpposite,
+  VectorNorm,
 } from "sketch";
 import {
   asAngle,
@@ -82,6 +83,10 @@ export class Vector implements NodeWrapper<VectorNode> {
 
   public asAngle(): Angle {
     return new Angle(new VectorDirection(this.inner));
+  }
+
+  public norm(): Distance {
+    return new Distance(new VectorNorm(this.inner));
   }
 }
 

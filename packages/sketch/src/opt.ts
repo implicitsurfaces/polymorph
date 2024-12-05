@@ -44,6 +44,7 @@ export function gradientDescentOpt(
     maxSteps = 100,
     tolerance = 0.0001,
     momentum = 0.1,
+    debug = false,
   } = {},
 ) {
   const gradient = new Gradient(num);
@@ -66,6 +67,11 @@ export function gradientDescentOpt(
 
     x = newX;
     gradNorm = gradient.normAt(x);
+
+    if (debug) {
+      console.log("Step", i, "grad", grad, "x", x, "gradNorm", gradNorm);
+    }
+
     if (gradNorm < tolerance) {
       break;
     }

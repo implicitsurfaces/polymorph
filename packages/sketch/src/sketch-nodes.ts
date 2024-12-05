@@ -434,7 +434,7 @@ export class ConstraintOnDistance extends ConstraintNode {
   constructor(
     public readonly distance: DistanceNode,
     public readonly target: DistanceNode,
-    public readonly tolerance: DistanceNode,
+    public readonly weigth: DistanceNode | undefined,
   ) {
     super();
   }
@@ -444,7 +444,7 @@ export class ConstraintOnAngle extends ConstraintNode {
   constructor(
     public readonly angle: AngleNode,
     public readonly target: AngleNode,
-    public readonly tolerance: DistanceNode,
+    public readonly weigth: DistanceNode | undefined,
   ) {
     super();
   }
@@ -454,7 +454,7 @@ export class ConstraintOnPoint extends ConstraintNode {
   constructor(
     public readonly point: PointNode,
     public readonly target: PointNode,
-    public readonly tolerance: DistanceNode,
+    public readonly weigth: DistanceNode | undefined,
   ) {
     super();
   }
@@ -464,7 +464,7 @@ export class ConstraintOnProfileBoundary extends ConstraintNode {
   constructor(
     public readonly profile: ProfileNode,
     public readonly point: PointNode,
-    public readonly tolerance: DistanceNode,
+    public readonly weigth: DistanceNode | undefined,
   ) {
     super();
   }

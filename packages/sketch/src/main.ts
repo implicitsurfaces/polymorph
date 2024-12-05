@@ -1,4 +1,7 @@
 export * from "./sketch-nodes";
-export { evalProfile } from "./sketch-tree";
+export { evalProfile, evalConstraint } from "./sketch-tree";
+export { allVariables } from "./num-tree";
+
+export { gradientDescentOpt } from "./opt";
 
 export { fidgetRender } from "./num-tree-fidget";

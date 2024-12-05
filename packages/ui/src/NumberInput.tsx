@@ -1,4 +1,4 @@
-import { useCallback, ChangeEvent, memo } from 'react';
+import { useCallback, ChangeEvent, memo } from "react";
 
 interface NumberInputProps {
   idBase: string;
@@ -7,7 +7,12 @@ interface NumberInputProps {
   onChange: (value: number) => void;
 }
 
-export const NumberInput = memo(function NumberInput({ idBase, label, value, onChange }: NumberInputProps) {
+export const NumberInput = memo(function NumberInput({
+  idBase,
+  label,
+  value,
+  onChange,
+}: NumberInputProps) {
   const _onChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
       let newValue = parseFloat(event.target.value);
@@ -16,7 +21,7 @@ export const NumberInput = memo(function NumberInput({ idBase, label, value, onC
       }
       onChange(newValue);
     },
-    [onChange]
+    [onChange],
   );
 
   return (

@@ -1,6 +1,6 @@
-import { memo, useCallback } from 'react';
-import { DocumentManager, Point } from './Document.ts';
-import { NumberInput } from './NumberInput.tsx';
+import { memo, useCallback } from "react";
+import { DocumentManager, Point } from "./Document.ts";
+import { NumberInput } from "./NumberInput.tsx";
 
 // TODO: use some sort of unique ID instead of layerIndex/pointIndex,
 // in order to support moving the point or layer in the hierarchy?
@@ -13,21 +13,30 @@ interface SkeletonListItemProps {
 }
 
 export const SkeletonListItem = memo(
-  function SkeletonListItem({ documentManager, layerIndex, pointIndex, point }: SkeletonListItemProps) {
+  function SkeletonListItem({
+    documentManager,
+    layerIndex,
+    pointIndex,
+    point,
+  }: SkeletonListItemProps) {
     const onXChange = useCallback(
       (value: number) => {
-        documentManager.document().layers[layerIndex].points[pointIndex].position.x = value;
+        documentManager.document().layers[layerIndex].points[
+          pointIndex
+        ].position.x = value;
         documentManager.commitChanges();
       },
-      [documentManager, layerIndex, pointIndex]
+      [documentManager, layerIndex, pointIndex],
     );
 
     const onYChange = useCallback(
       (value: number) => {
-        documentManager.document().layers[layerIndex].points[pointIndex].position.y = value;
+        documentManager.document().layers[layerIndex].points[
+          pointIndex
+        ].position.y = value;
         documentManager.commitChanges();
       },
-      [documentManager, layerIndex, pointIndex]
+      [documentManager, layerIndex, pointIndex],
     );
 
     return (
@@ -75,7 +84,7 @@ export const SkeletonListItem = memo(
       prevProps.pointIndex === nextProps.pointIndex &&
       prevProps.point.equals(nextProps.point)
     );
-  }
+  },
 );
 
 export default SkeletonListItem;

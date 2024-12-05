@@ -1,14 +1,19 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { Panel, PanelGroup, PanelResizeHandle, PointerHitAreaMargins } from 'react-resizable-panels';
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import {
+  Panel,
+  PanelGroup,
+  PanelResizeHandle,
+  PointerHitAreaMargins,
+} from "react-resizable-panels";
 
-import { DocumentManager } from './Document.ts';
+import { DocumentManager } from "./Document.ts";
 
-import { Canvas } from './Canvas.tsx';
-import { LayersPanel } from './LayersPanel.tsx';
-import { SkeletonPanel } from './SkeletonPanel.tsx';
+import { Canvas } from "./Canvas.tsx";
+import { LayersPanel } from "./LayersPanel.tsx";
+import { SkeletonPanel } from "./SkeletonPanel.tsx";
 
-import './App.css';
-import './Panel.css';
+import "./App.css";
+import "./Panel.css";
 
 function panelHitMargins(): PointerHitAreaMargins {
   // separator (0-2px) + 2 * margins (3px) = 6-8px total hit area
@@ -49,7 +54,7 @@ function App() {
 
   const onKeyPress = useCallback(
     (event: KeyboardEvent) => {
-      if (event.ctrlKey && (event.key === 'z' || event.key === 'Z')) {
+      if (event.ctrlKey && (event.key === "z" || event.key === "Z")) {
         // Prevent browser doing its own undoing of input fields,
         // interfering with our undo/redo mechanism.
         event.preventDefault();
@@ -61,13 +66,13 @@ function App() {
         }
       }
     },
-    [documentManager]
+    [documentManager],
   );
 
   useEffect(() => {
-    document.addEventListener('keydown', onKeyPress);
+    document.addEventListener("keydown", onKeyPress);
     return () => {
-      document.removeEventListener('keydown', onKeyPress);
+      document.removeEventListener("keydown", onKeyPress);
     };
   }, [onKeyPress]);
 

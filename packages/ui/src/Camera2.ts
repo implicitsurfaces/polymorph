@@ -1,4 +1,4 @@
-import { Vector2, Matrix3 } from 'threejs-math';
+import { Vector2, Matrix3 } from "threejs-math";
 
 /**
  * Represents a 2D transformation with intuitive parameters for
@@ -23,7 +23,7 @@ export class Camera2 {
     public canvasSize: Vector2 = new Vector2(0, 0),
     public center: Vector2 = new Vector2(0, 0),
     public zoom: number = 1,
-    public rotation: number = 0
+    public rotation: number = 0,
   ) {}
 
   /**

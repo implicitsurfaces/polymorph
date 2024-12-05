@@ -1,4 +1,4 @@
-import { Vector2 } from 'threejs-math';
+import { Vector2 } from "threejs-math";
 
 // TODO: decides whether to use "strong typing" for Document elements (e.g., with
 // a `Layer` class, `Point` class, etc.), or if we simply go with lose
@@ -7,8 +7,8 @@ import { Vector2 } from 'threejs-math';
 
 export class Point {
   constructor(
-    public name: string = 'New Point',
-    public position: Vector2 = new Vector2(0, 0)
+    public name: string = "New Point",
+    public position: Vector2 = new Vector2(0, 0),
   ) {}
 
   clone(): Point {
@@ -30,7 +30,7 @@ export class Point {
  * Stores information about a given layer.
  */
 export class LayerProperties {
-  constructor(public name: string = 'New Layer') {}
+  constructor(public name: string = "New Layer") {}
 
   /**
    * Returns a new LayerProperties with the same content as this one.
@@ -58,7 +58,7 @@ export class LayerProperties {
 export class Layer {
   constructor(
     public properties: LayerProperties = new LayerProperties(),
-    public points: Array<Point> = []
+    public points: Array<Point> = [],
   ) {}
 
   /**
@@ -73,7 +73,7 @@ export class Layer {
    */
   copy(source: Layer): Layer {
     this.properties = source.properties.clone();
-    this.points = source.points.map(p => p.clone());
+    this.points = source.points.map((p) => p.clone());
     return this;
   }
 
@@ -81,7 +81,7 @@ export class Layer {
    * Adds a point to the layer.
    */
   addPoint(position: Vector2): Layer {
-    const name = 'Point ' + (this.points.length + 1);
+    const name = "Point " + (this.points.length + 1);
     this.points.push(new Point(name, position));
     return this;
   }
@@ -104,7 +104,7 @@ export class Document {
    * Copies the content from the source document into this one.
    */
   copy(source: Document): Document {
-    this.layers = source.layers.map(l => l.clone());
+    this.layers = source.layers.map((l) => l.clone());
     return this;
   }
 
@@ -114,7 +114,7 @@ export class Document {
    * If `index` is -1 (the default), the layer is added last.
    */
   addLayer(index: number = -1): Document {
-    const name = 'Layer ' + (this.layers.length + 1);
+    const name = "Layer " + (this.layers.length + 1);
     const props = new LayerProperties(name);
     const layer = new Layer(props);
     if (index < 0) {
@@ -164,10 +164,16 @@ export class DocumentManager {
    * new state, so that React knows that the component (and its subcomponents if the
    * `DocumentManager` is passed as prop) should be re-rendered.
    */
-  constructor(onChange?: () => void, history?: Array<Document>, index?: number, workingCopy?: Document) {
+  constructor(
+    onChange?: () => void,
+    history?: Array<Document>,
+    index?: number,
+    workingCopy?: Document,
+  ) {
     this._version = 0;
     this._onChange = onChange !== undefined ? onChange : () => {};
-    this._history = history !== undefined ? history : [new Document().addLayer()];
+    this._history =
+      history !== undefined ? history : [new Document().addLayer()];
     this._index = index !== undefined ? index : this._history.length - 1;
     if (workingCopy !== undefined) {
       this._workingCopy = workingCopy;

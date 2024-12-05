@@ -1,5 +1,5 @@
-import { memo, useCallback, MouseEvent } from 'react';
-import { LayerProperties, DocumentManager } from './Document.ts';
+import { memo, useCallback, MouseEvent } from "react";
+import { LayerProperties, DocumentManager } from "./Document.ts";
 
 interface LayerListItemProps {
   documentManager: DocumentManager;
@@ -9,7 +9,12 @@ interface LayerListItemProps {
 }
 
 export const LayerListItem = memo(
-  function LayerListItem({ documentManager, index, isActive, layerProperties }: LayerListItemProps) {
+  function LayerListItem({
+    documentManager,
+    index,
+    isActive,
+    layerProperties,
+  }: LayerListItemProps) {
     const onCreateLayer = useCallback(
       (event: MouseEvent<HTMLButtonElement>) => {
         // Click: insert after
@@ -24,7 +29,7 @@ export const LayerListItem = memo(
         documentManager.setActiveLayer(nextActiveLayer);
         documentManager.commitChanges();
       },
-      [documentManager, index]
+      [documentManager, index],
     );
 
     const onDeleteLayer = useCallback(() => {
@@ -49,7 +54,11 @@ export const LayerListItem = memo(
     }, [documentManager, index]);
 
     return (
-      <div className={'panel-list-item has-secret-zone' + (isActive ? ' is-active' : '')}>
+      <div
+        className={
+          "panel-list-item has-secret-zone" + (isActive ? " is-active" : "")
+        }
+      >
         <div className="secret-zone">
           <button className="single-character" onClick={onDeleteLayer}>
             -
@@ -74,7 +83,7 @@ export const LayerListItem = memo(
       prevProps.isActive === nextProps.isActive &&
       prevProps.layerProperties.equals(nextProps.layerProperties)
     );
-  }
+  },
 );
 
 export default LayerListItem;

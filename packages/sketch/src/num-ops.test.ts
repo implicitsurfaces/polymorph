@@ -21,6 +21,7 @@ import {
   ifTruthyElse,
   hypot,
   clamp,
+  sigmoid,
 } from "./num-ops";
 
 test("add", () => {
@@ -191,4 +192,14 @@ test("clamp", () => {
   ex(clamp(3.5, 3, 3)).toBeCloseTo(3);
   ex(clamp(3, 3, 3)).toBeCloseTo(3);
   ex(clamp(4, 3, 3)).toBeCloseTo(3);
+});
+
+test("sigmoid", () => {
+  ex(sigmoid(0)).toBeCloseTo(0.5);
+  ex(sigmoid(1)).toBeCloseTo(1 / (1 + Math.exp(-1)));
+  ex(sigmoid(-1)).toBeCloseTo(1 / (1 + Math.exp(1)));
+  ex(sigmoid(3)).toBeCloseTo(1 / (1 + Math.exp(-3)));
+  ex(sigmoid(-3)).toBeCloseTo(1 / (1 + Math.exp(3)));
+  ex(sigmoid(10)).toBeCloseTo(1);
+  ex(sigmoid(-10)).toBeCloseTo(0);
 });

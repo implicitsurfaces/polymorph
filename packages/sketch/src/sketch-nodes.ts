@@ -16,8 +16,20 @@ export class ProfileNode {}
 
 export class ConstraintNode {}
 
+export class RealValueVariable extends RealValueNode {
+  constructor(public readonly name: string) {
+    super();
+  }
+}
+
 export class DistanceLiteral extends DistanceNode {
   constructor(public readonly value: number) {
+    super();
+  }
+}
+
+export class DistanceVariable extends DistanceNode {
+  constructor(public readonly name: string) {
     super();
   }
 }
@@ -63,6 +75,12 @@ export class ArcLength extends DistanceNode {
 
 export class AngleLiteral extends AngleNode {
   constructor(public readonly degrees: number) {
+    super();
+  }
+}
+
+export class AngleVariable extends AngleNode {
+  constructor(public readonly name: string) {
     super();
   }
 }

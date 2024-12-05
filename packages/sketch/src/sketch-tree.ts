@@ -1,5 +1,5 @@
-import { Num, ONE, TWO, asNum } from "./num";
-import { Vec2, Angle, angleFromDeg, Point } from "./geom";
+import { Num, ONE, TWO, asNum, variable } from "./num";
+import { Vec2, Angle, angleFromDeg, Point, angleFromSin } from "./geom";
 import {
   DistanceNode,
   DistanceScaled,
@@ -60,6 +60,9 @@ import {
   ConstraintOnAngle,
   ConstraintOnPoint,
   ConstraintOnProfileBoundary,
+  RealValueVariable,
+  DistanceVariable,
+  AngleVariable,
 } from "./sketch-nodes";
 import { LineSegment } from "./segments";
 import {
@@ -86,8 +89,12 @@ import {
 } from "./sdf-operations";
 import { cornerFillet } from "./segments-fillets";
 import { memoizeNodeEval } from "./utils/cache";
+import { sigmoid } from "./num-ops";
 
 export function evalRealValue(value: RealValueNode): Num {
+  if (value instanceof RealValueVariable) {
+    return variable(value.name);
+  }
   if (value instanceof DistanceNode) {
     return evalDistance(value);
   }
@@ -104,6 +111,10 @@ export function evalRealValue(value: RealValueNode): Num {
 export const evalDistance = memoizeNodeEval(function (
   distance: DistanceNode,
 ): Num {
+  if (distance instanceof DistanceVariable) {
+    const v = variable(distance.name);
+    return v.square();
+  }
   if (distance instanceof DistanceLiteral) {
     return asNum(distance.value);
   }
@@ -124,6 +135,11 @@ export const evalDistance = memoizeNodeEval(function (
 });
 
 export const evalAngle = memoizeNodeEval(function (angle: AngleNode): Angle {
+  if (angle instanceof AngleVariable) {
+    const v = variable(angle.name);
+    return angleFromSin(sigmoid(v).mul(2).sub(1)).double();
+  }
+
   if (angle instanceof AngleLiteral) {
     return angleFromDeg(evalRealValue(angle.degrees));
   }

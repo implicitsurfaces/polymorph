@@ -7,32 +7,49 @@ export class Element {
   constructor(readonly id: ElementId) {}
 }
 
-function createVector2(data: any): Vector2 {
+/**
+ * Any type that can be interpreted as a 2D vector, where the X and Y
+ * coordinates are considered to be 0 if undefined.
+ */
+type AnyVector2 = { x?: number; y?: number } | number[];
+
+function createVector2(data?: AnyVector2) {
+  if (!data) {
+    return new Vector2(0, 0);
+  }
   let x = 0;
   let y = 0;
-  if (data) {
-    if (typeof data.x === "number") {
-      x = data.x;
-    } else if (typeof data[0] === "number") {
+  if (Array.isArray(data)) {
+    if (data.length > 0) {
       x = data[0];
     }
-    if (typeof data.y === "number") {
-      y = data.y;
-    } else if (typeof data[1] === "number") {
+    if (data.length > 1) {
       y = data[1];
+    }
+  } else {
+    if (data.x !== undefined) {
+      x = data.x;
+    }
+    if (data.y !== undefined) {
+      y = data.y;
     }
   }
   return new Vector2(x, y);
+}
+
+interface AnyPointData {
+  name?: string;
+  position?: AnyVector2;
 }
 
 export class Point extends Element {
   public name: string;
   public position: Vector2;
 
-  constructor(id: ElementId, data: any) {
+  constructor(id: ElementId, data?: AnyPointData) {
     super(id);
-    this.name = typeof data.name === "string" ? data.name : "New Point";
-    this.position = createVector2(data.position);
+    this.name = data?.name !== undefined ? data.name : "New Point";
+    this.position = createVector2(data?.position);
   }
 
   clone(): Point {
@@ -51,18 +68,22 @@ export class LayerProperties {
     return new LayerProperties(this.name);
   }
 }
-export class Layer extends Element {
-  public properties: LayerProperties = new LayerProperties();
-  public points: Array<ElementId> = [];
 
-  constructor(id: ElementId, data: any) {
+interface AnyLayerData {
+  properties?: LayerProperties;
+  points?: Array<ElementId>;
+}
+
+export class Layer extends Element {
+  public properties: LayerProperties;
+  public points: Array<ElementId>;
+
+  constructor(id: ElementId, data?: AnyLayerData) {
     super(id);
-    if (data.properties instanceof LayerProperties) {
-      this.properties = data.properties.clone();
-    }
-    if (Array.isArray(data.points)) {
-      this.points = data.points;
-    }
+    this.properties = data?.properties
+      ? data.properties
+      : new LayerProperties();
+    this.points = data?.points ? data.points : [];
   }
 
   clone(): Layer {
@@ -70,7 +91,13 @@ export class Layer extends Element {
   }
 }
 
-function cloneMap<ElementId, T>(source: Map<ElementId, any>) {
+interface Clonable<T> {
+  clone: () => T;
+}
+
+function cloneMap<ElementId, T extends Clonable<T>>(
+  source: Map<ElementId, T>,
+): Map<ElementId, T> {
   const dest = new Map<ElementId, T>();
   source.forEach((element, id) => {
     dest.set(id, element.clone());
@@ -82,26 +109,28 @@ function cloneMap<ElementId, T>(source: Map<ElementId, any>) {
  * Stores all objects in the document.
  */
 export class Document {
-  private _pointsMap: Map<ElementId, Point> = new Map();
-  private _layersMap: Map<ElementId, Layer> = new Map();
+  private _pointsMap: Map<ElementId, Point>;
+  private _layersMap: Map<ElementId, Layer>;
 
-  public layers: Array<ElementId> = [];
+  public layers: Array<ElementId>;
+
+  constructor(other?: Document) {
+    if (other) {
+      this._pointsMap = cloneMap(other._pointsMap);
+      this._layersMap = cloneMap(other._layersMap);
+      this.layers = [...other.layers];
+    } else {
+      this._pointsMap = new Map();
+      this._layersMap = new Map();
+      this.layers = [];
+    }
+  }
 
   /**
    * Returns a new document with the same content as this one.
    */
   clone(): Document {
-    return new Document().copy(this);
-  }
-
-  /**
-   * Copies the content from the source document into this one.
-   */
-  copy(source: Document): Document {
-    this._pointsMap = cloneMap(source._pointsMap);
-    this._layersMap = cloneMap(source._layersMap);
-    this.layers = [...source.layers];
-    return this;
+    return new Document(this);
   }
 
   getPointFromId(id: ElementId): Point | undefined {
@@ -112,14 +141,14 @@ export class Document {
     return this._layersMap.get(id);
   }
 
-  createPoint(data: any): Point {
+  createPoint(data: AnyPointData): Point {
     const id = uuidv4();
     const point = new Point(id, data);
     this._pointsMap.set(id, point);
     return point;
   }
 
-  createLayer(data: any): Layer {
+  createLayer(data: AnyLayerData): Layer {
     const id = uuidv4();
     const layer = new Layer(id, data);
     this._layersMap.set(id, layer);

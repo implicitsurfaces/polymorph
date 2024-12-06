@@ -1,19 +1,20 @@
 import { Vector2 } from "threejs-math";
 import { v4 as uuidv4 } from "uuid";
 
-type ElementId = string;
+export type ElementId = string;
 
-export class Element {
-  constructor(readonly id: ElementId) {}
+interface Element {
+  readonly id: ElementId;
+  clone: () => Element;
 }
 
 /**
  * Any type that can be interpreted as a 2D vector, where the X and Y
  * coordinates are considered to be 0 if undefined.
  */
-type AnyVector2 = { x?: number; y?: number } | number[];
+export type AnyVector2 = { x?: number; y?: number } | number[];
 
-function createVector2(data?: AnyVector2) {
+export function createVector2(data?: AnyVector2) {
   if (!data) {
     return new Vector2(0, 0);
   }
@@ -37,17 +38,24 @@ function createVector2(data?: AnyVector2) {
   return new Vector2(x, y);
 }
 
-interface AnyPointData {
+export interface AnyPointData {
   name?: string;
   position?: AnyVector2;
 }
 
-export class Point extends Element {
+export class Point implements Element {
+  public kind = "Point" as const;
   public name: string;
   public position: Vector2;
 
-  constructor(id: ElementId, data?: AnyPointData) {
-    super(id);
+  static factory = (id: ElementId, data?: AnyPointData) => {
+    return new Point(id, data);
+  };
+
+  constructor(
+    readonly id: ElementId,
+    data?: AnyPointData,
+  ) {
     this.name = data?.name !== undefined ? data.name : "New Point";
     this.position = createVector2(data?.position);
   }
@@ -69,17 +77,24 @@ export class LayerProperties {
   }
 }
 
-interface AnyLayerData {
+export interface AnyLayerData {
   properties?: LayerProperties;
   points?: Array<ElementId>;
 }
 
-export class Layer extends Element {
+export class Layer implements Element {
+  public kind = "Layer" as const;
   public properties: LayerProperties;
   public points: Array<ElementId>;
 
-  constructor(id: ElementId, data?: AnyLayerData) {
-    super(id);
+  static factory = (id: ElementId, data?: AnyLayerData) => {
+    return new Layer(id, data);
+  };
+
+  constructor(
+    readonly id: ElementId,
+    data?: AnyLayerData,
+  ) {
     this.properties = data?.properties
       ? data.properties
       : new LayerProperties();
@@ -109,19 +124,16 @@ function cloneMap<ElementId, T extends Clonable<T>>(
  * Stores all objects in the document.
  */
 export class Document {
-  private _pointsMap: Map<ElementId, Point>;
-  private _layersMap: Map<ElementId, Layer>;
+  private _elements: Map<ElementId, Element>;
 
   public layers: Array<ElementId>;
 
   constructor(other?: Document) {
     if (other) {
-      this._pointsMap = cloneMap(other._pointsMap);
-      this._layersMap = cloneMap(other._layersMap);
+      this._elements = cloneMap(other._elements);
       this.layers = [...other.layers];
     } else {
-      this._pointsMap = new Map();
-      this._layersMap = new Map();
+      this._elements = new Map();
       this.layers = [];
     }
   }
@@ -133,26 +145,27 @@ export class Document {
     return new Document(this);
   }
 
-  getPointFromId(id: ElementId): Point | undefined {
-    return this._pointsMap.get(id);
+  getElementFromId<T extends Element>(id: ElementId): T | undefined {
+    const element: Element | undefined = this._elements.get(id);
+    return element as T | undefined;
   }
 
-  getLayerFromId(id: ElementId): Layer | undefined {
-    return this._layersMap.get(id);
+  createElement<T extends Element, D>(
+    factory: (id: ElementId, data: D) => T,
+    data: D,
+  ): T {
+    const id = uuidv4();
+    const element = factory(id, data);
+    this._elements.set(id, element);
+    return element;
   }
 
   createPoint(data: AnyPointData): Point {
-    const id = uuidv4();
-    const point = new Point(id, data);
-    this._pointsMap.set(id, point);
-    return point;
+    return this.createElement(Point.factory, data);
   }
 
   createLayer(data: AnyLayerData): Layer {
-    const id = uuidv4();
-    const layer = new Layer(id, data);
-    this._layersMap.set(id, layer);
-    return layer;
+    return this.createElement(Layer.factory, data);
   }
 
   /**
@@ -161,7 +174,7 @@ export class Document {
    * If `index` is -1 (the default), the layer is added last.
    */
   addLayer(index: number = -1): Document {
-    const name = "Layer " + (this.layers.length + 1);
+    const name = `Layer ${this.layers.length + 1}`;
     const props = new LayerProperties(name);
     const layer = this.createLayer({ properties: props });
     if (index < 0) {
@@ -361,7 +374,7 @@ export class DocumentManager {
     if (!doc) {
       return undefined;
     }
-    return doc.getLayerFromId(this._activeLayerId);
+    return doc.getElementFromId(this._activeLayerId);
   }
 
   setActiveLayer(id: ElementId) {

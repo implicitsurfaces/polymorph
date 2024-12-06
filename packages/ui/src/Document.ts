@@ -75,6 +75,10 @@ export class LayerProperties {
   clone(): LayerProperties {
     return new LayerProperties(this.name);
   }
+
+  equals(other: LayerProperties): boolean {
+    return this.name === other.name;
+  }
 }
 
 export interface AnyLayerData {
@@ -173,7 +177,7 @@ export class Document {
    *
    * If `index` is -1 (the default), the layer is added last.
    */
-  addLayer(index: number = -1): Document {
+  createLayerAtIndex(index: number = -1): Document {
     const name = `Layer ${this.layers.length + 1}`;
     const props = new LayerProperties(name);
     const layer = this.createLayer({ properties: props });
@@ -188,8 +192,17 @@ export class Document {
   /**
    * Removes the layer at the given index.
    */
-  removeLayer(index: number): Document {
+  deleteLayerAtIndex(index: number): Document {
+    const id = this.layers[index];
+    if (id === undefined) {
+      return this;
+    }
+    const layer = this.getElementFromId<Layer>(id);
+    if (layer === undefined) {
+      return this;
+    }
     this.layers.splice(index, 1);
+    this._elements.delete(id);
     return this;
   }
 }
@@ -231,7 +244,7 @@ export class DocumentManager {
     this._version = 0;
     this._onChange = onChange !== undefined ? onChange : () => {};
     this._history =
-      history !== undefined ? history : [new Document().addLayer()];
+      history !== undefined ? history : [new Document().createLayerAtIndex(0)];
     this._index = index !== undefined ? index : this._history.length - 1;
     if (workingCopy !== undefined) {
       this._workingCopy = workingCopy;

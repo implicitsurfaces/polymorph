@@ -1,7 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Vector2 } from "threejs-math";
+import { Vector2, Matrix3 } from "threejs-math";
 import { Camera2 } from "./Camera2.ts";
-import { Point, Layer, Document, DocumentManager } from "./Document.ts";
+import {
+  Point,
+  Layer,
+  Document,
+  DocumentManager,
+  ElementId,
+} from "./Document.ts";
 
 import "./Canvas.css";
 
@@ -67,7 +73,7 @@ function pixelSnap(p1: Vector2, p2: Vector2) {
 // Transform p1 and p2 to view coords, pixel snap them, then moveTo(p1) and lineTo(p2)
 function drawGridLine(
   ctx: CanvasRenderingContext2D,
-  documentToView: Camera2,
+  documentToView: Matrix3,
   p1: Vector2,
   p2: Vector2,
 ) {
@@ -80,7 +86,7 @@ function drawGridLine(
 
 function drawGridCells(
   ctx: CanvasRenderingContext2D,
-  documentToView: Camera2,
+  documentToView: Matrix3,
   xMin: number,
   xMax: number,
   yMin: number,
@@ -126,7 +132,7 @@ function drawGridCells(
 
 function drawGridAxes(
   ctx: CanvasRenderingContext2D,
-  documentToView: Camera2,
+  documentToView: Matrix3,
   xMin: number,
   xMax: number,
   yMin: number,
@@ -207,15 +213,25 @@ function drawPoint(ctx: CanvasRenderingContext2D, point: Point) {
   drawDisk(ctx, point.position, radius, fillStyle);
 }
 
-function drawLayer(ctx: CanvasRenderingContext2D, layer: Layer) {
-  layer.points.forEach((point) => {
-    drawPoint(ctx, point);
+function drawLayer(
+  ctx: CanvasRenderingContext2D,
+  document: Document,
+  layer: Layer,
+) {
+  layer.points.forEach((id: ElementId) => {
+    const point = document.getElementFromId<Point>(id);
+    if (point) {
+      drawPoint(ctx, point);
+    }
   });
 }
 
 function drawDocument(ctx: CanvasRenderingContext2D, document: Document) {
-  document.layers.forEach((layer) => {
-    drawLayer(ctx, layer);
+  document.layers.forEach((id: ElementId) => {
+    const layer = document.getElementFromId<Layer>(id);
+    if (layer) {
+      drawLayer(ctx, document, layer);
+    }
   });
 }
 
@@ -413,6 +429,7 @@ export function Canvas({ documentManager }: CanvasProps) {
       switch (event.button) {
         case 0: {
           // left click: create point
+          const doc = documentManager.document();
           const layer = documentManager.activeLayer();
           if (layer) {
             const pos = getMouseDocumentPosition(
@@ -420,7 +437,9 @@ export function Canvas({ documentManager }: CanvasProps) {
               canvas,
               pointerState.cameraOnPress,
             );
-            layer.addPoint(pos);
+            const name = `Point ${layer.points.length + 1}`;
+            const point = doc.createPoint({ name: name, position: pos });
+            layer.points.push(point.id);
             documentManager.commitChanges();
           }
           break;

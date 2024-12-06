@@ -1,4 +1,4 @@
-import { Point, DocumentManager } from "./Document.ts";
+import { Point, DocumentManager, ElementId } from "./Document.ts";
 import { SkeletonListItem } from "./SkeletonListItem.tsx";
 
 interface SkeletonPanelProps {
@@ -6,28 +6,37 @@ interface SkeletonPanelProps {
 }
 
 export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
-  const layerIndex = documentManager.activeLayerIndex();
-  const layer = documentManager.activeLayer();
+  const doc = documentManager.document();
 
-  let panelBody;
-  if (layer) {
-    panelBody = layer.points.map((point: Point, pointIndex: number) => (
+  function getItem(id: ElementId) {
+    const point = doc.getElementFromId<Point>(id);
+    if (!point) {
+      return <></>;
+    }
+    return (
       <SkeletonListItem
-        key={pointIndex}
+        key={id}
         documentManager={documentManager}
-        layerIndex={layerIndex}
-        pointIndex={pointIndex}
+        id={id}
         point={point.clone()}
       />
-    ));
-  } else {
-    panelBody = <></>;
+    );
   }
+
+  function getItems() {
+    const activeLayer = documentManager.activeLayer();
+    if (!activeLayer) {
+      return <></>;
+    }
+    return activeLayer.points.map((id: ElementId) => getItem(id));
+  }
+
+  const items = getItems();
 
   return (
     <div className="panel">
       <h2 className="panel-title">Skeleton</h2>
-      <div className="panel-body">{panelBody}</div>
+      <div className="panel-body">{items}</div>
     </div>
   );
 }

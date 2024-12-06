@@ -1,5 +1,5 @@
 import { memo, useCallback } from "react";
-import { DocumentManager, Point } from "./Document.ts";
+import { DocumentManager, Point, ElementId } from "./Document.ts";
 import { NumberInput } from "./NumberInput.tsx";
 
 // TODO: use some sort of unique ID instead of layerIndex/pointIndex,
@@ -7,36 +7,36 @@ import { NumberInput } from "./NumberInput.tsx";
 
 interface SkeletonListItemProps {
   documentManager: DocumentManager;
-  layerIndex: number;
-  pointIndex: number;
+  id: ElementId;
   point: Point; // we need this for memoization
 }
 
 export const SkeletonListItem = memo(
   function SkeletonListItem({
     documentManager,
-    layerIndex,
-    pointIndex,
+    id,
     point,
   }: SkeletonListItemProps) {
     const onXChange = useCallback(
       (value: number) => {
-        documentManager.document().layers[layerIndex].points[
-          pointIndex
-        ].position.x = value;
-        documentManager.commitChanges();
+        const point = documentManager.document().getElementFromId<Point>(id);
+        if (point) {
+          point.position.x = value;
+          documentManager.commitChanges();
+        }
       },
-      [documentManager, layerIndex, pointIndex],
+      [documentManager, id],
     );
 
     const onYChange = useCallback(
       (value: number) => {
-        documentManager.document().layers[layerIndex].points[
-          pointIndex
-        ].position.y = value;
-        documentManager.commitChanges();
+        const point = documentManager.document().getElementFromId<Point>(id);
+        if (point) {
+          point.position.y = value;
+          documentManager.commitChanges();
+        }
       },
-      [documentManager, layerIndex, pointIndex],
+      [documentManager, id],
     );
 
     return (
@@ -46,13 +46,13 @@ export const SkeletonListItem = memo(
         </div>
         <div className="extra-zone">
           <NumberInput
-            idBase={`number-input::x${pointIndex}`}
+            idBase={`number-input::x${id}`}
             label="X"
             value={point.position.x}
             onChange={onXChange}
           />
           <NumberInput
-            idBase={`number-input::y${pointIndex}`}
+            idBase={`number-input::y${id}`}
             label="Y"
             value={point.position.y}
             onChange={onYChange}
@@ -80,8 +80,7 @@ export const SkeletonListItem = memo(
     //
     return (
       prevProps.documentManager === nextProps.documentManager &&
-      prevProps.layerIndex === nextProps.layerIndex &&
-      prevProps.pointIndex === nextProps.pointIndex &&
+      prevProps.id === nextProps.id &&
       prevProps.point.equals(nextProps.point)
     );
   },

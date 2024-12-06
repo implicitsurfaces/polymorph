@@ -1,9 +1,10 @@
 import { memo, useCallback, MouseEvent } from "react";
-import { LayerProperties, DocumentManager } from "./Document.ts";
+import { LayerProperties, DocumentManager, ElementId } from "./Document.ts";
 
 interface LayerListItemProps {
   documentManager: DocumentManager;
-  index: number; // TODO: use some sort of unique ID instead? (e.g., if moved in hierarchy)
+  id: ElementId;
+  index: number;
   isActive: boolean;
   layerProperties: LayerProperties; // we need this for memoization
 }
@@ -11,6 +12,7 @@ interface LayerListItemProps {
 export const LayerListItem = memo(
   function LayerListItem({
     documentManager,
+    id,
     index,
     isActive,
     layerProperties,
@@ -20,13 +22,7 @@ export const LayerListItem = memo(
         // Click: insert after
         // Alt+Click: insert before
         const insertIndex = event.altKey ? index : index + 1;
-        const prevActiveLayer = documentManager.activeLayerIndex();
-        let nextActiveLayer = prevActiveLayer;
-        if (insertIndex <= prevActiveLayer) {
-          nextActiveLayer += 1;
-        }
-        documentManager.document().addLayer(insertIndex);
-        documentManager.setActiveLayer(nextActiveLayer);
+        documentManager.document().createLayerAtIndex(insertIndex);
         documentManager.commitChanges();
       },
       [documentManager, index],
@@ -39,19 +35,13 @@ export const LayerListItem = memo(
       if (documentManager.document().layers.length == 1) {
         return;
       }
-      const prevActiveLayer = documentManager.activeLayerIndex();
-      let nextActiveLayer = prevActiveLayer;
-      if (index < prevActiveLayer) {
-        nextActiveLayer -= 1;
-      }
-      documentManager.document().removeLayer(index);
-      documentManager.setActiveLayer(nextActiveLayer);
+      documentManager.document().deleteLayerAtIndex(index);
       documentManager.commitChanges();
     }, [documentManager, index]);
 
     const onSelectLayer = useCallback(() => {
-      documentManager.setActiveLayer(index);
-    }, [documentManager, index]);
+      documentManager.setActiveLayer(id);
+    }, [documentManager, id]);
 
     return (
       <div
@@ -79,6 +69,7 @@ export const LayerListItem = memo(
     //
     return (
       prevProps.documentManager === nextProps.documentManager &&
+      prevProps.id === nextProps.id &&
       prevProps.index === nextProps.index &&
       prevProps.isActive === nextProps.isActive &&
       prevProps.layerProperties.equals(nextProps.layerProperties)

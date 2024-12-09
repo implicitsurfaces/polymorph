@@ -53,6 +53,7 @@ const AppState = types
   }))
   .volatile(() => ({
     currentImage: null,
+    valueReads: [],
     currentDefinition: null,
     processing: false,
     shapeLoaded: false,
@@ -79,15 +80,18 @@ const AppState = types
       self.processing = true;
       console.log("Processing...");
       try {
-        self.currentImage = yield api.render(
+        const results = yield api.render(
           self.currentValues.code,
           self.definition,
         );
-        console.log("image updated...", self.currentImage);
+        console.log("Results", results);
+        self.currentImage = results.image;
+        self.valueReads = results.valueReads;
         self.currentDefinition = self.definition;
         self.error = false;
       } catch (e) {
         console.error(e);
+        console.log("Error", e);
         self.error = e;
       }
 

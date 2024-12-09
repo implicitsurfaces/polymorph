@@ -1,11 +1,9 @@
 import {
-  allVariables,
   ConstraintNode,
   ConstraintOnAngle,
   ConstraintOnDistance,
   ConstraintOnPoint,
-  gradientDescentOpt,
-  evalConstraint,
+  findSolution,
 } from "sketch";
 import { point } from "./geom";
 import {
@@ -125,17 +123,6 @@ export class LossFunction {
       debug?: boolean;
     } = {},
   ) {
-    let loss = evalConstraint(this.terms[0]);
-
-    this.terms.slice(1).forEach((term) => {
-      loss = loss.add(evalConstraint(term));
-    });
-
-    const vars = allVariables(loss.n);
-    const initialX = new Map<string, number>(
-      [...vars.keys()].map((key) => [key, 0]),
-    );
-
-    return gradientDescentOpt(loss, initialX, options).solution;
+    return findSolution(this.terms, options);
   }
 }

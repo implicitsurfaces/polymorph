@@ -1,5 +1,6 @@
 import { memo, useCallback } from "react";
-import { DocumentManager, Point, ElementId } from "./Document.ts";
+import { Point, ElementId } from "./Document.ts";
+import { DocumentManager } from "./DocumentManager.ts";
 import { NumberInput } from "./NumberInput.tsx";
 
 // TODO: use some sort of unique ID instead of layerIndex/pointIndex,

@@ -1,4 +1,5 @@
-import { Point, DocumentManager, ElementId } from "./Document.ts";
+import { Point, ElementId } from "./Document.ts";
+import { DocumentManager } from "./DocumentManager.ts";
 import { SkeletonListItem } from "./SkeletonListItem.tsx";
 
 interface SkeletonPanelProps {

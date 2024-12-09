@@ -6,7 +6,7 @@ import {
   PointerHitAreaMargins,
 } from "react-resizable-panels";
 
-import { DocumentManager } from "./Document.ts";
+import { DocumentManager } from "./DocumentManager.ts";
 
 import { Canvas } from "./Canvas.tsx";
 import { LayersPanel } from "./LayersPanel.tsx";

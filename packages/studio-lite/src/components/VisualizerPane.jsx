@@ -55,7 +55,9 @@ const ValueReadWrapper = styled("div")`
 `;
 
 const fmt = (v) => {
-  return Intl.NumberFormat("en", { maximumSignificantDigits: 3 }).format(v);
+  return Intl.NumberFormat("en", {
+    maximumSignificantDigits: 3,
+  }).format(Math.round(v * 1e6) / 1e6);
 };
 
 function ValueRead({ name, value }) {

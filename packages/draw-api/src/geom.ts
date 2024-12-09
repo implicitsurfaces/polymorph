@@ -24,6 +24,7 @@ import {
   readAngleAsDegree,
   readVector,
   readPoint,
+  PointAsVectorFromOrigin,
 } from "sketch";
 import {
   asAngle,
@@ -103,6 +104,10 @@ export class Vector implements NodeWrapper<VectorNode> {
 
   public read(variables: Map<string, number>): [number, number] {
     return readVector(this.inner, variables);
+  }
+
+  public toPoint(): Point {
+    return new Point(new PointAsVectorFromOrigin(this.inner));
   }
 }
 

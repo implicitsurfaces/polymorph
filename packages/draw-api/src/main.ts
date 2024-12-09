@@ -9,7 +9,13 @@ export type { ProfileEditor } from "./ProfileEditor";
 export { draw } from "./draw";
 
 export { point, angle, vector, distance };
-export { pointVar, angleVar, distanceVar } from "./variables";
+export {
+  pointVar,
+  angleVar,
+  distanceVar,
+  pointVarPolar,
+  pointVarCartesian,
+} from "./variables";
 export type { DistanceLike, PointLike, AngleLike, VectorLike } from "./convert";
 
 export { LossFunction } from "./loss";

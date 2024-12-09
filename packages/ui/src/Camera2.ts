@@ -46,7 +46,7 @@ export class Camera2 {
    * Returns a new camera with the same properties as this one.
    */
   clone(): Camera2 {
-    return new this.constructor().copy(this);
+    return new Camera2().copy(this);
   }
 
   /**

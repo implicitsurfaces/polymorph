@@ -1,0 +1,14 @@
+diff --git a/node_modules/threejs-math/package.json b/node_modules/threejs-math/package.json
+index e49fe07..c9ed439 100644
+--- a/node_modules/threejs-math/package.json
++++ b/node_modules/threejs-math/package.json
+@@ -20,7 +20,8 @@
+   "exports": {
+     ".": {
+       "import": "./build/threejs-math.module.js",
+-      "require": "./build/threejs-math.cjs"
++      "require": "./build/threejs-math.cjs",
++      "types": "./types/index.d.ts"
+     }
+   },
+   "sideEffects": false,

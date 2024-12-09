@@ -1,13 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Vector2, Matrix3 } from "threejs-math";
 import { Camera2 } from "./Camera2.ts";
-import {
-  Point,
-  Layer,
-  Document,
-  DocumentManager,
-  ElementId,
-} from "./Document.ts";
+import { Point, Layer, Document, ElementId } from "./Document.ts";
+import { DocumentManager } from "./DocumentManager.ts";
 
 import "./Canvas.css";
 

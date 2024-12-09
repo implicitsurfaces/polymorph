@@ -4,8 +4,8 @@
  */
 
 .canvas-panel-group > div[role="separator"] {
-  width: 2px;
-  background: #797979;
+  width: 3px;
+  background: #555555;
 }
 
 .panels-panel-group > div[role="separator"] {

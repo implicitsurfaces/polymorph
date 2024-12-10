@@ -113,7 +113,7 @@ export const evalDistance = memoizeNodeEval(function (
 ): Num {
   if (distance instanceof DistanceVariable) {
     const v = variable(distance.name);
-    return v.square();
+    return v.exp();
   }
   if (distance instanceof DistanceLiteral) {
     return asNum(distance.value);

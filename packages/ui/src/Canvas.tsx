@@ -202,14 +202,15 @@ function drawDisk(
   ctx.fill();
 }
 
+const _pointRadius = 5;
+
 function drawPoint(
   ctx: CanvasRenderingContext2D,
   point: Point,
   isHighlighted: boolean,
 ) {
-  const radius = 5;
   const fillStyle = isHighlighted ? "#4063d5" : "black";
-  drawDisk(ctx, point.position, radius, fillStyle);
+  drawDisk(ctx, point.position, _pointRadius, fillStyle);
 }
 
 function drawLayer(
@@ -256,6 +257,84 @@ function draw(
   const document = documentManager.document();
   const highlightedId = documentManager.highlightedElementId();
   drawDocument(ctx, document, highlightedId);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//                            Highlight util
+
+interface ClosestElement {
+  id: ElementId | undefined;
+  distance: number;
+}
+
+function findClosestElementInLayer(
+  document: Document,
+  layer: Layer,
+  position: Vector2,
+): ClosestElement {
+  // Compute distance squared to closest point center
+  let closestDistanceSquared = Infinity;
+  let closestPoint: Point | undefined = undefined;
+  for (const id of layer.points) {
+    const point = document.getElementFromId<Point>(id);
+    if (point) {
+      const d = point.position.distanceToSquared(position);
+      if (d < closestDistanceSquared) {
+        closestDistanceSquared = d;
+        closestPoint = point;
+      }
+    }
+  }
+
+  // Compute distance to closest point disk
+  let closestId: ElementId | undefined = undefined;
+  let closestDistance = Infinity;
+  if (closestPoint) {
+    closestId = closestPoint.id;
+    if (closestDistanceSquared <= _pointRadius * _pointRadius) {
+      // Position is inside the disk
+      closestDistance = 0;
+    } else {
+      // Position is outside the disk
+      closestDistance = Math.sqrt(closestDistanceSquared) - _pointRadius;
+    }
+  }
+  return { id: closestId, distance: closestDistance };
+}
+
+function findClosestElementInDocument(
+  document: Document,
+  position: Vector2,
+): ClosestElement {
+  let closestDistance = Infinity;
+  let closestId: ElementId | undefined = undefined;
+  for (const id of document.layers) {
+    const layer = document.getElementFromId<Layer>(id);
+    if (layer) {
+      const ce = findClosestElementInLayer(document, layer, position);
+      if (ce.distance < closestDistance) {
+        closestDistance = ce.distance;
+        closestId = ce.id;
+      }
+    }
+  }
+  return { id: closestId, distance: closestDistance };
+}
+
+function highlight(
+  documentManager: DocumentManager,
+  mousePosition: Vector2,
+  tolerance: number,
+) {
+  const ce = findClosestElementInDocument(
+    documentManager.document(),
+    mousePosition,
+  );
+  if (ce.id && ce.distance < tolerance) {
+    documentManager.setHighlightedElement(ce.id);
+  } else {
+    documentManager.setHighlightedElement(undefined);
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -494,14 +573,33 @@ export function Canvas({ documentManager }: CanvasProps) {
     [pointerState, camera],
   );
 
+  const onPointerHover = useCallback(
+    (event: IPointerEvent) => {
+      const canvas = ref.current;
+      if (!canvas) {
+        return;
+      }
+      if (pointerState) {
+        // Mouse moves with mouse buttons down are handled by onPointerMove
+        return;
+      }
+      // Compute threshold in document coordinates
+      const position = getMouseDocumentPosition(event, canvas, camera);
+      const toleranceInPx = 3;
+      const toleranceInDocCoords = toleranceInPx / camera.zoom;
+      highlight(documentManager, position, toleranceInDocCoords);
+    },
+    [pointerState, documentManager, camera],
+  );
+
   const onPointerMove = useCallback(
     (event: IPointerEvent) => {
       const canvas = ref.current;
       if (!canvas) {
         return;
       }
-      // Nothing to do unless we're part of pointerdown-pointermove-pointerup sequence
       if (!pointerState) {
+        // Mouse moves without mouse buttons down are handled by onPointerHover
         return;
       }
       // Disambiguate between drag and click actions
@@ -626,6 +724,7 @@ export function Canvas({ documentManager }: CanvasProps) {
       width={camera.canvasSize.x}
       height={camera.canvasSize.y}
       onPointerDown={onPointerDown}
+      onPointerMove={onPointerHover}
       onWheel={onWheel}
       onContextMenu={(e) => e.preventDefault()}
     />

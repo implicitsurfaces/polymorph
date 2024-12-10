@@ -9,6 +9,7 @@ import { NumberInput } from "./NumberInput.tsx";
 interface SkeletonListItemProps {
   documentManager: DocumentManager;
   id: ElementId;
+  isHighlighted: boolean;
   point: Point; // we need this for memoization
 }
 
@@ -16,6 +17,7 @@ export const SkeletonListItem = memo(
   function SkeletonListItem({
     documentManager,
     id,
+    isHighlighted,
     point,
   }: SkeletonListItemProps) {
     const onXChange = useCallback(
@@ -40,8 +42,22 @@ export const SkeletonListItem = memo(
       [documentManager, id],
     );
 
+    const onMouseEnter = useCallback(() => {
+      documentManager.setHighlightedElement(id);
+    }, [documentManager, id]);
+
+    const onMouseLeave = useCallback(() => {
+      if (documentManager.highlightedElementId() === id) {
+        documentManager.setHighlightedElement(undefined);
+      }
+    }, [documentManager, id]);
+
     return (
-      <div className="panel-list-item object-row-info">
+      <div
+        className={`panel-list-item object-row-info ${isHighlighted ? "is-highlighted" : ""}`}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+      >
         <div className="highlight-zone">
           <p className="name single-line-text">{point.name}</p>
         </div>
@@ -82,6 +98,7 @@ export const SkeletonListItem = memo(
     return (
       prevProps.documentManager === nextProps.documentManager &&
       prevProps.id === nextProps.id &&
+      prevProps.isHighlighted === nextProps.isHighlighted &&
       prevProps.point.equals(nextProps.point)
     );
   },

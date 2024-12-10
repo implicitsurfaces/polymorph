@@ -9,9 +9,9 @@ export async function buildModuleEvaluator(moduleString: string) {
   return await import(/* @vite-ignore */ `${url}`);
 }
 
-export async function runAsModule(code: string) {
+export async function runAsModule(code: string, args: any) {
   const module = await buildModuleEvaluator(code);
 
-  if (module.default) return module.default();
-  return module.main();
+  if (module.default) return module.default(args);
+  return module.main(args);
 }

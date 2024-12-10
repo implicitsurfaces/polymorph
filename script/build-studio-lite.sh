@@ -1,3 +1,5 @@
+set -euo pipefail
+
 cd packages/fidget
 npm run build
 cd ../sketch

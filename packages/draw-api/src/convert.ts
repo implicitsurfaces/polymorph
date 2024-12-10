@@ -17,10 +17,17 @@ export function asDistance(distance: DistanceLike): DistanceNode {
   if (distance instanceof DistanceNode) {
     return distance;
   }
-  if (isNodeWrapper(distance, VectorNode)) {
+  if (isNodeWrapper(distance, DistanceNode)) {
     return distance.inner;
   }
+
   return new DistanceLiteral(distance);
+}
+
+export function asDistanceOrUndefined(
+  value: DistanceLike | undefined,
+): DistanceNode | undefined {
+  return value || value === 0 ? asDistance(value) : value;
 }
 
 export type AngleLike = number | AngleNode | NodeWrapper<AngleNode>;
@@ -29,7 +36,7 @@ export function asAngle(angle: AngleLike): AngleNode {
   if (angle instanceof AngleNode) {
     return angle;
   }
-  if (isNodeWrapper(angle, VectorNode)) {
+  if (isNodeWrapper(angle, AngleNode)) {
     return angle.inner;
   }
   return new AngleLiteral(angle);

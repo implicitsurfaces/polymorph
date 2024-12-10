@@ -1,4 +1,4 @@
-import { Num, asNum, binaryOpNum, unaryOpNum } from "./num";
+import { Num, ONE, asNum, binaryOpNum, unaryOpNum } from "./num";
 import { fullDerivative } from "./num-diff";
 
 export function add(a: Num | number, b: Num | number): Num {
@@ -106,6 +106,17 @@ export function clamp(
 ): Num {
   const bottomClamped = max(minVal, a);
   return min(maxVal, bottomClamped);
+}
+
+export function sigmoid(a: Num | number): Num {
+  const v = asNum(a);
+
+  const posExpr = ONE.div(v.neg().exp().add(ONE));
+  const negExpr = v.exp().div(v.exp().add(ONE));
+
+  const vGT0 = greaterThan(v, 0);
+
+  return ifTruthyElse(vGT0, posExpr, negExpr);
 }
 
 export function diff(num: Num): Num {

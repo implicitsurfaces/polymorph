@@ -1,5 +1,5 @@
-import { Num, asNum } from "./num";
-import { Vec2, Angle, angleFromDeg, Point } from "./geom";
+import { Num, ONE, TWO, asNum, variable } from "./num";
+import { Vec2, Angle, angleFromDeg, Point, angleFromSin } from "./geom";
 import {
   DistanceNode,
   DistanceScaled,
@@ -55,6 +55,14 @@ import {
   SignedDistanceToProfile,
   DistanceLiteral,
   Dilate,
+  ConstraintOnDistance,
+  ConstraintNode,
+  ConstraintOnAngle,
+  ConstraintOnPoint,
+  ConstraintOnProfileBoundary,
+  RealValueVariable,
+  DistanceVariable,
+  AngleVariable,
 } from "./sketch-nodes";
 import { LineSegment } from "./segments";
 import {
@@ -81,8 +89,12 @@ import {
 } from "./sdf-operations";
 import { cornerFillet } from "./segments-fillets";
 import { memoizeNodeEval } from "./utils/cache";
+import { sigmoid } from "./num-ops";
 
 export function evalRealValue(value: RealValueNode): Num {
+  if (value instanceof RealValueVariable) {
+    return variable(value.name);
+  }
   if (value instanceof DistanceNode) {
     return evalDistance(value);
   }
@@ -99,6 +111,10 @@ export function evalRealValue(value: RealValueNode): Num {
 export const evalDistance = memoizeNodeEval(function (
   distance: DistanceNode,
 ): Num {
+  if (distance instanceof DistanceVariable) {
+    const v = variable(distance.name);
+    return v.exp();
+  }
   if (distance instanceof DistanceLiteral) {
     return asNum(distance.value);
   }
@@ -119,6 +135,11 @@ export const evalDistance = memoizeNodeEval(function (
 });
 
 export const evalAngle = memoizeNodeEval(function (angle: AngleNode): Angle {
+  if (angle instanceof AngleVariable) {
+    const v = variable(angle.name);
+    return angleFromSin(sigmoid(v).mul(2).sub(1)).double();
+  }
+
   if (angle instanceof AngleLiteral) {
     return angleFromDeg(evalRealValue(angle.degrees));
   }
@@ -291,24 +312,24 @@ class PartialPath {
   }
 }
 
+function evalDistanceWithDefault<T>(
+  distance: DistanceNode | undefined,
+  defaultValue: T,
+): Num | T {
+  return distance || distance === 0 ? evalDistance(distance) : defaultValue;
+}
+
 export const evalPath = memoizeNodeEval(function (node: PathNode): PartialPath {
   if (node instanceof PathStart) {
     const startPoint = evalPoint(node.point);
-    const startRadius =
-      node.cornerRadius || node.cornerRadius === 0
-        ? evalDistance(node.cornerRadius)
-        : undefined;
-
+    const startRadius = evalDistanceWithDefault(node.cornerRadius, undefined);
     return new PartialPath(startPoint, startRadius);
   }
 
   if (node instanceof PathEdge) {
     const path = evalPath(node.path);
     const point = evalPoint(node.point);
-    const radius =
-      node.cornerRadius || node.cornerRadius === 0
-        ? evalDistance(node.cornerRadius)
-        : undefined;
+    const radius = evalDistanceWithDefault(node.cornerRadius, undefined);
 
     const edgeFn = evalEdge(node.edge);
 
@@ -413,4 +434,48 @@ export const evalProfile = memoizeNodeEval(function (
   }
 
   throw new Error(`Unknown profile: ${node.constructor.name}`);
+});
+
+const DEFAULT_WEIGHT = ONE;
+
+export const evalConstraint = memoizeNodeEval(function (
+  node: ConstraintNode,
+): Num {
+  if (node instanceof ConstraintOnDistance) {
+    const dist = evalDistance(node.distance);
+    const target = evalDistance(node.target);
+    const tol = evalDistanceWithDefault(node.weigth, DEFAULT_WEIGHT);
+
+    const weightedDiff = dist.sub(target).div(tol);
+    return weightedDiff.square();
+  }
+
+  if (node instanceof ConstraintOnAngle) {
+    const angle = evalAngle(node.angle);
+    const target = evalAngle(node.target);
+    const tol = evalDistanceWithDefault(node.weigth, DEFAULT_WEIGHT);
+
+    const loss = TWO.sub(angle.sub(target).cos().add(ONE));
+    return loss.div(tol.mul(TWO));
+  }
+
+  if (node instanceof ConstraintOnPoint) {
+    const point = evalPoint(node.point);
+    const target = evalPoint(node.target);
+    const tol = evalDistanceWithDefault(node.weigth, DEFAULT_WEIGHT);
+
+    const diff = point.vecFrom(target).norm();
+    return diff.div(tol);
+  }
+
+  if (node instanceof ConstraintOnProfileBoundary) {
+    const profile = evalProfile(node.profile);
+    const point = evalPoint(node.point);
+    const tol = evalDistanceWithDefault(node.weigth, DEFAULT_WEIGHT);
+
+    const dist = profile.distanceTo(point);
+    return dist.abs().div(tol);
+  }
+
+  throw new Error(`Unknown constraint: ${node.constructor.name}`);
 });

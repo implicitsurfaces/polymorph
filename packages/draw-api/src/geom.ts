@@ -19,6 +19,12 @@ import {
   VectorDirection,
   AnglePerpendicular,
   AngleOpposite,
+  VectorNorm,
+  readDistance,
+  readAngleAsDegree,
+  readVector,
+  readPoint,
+  PointAsVectorFromOrigin,
 } from "sketch";
 import {
   asAngle,
@@ -33,6 +39,10 @@ import { NodeWrapper } from "./types";
 
 export class Distance implements NodeWrapper<DistanceNode> {
   constructor(public inner: DistanceNode) {}
+
+  read(variables: Map<string, number>): number {
+    return readDistance(this.inner, variables);
+  }
 }
 
 export class Angle implements NodeWrapper<AngleNode> {
@@ -63,6 +73,10 @@ export class Angle implements NodeWrapper<AngleNode> {
       new VectorFromPolarCoods(new DistanceLiteral(1), this.inner),
     );
   }
+
+  public read(variables: Map<string, number>): number {
+    return readAngleAsDegree(this.inner, variables);
+  }
 }
 
 export class Vector implements NodeWrapper<VectorNode> {
@@ -82,6 +96,18 @@ export class Vector implements NodeWrapper<VectorNode> {
 
   public asAngle(): Angle {
     return new Angle(new VectorDirection(this.inner));
+  }
+
+  public norm(): Distance {
+    return new Distance(new VectorNorm(this.inner));
+  }
+
+  public read(variables: Map<string, number>): [number, number] {
+    return readVector(this.inner, variables);
+  }
+
+  public toPoint(): Point {
+    return new Point(new PointAsVectorFromOrigin(this.inner));
   }
 }
 
@@ -159,6 +185,10 @@ export class Point implements NodeWrapper<PointNode> {
 
   public midPoint(other: Point): Point {
     return new Point(new PointMidPoint(this.inner, other.inner));
+  }
+
+  public read(variables: Map<string, number>): [number, number] {
+    return readPoint(this.inner, variables);
   }
 }
 

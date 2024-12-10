@@ -28,10 +28,6 @@ function nodeMax(a: NumNode, b: NumNode): NumNode {
   return new BinaryOp("MAX", a, b);
 }
 
-function nodeMin(a: NumNode, b: NumNode): NumNode {
-  return new BinaryOp("MIN", a, b);
-}
-
 function nodeCompare(a: NumNode, b: NumNode): NumNode {
   return new BinaryOp("COMPARE", a, b);
 }

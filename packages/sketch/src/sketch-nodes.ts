@@ -16,8 +16,20 @@ export class ProfileNode {}
 
 export class ConstraintNode {}
 
+export class RealValueVariable extends RealValueNode {
+  constructor(public readonly name: string) {
+    super();
+  }
+}
+
 export class DistanceLiteral extends DistanceNode {
   constructor(public readonly value: number) {
+    super();
+  }
+}
+
+export class DistanceVariable extends DistanceNode {
+  constructor(public readonly name: string) {
     super();
   }
 }
@@ -63,6 +75,12 @@ export class ArcLength extends DistanceNode {
 
 export class AngleLiteral extends AngleNode {
   constructor(public readonly degrees: number) {
+    super();
+  }
+}
+
+export class AngleVariable extends AngleNode {
+  constructor(public readonly name: string) {
     super();
   }
 }
@@ -415,8 +433,8 @@ export class SignedDistanceToProfile extends RealValueNode {
 export class ConstraintOnDistance extends ConstraintNode {
   constructor(
     public readonly distance: DistanceNode,
-    public readonly value: DistanceNode,
-    public readonly tolerance: DistanceNode,
+    public readonly target: DistanceNode,
+    public readonly weigth: DistanceNode | undefined,
   ) {
     super();
   }
@@ -425,7 +443,8 @@ export class ConstraintOnDistance extends ConstraintNode {
 export class ConstraintOnAngle extends ConstraintNode {
   constructor(
     public readonly angle: AngleNode,
-    public readonly value: AngleNode,
+    public readonly target: AngleNode,
+    public readonly weigth: DistanceNode | undefined,
   ) {
     super();
   }
@@ -434,8 +453,8 @@ export class ConstraintOnAngle extends ConstraintNode {
 export class ConstraintOnPoint extends ConstraintNode {
   constructor(
     public readonly point: PointNode,
-    public readonly value: PointNode,
-    public readonly tolerance: DistanceNode,
+    public readonly target: PointNode,
+    public readonly weigth: DistanceNode | undefined,
   ) {
     super();
   }
@@ -445,7 +464,7 @@ export class ConstraintOnProfileBoundary extends ConstraintNode {
   constructor(
     public readonly profile: ProfileNode,
     public readonly point: PointNode,
-    public readonly tolerance: DistanceNode,
+    public readonly weigth: DistanceNode | undefined,
   ) {
     super();
   }

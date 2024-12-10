@@ -4,7 +4,6 @@ import {
   ArcFromStartControl,
   BiarcC,
   BiarcS,
-  DistanceNode,
   EdgeNode,
   Line,
   PathClose,
@@ -18,7 +17,13 @@ import {
   VectorFromCartesianCoords,
   VectorFromPolarCoods,
 } from "sketch";
-import { asAngle, asDistance, asPoint, PointLike } from "./convert";
+import {
+  asAngle,
+  asDistance,
+  asDistanceOrUndefined,
+  asPoint,
+  PointLike,
+} from "./convert";
 import { point, angle, Point } from "./geom";
 import { ProfileEditor } from "./ProfileEditor";
 
@@ -176,17 +181,14 @@ export class EdgeMaker {
   }
 }
 
-function parseCorner(
-  cornerRadius: number | undefined,
-): DistanceNode | undefined {
-  return (cornerRadius || cornerRadius === 0) && asDistance(cornerRadius);
-}
-
 export function draw(origin = [0, 0], cornerRadius?: number): EdgeMaker {
   let currentPoint = asPoint(origin);
   const firstPoint = currentPoint;
 
-  let path: PathNode = new PathStart(currentPoint, parseCorner(cornerRadius));
+  let path: PathNode = new PathStart(
+    currentPoint,
+    asDistanceOrUndefined(cornerRadius),
+  );
 
   function lineDone(createEdge: EdgeCreator): PointMaker {
     function pointDone(point: PointNode, cornerRadius?: number): EdgeMaker {
@@ -195,7 +197,12 @@ export function draw(origin = [0, 0], cornerRadius?: number): EdgeMaker {
 
       const edge = createEdge(previousPoint, point);
 
-      path = new PathEdge(path, edge, point, parseCorner(cornerRadius));
+      path = new PathEdge(
+        path,
+        edge,
+        point,
+        asDistanceOrUndefined(cornerRadius),
+      );
       return new EdgeMaker((edge: EdgeCreator) => lineDone(edge), currentPoint);
     }
 

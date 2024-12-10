@@ -1,7 +1,6 @@
 import { test } from "vitest";
-import { asNum, Num, variable } from "./num";
+import { Num, variable } from "./num";
 import { diff } from "./num-ops";
-import { writeFileSync } from "node:fs";
 
 import { exVar } from "./test-utils";
 

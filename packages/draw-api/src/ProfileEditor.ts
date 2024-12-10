@@ -1,11 +1,11 @@
 import {
+  debugRenderProfile,
   Difference,
   Dilate,
-  evalProfile,
-  fidgetRender,
   Intersection,
   Morph,
   ProfileNode,
+  renderProfile,
   Rotation,
   Scale,
   Shell,
@@ -114,15 +114,18 @@ export class ProfileEditor {
     return new ProfileEditor(new Dilate(this.shape, asDistance(factor)));
   }
 
-  async debugRender(size = 50): Promise<string> {
-    const distField = evalProfile(this.shape);
-    const render = await fidgetRender(distField, size);
+  async debugRender(
+    size = 50,
+    valuedVars?: Map<string, number>,
+  ): Promise<string> {
+    const render = await debugRenderProfile(this.shape, valuedVars, size);
     return booleansToASCII(intArrayToImageData(render), true);
   }
 
-  async render(size = 250): Promise<Uint8ClampedArray> {
-    const distField = evalProfile(this.shape);
-    const render = await fidgetRender(distField, size, true);
-    return new Uint8ClampedArray(render);
+  async render(
+    size = 250,
+    valuedVars?: Map<string, number>,
+  ): Promise<Uint8ClampedArray> {
+    return renderProfile(this.shape, valuedVars, size);
   }
 }

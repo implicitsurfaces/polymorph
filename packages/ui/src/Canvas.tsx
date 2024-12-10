@@ -204,12 +204,23 @@ function drawDisk(
 
 const _pointRadius = 5;
 
+function getPrimaryColor(isHighlighted: boolean, isSelected: boolean): string {
+  if (isSelected) {
+    return "#4063d5";
+  } else if (isHighlighted) {
+    return "#96a4d3";
+  } else {
+    return "black";
+  }
+}
+
 function drawPoint(
   ctx: CanvasRenderingContext2D,
   point: Point,
   isHighlighted: boolean,
+  isSelected: boolean,
 ) {
-  const fillStyle = isHighlighted ? "#4063d5" : "black";
+  const fillStyle = getPrimaryColor(isHighlighted, isSelected);
   drawDisk(ctx, point.position, _pointRadius, fillStyle);
 }
 
@@ -218,12 +229,14 @@ function drawLayer(
   document: Document,
   layer: Layer,
   highlightedId: ElementId | undefined,
+  selectedIds: Array<ElementId>,
 ) {
   layer.points.forEach((id: ElementId) => {
     const point = document.getElementFromId<Point>(id);
     if (point) {
       const isHighlighted = id === highlightedId;
-      drawPoint(ctx, point, isHighlighted);
+      const isSelected = selectedIds.includes(id);
+      drawPoint(ctx, point, isHighlighted, isSelected);
     }
   });
 }
@@ -232,11 +245,12 @@ function drawDocument(
   ctx: CanvasRenderingContext2D,
   document: Document,
   highlightedId: ElementId | undefined,
+  selectedIds: Array<ElementId>,
 ) {
   document.layers.forEach((id: ElementId) => {
     const layer = document.getElementFromId<Layer>(id);
     if (layer) {
-      drawLayer(ctx, document, layer, highlightedId);
+      drawLayer(ctx, document, layer, highlightedId, selectedIds);
     }
   });
 }
@@ -256,7 +270,8 @@ function draw(
   initializeViewTransform(ctx, camera);
   const document = documentManager.document();
   const highlightedId = documentManager.highlightedElementId();
-  drawDocument(ctx, document, highlightedId);
+  const selectedIds = documentManager.selectedElementIds();
+  drawDocument(ctx, document, highlightedId, selectedIds);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -516,22 +531,38 @@ export function Canvas({ documentManager }: CanvasProps) {
       if (!pointerState) {
         return;
       }
+      // TODO: more generic dispatch with registry of actions with
+      // corresponding mouse buttons and modifiers. For now we do
+      // a quick-and-dirty hard-coded dispatch.
       switch (event.button) {
         case 0: {
-          // left click: create point
+          // left click: create point or select
           const doc = documentManager.document();
-          const layer = documentManager.activeLayer();
-          if (layer) {
-            const pos = getMouseDocumentPosition(
-              event,
-              canvas,
-              pointerState.cameraOnPress,
-            );
-            const name = `Point ${layer.points.length + 1}`;
-            const point = doc.createPoint({ name: name, position: pos });
-            layer.points.push(point.id);
-            documentManager.setHighlightedElement(point.id);
-            documentManager.commitChanges();
+          const highlightedElement = documentManager.highlightedElement();
+          if (highlightedElement) {
+            // select
+            const highlightedId = highlightedElement.id;
+            if (event.shiftKey) {
+              documentManager.toggleSelectedElement(highlightedId);
+            } else {
+              documentManager.setSelectedElements([highlightedId]);
+            }
+          } else {
+            // create point
+            const layer = documentManager.activeLayer();
+            if (layer) {
+              const pos = getMouseDocumentPosition(
+                event,
+                canvas,
+                pointerState.cameraOnPress,
+              );
+              const name = `Point ${layer.points.length + 1}`;
+              const point = doc.createPoint({ name: name, position: pos });
+              layer.points.push(point.id);
+              documentManager.setHighlightedElement(point.id);
+              documentManager.setSelectedElements([point.id]);
+              documentManager.commitChanges();
+            }
           }
           break;
         }

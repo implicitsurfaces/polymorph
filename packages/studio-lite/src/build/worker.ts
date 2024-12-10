@@ -11,30 +11,27 @@ const api = {
     image: Uint8ClampedArray | null;
     valueReads: { name: string; value: number }[];
     solution: Map<string, number>;
+    optResults: { steps: number; change: number | undefined };
   }> => {
-    console.log("init?");
     await initLib();
-    console.log("Rendering", code);
     const loss = new LossFunction();
-    console.log("Loss", loss);
     let values = await runAsModule(code, loss);
     if (!Array.isArray(values)) {
       values = [values];
     }
 
-    console.log(values);
-
-    const solution = loss.findMininum({ debug: true });
-    console.log(solution);
+    const { solution, ...optResults } = loss.findMininum();
 
     const out: {
       image: Uint8ClampedArray | null;
       valueReads: { name: string; value: number }[];
       solution: Map<string, number>;
+      optResults: { steps: number; change: number | undefined };
     } = {
       image: null,
       valueReads: [],
       solution: solution,
+      optResults,
     };
 
     let i = 0;

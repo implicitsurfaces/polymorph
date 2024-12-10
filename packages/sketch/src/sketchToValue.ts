@@ -80,7 +80,7 @@ export function findSolution(
   } = {},
 ) {
   if (constraints.length === 0) {
-    return new Map<string, number>();
+    return { solution: new Map<string, number>(), change: 0, steps: 0 };
   }
   let loss = evalConstraint(constraints[0]);
 
@@ -90,12 +90,12 @@ export function findSolution(
 
   const vars = allVariables(loss.n);
   if (vars.size === 0) {
-    return new Map<string, number>();
+    return { solution: new Map<string, number>(), change: 0, steps: 0 };
   }
 
   const initialX = new Map<string, number>(
-    [...vars.keys()].map((key) => [key, 0]),
+    [...vars.keys()].map((key) => [key, 0.0]),
   );
 
-  return gradientDescentOpt(loss, initialX, options).solution;
+  return gradientDescentOpt(loss, initialX, options);
 }

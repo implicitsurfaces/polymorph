@@ -32,8 +32,8 @@ import {
   Line,
   ArcFromStartControl,
   ArcFromEndControl,
-  BiarcC,
-  BiarcS,
+  CCurve,
+  SCurve,
   PathStart,
   PathEdge,
   PathNode,
@@ -244,11 +244,11 @@ export const evalEdge = memoizeNodeEval(function (
     ];
   }
 
-  if (edge instanceof BiarcC) {
+  if (edge instanceof CCurve) {
     return (p0: Point, p1: Point) => biarcC(p0, p1, evalPoint(edge.control));
   }
 
-  if (edge instanceof BiarcS) {
+  if (edge instanceof SCurve) {
     return (p0: Point, p1: Point) =>
       biarcS(p0, p1, evalPoint(edge.control0), evalPoint(edge.control1));
   }

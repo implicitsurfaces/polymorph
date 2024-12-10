@@ -244,13 +244,13 @@ export class ArcFromEndControl extends EdgeNode {
   }
 }
 
-export class BiarcC extends EdgeNode {
+export class CCurve extends EdgeNode {
   constructor(public readonly control: PointNode) {
     super();
   }
 }
 
-export class BiarcS extends EdgeNode {
+export class SCurve extends EdgeNode {
   constructor(
     public readonly control0: PointNode,
     public readonly control1: PointNode,

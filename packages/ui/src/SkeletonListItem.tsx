@@ -1,4 +1,4 @@
-import { memo, useCallback } from "react";
+import { memo, useCallback, MouseEvent } from "react";
 import { Point, ElementId } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 import { NumberInput } from "./NumberInput.tsx";
@@ -10,6 +10,7 @@ interface SkeletonListItemProps {
   documentManager: DocumentManager;
   id: ElementId;
   isHighlighted: boolean;
+  isSelected: boolean;
   point: Point; // we need this for memoization
 }
 
@@ -18,6 +19,7 @@ export const SkeletonListItem = memo(
     documentManager,
     id,
     isHighlighted,
+    isSelected,
     point,
   }: SkeletonListItemProps) {
     const onXChange = useCallback(
@@ -52,13 +54,32 @@ export const SkeletonListItem = memo(
       }
     }, [documentManager, id]);
 
+    const onSelectElement = useCallback(
+      (event: MouseEvent<HTMLElement>) => {
+        if (event.shiftKey) {
+          documentManager.toggleSelectedElement(id);
+        } else {
+          documentManager.setSelectedElements([id]);
+        }
+      },
+      [documentManager, id],
+    );
+
+    let extraClass = "";
+    if (isHighlighted) {
+      extraClass += " is-highlighted";
+    }
+    if (isSelected) {
+      extraClass += " is-selected";
+    }
+
     return (
       <div
-        className={`panel-list-item object-row-info ${isHighlighted ? "is-highlighted" : ""}`}
+        className={`panel-list-item object-row-info${extraClass}`}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >
-        <div className="highlight-zone">
+        <div className="highlight-zone" onClick={onSelectElement}>
           <p className="name single-line-text">{point.name}</p>
         </div>
         <div className="extra-zone">
@@ -99,6 +120,7 @@ export const SkeletonListItem = memo(
       prevProps.documentManager === nextProps.documentManager &&
       prevProps.id === nextProps.id &&
       prevProps.isHighlighted === nextProps.isHighlighted &&
+      prevProps.isSelected === nextProps.isSelected &&
       prevProps.point.equals(nextProps.point)
     );
   },

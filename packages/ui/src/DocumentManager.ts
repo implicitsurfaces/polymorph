@@ -16,6 +16,7 @@ export class DocumentManager {
 
   private _activeLayerId: ElementId;
   private _highlightedElementId: ElementId | undefined;
+  private _selectedElementIds: Array<ElementId>;
 
   /**
    * Constructs a new `DocumentManager`.
@@ -48,6 +49,7 @@ export class DocumentManager {
     }
     this._activeLayerId = this._workingCopy.layers[0];
     this._highlightedElementId = undefined;
+    this._selectedElementIds = [];
   }
 
   /**
@@ -208,5 +210,39 @@ export class DocumentManager {
       this._highlightedElementId = id;
       this._notify();
     }
+  }
+
+  selectedElementIds(): Array<ElementId> {
+    // XXX: Use Immutable.js instead?
+    return [...this._selectedElementIds];
+  }
+
+  selectedElements(): Array<Element> {
+    const doc = this.document();
+    const res: Array<Element> = [];
+    for (const id of this._selectedElementIds) {
+      const element = doc.getElementFromId<Element>(id);
+      if (element) {
+        res.push(element);
+      }
+    }
+    return res;
+  }
+
+  setSelectedElements(ids: Array<ElementId>) {
+    // XXX: Use Immutable.js instead?
+    this._selectedElementIds = [...ids];
+    this._notify();
+  }
+
+  toggleSelectedElement(id: ElementId) {
+    const selectedIds = this.selectedElementIds();
+    const index = selectedIds.indexOf(id);
+    if (index === -1) {
+      selectedIds.push(id);
+    } else {
+      selectedIds.splice(index, 1);
+    }
+    this.setSelectedElements(selectedIds);
   }
 }

@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 
 export type ElementId = string;
 
-interface Element {
+export interface Element {
   readonly id: ElementId;
   clone: () => Element;
 }

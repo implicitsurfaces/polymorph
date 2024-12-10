@@ -8,6 +8,7 @@ interface SkeletonPanelProps {
 
 export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
   const highlightedElementId = documentManager.highlightedElementId();
+  const selectedElementIds = documentManager.selectedElementIds();
   const doc = documentManager.document();
 
   function getItem(id: ElementId) {
@@ -21,6 +22,7 @@ export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
         documentManager={documentManager}
         id={id}
         isHighlighted={id === highlightedElementId}
+        isSelected={selectedElementIds.includes(id)}
         point={point.clone()}
       />
     );

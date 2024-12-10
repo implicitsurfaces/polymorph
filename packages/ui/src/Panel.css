@@ -116,7 +116,8 @@
   cursor: pointer;
 }
 
-.panel-list-item.is-active > .highlight-zone {
+.panel-list-item.is-active > .highlight-zone,
+.panel-list-item.is-selected > .highlight-zone {
   background-color: #4063d5;
 }
 

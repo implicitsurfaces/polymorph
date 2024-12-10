@@ -42,7 +42,6 @@ const useCursorType = (hoveredPoint, selectedPoint) => {
   const [shiftPressed, setShiftPressed] = useState(false);
   useEffect(() => {
     const handleKeyDown = (e) => {
-      console.log(e.key);
       if (e.key === "Shift") {
         setShiftPressed(true);
       }

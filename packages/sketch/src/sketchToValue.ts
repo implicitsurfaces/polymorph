@@ -7,6 +7,7 @@ import {
   DistanceNode,
   PointNode,
   ProfileNode,
+  RealValueNode,
   VectorNode,
 } from "./sketch-nodes";
 import {
@@ -15,6 +16,7 @@ import {
   evalDistance,
   evalPoint,
   evalProfile,
+  evalRealValue,
   evalVector,
 } from "./sketch-tree";
 
@@ -42,6 +44,14 @@ export function readDistance(
   valuedVars: Map<string, number>,
 ) {
   const d = evalDistance(distance);
+  return naiveEval(d.n, valuedVars);
+}
+
+export function readRealValue(
+  distance: RealValueNode,
+  valuedVars: Map<string, number>,
+) {
+  const d = evalRealValue(distance);
   return naiveEval(d.n, valuedVars);
 }
 

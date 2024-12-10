@@ -181,7 +181,10 @@ export class EdgeMaker {
   }
 }
 
-export function draw(origin = [0, 0], cornerRadius?: number): EdgeMaker {
+export function draw(
+  origin: PointLike = [0, 0],
+  cornerRadius?: number,
+): EdgeMaker {
   let currentPoint = asPoint(origin);
   const firstPoint = currentPoint;
 

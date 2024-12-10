@@ -25,6 +25,8 @@ import {
   readVector,
   readPoint,
   PointAsVectorFromOrigin,
+  RealValueNode,
+  readRealValue,
 } from "sketch";
 import {
   asAngle,
@@ -36,6 +38,14 @@ import {
 } from "./convert";
 
 import { NodeWrapper } from "./types";
+
+export class Real implements NodeWrapper<RealValueNode> {
+  constructor(public inner: RealValueNode) {}
+
+  read(variables: Map<string, number>): number {
+    return readRealValue(this.inner, variables);
+  }
+}
 
 export class Distance implements NodeWrapper<DistanceNode> {
   constructor(public inner: DistanceNode) {}

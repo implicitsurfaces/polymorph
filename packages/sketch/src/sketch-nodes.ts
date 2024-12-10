@@ -464,6 +464,7 @@ export class ConstraintOnProfileBoundary extends ConstraintNode {
   constructor(
     public readonly profile: ProfileNode,
     public readonly point: PointNode,
+    public readonly signedDistance: RealValueNode | undefined,
     public readonly weigth: DistanceNode | undefined,
   ) {
     super();

@@ -5,11 +5,25 @@ import {
   DistanceNode,
   PointAsVectorFromOrigin,
   PointNode,
+  ProfileNode,
+  RealValueNode,
   VectorFromCartesianCoords,
   VectorFromPolarCoods,
   VectorNode,
 } from "sketch";
 import { isNodeWrapper, NodeWrapper } from "./types";
+
+export type RealLike = number | RealValueNode | NodeWrapper<RealValueNode>;
+
+export function asRealValue(value: RealLike): RealValueNode {
+  if (value instanceof RealValueNode) {
+    return value;
+  }
+  if (isNodeWrapper(value, RealValueNode)) {
+    return value.inner;
+  }
+  return value;
+}
 
 export type DistanceLike = number | DistanceNode | NodeWrapper<DistanceNode>;
 
@@ -89,4 +103,16 @@ export function asPolarPoint(point: PointLike): PointNode {
     return point.inner;
   }
   return new PointAsVectorFromOrigin(asPolarVector(point));
+}
+
+export type ProfileLike = ProfileNode | NodeWrapper<ProfileNode>;
+
+export function asProfile(profile: ProfileLike): ProfileNode {
+  if (profile instanceof ProfileNode) {
+    return profile;
+  }
+  if (isNodeWrapper(profile, ProfileNode)) {
+    return profile.inner;
+  }
+  throw new Error("Expected a ProfileNode");
 }

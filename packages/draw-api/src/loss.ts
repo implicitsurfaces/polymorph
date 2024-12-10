@@ -3,6 +3,7 @@ import {
   ConstraintOnAngle,
   ConstraintOnDistance,
   ConstraintOnPoint,
+  ConstraintOnProfileBoundary,
   findSolution,
 } from "sketch";
 import { point } from "./geom";
@@ -12,8 +13,12 @@ import {
   asDistance,
   asDistanceOrUndefined,
   asPoint,
+  asProfile,
+  asRealValue,
   DistanceLike,
   PointLike,
+  ProfileLike,
+  RealLike,
 } from "./convert";
 
 export class LossFunction {
@@ -37,6 +42,39 @@ export class LossFunction {
     this.terms.push(
       new ConstraintOnDistance(
         asDistance(distance),
+        asDistance(target),
+        asDistanceOrUndefined(weight),
+      ),
+    );
+  }
+
+  assertSignedDistanceToProfile(
+    profile: ProfileLike,
+    point: PointLike,
+    signedDistance: RealLike,
+    weight?: DistanceLike,
+  ) {
+    this.terms.push(
+      new ConstraintOnProfileBoundary(
+        asProfile(profile),
+        asPoint(point),
+        asRealValue(signedDistance),
+        asDistanceOrUndefined(weight),
+      ),
+    );
+  }
+
+  assertDistanceBetweenPoints(
+    p0: PointLike,
+    p1: PointLike,
+    target: DistanceLike,
+    weight?: DistanceLike,
+  ): void {
+    const dist = point(p0).vecFrom(point(p1)).norm();
+
+    this.terms.push(
+      new ConstraintOnDistance(
+        asDistance(dist),
         asDistance(target),
         asDistanceOrUndefined(weight),
       ),

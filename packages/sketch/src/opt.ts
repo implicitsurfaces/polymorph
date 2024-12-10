@@ -65,16 +65,17 @@ export function gradientDescentOpt(
       velocity.set(key, v);
     }
 
+    gradNorm = gradient.normAt(newX);
+
+    if (isNaN(gradNorm)) break;
+
     x = newX;
-    gradNorm = gradient.normAt(x);
 
     if (debug) {
       console.log("Step", i, "grad", grad, "x", x, "gradNorm", gradNorm);
     }
 
-    if (gradNorm < tolerance) {
-      break;
-    }
+    if (gradNorm < tolerance) break;
   }
 
   return {

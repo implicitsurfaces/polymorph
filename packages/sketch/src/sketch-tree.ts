@@ -95,6 +95,7 @@ export function evalRealValue(value: RealValueNode): Num {
   if (value instanceof RealValueVariable) {
     return variable(value.name);
   }
+
   if (value instanceof DistanceNode) {
     return evalDistance(value);
   }
@@ -471,10 +472,11 @@ export const evalConstraint = memoizeNodeEval(function (
   if (node instanceof ConstraintOnProfileBoundary) {
     const profile = evalProfile(node.profile);
     const point = evalPoint(node.point);
+    const signedDistance = evalRealValue(node.signedDistance ?? 0);
     const tol = evalDistanceWithDefault(node.weigth, DEFAULT_WEIGHT);
 
     const dist = profile.distanceTo(point);
-    return dist.abs().div(tol);
+    return dist.sub(signedDistance).div(tol).square();
   }
 
   throw new Error(`Unknown constraint: ${node.constructor.name}`);

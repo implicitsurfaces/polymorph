@@ -1,7 +1,6 @@
 import { memo, useCallback, MouseEvent } from "react";
 import { Point, ElementId } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
-import { NumberInput } from "./NumberInput.tsx";
 
 // TODO: use some sort of unique ID instead of layerIndex/pointIndex,
 // in order to support moving the point or layer in the hierarchy?
@@ -22,28 +21,6 @@ export const SkeletonListItem = memo(
     isSelected,
     point,
   }: SkeletonListItemProps) {
-    const onXChange = useCallback(
-      (value: number) => {
-        const point = documentManager.document().getElementFromId<Point>(id);
-        if (point) {
-          point.position.x = value;
-          documentManager.commitChanges();
-        }
-      },
-      [documentManager, id],
-    );
-
-    const onYChange = useCallback(
-      (value: number) => {
-        const point = documentManager.document().getElementFromId<Point>(id);
-        if (point) {
-          point.position.y = value;
-          documentManager.commitChanges();
-        }
-      },
-      [documentManager, id],
-    );
-
     const onMouseEnter = useCallback(() => {
       documentManager.setHighlightedElement(id);
     }, [documentManager, id]);
@@ -81,20 +58,6 @@ export const SkeletonListItem = memo(
       >
         <div className="highlight-zone" onClick={onSelectElement}>
           <p className="name single-line-text">{point.name}</p>
-        </div>
-        <div className="extra-zone">
-          <NumberInput
-            idBase={`number-input::x${id}`}
-            label="X"
-            value={point.position.x}
-            onChange={onXChange}
-          />
-          <NumberInput
-            idBase={`number-input::y${id}`}
-            label="Y"
-            value={point.position.y}
-            onChange={onYChange}
-          />
         </div>
       </div>
     );

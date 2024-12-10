@@ -484,11 +484,10 @@ export function Canvas({ documentManager }: CanvasProps) {
             if (selectedElements.includes(highlightedElement)) {
               movedElements = selectedElements;
             } else {
-              // We allow moving the currently highlighted element even if
-              // it's not selected, and when doing so we intentionally
-              // preserve the current selection, that is, we do not set the
-              // dragged element as the new selection.
+              // Moving an highlighted element that is not currently selected
+              // makes it the currently selected element.
               movedElements = [highlightedElement];
+              documentManager.setSelectedElements([highlightedElement.id]);
             }
             // Remember start positions of all elements.
             // We only do this if not done already, otherwise

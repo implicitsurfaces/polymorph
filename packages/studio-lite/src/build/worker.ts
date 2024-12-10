@@ -6,6 +6,7 @@ import { LossFunction } from "draw-api";
 const api = {
   render: async (
     code: string,
+    info: unknown,
     definition: number,
   ): Promise<{
     image: Uint8ClampedArray | null;
@@ -15,7 +16,7 @@ const api = {
   }> => {
     await initLib();
     const loss = new LossFunction();
-    let values = await runAsModule(code, loss);
+    let values = await runAsModule(code, [loss, info]);
     if (!Array.isArray(values)) {
       values = [values];
     }

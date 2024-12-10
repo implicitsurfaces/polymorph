@@ -28,10 +28,20 @@ const inSeries = (func) => {
   };
 };
 
+const Point = types
+  .model("Point", { x: types.number, y: types.number })
+  .actions((self) => ({
+    moveTo([x, y]) {
+      self.x = x;
+      self.y = y;
+    },
+  }));
+
 const AppState = types
   .model("AppState", {
     code: CodeState,
     definition: types.optional(types.number, 768),
+    points: types.optional(types.array(Point), []),
     config: types.optional(
       types.model({
         code: types.optional(types.string, ""),
@@ -50,6 +60,12 @@ const AppState = types
     get codeInitialized() {
       return !!self.config.code;
     },
+
+    findClosePoint([x, y]) {
+      return self.points.find((point) => {
+        return Math.abs(point.x - x) < 4e-2 && Math.abs(point.y - y) < 4e-2;
+      });
+    },
   }))
   .volatile(() => ({
     currentImage: null,
@@ -63,6 +79,10 @@ const AppState = types
     exceptionMode: "single",
   }))
   .actions((self) => ({
+    addPoint([x, y]) {
+      if (self.findClosePoint([x, y])) return;
+      self.points.push({ x, y });
+    },
     updateCode(newCode) {
       self.config.code = newCode;
     },
@@ -82,6 +102,7 @@ const AppState = types
       try {
         const results = yield api.render(
           self.currentValues.code,
+          { points: self.points.map((point) => [point.x, point.y]) },
           self.definition,
         );
         console.log("Results", results);
@@ -107,6 +128,9 @@ const AppState = types
     const run = async () => {
       if (!self.currentValues.code) return;
       if (!self.definition) return;
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const points = self.points.map((point) => [point.x, point.y]);
 
       await processor();
     };

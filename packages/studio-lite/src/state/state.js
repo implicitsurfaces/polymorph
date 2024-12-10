@@ -1,4 +1,4 @@
-import { types, flow, getSnapshot } from "mobx-state-tree";
+import { types, flow, getSnapshot, getRoot } from "mobx-state-tree";
 import { autorun } from "mobx";
 
 import api from "../build/api";
@@ -34,6 +34,10 @@ const Point = types
     moveTo([x, y]) {
       self.x = x;
       self.y = y;
+    },
+    remove() {
+      const store = getRoot(self);
+      store.removePoint(self);
     },
   }));
 
@@ -82,6 +86,9 @@ const AppState = types
     addPoint([x, y]) {
       if (self.findClosePoint([x, y])) return;
       self.points.push({ x, y });
+    },
+    removePoint(point) {
+      self.points.remove(point);
     },
     updateCode(newCode) {
       self.config.code = newCode;

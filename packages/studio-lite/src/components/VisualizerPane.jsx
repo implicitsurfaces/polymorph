@@ -50,8 +50,8 @@ const PointsLayer = observer(() => {
   const store = useEditorStore();
   const [canvas, setCanvas] = useState(null);
 
-  const [hoveredCircle, setHoveredCircle] = useState(null);
-  const [selectedCircle, setSelectedCircle] = useState(null);
+  const [hoveredPoint, setHoveredPoint] = useState(null);
+  const [selectedPoint, setSelectedPoint] = useState(null);
 
   if (canvas) {
     const circleCtx = canvas.getContext("2d");
@@ -64,28 +64,33 @@ const PointsLayer = observer(() => {
       const [x, y] = imageToCanvasCoords(rect, point.x, point.y);
       circleCtx.beginPath();
       circleCtx.arc(x, y, 10, 0, Math.PI * 2);
-      circleCtx.fillStyle = point === hoveredCircle ? "white" : "black";
+      circleCtx.fillStyle = point === hoveredPoint ? "white" : "black";
       circleCtx.fill();
-      circleCtx.strokeStyle = point === hoveredCircle ? "black" : "white";
+      circleCtx.strokeStyle = point === hoveredPoint ? "black" : "white";
       circleCtx.stroke();
     });
   }
 
   const handleMouseDown = useCallback(
     (e) => {
-      if (hoveredCircle) {
-        setSelectedCircle(hoveredCircle);
+      if (hoveredPoint) {
+        if (e.shiftKey) {
+          hoveredPoint.remove();
+          setHoveredPoint(null);
+        } else {
+          setSelectedPoint(hoveredPoint);
+        }
         return;
       }
       const rect = canvas.getBoundingClientRect();
       const point = canvasToImageCoords(rect, e.clientX, e.clientY);
       store.addPoint(point);
     },
-    [canvas, store, hoveredCircle],
+    [canvas, store, hoveredPoint],
   );
 
   const handleMouseUp = useCallback(() => {
-    setSelectedCircle(null);
+    setSelectedPoint(null);
   }, []);
 
   const handleMouseMove = useCallback(
@@ -93,14 +98,14 @@ const PointsLayer = observer(() => {
       const rect = canvas.getBoundingClientRect();
       const point = canvasToImageCoords(rect, e.clientX, e.clientY);
 
-      if (selectedCircle !== null) {
-        selectedCircle.moveTo(point);
+      if (selectedPoint !== null) {
+        selectedPoint.moveTo(point);
       } else {
         // Check for hover
-        setHoveredCircle(store.findClosePoint(point));
+        setHoveredPoint(store.findClosePoint(point));
       }
     },
-    [canvas, store, selectedCircle],
+    [canvas, store, selectedPoint],
   );
 
   return (

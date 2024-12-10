@@ -1,4 +1,4 @@
-import { Document, Layer, ElementId } from "./Document.ts";
+import { Document, Element, ElementId, Layer } from "./Document.ts";
 
 /**
  * Stores and manages the undo-redo history of the document.
@@ -15,6 +15,7 @@ export class DocumentManager {
   private _workingCopy: Document;
 
   private _activeLayerId: ElementId;
+  private _highlightedElementId: ElementId | undefined;
 
   /**
    * Constructs a new `DocumentManager`.
@@ -46,6 +47,7 @@ export class DocumentManager {
       this._workingCopy = this._history[this._index].clone();
     }
     this._activeLayerId = this._workingCopy.layers[0];
+    this._highlightedElementId = undefined;
   }
 
   /**
@@ -169,8 +171,6 @@ export class DocumentManager {
     this._notify();
   }
 
-  // TODO: move activeLayer to SelectionState class
-
   activeLayerId(): ElementId {
     return this._activeLayerId;
   }
@@ -186,6 +186,26 @@ export class DocumentManager {
   setActiveLayer(id: ElementId) {
     if (this._activeLayerId !== id) {
       this._activeLayerId = id;
+      this._notify();
+    }
+  }
+
+  highlightedElementId(): ElementId | undefined {
+    return this._highlightedElementId;
+  }
+
+  highlightedElement(): Element | undefined {
+    const doc = this.document();
+    const id = this._highlightedElementId;
+    if (!doc || !id) {
+      return undefined;
+    }
+    return doc.getElementFromId(id);
+  }
+
+  setHighlightedElement(id: ElementId | undefined) {
+    if (this._highlightedElementId !== id) {
+      this._highlightedElementId = id;
       this._notify();
     }
   }

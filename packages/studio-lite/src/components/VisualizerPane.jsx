@@ -1,4 +1,4 @@
-import { useRef, forwardRef, useState, useCallback } from "react";
+import { useRef, forwardRef, useState, useCallback, useEffect } from "react";
 import { styled } from "goober";
 import { observer } from "mobx-react";
 
@@ -12,6 +12,7 @@ const Canvas = styled("canvas", forwardRef)`
   position: absolute;
   width: 100%;
   height: 100%;
+  ${({ cursor }) => cursor && `cursor: ${cursor};`}
 `;
 
 const Image = observer(() => {
@@ -37,12 +38,59 @@ const Image = observer(() => {
   return <Canvas ref={canvasRef}></Canvas>;
 });
 
+const useCursorType = (hoveredPoint, selectedPoint) => {
+  const [shiftPressed, setShiftPressed] = useState(false);
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      console.log(e.key);
+      if (e.key === "Shift") {
+        setShiftPressed(true);
+      }
+    };
+
+    const handleKeyUp = (e) => {
+      if (e.key === "Shift") {
+        setShiftPressed(false);
+      }
+    };
+
+    // Handle cases where key up might occur outside window
+    const handleBlur = () => {
+      setShiftPressed(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, []);
+
+  if (hoveredPoint && shiftPressed) {
+    return 'url("/delete-icon.svg"), auto';
+  }
+
+  if (selectedPoint) {
+    return "grabbing";
+  }
+
+  if (hoveredPoint) {
+    return "grab";
+  }
+
+  return "cursor";
+};
+
 const canvasToImageCoords = (rect, x, y) => {
   const { left, top, width, height } = rect;
   return [(2 * (x - left)) / width - 1, (2 * (top - y)) / height + 1];
 };
 
-const imageToCanvasCoords = (rect, x, y) => {
+const imageToCanvasCoords = (x, y) => {
   return [((x + 1) * 1000) / 2, ((1 - y) * 1000) / 2];
 };
 
@@ -53,15 +101,16 @@ const PointsLayer = observer(() => {
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const [selectedPoint, setSelectedPoint] = useState(null);
 
+  const cursorType = useCursorType(hoveredPoint, selectedPoint);
+
   if (canvas) {
     const circleCtx = canvas.getContext("2d");
-    const rect = canvas.getBoundingClientRect();
 
     // Clear and redraw only the points layer
     circleCtx.clearRect(0, 0, canvas.width, canvas.height);
 
     store.points.forEach((point) => {
-      const [x, y] = imageToCanvasCoords(rect, point.x, point.y);
+      const [x, y] = imageToCanvasCoords(point.x, point.y);
       circleCtx.beginPath();
       circleCtx.arc(x, y, 10, 0, Math.PI * 2);
       circleCtx.fillStyle = point === hoveredPoint ? "white" : "black";
@@ -111,6 +160,7 @@ const PointsLayer = observer(() => {
   return (
     <Canvas
       ref={setCanvas}
+      cursor={cursorType}
       width="1000"
       height="1000"
       onMouseDown={handleMouseDown}

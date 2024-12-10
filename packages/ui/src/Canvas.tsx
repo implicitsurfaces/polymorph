@@ -202,9 +202,13 @@ function drawDisk(
   ctx.fill();
 }
 
-function drawPoint(ctx: CanvasRenderingContext2D, point: Point) {
+function drawPoint(
+  ctx: CanvasRenderingContext2D,
+  point: Point,
+  isHighlighted: boolean,
+) {
   const radius = 5;
-  const fillStyle = "black";
+  const fillStyle = isHighlighted ? "#4063d5" : "black";
   drawDisk(ctx, point.position, radius, fillStyle);
 }
 
@@ -212,25 +216,35 @@ function drawLayer(
   ctx: CanvasRenderingContext2D,
   document: Document,
   layer: Layer,
+  highlightedId: ElementId | undefined,
 ) {
   layer.points.forEach((id: ElementId) => {
     const point = document.getElementFromId<Point>(id);
     if (point) {
-      drawPoint(ctx, point);
+      const isHighlighted = id === highlightedId;
+      drawPoint(ctx, point, isHighlighted);
     }
   });
 }
 
-function drawDocument(ctx: CanvasRenderingContext2D, document: Document) {
+function drawDocument(
+  ctx: CanvasRenderingContext2D,
+  document: Document,
+  highlightedId: ElementId | undefined,
+) {
   document.layers.forEach((id: ElementId) => {
     const layer = document.getElementFromId<Layer>(id);
     if (layer) {
-      drawLayer(ctx, document, layer);
+      drawLayer(ctx, document, layer, highlightedId);
     }
   });
 }
 
-function draw(canvas: HTMLCanvasElement, camera: Camera2, document: Document) {
+function draw(
+  canvas: HTMLCanvasElement,
+  camera: Camera2,
+  documentManager: DocumentManager,
+) {
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     return;
@@ -239,7 +253,9 @@ function draw(canvas: HTMLCanvasElement, camera: Camera2, document: Document) {
   drawBackground(ctx, canvas.width, canvas.height, "#e0e0e0");
   drawGrid(ctx, camera);
   initializeViewTransform(ctx, camera);
-  drawDocument(ctx, document);
+  const document = documentManager.document();
+  const highlightedId = documentManager.highlightedElementId();
+  drawDocument(ctx, document, highlightedId);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -435,6 +451,7 @@ export function Canvas({ documentManager }: CanvasProps) {
             const name = `Point ${layer.points.length + 1}`;
             const point = doc.createPoint({ name: name, position: pos });
             layer.points.push(point.id);
+            documentManager.setHighlightedElement(point.id);
             documentManager.commitChanges();
           }
           break;
@@ -556,7 +573,7 @@ export function Canvas({ documentManager }: CanvasProps) {
   useEffect(() => {
     const canvas = ref.current;
     if (canvas && canvas.width > 0 && canvas.height > 0) {
-      draw(canvas, camera, documentManager.document());
+      draw(canvas, camera, documentManager);
     }
   }, [camera, documentManager, version]);
 

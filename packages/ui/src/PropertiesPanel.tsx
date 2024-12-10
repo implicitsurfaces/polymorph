@@ -7,8 +7,6 @@ interface PropertiesPanelProps {
 }
 
 export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
-  const selectedElements = documentManager.selectedElements();
-
   const onXChange = (point: Point) => {
     return (value: number) => {
       point.position.x = value;
@@ -54,6 +52,7 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
   }
 
   function getContent() {
+    const selectedElements = documentManager.selectedElements();
     if (selectedElements.length === 0) {
       return (
         <div className="panel-list-item">

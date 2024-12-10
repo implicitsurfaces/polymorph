@@ -5,6 +5,7 @@ export type ElementId = string;
 
 export interface Element {
   readonly id: ElementId;
+  readonly type: string;
   clone: () => Element;
 }
 
@@ -44,7 +45,7 @@ export interface AnyPointData {
 }
 
 export class Point implements Element {
-  public kind = "Point" as const;
+  public type = "Point" as const;
   public name: string;
   public position: Vector2;
 
@@ -87,7 +88,7 @@ export interface AnyLayerData {
 }
 
 export class Layer implements Element {
-  public kind = "Layer" as const;
+  public type = "Layer" as const;
   public properties: LayerProperties;
   public points: Array<ElementId>;
 

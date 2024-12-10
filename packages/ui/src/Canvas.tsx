@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Vector2, Matrix3 } from "threejs-math";
 import { Camera2 } from "./Camera2.ts";
-import { Point, Layer, Document, ElementId } from "./Document.ts";
+import { Point, Layer, Document, ElementId, Element } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 
 import "./Canvas.css";
@@ -437,6 +437,7 @@ function getMouseDocumentPosition(
 interface PointerState {
   button: number;
   viewPosOnPress: Vector2;
+  documentPosOnPress: Vector2;
   cameraOnPress: Camera2;
   isDrag: boolean;
   isDragAccepted: boolean;
@@ -450,11 +451,18 @@ type IMouseEvent = MouseEvent | React.MouseEvent;
 type IPointerEvent = PointerEvent | React.PointerEvent;
 type IWheelEvent = WheelEvent | React.WheelEvent;
 
+interface MovedElementInfo {
+  element: Element;
+  positionOnPress: Vector2;
+}
+
 export function Canvas({ documentManager }: CanvasProps) {
   const [camera, setCamera] = useState<Camera2>(new Camera2());
   const [pointerState, setPointerState] = useState<PointerState | null>(null);
 
   const ref = useRef<HTMLCanvasElement | null>(null);
+
+  const movedElementInfos = useRef<Array<MovedElementInfo>>([]);
 
   // Returns whether there is a drag action available for the drag button.
   //
@@ -465,6 +473,49 @@ export function Canvas({ documentManager }: CanvasProps) {
         return false;
       }
       switch (pointerState.button) {
+        case 0: {
+          // left drag: move elements
+          const highlightedElement = documentManager.highlightedElement();
+          if (!highlightedElement) {
+            return false;
+          } else {
+            const selectedElements = documentManager.selectedElements();
+            let movedElements: Array<Element> = [];
+            if (selectedElements.includes(highlightedElement)) {
+              movedElements = selectedElements;
+            } else {
+              // We allow moving the currently highlighted element even if
+              // it's not selected, and when doing so we intentionally
+              // preserve the current selection, that is, we do not set the
+              // dragged element as the new selection.
+              movedElements = [highlightedElement];
+            }
+            // Remember start positions of all elements.
+            // We only do this if not done already, otherwise
+            // in React strict mode it might be done twice, and
+            // the second time the point.position might have already
+            // been moved a little.
+            if (movedElementInfos.current.length == 0) {
+              const infos: Array<MovedElementInfo> = [];
+              for (const element of movedElements) {
+                if (element.type === "Point") {
+                  // TODO: proper tagged union or generic draggable API?
+                  const point = element as Point;
+                  infos.push({
+                    element: element,
+                    positionOnPress: point.position.clone(),
+                  });
+                }
+              }
+              movedElementInfos.current = infos;
+            }
+            if (movedElementInfos.current.length > 0) {
+              return true;
+            } else {
+              return false;
+            }
+          }
+        }
         case 1: {
           // middle drag: pan
           return true;
@@ -476,7 +527,7 @@ export function Canvas({ documentManager }: CanvasProps) {
       }
       return false;
     },
-    [pointerState],
+    [pointerState, documentManager],
   );
 
   const onDragMove = useCallback(
@@ -492,6 +543,24 @@ export function Canvas({ documentManager }: CanvasProps) {
         pointerState.viewPosOnPress,
       );
       switch (pointerState.button) {
+        case 0: {
+          // left drag: move elements
+          const documentPosOnPress = pointerState.documentPosOnPress;
+          const documentPos = getMouseDocumentPosition(
+            event,
+            canvas,
+            pointerState.cameraOnPress,
+          );
+          const delta = documentPos.sub(documentPosOnPress);
+          for (const info of movedElementInfos.current) {
+            if (info.element.type == "Point") {
+              const point = info.element as Point;
+              point.position = info.positionOnPress.clone().add(delta);
+            }
+          }
+          documentManager.stageChanges();
+          break;
+        }
         case 1: {
           // middle drag: pan
           const nextCenter = pointerState.cameraOnPress.center
@@ -514,13 +583,26 @@ export function Canvas({ documentManager }: CanvasProps) {
         }
       }
     },
-    [pointerState],
+    [pointerState, documentManager],
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const onDragEnd = useCallback((_event: IPointerEvent) => {
-    // Nothing for now
-  }, []);
+  const onDragEnd = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    (_event: IPointerEvent) => {
+      if (!pointerState) {
+        return;
+      }
+      switch (pointerState.button) {
+        case 0: {
+          // left drag: move elements
+          movedElementInfos.current = []; // See onDragStart
+          documentManager.commitChanges();
+          break;
+        }
+      }
+    },
+    [pointerState, documentManager],
+  );
 
   const onClick = useCallback(
     (event: IPointerEvent) => {
@@ -596,6 +678,7 @@ export function Canvas({ documentManager }: CanvasProps) {
       setPointerState({
         button: event.button,
         viewPosOnPress: getMouseViewPosition(event, canvas),
+        documentPosOnPress: getMouseDocumentPosition(event, canvas, camera),
         cameraOnPress: camera.clone(),
         isDrag: false,
         isDragAccepted: false,

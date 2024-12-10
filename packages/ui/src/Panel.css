@@ -110,7 +110,8 @@
   border-radius: 5px;
 }
 
-.panel-list-item:hover > .highlight-zone {
+.panel-list-item:hover > .highlight-zone,
+.panel-list-item.is-highlighted > .highlight-zone {
   background-color: #555;
   cursor: pointer;
 }

@@ -10,6 +10,7 @@ export { draw } from "./draw";
 
 export { point, angle, vector, distance };
 export {
+  realVar,
   pointVar,
   angleVar,
   distanceVar,

@@ -38,6 +38,7 @@ export class ProfileEditor implements NodeWrapper<ProfileNode> {
   }
 
   public translate(vector: VectorLike): ProfileEditor {
+    console.log("vector", vector);
     return new ProfileEditor(new Translation(this.inner, asVector(vector)));
   }
 

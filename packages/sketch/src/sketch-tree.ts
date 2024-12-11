@@ -63,6 +63,7 @@ import {
   RealValueVariable,
   DistanceVariable,
   AngleVariable,
+  VectorRotated,
 } from "./sketch-nodes";
 import { LineSegment } from "./segments";
 import {
@@ -221,6 +222,10 @@ export const evalVector = memoizeNodeEval(function evalVector(
 
   if (vector instanceof VectorScaled) {
     return evalVector(vector.vector).scale(evalRealValue(vector.scale));
+  }
+
+  if (vector instanceof VectorRotated) {
+    return evalVector(vector.vector).rotate(evalAngle(vector.angle));
   }
 
   throw new Error(`Unknown vector: ${vector.constructor.name}`);

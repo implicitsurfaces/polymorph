@@ -226,6 +226,15 @@ export class VectorScaled extends VectorNode {
   }
 }
 
+export class VectorRotated extends VectorNode {
+  constructor(
+    public readonly vector: VectorNode,
+    public readonly angle: AngleNode,
+  ) {
+    super();
+  }
+}
+
 export class Line extends EdgeNode {
   constructor() {
     super();

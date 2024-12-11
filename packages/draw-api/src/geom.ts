@@ -27,6 +27,7 @@ import {
   PointAsVectorFromOrigin,
   RealValueNode,
   readRealValue,
+  VectorRotated,
 } from "sketch";
 import {
   asAngle,
@@ -119,6 +120,10 @@ export class Vector implements NodeWrapper<VectorNode> {
   public toPoint(): Point {
     return new Point(new PointAsVectorFromOrigin(this.inner));
   }
+
+  public rotate(angle: number | AngleNode): Vector {
+    return new Vector(new VectorRotated(this.inner, asAngle(angle)));
+  }
 }
 
 export class Point implements NodeWrapper<PointNode> {
@@ -177,10 +182,6 @@ export class Point implements NodeWrapper<PointNode> {
     return this.translatePolar(angle, radius);
   }
 
-  public rotate(angle: number | AngleNode): Point {
-    return new Point(new PointVectorSum(this.inner, asAngle(angle)));
-  }
-
   public vecTo(other: Point): Vector {
     return new Vector(new VectorFromPoints(this.inner, other.inner));
   }
@@ -199,6 +200,12 @@ export class Point implements NodeWrapper<PointNode> {
 
   public read(variables: Map<string, number>): [number, number] {
     return readPoint(this.inner, variables);
+  }
+
+  public rotateAround(angle: number | AngleNode, center: PointLike): Point {
+    const c = point(center);
+    const v = this.vecFrom(c);
+    return c.translate(v.rotate(angle));
   }
 }
 

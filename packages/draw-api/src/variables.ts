@@ -1,6 +1,8 @@
 import { AngleVariable, DistanceVariable, RealValueVariable } from "sketch";
 import { Angle, distance, Distance, Point, point } from "./geom";
 
+export const realVar = (name: string) => new RealValueVariable(name);
+
 export const distanceVar = (name: string): Distance =>
   distance(new DistanceVariable(name));
 

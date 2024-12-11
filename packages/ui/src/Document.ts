@@ -117,6 +117,47 @@ export const LineSegment: ElementSpec<LineSegment, LineSegmentOptions> = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////
+//                               ArcFromStartTangent
+
+export interface ArcFromStartTangentOptions extends EdgeBaseOptions {
+  tangent?: Vector2;
+}
+
+export interface ArcFromStartTangentData extends EdgeBaseData {
+  tangent: Vector2;
+}
+
+export interface ArcFromStartTangent
+  extends ElementBase,
+    ArcFromStartTangentData {
+  type: "ArcFromStartTangent";
+}
+
+export const ArcFromStartTangentDefaultOptions = {
+  name: "Arc",
+  startPoint: "",
+  endPoint: "",
+  tangent: new Vector2(1, 0),
+};
+
+export const ArcFromStartTangent: ElementSpec<
+  ArcFromStartTangent,
+  ArcFromStartTangentOptions
+> = {
+  create: (id: ElementId, options: ArcFromStartTangentOptions) => {
+    return {
+      id: id,
+      type: "ArcFromStartTangent",
+      ...ArcFromStartTangentDefaultOptions,
+      ...options,
+    };
+  },
+  clone: (other: ArcFromStartTangent) => {
+    return { ...other, tangent: other.tangent.clone() };
+  },
+};
+
+///////////////////////////////////////////////////////////////////////////////
 //                               Layer
 
 export interface LayerOptions extends ElementBaseOptions {
@@ -153,7 +194,7 @@ export const Layer: ElementSpec<Layer, LayerOptions> = {
 ///////////////////////////////////////////////////////////////////////////////
 //                               Tagged Union
 
-export type EdgeElement = LineSegment; // | Arc | SCurve | ...
+export type EdgeElement = LineSegment | ArcFromStartTangent;
 export type SkeletonElement = Point | EdgeElement;
 
 export type Element = SkeletonElement | Layer;
@@ -171,6 +212,8 @@ function cloneElement(element: Element): Element {
       return Layer.clone(element);
     case "LineSegment":
       return LineSegment.clone(element);
+    case "ArcFromStartTangent":
+      return ArcFromStartTangent.clone(element);
   }
 }
 
@@ -325,18 +368,28 @@ export function createTestDocument() {
   });
   const p3 = doc.createElement(Point, {
     name: "Point 3",
-    position: new Vector2(100, 100),
+    position: new Vector2(200, 100),
+  });
+  const p4 = doc.createElement(Point, {
+    name: "Point 4",
+    position: new Vector2(200, 200),
   });
   const s1 = doc.createElement(LineSegment, {
     name: "Segment 1",
     startPoint: p1.id,
     endPoint: p2.id,
   });
-  const s2 = doc.createElement(LineSegment, {
-    name: "Segment 2",
+  const arc = doc.createElement(ArcFromStartTangent, {
+    name: "Arc 1",
     startPoint: p2.id,
     endPoint: p3.id,
+    tangent: new Vector2(50, 0),
   });
-  layer.elements = [p1.id, p2.id, p3.id, s1.id, s2.id];
+  const s2 = doc.createElement(LineSegment, {
+    name: "Segment 2",
+    startPoint: p3.id,
+    endPoint: p4.id,
+  });
+  layer.elements = [p1, p2, p3, p4, s1, arc, s2].map((e) => e.id);
   return doc;
 }

@@ -20,8 +20,8 @@ export interface ElementBase extends ElementBaseData {
 }
 
 export interface ElementSpec<T, Options> {
-  create: (id: ElementId, options: Options) => T;
-  clone: (other: T) => T;
+  readonly create: (id: ElementId, options: Options) => T;
+  readonly clone: (other: T) => T;
 }
 
 // Note: we currently need clone() for deep cloning purposes.
@@ -67,14 +67,64 @@ export const Point: ElementSpec<Point, PointOptions> = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////
+//                               EdgeBase
+
+export interface EdgeBaseOptions extends ElementBaseOptions {
+  startPoint?: ElementId;
+  endPoint?: ElementId;
+}
+
+export interface EdgeBaseData extends ElementBaseData {
+  startPoint: ElementId;
+  endPoint: ElementId;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//                               LineSegment
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface LineSegmentOptions extends EdgeBaseOptions {
+  // No additional options w.r.t EdgeBase
+}
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface LineSegmentData extends EdgeBaseData {
+  // No additional data w.r.t EdgeBase
+}
+
+export interface LineSegment extends ElementBase, LineSegmentData {
+  type: "LineSegment";
+}
+
+export const LineSegmentDefaultOptions = {
+  name: "Line Segment",
+  startPoint: "",
+  endPoint: "",
+};
+
+export const LineSegment: ElementSpec<LineSegment, LineSegmentOptions> = {
+  create: (id: ElementId, options: LineSegmentOptions) => {
+    return {
+      id: id,
+      type: "LineSegment",
+      ...LineSegmentDefaultOptions,
+      ...options,
+    };
+  },
+  clone: (other: LineSegment) => {
+    return { ...other };
+  },
+};
+
+///////////////////////////////////////////////////////////////////////////////
 //                               Layer
 
 export interface LayerOptions extends ElementBaseOptions {
-  points?: Array<ElementId>;
+  elements?: Array<ElementId>;
 }
 
 export interface LayerData extends ElementBaseData {
-  points: Array<ElementId>;
+  elements: Array<ElementId>;
 }
 
 export interface Layer extends ElementBase, LayerData {
@@ -83,7 +133,7 @@ export interface Layer extends ElementBase, LayerData {
 
 export const LayerDefaultOptions = {
   name: "Layer",
-  points: [],
+  elements: [],
 };
 
 export const Layer: ElementSpec<Layer, LayerOptions> = {
@@ -96,19 +146,22 @@ export const Layer: ElementSpec<Layer, LayerOptions> = {
     };
   },
   clone: (other: Layer) => {
-    return { ...other, points: [...other.points] };
+    return { ...other, elements: [...other.elements] };
   },
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               Tagged Union
 
-export type Element = Point | Layer;
+export type EdgeElement = LineSegment; // | Arc | SCurve | ...
+export type SkeletonElement = Point | EdgeElement;
+
+export type Element = SkeletonElement | Layer;
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               Util
 
-function cloneElement(element: Element) {
+function cloneElement(element: Element): Element {
   // Note: this could be simplified to: `return {.. element}` if all element
   // properties where immutable.
   switch (element.type) {
@@ -116,6 +169,8 @@ function cloneElement(element: Element) {
       return Point.clone(element);
     case "Layer":
       return Layer.clone(element);
+    case "LineSegment":
+      return LineSegment.clone(element);
   }
 }
 
@@ -170,14 +225,6 @@ export class Document {
     return element;
   }
 
-  createPoint(options: PointOptions): Point {
-    return this.createElement(Point, options);
-  }
-
-  createLayer(options: LayerOptions): Layer {
-    return this.createElement(Layer, options);
-  }
-
   /**
    * Creates a new layer and add it to the document at the given index.
    *
@@ -185,7 +232,7 @@ export class Document {
    */
   createLayerAtIndex(index: number = -1): Document {
     const name = `Layer ${this.layers.length + 1}`;
-    const layer = this.createLayer({ name: name });
+    const layer = this.createElement(Layer, { name: name });
     if (index < 0) {
       this.layers.push(layer.id);
     } else {
@@ -210,4 +257,37 @@ export class Document {
     this._elements.delete(id);
     return this;
   }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//                            Test Document
+
+export function createTestDocument() {
+  const doc = new Document();
+  const layer = doc.createElement(Layer, { name: "Layer 1" });
+  doc.layers = [layer.id];
+  const p1 = doc.createElement(Point, {
+    name: "Point 1",
+    position: new Vector2(0, 0),
+  });
+  const p2 = doc.createElement(Point, {
+    name: "Point 2",
+    position: new Vector2(100, 0),
+  });
+  const p3 = doc.createElement(Point, {
+    name: "Point 3",
+    position: new Vector2(100, 100),
+  });
+  const s1 = doc.createElement(LineSegment, {
+    name: "Segment 1",
+    startPoint: p1.id,
+    endPoint: p2.id,
+  });
+  const s2 = doc.createElement(LineSegment, {
+    name: "Segment 2",
+    startPoint: p2.id,
+    endPoint: p3.id,
+  });
+  layer.elements = [p1.id, p2.id, p3.id, s1.id, s2.id];
+  return doc;
 }

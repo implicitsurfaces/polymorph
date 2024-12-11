@@ -224,21 +224,76 @@ function drawPoint(
   drawDisk(ctx, point.position, _pointRadius, fillStyle);
 }
 
-function drawLayer(
+function drawPoints(
   ctx: CanvasRenderingContext2D,
   document: Document,
-  layer: Layer,
+  elements: Array<ElementId>,
   highlightedId: ElementId | undefined,
   selectedIds: Array<ElementId>,
 ) {
-  layer.points.forEach((id: ElementId) => {
-    const point = document.getElementFromId<Point>(id);
-    if (point) {
+  for (const id of elements) {
+    const element = document.getElementFromId(id);
+    if (element) {
       const isHighlighted = id === highlightedId;
       const isSelected = selectedIds.includes(id);
-      drawPoint(ctx, point, isHighlighted, isSelected);
+      switch (element.type) {
+        case "Point":
+          drawPoint(ctx, element, isHighlighted, isSelected);
+          break;
+        case "LineSegment":
+          break;
+      }
     }
-  });
+  }
+}
+
+function drawLineSegment(
+  ctx: CanvasRenderingContext2D,
+  startPoint: Point,
+  endPoint: Point,
+  isHighlighted: boolean,
+  isSelected: boolean,
+) {
+  ctx.beginPath();
+  ctx.moveTo(startPoint.position.x, startPoint.position.y);
+  ctx.lineTo(endPoint.position.x, endPoint.position.y);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = getPrimaryColor(isHighlighted, isSelected);
+  ctx.stroke();
+}
+
+function drawEdges(
+  ctx: CanvasRenderingContext2D,
+  document: Document,
+  elements: Array<ElementId>,
+  highlightedId: ElementId | undefined,
+  selectedIds: Array<ElementId>,
+) {
+  for (const id of elements) {
+    const element = document.getElementFromId(id);
+    if (element) {
+      const isHighlighted = id === highlightedId;
+      const isSelected = selectedIds.includes(id);
+      switch (element.type) {
+        case "LineSegment": {
+          const startPoint = document.getElementFromId<Point>(
+            element.startPoint,
+          );
+          const endPoint = document.getElementFromId<Point>(element.endPoint);
+          if (startPoint && endPoint) {
+            drawLineSegment(
+              ctx,
+              startPoint,
+              endPoint,
+              isHighlighted,
+              isSelected,
+            );
+          }
+          break;
+        }
+      }
+    }
+  }
 }
 
 function drawDocument(
@@ -250,7 +305,10 @@ function drawDocument(
   document.layers.forEach((id: ElementId) => {
     const layer = document.getElementFromId<Layer>(id);
     if (layer) {
-      drawLayer(ctx, document, layer, highlightedId, selectedIds);
+      // Note: we use two passes since we want to draw all points on top of
+      // edges, regardless of layer order.
+      drawEdges(ctx, document, layer.elements, highlightedId, selectedIds);
+      drawPoints(ctx, document, layer.elements, highlightedId, selectedIds);
     }
   });
 }
@@ -290,13 +348,14 @@ function findClosestElementInLayer(
   // Compute distance squared to closest point center
   let closestDistanceSquared = Infinity;
   let closestPoint: Point | undefined = undefined;
-  for (const id of layer.points) {
-    const point = document.getElementFromId<Point>(id);
-    if (point) {
-      const d = point.position.distanceToSquared(position);
+  // For now, we only look for points
+  for (const id of layer.elements) {
+    const element = document.getElementFromId(id);
+    if (element && element.type === "Point") {
+      const d = element.position.distanceToSquared(position);
       if (d < closestDistanceSquared) {
         closestDistanceSquared = d;
-        closestPoint = point;
+        closestPoint = element;
       }
     }
   }
@@ -635,9 +694,12 @@ export function Canvas({ documentManager }: CanvasProps) {
                 canvas,
                 pointerState.cameraOnPress,
               );
-              const name = `Point ${layer.points.length + 1}`;
-              const point = doc.createPoint({ name: name, position: pos });
-              layer.points.push(point.id);
+              const name = `Point ${layer.elements.length + 1}`;
+              const point = doc.createElement(Point, {
+                name: name,
+                position: pos,
+              });
+              layer.elements.push(point.id);
               documentManager.setHighlightedElement(point.id);
               documentManager.setSelectedElements([point.id]);
               documentManager.commitChanges();

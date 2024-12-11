@@ -182,8 +182,8 @@ function cloneElementMap(source: Map<ElementId, Element>) {
   return dest;
 }
 
-function sortAndRemoveDuplicates(a: Array<number>) {
-  const copy = [...a];
+function sortAndRemoveDuplicates(array: Array<number>) {
+  const copy = [...array];
   if (copy.length === 0) {
     return copy;
   }
@@ -255,23 +255,23 @@ export class Document {
       const element = this.getElementFromId(id);
       if (element && re.test(element.name)) {
         const suffix = element.name.substring(prefix.length);
-        const num = parseInt(suffix, 10);
-        if (!isNaN(num) && num > 0) {
-          numbers.push(num);
+        const n = parseInt(suffix, 10);
+        if (!isNaN(n) && n > 0) {
+          numbers.push(n);
         }
       }
     }
     // Find smallest available. This corresponds to the first
     // mismatch between `sorted` and [1, 2, 3, 4, ...].
     const sorted = sortAndRemoveDuplicates(numbers);
-    let number = 1;
+    let n = 1;
     for (const value of sorted) {
-      if (value != number) {
+      if (value != n) {
         break;
       }
-      number += 1;
+      n += 1;
     }
-    return `${prefix}${number}`;
+    return `${prefix}${n}`;
   }
 
   /**

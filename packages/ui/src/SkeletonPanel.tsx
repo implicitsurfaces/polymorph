@@ -1,4 +1,4 @@
-import { Point, ElementId } from "./Document.ts";
+import { ElementId } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 import { SkeletonListItem } from "./SkeletonListItem.tsx";
 
@@ -12,8 +12,8 @@ export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
   const doc = documentManager.document();
 
   function getItem(id: ElementId) {
-    const point = doc.getElementFromId<Point>(id);
-    if (!point) {
+    const element = doc.getElementFromId(id);
+    if (!element) {
       return <></>;
     }
     return (
@@ -21,9 +21,9 @@ export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
         key={id}
         documentManager={documentManager}
         id={id}
+        name={element.name}
         isHighlighted={id === highlightedElementId}
         isSelected={selectedElementIds.includes(id)}
-        point={point.clone()}
       />
     );
   }

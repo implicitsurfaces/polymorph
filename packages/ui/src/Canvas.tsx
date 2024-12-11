@@ -498,11 +498,9 @@ export function Canvas({ documentManager }: CanvasProps) {
               const infos: Array<MovedElementInfo> = [];
               for (const element of movedElements) {
                 if (element.type === "Point") {
-                  // TODO: proper tagged union or generic draggable API?
-                  const point = element as Point;
                   infos.push({
                     element: element,
-                    positionOnPress: point.position.clone(),
+                    positionOnPress: element.position.clone(),
                   });
                 }
               }
@@ -553,7 +551,7 @@ export function Canvas({ documentManager }: CanvasProps) {
           const delta = documentPos.sub(documentPosOnPress);
           for (const info of movedElementInfos.current) {
             if (info.element.type == "Point") {
-              const point = info.element as Point;
+              const point = info.element;
               point.position = info.positionOnPress.clone().add(delta);
             }
           }

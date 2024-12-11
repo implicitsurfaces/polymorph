@@ -182,6 +182,21 @@ function cloneElementMap(source: Map<ElementId, Element>) {
   return dest;
 }
 
+function sortAndRemoveDuplicates(array: Array<number>) {
+  const copy = [...array];
+  if (copy.length === 0) {
+    return copy;
+  }
+  copy.sort();
+  const res = [copy[0]];
+  for (let i = 1; i < copy.length; i++) {
+    if (copy[i - 1] !== copy[i]) {
+      res.push(copy[i]);
+    }
+  }
+  return res;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 //                               Document
 
@@ -226,12 +241,46 @@ export class Document {
   }
 
   /**
+   * Finds the smallest positive integer `n` such that the name `${prefix}${n}`
+   * is not taken by any of the given elements, and returns that name.
+   */
+  findAvailableName(prefix: string, elements: Array<ElementId>) {
+    // Collect all positive integers from existing element names
+    // that are of the form `${prefix}${number}`. Note that we need
+    // the regex and not just rely on parseInt, since the latter
+    // accepts +/-/e characters and stops at extra non-digit characters.
+    const re = new RegExp(`${prefix}\\d+`);
+    const numbers = [];
+    for (const id of elements) {
+      const element = this.getElementFromId(id);
+      if (element && re.test(element.name)) {
+        const suffix = element.name.substring(prefix.length);
+        const n = parseInt(suffix, 10);
+        if (!isNaN(n) && n > 0) {
+          numbers.push(n);
+        }
+      }
+    }
+    // Find smallest available. This corresponds to the first
+    // mismatch between `sorted` and [1, 2, 3, 4, ...].
+    const sorted = sortAndRemoveDuplicates(numbers);
+    let n = 1;
+    for (const value of sorted) {
+      if (value != n) {
+        break;
+      }
+      n += 1;
+    }
+    return `${prefix}${n}`;
+  }
+
+  /**
    * Creates a new layer and add it to the document at the given index.
    *
    * If `index` is -1 (the default), the layer is added last.
    */
   createLayerAtIndex(index: number = -1): Document {
-    const name = `Layer ${this.layers.length + 1}`;
+    const name = this.findAvailableName("Layer ", this.layers);
     const layer = this.createElement(Layer, { name: name });
     if (index < 0) {
       this.layers.push(layer.id);

@@ -233,16 +233,10 @@ function drawPoints(
 ) {
   for (const id of elements) {
     const element = document.getElementFromId(id);
-    if (element) {
+    if (element && element.type === "Point") {
       const isHighlighted = id === highlightedId;
       const isSelected = selectedIds.includes(id);
-      switch (element.type) {
-        case "Point":
-          drawPoint(ctx, element, isHighlighted, isSelected);
-          break;
-        case "LineSegment":
-          break;
-      }
+      drawPoint(ctx, element, isHighlighted, isSelected);
     }
   }
 }

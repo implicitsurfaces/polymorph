@@ -688,7 +688,7 @@ export function Canvas({ documentManager }: CanvasProps) {
                 canvas,
                 pointerState.cameraOnPress,
               );
-              const name = `Point ${layer.elements.length + 1}`;
+              const name = doc.findAvailableName("Point ", layer.elements);
               const point = doc.createElement(Point, {
                 name: name,
                 position: pos,

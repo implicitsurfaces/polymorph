@@ -45,7 +45,7 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
 
   function getContentForElement(element: Element) {
     if (element.type === "Point") {
-      return getContentForPoint(element as Point);
+      return getContentForPoint(element);
     } else {
       return <></>;
     }

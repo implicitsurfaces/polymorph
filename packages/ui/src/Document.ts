@@ -1,129 +1,134 @@
 import { Vector2 } from "threejs-math";
 import { v4 as uuidv4 } from "uuid";
 
+///////////////////////////////////////////////////////////////////////////////
+//                             Base types
+
 export type ElementId = string;
 
-export interface Element {
+export interface ElementBaseOptions {
+  name?: string;
+}
+
+export interface ElementBaseData {
+  name: string;
+}
+
+export interface ElementBase extends ElementBaseData {
   readonly id: ElementId;
   readonly type: string;
-  clone: () => Element;
 }
 
-/**
- * Any type that can be interpreted as a 2D vector, where the X and Y
- * coordinates are considered to be 0 if undefined.
- */
-export type AnyVector2 = { x?: number; y?: number } | number[];
-
-export function createVector2(data?: AnyVector2) {
-  if (!data) {
-    return new Vector2(0, 0);
-  }
-  let x = 0;
-  let y = 0;
-  if (Array.isArray(data)) {
-    if (data.length > 0) {
-      x = data[0];
-    }
-    if (data.length > 1) {
-      y = data[1];
-    }
-  } else {
-    if (data.x !== undefined) {
-      x = data.x;
-    }
-    if (data.y !== undefined) {
-      y = data.y;
-    }
-  }
-  return new Vector2(x, y);
+export interface ElementSpec<T, Options> {
+  create: (id: ElementId, options: Options) => T;
+  clone: (other: T) => T;
 }
 
-export interface AnyPointData {
-  name?: string;
-  position?: AnyVector2;
+// Note: we currently need clone() for deep cloning purposes.
+//
+// If all data properties of elements were immutable types (which is currently
+// not the case, e.g., Vector2 and Array<ElementId>), then we could instead
+// do a shallow copy via `clonedElement = {...element}` which would make
+// element types more convenient to implement, and would likely improve
+// performance.
+
+///////////////////////////////////////////////////////////////////////////////
+//                               Point
+
+export interface PointOptions extends ElementBaseOptions {
+  position?: Vector2;
 }
 
-export class Point implements Element {
-  public type = "Point" as const;
-  public name: string;
-  public position: Vector2;
-
-  static factory = (id: ElementId, data?: AnyPointData) => {
-    return new Point(id, data);
-  };
-
-  constructor(
-    readonly id: ElementId,
-    data?: AnyPointData,
-  ) {
-    this.name = data?.name !== undefined ? data.name : "New Point";
-    this.position = createVector2(data?.position);
-  }
-
-  clone(): Point {
-    return new Point(this.id, this);
-  }
-
-  equals(other: Point): boolean {
-    return this.name === other.name && this.position.equals(other.position);
-  }
+export interface PointData extends ElementBaseData {
+  position: Vector2;
 }
 
-export class LayerProperties {
-  constructor(public name: string = "New Layer") {}
-
-  clone(): LayerProperties {
-    return new LayerProperties(this.name);
-  }
-
-  equals(other: LayerProperties): boolean {
-    return this.name === other.name;
-  }
+export interface Point extends ElementBase, PointData {
+  type: "Point";
 }
 
-export interface AnyLayerData {
-  properties?: LayerProperties;
+export const PointDefaultOptions = {
+  name: "Point",
+  position: new Vector2(0, 0),
+};
+
+export const Point: ElementSpec<Point, PointOptions> = {
+  create: (id: ElementId, options: PointOptions) => {
+    return {
+      id: id,
+      type: "Point",
+      ...PointDefaultOptions,
+      ...options,
+    };
+  },
+  clone: (other: Point) => {
+    return { ...other, position: other.position.clone() };
+  },
+};
+
+///////////////////////////////////////////////////////////////////////////////
+//                               Layer
+
+export interface LayerOptions extends ElementBaseOptions {
   points?: Array<ElementId>;
 }
 
-export class Layer implements Element {
-  public type = "Layer" as const;
-  public properties: LayerProperties;
-  public points: Array<ElementId>;
+export interface LayerData extends ElementBaseData {
+  points: Array<ElementId>;
+}
 
-  static factory = (id: ElementId, data?: AnyLayerData) => {
-    return new Layer(id, data);
-  };
+export interface Layer extends ElementBase, LayerData {
+  type: "Layer";
+}
 
-  constructor(
-    readonly id: ElementId,
-    data?: AnyLayerData,
-  ) {
-    this.properties = data?.properties
-      ? data.properties
-      : new LayerProperties();
-    this.points = data?.points ? data.points : [];
-  }
+export const LayerDefaultOptions = {
+  name: "Layer",
+  points: [],
+};
 
-  clone(): Layer {
-    return new Layer(this.id, this);
+export const Layer: ElementSpec<Layer, LayerOptions> = {
+  create: (id: ElementId, options: LayerOptions) => {
+    return {
+      id: id,
+      type: "Layer",
+      ...LayerDefaultOptions,
+      ...options,
+    };
+  },
+  clone: (other: Layer) => {
+    return { ...other, points: [...other.points] };
+  },
+};
+
+///////////////////////////////////////////////////////////////////////////////
+//                               Tagged Union
+
+export type Element = Point | Layer;
+
+///////////////////////////////////////////////////////////////////////////////
+//                               Util
+
+function cloneElement(element: Element) {
+  // Note: this could be simplified to: `return {.. element}` if all element
+  // properties where immutable.
+  switch (element.type) {
+    case "Point":
+      return Point.clone(element);
+    case "Layer":
+      return Layer.clone(element);
   }
 }
 
-interface Clonable<T> {
-  clone: () => T;
-}
-
-function cloneMap<ElementId, T extends Clonable<T>>(
-  source: Map<ElementId, T>,
-): Map<ElementId, T> {
-  const dest = new Map<ElementId, T>();
+function cloneElementMap(source: Map<ElementId, Element>) {
+  const dest = new Map<ElementId, Element>();
   source.forEach((element, id) => {
-    dest.set(id, element.clone());
+    dest.set(id, cloneElement(element));
   });
   return dest;
 }
+
+///////////////////////////////////////////////////////////////////////////////
+//                               Document
 
 /**
  * Stores all objects in the document.
@@ -135,7 +140,7 @@ export class Document {
 
   constructor(other?: Document) {
     if (other) {
-      this._elements = cloneMap(other._elements);
+      this._elements = cloneElementMap(other._elements);
       this.layers = [...other.layers];
     } else {
       this._elements = new Map();
@@ -155,22 +160,22 @@ export class Document {
     return element as T | undefined;
   }
 
-  createElement<T extends Element, D>(
-    factory: (id: ElementId, data: D) => T,
-    data: D,
+  createElement<T extends Element, Options>(
+    spec: ElementSpec<T, Options>,
+    options: Options,
   ): T {
     const id = uuidv4();
-    const element = factory(id, data);
+    const element = spec.create(id, options);
     this._elements.set(id, element);
     return element;
   }
 
-  createPoint(data: AnyPointData): Point {
-    return this.createElement(Point.factory, data);
+  createPoint(options: PointOptions): Point {
+    return this.createElement(Point, options);
   }
 
-  createLayer(data: AnyLayerData): Layer {
-    return this.createElement(Layer.factory, data);
+  createLayer(options: LayerOptions): Layer {
+    return this.createElement(Layer, options);
   }
 
   /**
@@ -180,8 +185,7 @@ export class Document {
    */
   createLayerAtIndex(index: number = -1): Document {
     const name = `Layer ${this.layers.length + 1}`;
-    const props = new LayerProperties(name);
-    const layer = this.createLayer({ properties: props });
+    const layer = this.createLayer({ name: name });
     if (index < 0) {
       this.layers.push(layer.id);
     } else {

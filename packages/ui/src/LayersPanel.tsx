@@ -21,8 +21,8 @@ export function LayersPanel({ documentManager }: LayersPanelProps) {
         documentManager={documentManager}
         id={id}
         index={index}
+        name={layer.name}
         isActive={id === activeLayerId}
-        layerProperties={layer.properties.clone()}
       />
     );
   }

@@ -1,5 +1,5 @@
 import { memo, useCallback, MouseEvent } from "react";
-import { Point, ElementId } from "./Document.ts";
+import { ElementId } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 
 // TODO: use some sort of unique ID instead of layerIndex/pointIndex,
@@ -8,85 +8,58 @@ import { DocumentManager } from "./DocumentManager.ts";
 interface SkeletonListItemProps {
   documentManager: DocumentManager;
   id: ElementId;
+  name: string;
   isHighlighted: boolean;
   isSelected: boolean;
-  point: Point; // we need this for memoization
 }
 
-export const SkeletonListItem = memo(
-  function SkeletonListItem({
-    documentManager,
-    id,
-    isHighlighted,
-    isSelected,
-    point,
-  }: SkeletonListItemProps) {
-    const onMouseEnter = useCallback(() => {
-      documentManager.setHighlightedElement(id);
-    }, [documentManager, id]);
+export const SkeletonListItem = memo(function SkeletonListItem({
+  documentManager,
+  id,
+  name,
+  isHighlighted,
+  isSelected,
+}: SkeletonListItemProps) {
+  const onMouseEnter = useCallback(() => {
+    documentManager.setHighlightedElement(id);
+  }, [documentManager, id]);
 
-    const onMouseLeave = useCallback(() => {
-      if (documentManager.highlightedElementId() === id) {
-        documentManager.setHighlightedElement(undefined);
+  const onMouseLeave = useCallback(() => {
+    if (documentManager.highlightedElementId() === id) {
+      documentManager.setHighlightedElement(undefined);
+    }
+  }, [documentManager, id]);
+
+  const onSelectElement = useCallback(
+    (event: MouseEvent<HTMLElement>) => {
+      if (event.shiftKey) {
+        documentManager.toggleSelectedElement(id);
+      } else {
+        documentManager.setSelectedElements([id]);
       }
-    }, [documentManager, id]);
+    },
+    [documentManager, id],
+  );
 
-    const onSelectElement = useCallback(
-      (event: MouseEvent<HTMLElement>) => {
-        if (event.shiftKey) {
-          documentManager.toggleSelectedElement(id);
-        } else {
-          documentManager.setSelectedElements([id]);
-        }
-      },
-      [documentManager, id],
-    );
+  let extraClass = "";
+  if (isHighlighted) {
+    extraClass += " is-highlighted";
+  }
+  if (isSelected) {
+    extraClass += " is-selected";
+  }
 
-    let extraClass = "";
-    if (isHighlighted) {
-      extraClass += " is-highlighted";
-    }
-    if (isSelected) {
-      extraClass += " is-selected";
-    }
-
-    return (
-      <div
-        className={`panel-list-item object-row-info${extraClass}`}
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-      >
-        <div className="highlight-zone" onClick={onSelectElement}>
-          <p className="name single-line-text">{point.name}</p>
-        </div>
+  return (
+    <div
+      className={`panel-list-item object-row-info${extraClass}`}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <div className="highlight-zone" onClick={onSelectElement}>
+        <p className="name single-line-text">{name}</p>
       </div>
-    );
-  },
-  (prevProps, nextProps) => {
-    // Avoid re-rendering if all the props are the same.
-    //
-    // For points, we need value equality rather than reference equality
-    // because:
-    //
-    // - We perform deep copies on undo/redo/commit, so the point references might
-    //   differ but their value are still equal and there is no need to re-render.
-    //
-    // - We do not perform any copy on stage (e.g., dragging a point), so the point
-    //   references might be equal but their value differ, and we need to re-render
-    //   in this case.
-    //
-    // In the future, this design may change, for example if we decide to use
-    // Immer-like shallow copies (or Immutable.js-like structural sharing) instead of
-    // deep copies, and if we also decide to not mutate state even on stage.
-    //
-    return (
-      prevProps.documentManager === nextProps.documentManager &&
-      prevProps.id === nextProps.id &&
-      prevProps.isHighlighted === nextProps.isHighlighted &&
-      prevProps.isSelected === nextProps.isSelected &&
-      prevProps.point.equals(nextProps.point)
-    );
-  },
-);
+    </div>
+  );
+});
 
 export default SkeletonListItem;

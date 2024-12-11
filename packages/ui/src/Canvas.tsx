@@ -1,7 +1,14 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Vector2, Matrix3 } from "threejs-math";
 import { Camera2 } from "./Camera2.ts";
-import { Point, Layer, Document, ElementId, Element } from "./Document.ts";
+import {
+  Point,
+  Layer,
+  Document,
+  ElementId,
+  Element,
+  EdgeElement,
+} from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 
 import "./Canvas.css";
@@ -243,17 +250,67 @@ function drawPoints(
 
 function drawLineSegment(
   ctx: CanvasRenderingContext2D,
-  startPoint: Point,
-  endPoint: Point,
+  startPoint: Vector2,
+  endPoint: Vector2,
   isHighlighted: boolean,
   isSelected: boolean,
 ) {
   ctx.beginPath();
-  ctx.moveTo(startPoint.position.x, startPoint.position.y);
-  ctx.lineTo(endPoint.position.x, endPoint.position.y);
+  ctx.moveTo(startPoint.x, startPoint.y);
+  ctx.lineTo(endPoint.x, endPoint.y);
   ctx.lineWidth = 2;
   ctx.strokeStyle = getPrimaryColor(isHighlighted, isSelected);
   ctx.stroke();
+}
+
+function drawArcFromStartTangent(
+  ctx: CanvasRenderingContext2D,
+  startPoint: Vector2,
+  endPoint: Vector2,
+  tangent: Vector2,
+  isHighlighted: boolean,
+  isSelected: boolean,
+) {
+  // Compute center
+  const chord = endPoint.clone().sub(startPoint);
+  const normalizedTangent = tangent.clone().normalize();
+  const s = chord.cross(normalizedTangent);
+  const c = chord.dot(normalizedTangent);
+  const bulge = -s / (c + Math.sqrt(c * c + s * s));
+  const chordPerp = new Vector2(-chord.y, chord.x);
+  const bb = (bulge - 1 / bulge) / 4;
+  const midPoint = startPoint.clone().add(endPoint).multiplyScalar(0.5);
+  const center = midPoint.clone().sub(chordPerp.multiplyScalar(bb));
+
+  // Compute radius and start/end angles
+  const radius = center.distanceTo(startPoint);
+  const startDir = startPoint.clone().sub(center);
+  const endDir = endPoint.clone().sub(center);
+  const startAngle = Math.atan2(startDir.y, startDir.x);
+  const endAngle = Math.atan2(endDir.y, endDir.x);
+
+  // Draw arc
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, radius, startAngle, endAngle);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = getPrimaryColor(isHighlighted, isSelected);
+  ctx.stroke();
+
+  // Draw control point
+  ctx.beginPath();
+  const fillStyle = "#ff0000";
+  const diskRadius = 5;
+  drawDisk(ctx, startPoint.clone().add(tangent), diskRadius, fillStyle);
+}
+
+function getStartAndEndPoint(document: Document, element: EdgeElement) {
+  const startPoint = document.getElementFromId<Point>(element.startPoint);
+  const endPoint = document.getElementFromId<Point>(element.endPoint);
+  if (startPoint && endPoint) {
+    return { startPoint: startPoint, endPoint: endPoint };
+  } else {
+    return undefined;
+  }
 }
 
 function drawEdges(
@@ -270,15 +327,26 @@ function drawEdges(
       const isSelected = selectedIds.includes(id);
       switch (element.type) {
         case "LineSegment": {
-          const startPoint = document.getElementFromId<Point>(
-            element.startPoint,
-          );
-          const endPoint = document.getElementFromId<Point>(element.endPoint);
-          if (startPoint && endPoint) {
+          const p = getStartAndEndPoint(document, element);
+          if (p) {
             drawLineSegment(
               ctx,
-              startPoint,
-              endPoint,
+              p.startPoint.position,
+              p.endPoint.position,
+              isHighlighted,
+              isSelected,
+            );
+          }
+          break;
+        }
+        case "ArcFromStartTangent": {
+          const p = getStartAndEndPoint(document, element);
+          if (p) {
+            drawArcFromStartTangent(
+              ctx,
+              p.startPoint.position,
+              p.endPoint.position,
+              element.tangent,
               isHighlighted,
               isSelected,
             );

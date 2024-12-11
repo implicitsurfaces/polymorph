@@ -261,7 +261,8 @@ export class Document {
         }
       }
     }
-    // Sort and remove duplicates
+    // Find smallest available. This corresponds to the first
+    // mismatch between `sorted` and [1, 2, 3, 4, ...].
     const sorted = sortAndRemoveDuplicates(numbers);
     let number = 1;
     for (const value of sorted) {

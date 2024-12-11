@@ -1,4 +1,10 @@
-import { Document, Element, ElementId, Layer } from "./Document.ts";
+import {
+  Document,
+  Element,
+  ElementId,
+  Layer,
+  createTestDocument,
+} from "./Document.ts";
 
 /**
  * Stores and manages the undo-redo history of the document.
@@ -38,8 +44,7 @@ export class DocumentManager {
   ) {
     this._version = 0;
     this._onChange = onChange !== undefined ? onChange : () => {};
-    this._history =
-      history !== undefined ? history : [new Document().createLayerAtIndex(0)];
+    this._history = history !== undefined ? history : [createTestDocument()];
     this._index = index !== undefined ? index : this._history.length - 1;
     if (workingCopy !== undefined) {
       this._workingCopy = workingCopy;

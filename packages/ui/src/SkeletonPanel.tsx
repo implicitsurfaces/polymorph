@@ -33,7 +33,7 @@ export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
     if (!activeLayer) {
       return <></>;
     }
-    return activeLayer.points.map((id: ElementId) => getItem(id));
+    return activeLayer.elements.map((id: ElementId) => getItem(id));
   }
 
   const items = getItems();

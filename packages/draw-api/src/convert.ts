@@ -57,7 +57,7 @@ export function asAngle(angle: AngleLike): AngleNode {
 }
 
 export type VectorLike =
-  | [number, number]
+  | [RealLike, RealLike]
   | VectorNode
   | NodeWrapper<VectorNode>;
 
@@ -68,8 +68,13 @@ export function asVector(vector: VectorLike): VectorNode {
   if (isNodeWrapper(vector, VectorNode)) {
     return vector.inner;
   }
+
+  if (isNodeWrapper(vector, PointNode) || vector instanceof PointNode) {
+    throw new Error("Expected a Vector, but recieved a Point");
+  }
+
   const [x, y] = vector;
-  return new VectorFromCartesianCoords(x, y);
+  return new VectorFromCartesianCoords(asRealValue(x), asRealValue(y));
 }
 
 export function asPolarVector(vector: VectorLike): VectorNode {
@@ -83,7 +88,10 @@ export function asPolarVector(vector: VectorLike): VectorNode {
   return new VectorFromPolarCoods(asDistance(radius), asAngle(angle));
 }
 
-export type PointLike = [number, number] | PointNode | NodeWrapper<PointNode>;
+export type PointLike =
+  | [RealLike, RealLike]
+  | PointNode
+  | NodeWrapper<PointNode>;
 
 export function asPoint(point: PointLike): PointNode {
   if (point instanceof PointNode) {
@@ -92,6 +100,11 @@ export function asPoint(point: PointLike): PointNode {
   if (isNodeWrapper(point, PointNode)) {
     return point.inner;
   }
+
+  if (isNodeWrapper(point, VectorNode) || point instanceof VectorNode) {
+    throw new Error("Expected a Point, but recieved a Vector");
+  }
+
   return new PointAsVectorFromOrigin(asVector(point));
 }
 

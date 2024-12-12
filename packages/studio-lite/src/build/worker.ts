@@ -21,7 +21,10 @@ const api = {
       values = [values];
     }
 
-    const { solution, ...optResults } = loss.findMininum();
+    const { solution, ...optResults } = loss.findMininum({
+      maxSteps: 500,
+      learningRate: 0.2,
+    });
 
     const out: {
       image: Uint8ClampedArray | null;

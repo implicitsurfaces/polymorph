@@ -29,7 +29,11 @@ export class DistanceLiteral extends DistanceNode {
 }
 
 export class DistanceVariable extends DistanceNode {
-  constructor(public readonly name: string) {
+  constructor(
+    public readonly name: string,
+    public readonly min?: number,
+    public readonly max?: number,
+  ) {
     super();
   }
 }

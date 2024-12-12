@@ -103,7 +103,6 @@ const AppState = types
       if (self.initializingCode) return;
       self.initializingCode = true;
       const code = yield codeInit();
-      console.log("Code", code);
       self.updateCode(code);
       self.initializingCode = false;
     }),

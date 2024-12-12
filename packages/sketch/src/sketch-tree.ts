@@ -115,6 +115,18 @@ export const evalDistance = memoizeNodeEval(function (
 ): Num {
   if (distance instanceof DistanceVariable) {
     const v = variable(distance.name);
+
+    if (distance.max !== undefined) {
+      const a = asNum(distance.min ?? 0);
+      const b = asNum(distance.max);
+
+      return a.add(b.sub(a).mul(sigmoid(v)));
+    }
+
+    if (distance.min !== undefined) {
+      return asNum(distance.min).add(v.exp());
+    }
+
     return v.exp();
   }
   if (distance instanceof DistanceLiteral) {

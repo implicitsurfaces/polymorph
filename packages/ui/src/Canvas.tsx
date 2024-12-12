@@ -263,6 +263,30 @@ function drawLineSegment(
   ctx.stroke();
 }
 
+function drawArc(
+  ctx: CanvasRenderingContext2D,
+  center: Vector2,
+  radius: number,
+  startAngle: number,
+  endAngle: number,
+  isCounterClockwise: boolean,
+  isHighlighted: boolean,
+  isSelected: boolean,
+) {
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, radius, startAngle, endAngle, isCounterClockwise);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = getPrimaryColor(isHighlighted, isSelected);
+  ctx.stroke();
+}
+
+function drawControlPoint(ctx: CanvasRenderingContext2D, point: Vector2) {
+  ctx.beginPath();
+  const fillStyle = "#ff0000";
+  const diskRadius = 5;
+  drawDisk(ctx, point, diskRadius, fillStyle);
+}
+
 function drawArcFromStartTangent(
   ctx: CanvasRenderingContext2D,
   startPoint: Vector2,
@@ -271,11 +295,21 @@ function drawArcFromStartTangent(
   isHighlighted: boolean,
   isSelected: boolean,
 ) {
-  // Compute center
+  // Fallback to line segment in degenerate cases (collinear)
   const chord = endPoint.clone().sub(startPoint);
-  const normalizedTangent = tangent.clone().normalize();
-  const s = chord.cross(normalizedTangent);
-  const c = chord.dot(normalizedTangent);
+  const controlPoint = startPoint.clone().add(tangent);
+  const s_ = chord.cross(tangent);
+  if (s_ === 0) {
+    drawLineSegment(ctx, startPoint, endPoint, isHighlighted, isSelected);
+    drawControlPoint(ctx, controlPoint);
+    return;
+  }
+  const isCounterClockwise = s_ > 0;
+
+  // Compute center
+  const tangentLength = tangent.length(); // guaranteed > 0 otherwise s_ == 0
+  const s = s_ / tangentLength;
+  const c = chord.dot(tangent) / tangentLength;
   const bulge = -s / (c + Math.sqrt(c * c + s * s));
   const chordPerp = new Vector2(-chord.y, chord.x);
   const bb = (bulge - 1 / bulge) / 4;
@@ -288,20 +322,19 @@ function drawArcFromStartTangent(
   const endDir = endPoint.clone().sub(center);
   const startAngle = Math.atan2(startDir.y, startDir.x);
   const endAngle = Math.atan2(endDir.y, endDir.x);
-  const isCounterClockwise = normalizedTangent.cross(chord) < 0;
 
-  // Draw arc
-  ctx.beginPath();
-  ctx.arc(center.x, center.y, radius, startAngle, endAngle, isCounterClockwise);
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = getPrimaryColor(isHighlighted, isSelected);
-  ctx.stroke();
-
-  // Draw control point
-  ctx.beginPath();
-  const fillStyle = "#ff0000";
-  const diskRadius = 5;
-  drawDisk(ctx, startPoint.clone().add(tangent), diskRadius, fillStyle);
+  // Draw
+  drawArc(
+    ctx,
+    center,
+    radius,
+    startAngle,
+    endAngle,
+    isCounterClockwise,
+    isHighlighted,
+    isSelected,
+  );
+  drawControlPoint(ctx, controlPoint);
 }
 
 function getStartAndEndPoint(document: Document, element: EdgeElement) {

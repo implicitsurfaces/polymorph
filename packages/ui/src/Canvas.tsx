@@ -391,6 +391,83 @@ function getCCurveShapes(
   ];
 }
 
+function lineLineIntersection(
+  p0: Vector2,
+  v0: Vector2,
+  p1: Vector2,
+  v1: Vector2,
+) {
+  const crossDir = v0.cross(v1);
+  const diffPoint = p1.clone().sub(p0);
+  const param = diffPoint.cross(v1) / crossDir;
+  return p0.clone().add(v0.clone().multiplyScalar(param));
+}
+
+function getMidpoint(a: Vector2, b: Vector2) {
+  return a.clone().add(b).multiplyScalar(0.5);
+}
+
+function biarcLocusCenter(
+  p1: Vector2,
+  tangent1: Vector2,
+  p2: Vector2,
+  tangent2: Vector2,
+) {
+  const u1 = tangent1.clone().normalize();
+  const u2 = tangent2.clone().normalize();
+
+  const p3 = p1.clone().add(u1);
+  const p4 = p2.clone().add(u2);
+
+  const m1 = getMidpoint(p1, p2);
+  const m2 = getMidpoint(p3, p4);
+
+  const p1p2 = p2.clone().sub(p1);
+  const p3p4 = p4.clone().sub(p3);
+
+  const v1 = new Vector2(-p1p2.y, p1p2.x);
+  const v2 = new Vector2(-p3p4.y, p3p4.x);
+
+  return lineLineIntersection(m1, v1, m2, v2);
+}
+
+function getSCurveShapes(
+  startPoint: Vector2,
+  endPoint: Vector2,
+  startControlPoint: Vector2,
+  endControlPoint: Vector2,
+): Array<CanvasGeneralizedArc> {
+  const tangent1 = startControlPoint.clone().sub(startPoint);
+  const tangent2 = endPoint.clone().sub(endControlPoint);
+
+  const locusCenter = biarcLocusCenter(
+    startPoint,
+    tangent1,
+    endPoint,
+    tangent2,
+  );
+
+  // XXX: is it normal that positionRatio is always equal to 0.5
+  // if the tangents are normalized?
+  const positionRatio =
+    tangent1.length() / (tangent1.length() + tangent2.length());
+  const chord = endPoint.clone().sub(startPoint);
+
+  const positionOnChord = startPoint
+    .clone()
+    .add(chord.clone().multiplyScalar(positionRatio));
+
+  const junctionDir = positionOnChord.clone().sub(locusCenter).normalize();
+  const junction = locusCenter
+    .clone()
+    .add(junctionDir.clone().multiplyScalar(locusCenter.distanceTo(endPoint)));
+
+  return [
+    getGeneralizedArcFromStartTangent(startPoint, junction, tangent1),
+    getGeneralizedArcFromStartTangent(endPoint, junction, tangent2.negate()),
+  ];
+}
+
 function getStartAndEndPositions(document: Document, element: EdgeElement) {
   const startPoint = document.getElementFromId<Point>(element.startPoint);
   const endPoint = document.getElementFromId<Point>(element.endPoint);
@@ -450,6 +527,29 @@ function drawEdges(
               shapes.push(shape);
             }
             controlPoints.push(controlPoint);
+          }
+          break;
+        }
+        case "SCurve": {
+          const p = getStartAndEndPositions(document, element);
+          if (p) {
+            let startControlPoint = element.startControlPoint;
+            let endControlPoint = element.endControlPoint;
+            if (element.mode === "tangent") {
+              startControlPoint = startControlPoint.clone().add(p.start);
+              endControlPoint = endControlPoint.clone().add(p.end);
+            }
+            const shapes_ = getSCurveShapes(
+              p.start,
+              p.end,
+              startControlPoint,
+              endControlPoint,
+            );
+            for (const shape of shapes_) {
+              shapes.push(shape);
+            }
+            controlPoints.push(startControlPoint);
+            controlPoints.push(endControlPoint);
           }
           break;
         }

@@ -81,6 +81,7 @@ const AppState = types
     faceInfo: null,
     processingInfo: null,
     exceptionMode: "single",
+    initializingCode: false,
   }))
   .actions((self) => ({
     addPoint([x, y]) {
@@ -99,8 +100,12 @@ const AppState = types
     },
 
     initCode: flow(function* () {
+      if (self.initializingCode) return;
+      self.initializingCode = true;
       const code = yield codeInit();
+      console.log("Code", code);
       self.updateCode(code);
+      self.initializingCode = false;
     }),
 
     process: flow(function* process() {

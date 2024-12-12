@@ -158,6 +158,47 @@ export const ArcFromStartTangent: ElementSpec<
 };
 
 ///////////////////////////////////////////////////////////////////////////////
+//                                  CCurve
+
+type CCurveMode = "startTangent" | "endTangent" | "controlPoint";
+
+export interface CCurveOptions extends EdgeBaseOptions {
+  controlPoint?: Vector2;
+  mode?: CCurveMode;
+}
+
+export interface CCurveData extends EdgeBaseData {
+  controlPoint: Vector2;
+  mode: CCurveMode;
+}
+
+export interface CCurve extends ElementBase, CCurveData {
+  type: "CCurve";
+}
+
+export const CCurveDefaultOptions = {
+  name: "C-Curve",
+  startPoint: "",
+  endPoint: "",
+  controlPoint: new Vector2(1, 0),
+  mode: "startTangent" as const,
+};
+
+export const CCurve: ElementSpec<CCurve, CCurveOptions> = {
+  create: (id: ElementId, options: CCurveOptions) => {
+    return {
+      id: id,
+      type: "CCurve",
+      ...CCurveDefaultOptions,
+      ...options,
+    };
+  },
+  clone: (other: CCurve) => {
+    return { ...other, controlPoint: other.controlPoint.clone() };
+  },
+};
+
+///////////////////////////////////////////////////////////////////////////////
 //                               Layer
 
 export interface LayerOptions extends ElementBaseOptions {
@@ -194,7 +235,7 @@ export const Layer: ElementSpec<Layer, LayerOptions> = {
 ///////////////////////////////////////////////////////////////////////////////
 //                               Tagged Union
 
-export type EdgeElement = LineSegment | ArcFromStartTangent;
+export type EdgeElement = LineSegment | ArcFromStartTangent | CCurve;
 export type SkeletonElement = Point | EdgeElement;
 
 export type Element = SkeletonElement | Layer;
@@ -214,6 +255,8 @@ function cloneElement(element: Element): Element {
       return LineSegment.clone(element);
     case "ArcFromStartTangent":
       return ArcFromStartTangent.clone(element);
+    case "CCurve":
+      return CCurve.clone(element);
   }
 }
 
@@ -374,6 +417,14 @@ export function createTestDocument() {
     name: "Point 4",
     position: new Vector2(200, 200),
   });
+  const p5 = doc.createElement(Point, {
+    name: "Point 5",
+    position: new Vector2(300, 300),
+  });
+  const p6 = doc.createElement(Point, {
+    name: "Point 6",
+    position: new Vector2(400, 300),
+  });
   const s1 = doc.createElement(LineSegment, {
     name: "Segment 1",
     startPoint: p1.id,
@@ -390,6 +441,20 @@ export function createTestDocument() {
     startPoint: p3.id,
     endPoint: p4.id,
   });
-  layer.elements = [p1, p2, p3, p4, s1, arc, s2].map((e) => e.id);
+  const cc = doc.createElement(CCurve, {
+    name: "C-Curve 1",
+    startPoint: p4.id,
+    endPoint: p5.id,
+    controlPoint: new Vector2(0, 50),
+    mode: "startTangent",
+  });
+  const s3 = doc.createElement(LineSegment, {
+    name: "Segment 3",
+    startPoint: p5.id,
+    endPoint: p6.id,
+  });
+  layer.elements = [p1, p2, p3, p4, p5, p6, s1, arc, s2, cc, s3].map(
+    (e) => e.id,
+  );
   return doc;
 }

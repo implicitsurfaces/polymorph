@@ -248,16 +248,37 @@ function drawPoints(
   }
 }
 
+interface CanvasShapeBase {
+  type: string;
+}
+
+interface CanvasArc extends CanvasShapeBase {
+  type: "Arc";
+  center: Vector2;
+  radius: number;
+  startAngle: number;
+  endAngle: number;
+  isCounterClockwise: boolean;
+}
+
+interface CanvasLineSegment extends CanvasShapeBase {
+  type: "LineSegment";
+  startPoint: Vector2;
+  endPoint: Vector2;
+}
+
+type CanvasGeneralizedArc = CanvasArc | CanvasLineSegment;
+type CanvasShape = CanvasGeneralizedArc;
+
 function drawLineSegment(
   ctx: CanvasRenderingContext2D,
-  startPoint: Vector2,
-  endPoint: Vector2,
+  lineSegment: CanvasLineSegment,
   isHighlighted: boolean,
   isSelected: boolean,
 ) {
   ctx.beginPath();
-  ctx.moveTo(startPoint.x, startPoint.y);
-  ctx.lineTo(endPoint.x, endPoint.y);
+  ctx.moveTo(lineSegment.startPoint.x, lineSegment.startPoint.y);
+  ctx.lineTo(lineSegment.endPoint.x, lineSegment.endPoint.y);
   ctx.lineWidth = 2;
   ctx.strokeStyle = getPrimaryColor(isHighlighted, isSelected);
   ctx.stroke();
@@ -265,16 +286,19 @@ function drawLineSegment(
 
 function drawArc(
   ctx: CanvasRenderingContext2D,
-  center: Vector2,
-  radius: number,
-  startAngle: number,
-  endAngle: number,
-  isCounterClockwise: boolean,
+  arc: CanvasArc,
   isHighlighted: boolean,
   isSelected: boolean,
 ) {
   ctx.beginPath();
-  ctx.arc(center.x, center.y, radius, startAngle, endAngle, isCounterClockwise);
+  ctx.arc(
+    arc.center.x,
+    arc.center.y,
+    arc.radius,
+    arc.startAngle,
+    arc.endAngle,
+    arc.isCounterClockwise,
+  );
   ctx.lineWidth = 2;
   ctx.strokeStyle = getPrimaryColor(isHighlighted, isSelected);
   ctx.stroke();
@@ -287,24 +311,40 @@ function drawControlPoint(ctx: CanvasRenderingContext2D, point: Vector2) {
   drawDisk(ctx, point, diskRadius, fillStyle);
 }
 
-function drawArcFromStartTangent(
+function drawShape(
   ctx: CanvasRenderingContext2D,
-  startPoint: Vector2,
-  endPoint: Vector2,
-  tangent: Vector2,
+  shape: CanvasShape,
   isHighlighted: boolean,
   isSelected: boolean,
 ) {
+  switch (shape.type) {
+    case "Arc":
+      drawArc(ctx, shape, isHighlighted, isSelected);
+      break;
+    case "LineSegment":
+      drawLineSegment(ctx, shape, isHighlighted, isSelected);
+      break;
+  }
+}
+
+function getLineSegment(
+  startPoint: Vector2,
+  endPoint: Vector2,
+): CanvasLineSegment {
+  return { type: "LineSegment", startPoint: startPoint, endPoint: endPoint };
+}
+
+function getGeneralizedArcFromStartTangent(
+  startPoint: Vector2,
+  endPoint: Vector2,
+  tangent: Vector2,
+): CanvasGeneralizedArc {
   // Fallback to line segment in degenerate cases (collinear)
   const chord = endPoint.clone().sub(startPoint);
-  const controlPoint = startPoint.clone().add(tangent);
   const s_ = chord.cross(tangent);
   if (s_ === 0) {
-    drawLineSegment(ctx, startPoint, endPoint, isHighlighted, isSelected);
-    drawControlPoint(ctx, controlPoint);
-    return;
+    return { type: "LineSegment", startPoint: startPoint, endPoint: endPoint };
   }
-  const isCounterClockwise = s_ > 0;
 
   // Compute center
   const tangentLength = tangent.length(); // guaranteed > 0 otherwise s_ == 0
@@ -316,32 +356,46 @@ function drawArcFromStartTangent(
   const midPoint = startPoint.clone().add(endPoint).multiplyScalar(0.5);
   const center = midPoint.clone().sub(chordPerp.multiplyScalar(bb));
 
-  // Compute radius and start/end angles
-  const radius = center.distanceTo(startPoint);
-  const startDir = startPoint.clone().sub(center);
-  const endDir = endPoint.clone().sub(center);
-  const startAngle = Math.atan2(startDir.y, startDir.x);
-  const endAngle = Math.atan2(endDir.y, endDir.x);
-
-  // Draw
-  drawArc(
-    ctx,
-    center,
-    radius,
-    startAngle,
-    endAngle,
-    isCounterClockwise,
-    isHighlighted,
-    isSelected,
-  );
-  drawControlPoint(ctx, controlPoint);
+  return {
+    type: "Arc",
+    center: center,
+    radius: center.distanceTo(startPoint),
+    startAngle: startPoint.clone().sub(center).angle(),
+    endAngle: endPoint.clone().sub(center).angle(),
+    isCounterClockwise: s_ > 0,
+  };
 }
 
-function getStartAndEndPoint(document: Document, element: EdgeElement) {
+function getCCurveShapes(
+  startPoint: Vector2,
+  endPoint: Vector2,
+  controlPoint: Vector2,
+): Array<CanvasGeneralizedArc> {
+  const w0 = controlPoint.distanceTo(endPoint);
+  const w1 = controlPoint.distanceTo(startPoint);
+  const w2 = startPoint.distanceTo(endPoint);
+
+  const junction = startPoint
+    .clone()
+    .multiplyScalar(w0)
+    .add(endPoint.clone().multiplyScalar(w1))
+    .add(controlPoint.clone().multiplyScalar(w2))
+    .divideScalar(w0 + w1 + w2);
+
+  const startTangent = controlPoint.clone().sub(startPoint);
+  const endTangent = controlPoint.clone().sub(endPoint);
+
+  return [
+    getGeneralizedArcFromStartTangent(startPoint, junction, startTangent),
+    getGeneralizedArcFromStartTangent(endPoint, junction, endTangent),
+  ];
+}
+
+function getStartAndEndPositions(document: Document, element: EdgeElement) {
   const startPoint = document.getElementFromId<Point>(element.startPoint);
   const endPoint = document.getElementFromId<Point>(element.endPoint);
   if (startPoint && endPoint) {
-    return { startPoint: startPoint, endPoint: endPoint };
+    return { start: startPoint.position, end: endPoint.position };
   } else {
     return undefined;
   }
@@ -357,37 +411,58 @@ function drawEdges(
   for (const id of elements) {
     const element = document.getElementFromId(id);
     if (element) {
-      const isHighlighted = id === highlightedId;
-      const isSelected = selectedIds.includes(id);
+      const shapes: Array<CanvasShape> = [];
+      const controlPoints: Array<Vector2> = [];
       switch (element.type) {
         case "LineSegment": {
-          const p = getStartAndEndPoint(document, element);
+          const p = getStartAndEndPositions(document, element);
           if (p) {
-            drawLineSegment(
-              ctx,
-              p.startPoint.position,
-              p.endPoint.position,
-              isHighlighted,
-              isSelected,
-            );
+            shapes.push(getLineSegment(p.start, p.end));
           }
           break;
         }
         case "ArcFromStartTangent": {
-          const p = getStartAndEndPoint(document, element);
+          const p = getStartAndEndPositions(document, element);
           if (p) {
-            drawArcFromStartTangent(
-              ctx,
-              p.startPoint.position,
-              p.endPoint.position,
-              element.tangent,
-              isHighlighted,
-              isSelected,
+            const tangent = element.tangent;
+            const controlPoint = tangent.clone().add(p.start);
+            shapes.push(
+              getGeneralizedArcFromStartTangent(p.start, p.end, tangent),
             );
+            controlPoints.push(controlPoint);
+          }
+          break;
+        }
+        case "CCurve": {
+          const p = getStartAndEndPositions(document, element);
+          if (p) {
+            let controlPoint = element.controlPoint;
+            switch (element.mode) {
+              case "startTangent":
+                controlPoint = controlPoint.clone().add(p.start);
+                break;
+              case "endTangent":
+                controlPoint = controlPoint.clone().add(p.end);
+                break;
+            }
+            const shapes_ = getCCurveShapes(p.start, p.end, controlPoint);
+            for (const shape of shapes_) {
+              shapes.push(shape);
+            }
+            controlPoints.push(controlPoint);
           }
           break;
         }
       }
+      const isHighlighted = id === highlightedId;
+      const isSelected = selectedIds.includes(id);
+      for (const shape of shapes) {
+        drawShape(ctx, shape, isHighlighted, isSelected);
+      }
+      for (const point of controlPoints) {
+        drawControlPoint(ctx, point);
+      }
+      // TODO: draw construction lines, e.g., from startPoint to controlPoint
     }
   }
 }

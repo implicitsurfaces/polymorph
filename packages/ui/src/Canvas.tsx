@@ -270,27 +270,45 @@ interface CanvasLineSegment extends CanvasShapeBase {
 type CanvasGeneralizedArc = CanvasArc | CanvasLineSegment;
 type CanvasShape = CanvasGeneralizedArc;
 
+interface EdgeStyle {
+  lineWidth: number;
+  strokeStyle: StrokeStyle;
+}
+
+function getEdgeStyle(isHighlighted: boolean, isSelected: boolean) {
+  return {
+    lineWidth: 2,
+    strokeStyle: getPrimaryColor(isHighlighted, isSelected),
+  };
+}
+
+function drawEdgeBegin(ctx: CanvasRenderingContext2D) {
+  ctx.beginPath();
+}
+
+function drawEdgeEnd(ctx: CanvasRenderingContext2D, edgeStyle: EdgeStyle) {
+  ctx.lineWidth = edgeStyle.lineWidth;
+  ctx.strokeStyle = edgeStyle.strokeStyle;
+  ctx.stroke();
+}
+
 function drawLineSegment(
   ctx: CanvasRenderingContext2D,
   lineSegment: CanvasLineSegment,
-  isHighlighted: boolean,
-  isSelected: boolean,
+  edgeStyle: EdgeStyle,
 ) {
-  ctx.beginPath();
+  drawEdgeBegin(ctx);
   ctx.moveTo(lineSegment.startPoint.x, lineSegment.startPoint.y);
   ctx.lineTo(lineSegment.endPoint.x, lineSegment.endPoint.y);
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = getPrimaryColor(isHighlighted, isSelected);
-  ctx.stroke();
+  drawEdgeEnd(ctx, edgeStyle);
 }
 
 function drawArc(
   ctx: CanvasRenderingContext2D,
   arc: CanvasArc,
-  isHighlighted: boolean,
-  isSelected: boolean,
+  edgeStyle: EdgeStyle,
 ) {
-  ctx.beginPath();
+  drawEdgeBegin(ctx);
   ctx.arc(
     arc.center.x,
     arc.center.y,
@@ -299,30 +317,20 @@ function drawArc(
     arc.endAngle,
     arc.isCounterClockwise,
   );
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = getPrimaryColor(isHighlighted, isSelected);
-  ctx.stroke();
-}
-
-function drawControlPoint(ctx: CanvasRenderingContext2D, point: Vector2) {
-  ctx.beginPath();
-  const fillStyle = "#ff0000";
-  const diskRadius = 5;
-  drawDisk(ctx, point, diskRadius, fillStyle);
+  drawEdgeEnd(ctx, edgeStyle);
 }
 
 function drawShape(
   ctx: CanvasRenderingContext2D,
   shape: CanvasShape,
-  isHighlighted: boolean,
-  isSelected: boolean,
+  edgeStyle: EdgeStyle,
 ) {
   switch (shape.type) {
     case "Arc":
-      drawArc(ctx, shape, isHighlighted, isSelected);
+      drawArc(ctx, shape, edgeStyle);
       break;
     case "LineSegment":
-      drawLineSegment(ctx, shape, isHighlighted, isSelected);
+      drawLineSegment(ctx, shape, edgeStyle);
       break;
   }
 }
@@ -490,6 +498,7 @@ function drawEdges(
     if (element) {
       const shapes: Array<CanvasShape> = [];
       const controlPoints: Array<Vector2> = [];
+      const tangents: Array<CanvasLineSegment> = [];
       switch (element.type) {
         case "LineSegment": {
           const p = getStartAndEndPositions(document, element);
@@ -507,6 +516,7 @@ function drawEdges(
               getGeneralizedArcFromStartTangent(p.start, p.end, tangent),
             );
             controlPoints.push(controlPoint);
+            tangents.push(getLineSegment(p.start, controlPoint));
           }
           break;
         }
@@ -527,6 +537,8 @@ function drawEdges(
               shapes.push(shape);
             }
             controlPoints.push(controlPoint);
+            tangents.push(getLineSegment(p.start, controlPoint));
+            tangents.push(getLineSegment(p.end, controlPoint));
           }
           break;
         }
@@ -550,19 +562,28 @@ function drawEdges(
             }
             controlPoints.push(startControlPoint);
             controlPoints.push(endControlPoint);
+            tangents.push(getLineSegment(p.start, startControlPoint));
+            tangents.push(getLineSegment(p.end, endControlPoint));
           }
           break;
         }
       }
       const isHighlighted = id === highlightedId;
       const isSelected = selectedIds.includes(id);
+      const edgeStyle = getEdgeStyle(isHighlighted, isSelected);
       for (const shape of shapes) {
-        drawShape(ctx, shape, isHighlighted, isSelected);
+        drawShape(ctx, shape, edgeStyle);
+      }
+      const cpColor = "#ff6f34";
+      const cpRadius = 4;
+      const tangentStyle = { lineWidth: 2, strokeStyle: cpColor };
+      getEdgeStyle(isHighlighted, isSelected);
+      for (const lineSegment of tangents) {
+        drawLineSegment(ctx, lineSegment, tangentStyle);
       }
       for (const point of controlPoints) {
-        drawControlPoint(ctx, point);
+        drawDisk(ctx, point, cpRadius, cpColor);
       }
-      // TODO: draw construction lines, e.g., from startPoint to controlPoint
     }
   }
 }

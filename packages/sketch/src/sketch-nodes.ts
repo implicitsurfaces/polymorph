@@ -434,6 +434,15 @@ export class Dilate extends ProfileNode {
   }
 }
 
+export class FlipNode extends ProfileNode {
+  constructor(
+    public readonly profile: ProfileNode,
+    public readonly axis: "x" | "y",
+  ) {
+    super();
+  }
+}
+
 export class SignedDistanceToProfile extends RealValueNode {
   constructor(
     public readonly profile: ProfileNode,

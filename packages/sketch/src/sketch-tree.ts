@@ -64,6 +64,7 @@ import {
   DistanceVariable,
   AngleVariable,
   VectorRotated,
+  FlipNode,
 } from "./sketch-nodes";
 import { LineSegment } from "./segments";
 import {
@@ -87,6 +88,7 @@ import {
   Morph,
   Shell,
   Dilatation,
+  Flip,
 } from "./sdf-operations";
 import { cornerFillet } from "./segments-fillets";
 import { memoizeNodeEval } from "./utils/cache";
@@ -449,6 +451,10 @@ export const evalProfile = memoizeNodeEval(function (
       evalRealValue(node.factor),
       evalProfile(node.profile),
     );
+  }
+
+  if (node instanceof FlipNode) {
+    return new Flip(node.axis, evalProfile(node.profile));
   }
 
   throw new Error(`Unknown profile: ${node.constructor.name}`);

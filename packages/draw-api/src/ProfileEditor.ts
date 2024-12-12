@@ -3,6 +3,7 @@ import {
   debugRenderProfile,
   Difference,
   Dilate,
+  FlipNode,
   Intersection,
   Morph,
   ProfileNode,
@@ -122,6 +123,10 @@ export class ProfileEditor implements NodeWrapper<ProfileNode> {
 
   public dilate(factor: DistanceLike): ProfileEditor {
     return new ProfileEditor(new Dilate(this.inner, asDistance(factor)));
+  }
+
+  public flip(axis: "x" | "y" = "y"): ProfileEditor {
+    return new ProfileEditor(new FlipNode(this.inner, axis));
   }
 
   public distanceToPoint(p: PointLike): Real {

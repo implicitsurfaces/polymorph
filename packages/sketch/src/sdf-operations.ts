@@ -26,6 +26,19 @@ export class Rotation implements DistField {
   }
 }
 
+export class Flip implements DistField {
+  constructor(
+    readonly axis: "x" | "y",
+    readonly sdf: DistField,
+  ) {}
+
+  distanceTo(point: Point): Num {
+    const v = point.vecFromOrigin();
+    const flipped = this.axis === "x" ? v.mirrorX() : v.mirrorY();
+    return this.sdf.distanceTo(flipped.pointFromOrigin());
+  }
+}
+
 export class Scaling implements DistField {
   constructor(
     readonly factor: Num,

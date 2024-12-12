@@ -288,10 +288,11 @@ function drawArcFromStartTangent(
   const endDir = endPoint.clone().sub(center);
   const startAngle = Math.atan2(startDir.y, startDir.x);
   const endAngle = Math.atan2(endDir.y, endDir.x);
+  const isCounterClockwise = normalizedTangent.cross(chord) < 0;
 
   // Draw arc
   ctx.beginPath();
-  ctx.arc(center.x, center.y, radius, startAngle, endAngle);
+  ctx.arc(center.x, center.y, radius, startAngle, endAngle, isCounterClockwise);
   ctx.lineWidth = 2;
   ctx.strokeStyle = getPrimaryColor(isHighlighted, isSelected);
   ctx.stroke();

@@ -1,0 +1,27 @@
+---
+name: UI Check
+
+"on":
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12.3"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          cd packages/ui
+          npm install
+      - name: Lint and type-check
+        run: |
+          cd packages/ui
+          npm run check

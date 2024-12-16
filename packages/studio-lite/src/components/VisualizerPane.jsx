@@ -10,6 +10,7 @@ import useEditorStore from "../state/useEditorStore";
 
 const Canvas = styled("canvas", forwardRef)`
   position: absolute;
+  touch-action: none;
   width: 100%;
   height: 100%;
   ${({ cursor }) => cursor && `cursor: ${cursor};`}
@@ -38,7 +39,7 @@ const Image = observer(() => {
   return <Canvas ref={canvasRef}></Canvas>;
 });
 
-const useCursorType = (hoveredPoint, selectedPoint) => {
+const useCursorType = (hoveredPoint, draggedPoint) => {
   const [shiftPressed, setShiftPressed] = useState(false);
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -73,7 +74,7 @@ const useCursorType = (hoveredPoint, selectedPoint) => {
     return 'url("/delete-icon.svg"), auto';
   }
 
-  if (selectedPoint) {
+  if (draggedPoint) {
     return "grabbing";
   }
 
@@ -98,9 +99,9 @@ const PointsLayer = observer(() => {
   const [canvas, setCanvas] = useState(null);
 
   const [hoveredPoint, setHoveredPoint] = useState(null);
-  const [selectedPoint, setSelectedPoint] = useState(null);
+  const [draggedPoint, setDraggingPoint] = useState(null);
 
-  const cursorType = useCursorType(hoveredPoint, selectedPoint);
+  const cursorType = useCursorType(hoveredPoint, draggedPoint);
 
   if (canvas) {
     const circleCtx = canvas.getContext("2d");
@@ -121,24 +122,30 @@ const PointsLayer = observer(() => {
 
   const handleMouseDown = useCallback(
     (e) => {
-      if (hoveredPoint) {
+      const rect = canvas.getBoundingClientRect();
+      const point = canvasToImageCoords(rect, e.clientX, e.clientY);
+
+      const closePoint = store.findClosePoint(point);
+
+      if (closePoint) {
         if (e.shiftKey) {
-          hoveredPoint.remove();
+          closePoint.remove();
           setHoveredPoint(null);
         } else {
-          setSelectedPoint(hoveredPoint);
+          setDraggingPoint(closePoint);
+          e.target.setPointerCapture(e.pointerId);
         }
         return;
       }
-      const rect = canvas.getBoundingClientRect();
-      const point = canvasToImageCoords(rect, e.clientX, e.clientY);
+
       store.addPoint(point);
     },
-    [canvas, store, hoveredPoint],
+    [canvas, store],
   );
 
-  const handleMouseUp = useCallback(() => {
-    setSelectedPoint(null);
+  const handleMouseUp = useCallback((e) => {
+    e.target.releasePointerCapture(e.pointerId);
+    setDraggingPoint(null);
   }, []);
 
   const handleMouseMove = useCallback(
@@ -146,14 +153,14 @@ const PointsLayer = observer(() => {
       const rect = canvas.getBoundingClientRect();
       const point = canvasToImageCoords(rect, e.clientX, e.clientY);
 
-      if (selectedPoint !== null) {
-        selectedPoint.moveTo(point);
+      if (draggedPoint !== null) {
+        draggedPoint.moveTo(point);
       } else {
         // Check for hover
         setHoveredPoint(store.findClosePoint(point));
       }
     },
-    [canvas, store, selectedPoint],
+    [canvas, store, draggedPoint],
   );
 
   return (
@@ -162,9 +169,9 @@ const PointsLayer = observer(() => {
       cursor={cursorType}
       width="1000"
       height="1000"
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
+      onPointerDown={handleMouseDown}
+      onPointerMove={handleMouseMove}
+      onPointerUp={handleMouseUp}
     ></Canvas>
   );
 });

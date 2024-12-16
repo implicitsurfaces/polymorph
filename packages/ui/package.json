@@ -10,8 +10,9 @@
     "prof": "vite build --config vite.config.profiling.ts && vite preview",
     "prod-nm": "vite build --config vite.config.nonmin.ts && vite preview",
     "prof-nm": "vite build --config vite.config.profiling-nonmin.ts && vite preview",
-    "lint": "eslint .",
-    "check": "eslint .; tsc -b",
+    "lint": "eslint --max-warnings 0 .",
+    "typecheck": "tsc -b",
+    "check": "(eslint --max-warnings 0 .; l=$?; tsc -b && exit $l)",
     "preview": "vite preview",
     "format": "prettier --write \"src/*.{jsx,js,tsx,ts}\""
   },

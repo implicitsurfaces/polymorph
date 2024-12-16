@@ -21,7 +21,11 @@ jobs:
         run: |
           cd packages/ui
           npm install
-      - name: Lint and type-check
+      - name: Lint
         run: |
           cd packages/ui
-          npm run check
+          npm run lint
+      - name: Typecheck
+        run: |
+          cd packages/ui
+          npm run typecheck

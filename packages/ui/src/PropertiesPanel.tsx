@@ -52,7 +52,9 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
   }
 
   function getContent() {
-    const selectedElements = documentManager.selectedElements();
+    const doc = documentManager.document();
+    const selection = documentManager.selection();
+    const selectedElements = doc.getElementsFromId(selection.selectedElement());
     if (selectedElements.length === 0) {
       return (
         <div className="panel-list-item">

@@ -21,21 +21,21 @@ export const SkeletonListItem = memo(function SkeletonListItem({
   isSelected,
 }: SkeletonListItemProps) {
   const onMouseEnter = useCallback(() => {
-    documentManager.setHoveredElement(id);
+    documentManager.selection().setHoveredElement(id);
   }, [documentManager, id]);
 
   const onMouseLeave = useCallback(() => {
-    if (documentManager.hoveredElementId() === id) {
-      documentManager.setHoveredElement(undefined);
+    if (documentManager.selection().hoveredElement() === id) {
+      documentManager.selection().setHoveredElement(undefined);
     }
   }, [documentManager, id]);
 
   const onSelectElement = useCallback(
     (event: MouseEvent<HTMLElement>) => {
       if (event.shiftKey) {
-        documentManager.toggleSelectedElement(id);
+        documentManager.selection().toggleSelectedElement(id);
       } else {
-        documentManager.setSelectedElements([id]);
+        documentManager.selection().setSelectedElements([id]);
       }
     },
     [documentManager, id],

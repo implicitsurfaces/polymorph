@@ -619,8 +619,9 @@ function draw(
   drawGrid(ctx, camera);
   initializeViewTransform(ctx, camera);
   const document = documentManager.document();
-  const hoveredId = documentManager.hoveredElementId();
-  const selectedIds = documentManager.selectedElementIds();
+  const selection = documentManager.selection();
+  const hoveredId = selection.hoveredElement();
+  const selectedIds = selection.selectedElement();
   drawDocument(ctx, document, hoveredId, selectedIds);
 }
 
@@ -692,14 +693,13 @@ function hover(
   mousePosition: Vector2,
   tolerance: number,
 ) {
-  const ce = findClosestElementInDocument(
-    documentManager.document(),
-    mousePosition,
-  );
+  const doc = documentManager.document();
+  const selection = documentManager.selection();
+  const ce = findClosestElementInDocument(doc, mousePosition);
   if (ce.id && ce.distance < tolerance) {
-    documentManager.setHoveredElement(ce.id);
+    selection.setHoveredElement(ce.id);
   } else {
-    documentManager.setHoveredElement(undefined);
+    selection.setHoveredElement(undefined);
   }
 }
 
@@ -823,14 +823,20 @@ export function Canvas({ documentManager }: CanvasProps) {
       if (!pointerState) {
         return false;
       }
+      const doc = documentManager.document();
+      const selection = documentManager.selection();
       switch (pointerState.button) {
         case 0: {
           // left drag: move elements
-          const hoveredElement = documentManager.hoveredElement();
+          const hoveredElement = doc.getElementFromId(
+            selection.hoveredElement(),
+          );
           if (!hoveredElement) {
             return false;
           } else {
-            const selectedElements = documentManager.selectedElements();
+            const selectedElements = doc.getElementsFromId(
+              selection.selectedElement(),
+            );
             let movedElements: Array<Element> = [];
             if (selectedElements.includes(hoveredElement)) {
               movedElements = selectedElements;
@@ -838,7 +844,7 @@ export function Canvas({ documentManager }: CanvasProps) {
               // Moving a hovered element that is not currently selected
               // makes it the currently selected element.
               movedElements = [hoveredElement];
-              documentManager.setSelectedElements([hoveredElement.id]);
+              selection.setSelectedElements([hoveredElement.id]);
             }
             // Remember start positions of all elements.
             // We only do this if not done already, otherwise
@@ -955,6 +961,8 @@ export function Canvas({ documentManager }: CanvasProps) {
   const onClick = useCallback(
     (event: IPointerEvent) => {
       const canvas = ref.current;
+      const doc = documentManager.document();
+      const selection = documentManager.selection();
       if (!canvas) {
         return;
       }
@@ -967,19 +975,20 @@ export function Canvas({ documentManager }: CanvasProps) {
       switch (event.button) {
         case 0: {
           // left click: create point or select
-          const doc = documentManager.document();
-          const hoveredElement = documentManager.hoveredElement();
+          const hoveredElement = doc.getElementFromId(
+            selection.hoveredElement(),
+          );
           if (hoveredElement) {
             // select
             const hoveredId = hoveredElement.id;
             if (event.shiftKey) {
-              documentManager.toggleSelectedElement(hoveredId);
+              selection.toggleSelectedElement(hoveredId);
             } else {
-              documentManager.setSelectedElements([hoveredId]);
+              selection.setSelectedElements([hoveredId]);
             }
           } else {
             // create point
-            const layer = documentManager.activeLayer();
+            const layer = doc.getElementFromId<Layer>(selection.activeLayer());
             if (layer) {
               const pos = getMouseDocumentPosition(
                 event,
@@ -992,8 +1001,8 @@ export function Canvas({ documentManager }: CanvasProps) {
                 position: pos,
               });
               layer.elements.push(point.id);
-              documentManager.setHoveredElement(point.id);
-              documentManager.setSelectedElements([point.id]);
+              selection.setHoveredElement(point.id);
+              selection.setSelectedElements([point.id]);
               documentManager.commitChanges();
             }
           }

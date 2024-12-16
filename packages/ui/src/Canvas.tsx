@@ -1054,7 +1054,7 @@ export function Canvas({ documentManager }: CanvasProps) {
       const toleranceInDocCoords = toleranceInPx / camera.zoom;
       highlight(documentManager, position, toleranceInDocCoords);
     },
-    [documentManager, camera],
+    [pointerState, documentManager, camera],
   );
 
   const onPointerMove = useCallback(

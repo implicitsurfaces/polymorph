@@ -75,8 +75,8 @@ export class Angle {
   }
 
   asSortValue(): Num {
-    const isQ2Q3 = lessThan(this._sin, 0);
-    return ifTruthyElse(isQ2Q3, this._cos.add(3), asNum(1).sub(this._cos)).div(
+    const isQ3Q4 = lessThan(this._sin, 0);
+    return ifTruthyElse(isQ3Q4, this._cos.add(3), asNum(1).sub(this._cos)).div(
       2,
     );
   }
@@ -316,7 +316,7 @@ export class SolidAngle {
   }
 
   addAngle(angle: Angle): SolidAngle {
-    return new SolidAngle(this._turns.add(angle.asRad().div(Math.PI / 2)));
+    return new SolidAngle(this._turns.add(angle.asRad().div(Math.PI * 2)));
   }
 
   addTurns(turns: Num | number): SolidAngle {

@@ -1,4 +1,4 @@
-import { Document, createTestDocument } from "./Document.ts";
+import { Document, Layer, createTestDocument } from "./Document.ts";
 
 import { Selection } from "./Selection.ts";
 
@@ -48,6 +48,7 @@ export class DocumentManager {
     this._selection = new Selection(() => {
       this._notify();
     });
+    this._ensureActiveLayer();
   }
 
   /**
@@ -62,8 +63,19 @@ export class DocumentManager {
     return this._version;
   }
 
+  private _ensureActiveLayer() {
+    const doc = this.document();
+    const selection = this.selection();
+    if (doc.layers.length > 0) {
+      if (!doc.getElementFromId<Layer>(selection.activeLayer())) {
+        selection.setActiveLayer(doc.layers[0]);
+      }
+    }
+  }
+
   private _notify(): void {
     this._version += 1;
+    this._ensureActiveLayer();
     this._onChange();
   }
 

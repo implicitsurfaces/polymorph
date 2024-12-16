@@ -32,8 +32,8 @@ import {
   Line,
   ArcFromStartControl,
   ArcFromEndControl,
-  BiarcC,
-  BiarcS,
+  CCurve,
+  SCurve,
   PathStart,
   PathEdge,
   PathNode,
@@ -63,6 +63,8 @@ import {
   RealValueVariable,
   DistanceVariable,
   AngleVariable,
+  VectorRotated,
+  FlipNode,
 } from "./sketch-nodes";
 import { LineSegment } from "./segments";
 import {
@@ -86,6 +88,7 @@ import {
   Morph,
   Shell,
   Dilatation,
+  Flip,
 } from "./sdf-operations";
 import { cornerFillet } from "./segments-fillets";
 import { memoizeNodeEval } from "./utils/cache";
@@ -95,6 +98,7 @@ export function evalRealValue(value: RealValueNode): Num {
   if (value instanceof RealValueVariable) {
     return variable(value.name);
   }
+
   if (value instanceof DistanceNode) {
     return evalDistance(value);
   }
@@ -113,6 +117,18 @@ export const evalDistance = memoizeNodeEval(function (
 ): Num {
   if (distance instanceof DistanceVariable) {
     const v = variable(distance.name);
+
+    if (distance.max !== undefined) {
+      const a = asNum(distance.min ?? 0);
+      const b = asNum(distance.max);
+
+      return a.add(b.sub(a).mul(sigmoid(v)));
+    }
+
+    if (distance.min !== undefined) {
+      return asNum(distance.min).add(v.exp());
+    }
+
     return v.exp();
   }
   if (distance instanceof DistanceLiteral) {
@@ -222,6 +238,10 @@ export const evalVector = memoizeNodeEval(function evalVector(
     return evalVector(vector.vector).scale(evalRealValue(vector.scale));
   }
 
+  if (vector instanceof VectorRotated) {
+    return evalVector(vector.vector).rotate(evalAngle(vector.angle));
+  }
+
   throw new Error(`Unknown vector: ${vector.constructor.name}`);
 });
 
@@ -244,11 +264,11 @@ export const evalEdge = memoizeNodeEval(function (
     ];
   }
 
-  if (edge instanceof BiarcC) {
+  if (edge instanceof CCurve) {
     return (p0: Point, p1: Point) => biarcC(p0, p1, evalPoint(edge.control));
   }
 
-  if (edge instanceof BiarcS) {
+  if (edge instanceof SCurve) {
     return (p0: Point, p1: Point) =>
       biarcS(p0, p1, evalPoint(edge.control0), evalPoint(edge.control1));
   }
@@ -433,6 +453,10 @@ export const evalProfile = memoizeNodeEval(function (
     );
   }
 
+  if (node instanceof FlipNode) {
+    return new Flip(node.axis, evalProfile(node.profile));
+  }
+
   throw new Error(`Unknown profile: ${node.constructor.name}`);
 });
 
@@ -471,10 +495,11 @@ export const evalConstraint = memoizeNodeEval(function (
   if (node instanceof ConstraintOnProfileBoundary) {
     const profile = evalProfile(node.profile);
     const point = evalPoint(node.point);
+    const signedDistance = evalRealValue(node.signedDistance ?? 0);
     const tol = evalDistanceWithDefault(node.weigth, DEFAULT_WEIGHT);
 
     const dist = profile.distanceTo(point);
-    return dist.abs().div(tol);
+    return dist.sub(signedDistance).div(tol).square();
   }
 
   throw new Error(`Unknown constraint: ${node.constructor.name}`);

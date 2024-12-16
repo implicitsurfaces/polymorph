@@ -1,5 +1,10 @@
 import JSZip from "jszip";
-//import loadCode from "../../utils/loadCode";
+
+const loadCode = async (rawCode) => {
+  const content = decodeURIComponent(rawCode);
+  const zip = await new JSZip().loadAsync(content, { base64: true });
+  return await zip?.file("code.js")?.async("string");
+};
 
 const DEFAULT_SCRIPT = `
 const { draw } = drawAPI;
@@ -84,7 +89,7 @@ export default async function codeInit() {
   const code = getHashParam("code") || getUrlParam("code");
   if (code) {
     try {
-      //return await loadCode(code);
+      return await loadCode(code);
     } catch (e) {
       console.error(e);
     }

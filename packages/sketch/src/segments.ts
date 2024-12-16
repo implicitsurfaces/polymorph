@@ -39,7 +39,7 @@ export class LineSegment implements Segment {
   }
 }
 
-function arcWindingNumberIndefiniteIntegral(
+export function arcWindingNumberIndefiniteIntegral(
   t: Angle,
   radius: Num,
   x: Num,
@@ -79,7 +79,7 @@ function arcWindingNumberIndefiniteIntegral(
     .add(new SolidAngle(0).addAngle(t).half());
 }
 
-function arcWindingNumberAtPi(radius: Num, x: Num, y: Num) {
+export function arcWindingNumberAtPi(radius: Num, x: Num, y: Num) {
   const distToCenter = radius.square().sub(x.square().add(y.square()));
   return distToCenter.sign().add(1).div(2);
 }

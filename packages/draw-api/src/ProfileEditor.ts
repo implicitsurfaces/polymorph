@@ -1,7 +1,9 @@
+import { NodeWrapper } from "./types";
 import {
   debugRenderProfile,
   Difference,
   Dilate,
+  FlipNode,
   Intersection,
   Morph,
   ProfileNode,
@@ -9,6 +11,7 @@ import {
   Rotation,
   Scale,
   Shell,
+  SignedDistanceToProfile,
   SmoothDifference,
   SmoothIntersection,
   SmoothUnion,
@@ -20,16 +23,24 @@ import {
   AngleLike,
   asAngle,
   asDistance,
+  asPoint,
   asVector,
   DistanceLike,
+  PointLike,
   VectorLike,
 } from "./convert";
+import { Real } from "./geom";
 
-export class ProfileEditor {
-  constructor(public shape: ProfileNode) {}
+export class ProfileEditor implements NodeWrapper<ProfileNode> {
+  constructor(public inner: ProfileNode) {}
+
+  get shape(): ProfileNode {
+    return this.inner;
+  }
 
   public translate(vector: VectorLike): ProfileEditor {
-    return new ProfileEditor(new Translation(this.shape, asVector(vector)));
+    console.log("vector", vector);
+    return new ProfileEditor(new Translation(this.inner, asVector(vector)));
   }
 
   public translateX(x: DistanceLike): ProfileEditor {
@@ -41,7 +52,7 @@ export class ProfileEditor {
   }
 
   public rotate(theta: AngleLike): ProfileEditor {
-    return new ProfileEditor(new Rotation(this.shape, asAngle(theta)));
+    return new ProfileEditor(new Rotation(this.inner, asAngle(theta)));
   }
 
   public union(
@@ -50,10 +61,10 @@ export class ProfileEditor {
   ): ProfileEditor {
     if (smoothRadius !== null) {
       return new ProfileEditor(
-        new SmoothUnion(this.shape, other.shape, asDistance(smoothRadius)),
+        new SmoothUnion(this.inner, other.inner, asDistance(smoothRadius)),
       );
     }
-    return new ProfileEditor(new Union(this.shape, other.shape));
+    return new ProfileEditor(new Union(this.inner, other.inner));
   }
 
   public fuse(
@@ -70,13 +81,13 @@ export class ProfileEditor {
     if (smoothRadius !== null) {
       return new ProfileEditor(
         new SmoothIntersection(
-          this.shape,
-          other.shape,
+          this.inner,
+          other.inner,
           asDistance(smoothRadius),
         ),
       );
     }
-    return new ProfileEditor(new Intersection(this.shape, other.shape));
+    return new ProfileEditor(new Intersection(this.inner, other.inner));
   }
 
   public diff(
@@ -85,10 +96,10 @@ export class ProfileEditor {
   ): ProfileEditor {
     if (smoothRadius !== null) {
       return new ProfileEditor(
-        new SmoothDifference(this.shape, other.shape, asDistance(smoothRadius)),
+        new SmoothDifference(this.inner, other.inner, asDistance(smoothRadius)),
       );
     }
-    return new ProfileEditor(new Difference(this.shape, other.shape));
+    return new ProfileEditor(new Difference(this.inner, other.inner));
   }
 
   public cut(
@@ -99,26 +110,34 @@ export class ProfileEditor {
   }
 
   public shell(thickness: DistanceLike): ProfileEditor {
-    return new ProfileEditor(new Shell(this.shape, asDistance(thickness)));
+    return new ProfileEditor(new Shell(this.inner, asDistance(thickness)));
   }
 
   public scale(factor: DistanceLike): ProfileEditor {
-    return new ProfileEditor(new Scale(this.shape, asDistance(factor)));
+    return new ProfileEditor(new Scale(this.inner, asDistance(factor)));
   }
 
   public morph(other: ProfileEditor, t: DistanceLike): ProfileEditor {
-    return new ProfileEditor(new Morph(this.shape, other.shape, asDistance(t)));
+    return new ProfileEditor(new Morph(this.inner, other.inner, asDistance(t)));
   }
 
   public dilate(factor: DistanceLike): ProfileEditor {
-    return new ProfileEditor(new Dilate(this.shape, asDistance(factor)));
+    return new ProfileEditor(new Dilate(this.inner, asDistance(factor)));
+  }
+
+  public flip(axis: "x" | "y" = "y"): ProfileEditor {
+    return new ProfileEditor(new FlipNode(this.inner, axis));
+  }
+
+  public distanceToPoint(p: PointLike): Real {
+    return new Real(new SignedDistanceToProfile(this.inner, asPoint(p)));
   }
 
   async debugRender(
     size = 50,
     valuedVars?: Map<string, number>,
   ): Promise<string> {
-    const render = await debugRenderProfile(this.shape, valuedVars, size);
+    const render = await debugRenderProfile(this.inner, valuedVars, size);
     return booleansToASCII(intArrayToImageData(render), true);
   }
 
@@ -126,6 +145,6 @@ export class ProfileEditor {
     size = 250,
     valuedVars?: Map<string, number>,
   ): Promise<Uint8ClampedArray> {
-    return renderProfile(this.shape, valuedVars, size);
+    return renderProfile(this.inner, valuedVars, size);
   }
 }

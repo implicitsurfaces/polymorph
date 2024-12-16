@@ -29,7 +29,11 @@ export class DistanceLiteral extends DistanceNode {
 }
 
 export class DistanceVariable extends DistanceNode {
-  constructor(public readonly name: string) {
+  constructor(
+    public readonly name: string,
+    public readonly min?: number,
+    public readonly max?: number,
+  ) {
     super();
   }
 }
@@ -226,6 +230,15 @@ export class VectorScaled extends VectorNode {
   }
 }
 
+export class VectorRotated extends VectorNode {
+  constructor(
+    public readonly vector: VectorNode,
+    public readonly angle: AngleNode,
+  ) {
+    super();
+  }
+}
+
 export class Line extends EdgeNode {
   constructor() {
     super();
@@ -244,13 +257,13 @@ export class ArcFromEndControl extends EdgeNode {
   }
 }
 
-export class BiarcC extends EdgeNode {
+export class CCurve extends EdgeNode {
   constructor(public readonly control: PointNode) {
     super();
   }
 }
 
-export class BiarcS extends EdgeNode {
+export class SCurve extends EdgeNode {
   constructor(
     public readonly control0: PointNode,
     public readonly control1: PointNode,
@@ -421,6 +434,15 @@ export class Dilate extends ProfileNode {
   }
 }
 
+export class FlipNode extends ProfileNode {
+  constructor(
+    public readonly profile: ProfileNode,
+    public readonly axis: "x" | "y",
+  ) {
+    super();
+  }
+}
+
 export class SignedDistanceToProfile extends RealValueNode {
   constructor(
     public readonly profile: ProfileNode,
@@ -464,6 +486,7 @@ export class ConstraintOnProfileBoundary extends ConstraintNode {
   constructor(
     public readonly profile: ProfileNode,
     public readonly point: PointNode,
+    public readonly signedDistance: RealValueNode | undefined,
     public readonly weigth: DistanceNode | undefined,
   ) {
     super();

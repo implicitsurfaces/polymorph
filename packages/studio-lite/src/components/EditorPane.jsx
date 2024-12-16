@@ -4,11 +4,15 @@ import { observer } from "mobx-react";
 import Editor from "@monaco-editor/react";
 
 import Splitter, { GutterTheme, SplitDirection } from "@devbookhq/splitter";
+import { HeaderButton, Spacer } from "./panes";
+
+import LinkCode from "../icons/LinkCode";
 
 import drawAPITypes from "draw-api/dist/main.d.ts?raw";
 
 import "../loadMonaco";
 import useEditorStore from "../state/useEditorStore";
+import { exportCode } from "../state/codeInit";
 import LoadingScreen from "./LoadingScreen";
 
 export const ErrorOverlay = styled("div")`
@@ -105,6 +109,32 @@ export const EditorPane = observer(function EditorPane() {
           </ErrorOverlay>
         )}
       </Splitter>
+    </>
+  );
+});
+
+export const EditorButtons = observer(() => {
+  const store = useEditorStore();
+  const [linkShare, setLinkShare] = React.useState(false);
+
+  const share = async () => {
+    setLinkShare(true);
+    const url = await exportCode(store.code.current);
+    navigator.clipboard.writeText(url);
+    setTimeout(() => {
+      setLinkShare(false);
+    }, 1000);
+  };
+
+  const style = linkShare ? { color: "lightgreen" } : {};
+
+  return (
+    <>
+      <HeaderButton onClick={share} title="Link to current code">
+        <LinkCode style={style} />
+      </HeaderButton>
+      ;
+      <Spacer />
     </>
   );
 });

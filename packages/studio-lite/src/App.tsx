@@ -6,13 +6,13 @@ import Splitter, { GutterTheme } from "@devbookhq/splitter";
 import useEditorStore, { EditorContextProvider } from "./state/useEditorStore";
 
 import { Pane } from "./components/panes";
-import { EditorPane } from "./components/EditorPane";
+import { EditorPane, EditorButtons } from "./components/EditorPane";
 import { VisualizerPane, VisualizerButtons } from "./components/VisualizerPane";
 
 export const WorkbenchStructure = observer(function WorkbenchStructure() {
   const store = useEditorStore();
   useEffect(() => {
-    store.initCode();
+    store?.initCode();
   }, [store]);
 
   return (
@@ -21,7 +21,7 @@ export const WorkbenchStructure = observer(function WorkbenchStructure() {
         gutterTheme={GutterTheme.Dark}
         gutterClassName="custom-gutter-theme"
       >
-        <Pane aboveOthers>
+        <Pane aboveOthers buttons={<EditorButtons />}>
           <EditorPane />
         </Pane>
         <Pane buttons={<VisualizerButtons />}>

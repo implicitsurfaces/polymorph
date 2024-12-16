@@ -2,8 +2,8 @@ import {
   AngleNode,
   ArcFromEndControl,
   ArcFromStartControl,
-  BiarcC,
-  BiarcS,
+  CCurve,
+  SCurve,
   EdgeNode,
   Line,
   PathClose,
@@ -159,13 +159,13 @@ export class EdgeMaker {
     return this.withControl(ArcFromEndControl, control);
   }
 
-  public biarcC(
+  public CCurve(
     control: PointLike | ((p0: Point, p1: Point) => PointLike),
   ): PointMaker {
-    return this.withControl(BiarcC, control);
+    return this.withControl(CCurve, control);
   }
 
-  public biarcS(
+  public SCurve(
     control0: PointLike | ((p0: Point, p1: Point) => PointLike),
     control1: PointLike | ((p0: Point, p1: Point) => PointLike),
   ): PointMaker {
@@ -176,12 +176,15 @@ export class EdgeMaker {
       const c0 = typeof control0 === "function" ? control0(p0, p1) : control0;
       const c1 = typeof control1 === "function" ? control1(p0, p1) : control1;
 
-      return new BiarcS(asPoint(c0), asPoint(c1));
+      return new SCurve(asPoint(c0), asPoint(c1));
     });
   }
 }
 
-export function draw(origin = [0, 0], cornerRadius?: number): EdgeMaker {
+export function draw(
+  origin: PointLike = [0, 0],
+  cornerRadius?: number,
+): EdgeMaker {
   let currentPoint = asPoint(origin);
   const firstPoint = currentPoint;
 

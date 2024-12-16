@@ -1,14 +1,19 @@
 import { test } from "vitest";
-import { BulgingSegment, LineSegment } from "./segments";
+import {
+  arcWindingNumberIndefiniteIntegral,
+  BulgingSegment,
+  LineSegment,
+} from "./segments";
 
 import { Dilatation } from "./sdf-operations";
 
 import {
+  ex,
   expectASCIIDistance,
   expectASCIIshape,
   expectASCIISolidAngle,
 } from "./test-utils";
-import { asVec } from "./geom";
+import { angleFromDeg, asVec } from "./geom";
 import { asNum } from "./num";
 import { Segment } from "./types";
 
@@ -98,6 +103,34 @@ test("arc solid angle with positive bulge", async () => {
       new BulgingSegment(p(0.5, 0.5), p(-0.5, -0.5), asNum(0.3)),
     )
   ).toMatchSnapshot();
+});
+
+test("arc solid angle with bulge > 1", async () => {
+  (
+    await expectASCIISolidAngle(
+      new BulgingSegment(p(-0.5, -0.5), p(0.5, 0.5), asNum(1.3)),
+    )
+  ).toMatchSnapshot();
+});
+
+test("winding number computation", async () => {
+  ex(
+    arcWindingNumberIndefiniteIntegral(
+      angleFromDeg(135),
+      asNum(1.2),
+      asNum(0),
+      asNum(-0.2),
+    ).turns,
+  ).toBeCloseTo(0.6346);
+
+  ex(
+    arcWindingNumberIndefiniteIntegral(
+      angleFromDeg(45),
+      asNum(1.2),
+      asNum(0),
+      asNum(-0.2),
+    ).turns,
+  ).toBeCloseTo(0.418);
 });
 
 test("arc pill", async () => {

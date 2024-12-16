@@ -361,9 +361,25 @@ export class Document {
     return new Document(this);
   }
 
-  getElementFromId<T extends Element>(id: ElementId): T | undefined {
+  getElementFromId<T extends Element>(
+    id: ElementId | undefined,
+  ): T | undefined {
+    if (!id) {
+      return undefined;
+    }
     const element: Element | undefined = this._elements.get(id);
     return element as T | undefined;
+  }
+
+  getElementsFromId<T extends Element>(ids: Array<ElementId>): Array<T> {
+    const res: Array<T> = [];
+    for (const id of ids) {
+      const element = this.getElementFromId<T>(id);
+      if (element) {
+        res.push(element);
+      }
+    }
+    return res;
   }
 
   createElement<T extends Element, Options>(

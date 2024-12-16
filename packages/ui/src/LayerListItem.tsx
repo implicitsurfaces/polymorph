@@ -40,7 +40,7 @@ export const LayerListItem = memo(function LayerListItem({
   }, [documentManager, index]);
 
   const onSelectLayer = useCallback(() => {
-    documentManager.setActiveLayer(id);
+    documentManager.selection().setActiveLayer(id);
   }, [documentManager, id]);
 
   return (

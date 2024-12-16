@@ -1,4 +1,4 @@
-import { ElementId } from "./Document.ts";
+import { ElementId, Layer } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 import { SkeletonListItem } from "./SkeletonListItem.tsx";
 
@@ -7,9 +7,11 @@ interface SkeletonPanelProps {
 }
 
 export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
-  const hoveredElementId = documentManager.hoveredElementId();
-  const selectedElementIds = documentManager.selectedElementIds();
   const doc = documentManager.document();
+  const selection = documentManager.selection();
+  const activeLayerId = selection.activeLayerId();
+  const hoveredElementId = selection.hoveredElementId();
+  const selectedElementIds = selection.selectedElementIds();
 
   function getItem(id: ElementId) {
     const element = doc.getElementFromId(id);
@@ -29,7 +31,7 @@ export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
   }
 
   function getItems() {
-    const activeLayer = documentManager.activeLayer();
+    const activeLayer = doc.getElementFromId<Layer>(activeLayerId);
     if (!activeLayer) {
       return <></>;
     }

@@ -7,8 +7,9 @@ interface LayersPanelProps {
 }
 
 export function LayersPanel({ documentManager }: LayersPanelProps) {
-  const activeLayerId = documentManager.activeLayerId();
   const doc = documentManager.document();
+  const selection = documentManager.selection();
+  const activeLayerId = selection.activeLayerId();
 
   function getItem(id: ElementId, index: number) {
     const layer = doc.getElementFromId<Layer>(id);

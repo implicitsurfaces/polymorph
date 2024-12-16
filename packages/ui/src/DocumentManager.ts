@@ -1,10 +1,6 @@
-import {
-  Document,
-  Element,
-  ElementId,
-  Layer,
-  createTestDocument,
-} from "./Document.ts";
+import { Document, createTestDocument } from "./Document.ts";
+
+import { Selection } from "./Selection.ts";
 
 /**
  * Stores and manages the undo-redo history of the document.
@@ -19,10 +15,7 @@ export class DocumentManager {
   private _history: Array<Document>;
   private _index: number;
   private _workingCopy: Document;
-
-  private _activeLayerId: ElementId;
-  private _hoveredElementId: ElementId | undefined;
-  private _selectedElementIds: Array<ElementId>;
+  private _selection: Selection;
 
   /**
    * Constructs a new `DocumentManager`.
@@ -52,9 +45,9 @@ export class DocumentManager {
       // Same as `this._makeWorkingCopy();` but silences strictPropertyInitialization false positive
       this._workingCopy = this._history[this._index].clone();
     }
-    this._activeLayerId = this._workingCopy.layers[0];
-    this._hoveredElementId = undefined;
-    this._selectedElementIds = [];
+    this._selection = new Selection(() => {
+      this._notify();
+    });
   }
 
   /**
@@ -178,76 +171,7 @@ export class DocumentManager {
     this._notify();
   }
 
-  activeLayerId(): ElementId {
-    return this._activeLayerId;
-  }
-
-  activeLayer(): Layer | undefined {
-    const doc = this.document();
-    if (!doc) {
-      return undefined;
-    }
-    return doc.getElementFromId(this._activeLayerId);
-  }
-
-  setActiveLayer(id: ElementId) {
-    if (this._activeLayerId !== id) {
-      this._activeLayerId = id;
-      this._notify();
-    }
-  }
-
-  hoveredElementId(): ElementId | undefined {
-    return this._hoveredElementId;
-  }
-
-  hoveredElement(): Element | undefined {
-    const doc = this.document();
-    const id = this._hoveredElementId;
-    if (!doc || !id) {
-      return undefined;
-    }
-    return doc.getElementFromId(id);
-  }
-
-  setHoveredElement(id: ElementId | undefined) {
-    if (this._hoveredElementId !== id) {
-      this._hoveredElementId = id;
-      this._notify();
-    }
-  }
-
-  selectedElementIds(): Array<ElementId> {
-    // XXX: Use Immutable.js instead?
-    return [...this._selectedElementIds];
-  }
-
-  selectedElements(): Array<Element> {
-    const doc = this.document();
-    const res: Array<Element> = [];
-    for (const id of this._selectedElementIds) {
-      const element = doc.getElementFromId<Element>(id);
-      if (element) {
-        res.push(element);
-      }
-    }
-    return res;
-  }
-
-  setSelectedElements(ids: Array<ElementId>) {
-    // XXX: Use Immutable.js instead?
-    this._selectedElementIds = [...ids];
-    this._notify();
-  }
-
-  toggleSelectedElement(id: ElementId) {
-    const selectedIds = this.selectedElementIds();
-    const index = selectedIds.indexOf(id);
-    if (index === -1) {
-      selectedIds.push(id);
-    } else {
-      selectedIds.splice(index, 1);
-    }
-    this.setSelectedElements(selectedIds);
+  selection(): Selection {
+    return this._selection;
   }
 }

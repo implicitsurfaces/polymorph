@@ -14,7 +14,7 @@ export class Selection {
     this._selectedElementIds = [];
   }
 
-  activeLayerId(): ElementId {
+  activeLayer(): ElementId {
     return this._activeLayerId;
   }
 
@@ -25,7 +25,7 @@ export class Selection {
     }
   }
 
-  hoveredElementId(): ElementId | undefined {
+  hoveredElement(): ElementId | undefined {
     return this._hoveredElementId;
   }
 
@@ -36,7 +36,7 @@ export class Selection {
     }
   }
 
-  selectedElementIds(): Array<ElementId> {
+  selectedElement(): Array<ElementId> {
     // XXX: Use Immutable.js instead?
     return [...this._selectedElementIds];
   }
@@ -48,7 +48,7 @@ export class Selection {
   }
 
   toggleSelectedElement(id: ElementId) {
-    const selectedIds = this.selectedElementIds();
+    const selectedIds = this.selectedElement();
     const index = selectedIds.indexOf(id);
     if (index === -1) {
       selectedIds.push(id);

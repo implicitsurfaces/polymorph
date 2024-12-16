@@ -25,7 +25,7 @@ export const SkeletonListItem = memo(function SkeletonListItem({
   }, [documentManager, id]);
 
   const onMouseLeave = useCallback(() => {
-    if (documentManager.selection().hoveredElementId() === id) {
+    if (documentManager.selection().hoveredElement() === id) {
       documentManager.selection().setHoveredElement(undefined);
     }
   }, [documentManager, id]);

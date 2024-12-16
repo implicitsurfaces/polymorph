@@ -620,8 +620,8 @@ function draw(
   initializeViewTransform(ctx, camera);
   const document = documentManager.document();
   const selection = documentManager.selection();
-  const hoveredId = selection.hoveredElementId();
-  const selectedIds = selection.selectedElementIds();
+  const hoveredId = selection.hoveredElement();
+  const selectedIds = selection.selectedElement();
   drawDocument(ctx, document, hoveredId, selectedIds);
 }
 
@@ -829,13 +829,13 @@ export function Canvas({ documentManager }: CanvasProps) {
         case 0: {
           // left drag: move elements
           const hoveredElement = doc.getElementFromId(
-            selection.hoveredElementId(),
+            selection.hoveredElement(),
           );
           if (!hoveredElement) {
             return false;
           } else {
             const selectedElements = doc.getElementsFromId(
-              selection.selectedElementIds(),
+              selection.selectedElement(),
             );
             let movedElements: Array<Element> = [];
             if (selectedElements.includes(hoveredElement)) {
@@ -976,7 +976,7 @@ export function Canvas({ documentManager }: CanvasProps) {
         case 0: {
           // left click: create point or select
           const hoveredElement = doc.getElementFromId(
-            selection.hoveredElementId(),
+            selection.hoveredElement(),
           );
           if (hoveredElement) {
             // select
@@ -988,9 +988,7 @@ export function Canvas({ documentManager }: CanvasProps) {
             }
           } else {
             // create point
-            const layer = doc.getElementFromId<Layer>(
-              selection.activeLayerId(),
-            );
+            const layer = doc.getElementFromId<Layer>(selection.activeLayer());
             if (layer) {
               const pos = getMouseDocumentPosition(
                 event,

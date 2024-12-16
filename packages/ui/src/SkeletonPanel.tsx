@@ -9,9 +9,9 @@ interface SkeletonPanelProps {
 export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
   const doc = documentManager.document();
   const selection = documentManager.selection();
-  const activeLayerId = selection.activeLayerId();
-  const hoveredElementId = selection.hoveredElementId();
-  const selectedElementIds = selection.selectedElementIds();
+  const activeLayerId = selection.activeLayer();
+  const hoveredElementId = selection.hoveredElement();
+  const selectedElementIds = selection.selectedElement();
 
   function getItem(id: ElementId) {
     const element = doc.getElementFromId(id);

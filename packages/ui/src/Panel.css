@@ -101,7 +101,7 @@
   padding: 0;
 }
   
-.panel-list-item > .highlight-zone {
+.panel-list-item > .hover-zone {
   flex: 0 0 auto;
 
   display: flex;
@@ -110,14 +110,14 @@
   border-radius: 5px;
 }
 
-.panel-list-item:hover > .highlight-zone,
-.panel-list-item.is-highlighted > .highlight-zone {
+.panel-list-item:hover > .hover-zone,
+.panel-list-item.is-hovered > .hover-zone {
   background-color: #555;
   cursor: pointer;
 }
 
-.panel-list-item.is-active > .highlight-zone,
-.panel-list-item.is-selected > .highlight-zone {
+.panel-list-item.is-active > .hover-zone,
+.panel-list-item.is-selected > .hover-zone {
   background-color: #4063d5;
 }
 

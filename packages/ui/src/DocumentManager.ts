@@ -21,7 +21,7 @@ export class DocumentManager {
   private _workingCopy: Document;
 
   private _activeLayerId: ElementId;
-  private _highlightedElementId: ElementId | undefined;
+  private _hoveredElementId: ElementId | undefined;
   private _selectedElementIds: Array<ElementId>;
 
   /**
@@ -53,7 +53,7 @@ export class DocumentManager {
       this._workingCopy = this._history[this._index].clone();
     }
     this._activeLayerId = this._workingCopy.layers[0];
-    this._highlightedElementId = undefined;
+    this._hoveredElementId = undefined;
     this._selectedElementIds = [];
   }
 
@@ -197,22 +197,22 @@ export class DocumentManager {
     }
   }
 
-  highlightedElementId(): ElementId | undefined {
-    return this._highlightedElementId;
+  hoveredElementId(): ElementId | undefined {
+    return this._hoveredElementId;
   }
 
-  highlightedElement(): Element | undefined {
+  hoveredElement(): Element | undefined {
     const doc = this.document();
-    const id = this._highlightedElementId;
+    const id = this._hoveredElementId;
     if (!doc || !id) {
       return undefined;
     }
     return doc.getElementFromId(id);
   }
 
-  setHighlightedElement(id: ElementId | undefined) {
-    if (this._highlightedElementId !== id) {
-      this._highlightedElementId = id;
+  setHoveredElement(id: ElementId | undefined) {
+    if (this._hoveredElementId !== id) {
+      this._hoveredElementId = id;
       this._notify();
     }
   }

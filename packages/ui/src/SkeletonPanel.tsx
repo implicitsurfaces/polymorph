@@ -7,7 +7,7 @@ interface SkeletonPanelProps {
 }
 
 export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
-  const highlightedElementId = documentManager.highlightedElementId();
+  const hoveredElementId = documentManager.hoveredElementId();
   const selectedElementIds = documentManager.selectedElementIds();
   const doc = documentManager.document();
 
@@ -22,7 +22,7 @@ export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
         documentManager={documentManager}
         id={id}
         name={element.name}
-        isHighlighted={id === highlightedElementId}
+        isHovered={id === hoveredElementId}
         isSelected={selectedElementIds.includes(id)}
       />
     );

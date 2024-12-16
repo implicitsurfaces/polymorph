@@ -65,6 +65,10 @@ import {
   AngleVariable,
   VectorRotated,
   FlipNode,
+  WidthModulationNode,
+  StaticWidthModulation,
+  LinearWidthModulation,
+  LinearExtrusion2DNode,
 } from "./sketch-nodes";
 import { LineSegment } from "./segments";
 import {
@@ -93,6 +97,11 @@ import {
 import { cornerFillet } from "./segments-fillets";
 import { memoizeNodeEval } from "./utils/cache";
 import { sigmoid } from "./num-ops";
+import {
+  LinearExtrusion2D,
+  linearWidthVariation,
+  staticWidth,
+} from "./extrusions-2d";
 
 export function evalRealValue(value: RealValueNode): Num {
   if (value instanceof RealValueVariable) {
@@ -359,6 +368,23 @@ export const evalPath = memoizeNodeEval(function (node: PathNode): PartialPath {
   throw new Error(`Unknown path: ${node.constructor.name}`);
 });
 
+export const evalWidthModulation = memoizeNodeEval(function (
+  node: WidthModulationNode,
+): (distance: Num, t: Num) => Num {
+  if (node instanceof StaticWidthModulation) {
+    return staticWidth(evalDistance(node.width));
+  }
+
+  if (node instanceof LinearWidthModulation) {
+    const start = evalDistance(node.start);
+    const end = evalDistance(node.end);
+
+    return linearWidthVariation(start, end);
+  }
+
+  throw new Error(`Unknown width modulation: ${node.constructor.name}`);
+});
+
 export const evalProfile = memoizeNodeEval(function (
   node: PathNode,
 ): DistField {
@@ -373,6 +399,13 @@ export const evalProfile = memoizeNodeEval(function (
   if (node instanceof PathOpenEnd) {
     const path = evalPath(node.path);
     return new OpenPath(path.segments);
+  }
+
+  if (node instanceof LinearExtrusion2DNode) {
+    const height = evalDistance(node.height);
+    const modulation = evalWidthModulation(node.widthModulation);
+
+    return new LinearExtrusion2D(height, modulation);
   }
 
   if (node instanceof CircleNode) {

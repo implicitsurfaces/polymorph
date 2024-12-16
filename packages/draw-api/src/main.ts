@@ -1,4 +1,10 @@
-import { Box, Circle } from "sketch";
+import {
+  Box,
+  Circle,
+  LinearExtrusion2DNode,
+  LinearWidthModulation,
+  StaticWidthModulation,
+} from "sketch";
 import { point, angle, vector, distance } from "./geom";
 import { ProfileEditor } from "./ProfileEditor";
 import { asDistance, DistanceLike, PointLike } from "./convert";
@@ -42,4 +48,25 @@ export function drawBox(
     return box;
   }
   return box.translate(center);
+}
+
+export function drawLinearExtrusion(
+  height: DistanceLike,
+  startWidth: DistanceLike,
+  endWidth?: DistanceLike,
+): ProfileEditor {
+  let modulation: LinearWidthModulation | StaticWidthModulation;
+
+  if (endWidth === undefined) {
+    modulation = new StaticWidthModulation(asDistance(startWidth));
+  } else {
+    modulation = new LinearWidthModulation(
+      asDistance(startWidth),
+      asDistance(endWidth),
+    );
+  }
+
+  return new ProfileEditor(
+    new LinearExtrusion2DNode(asDistance(height), modulation),
+  );
 }

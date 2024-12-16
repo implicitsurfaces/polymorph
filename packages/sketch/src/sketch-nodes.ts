@@ -14,6 +14,8 @@ export class PathNode {}
 
 export class ProfileNode {}
 
+export class WidthModulationNode {}
+
 export class ConstraintNode {}
 
 export class RealValueVariable extends RealValueNode {
@@ -303,6 +305,30 @@ export class PathClose extends ProfileNode {
 
 export class PathOpenEnd extends ProfileNode {
   constructor(public readonly path: PathNode) {
+    super();
+  }
+}
+
+export class StaticWidthModulation extends WidthModulationNode {
+  constructor(public readonly width: DistanceNode) {
+    super();
+  }
+}
+
+export class LinearWidthModulation extends WidthModulationNode {
+  constructor(
+    public readonly start: DistanceNode,
+    public readonly end: DistanceNode,
+  ) {
+    super();
+  }
+}
+
+export class LinearExtrusion2DNode extends ProfileNode {
+  constructor(
+    public readonly height: DistanceNode,
+    public readonly widthModulation: WidthModulationNode,
+  ) {
     super();
   }
 }

@@ -358,7 +358,7 @@ export class Document {
    * Returns a new document with the same content as this one.
    */
   clone(): Document {
-    return new Document(this);
+    return new Vector2(0, 0);
   }
 
   getElementFromId<T extends Element>(id: ElementId): T | undefined {

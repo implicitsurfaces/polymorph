@@ -211,10 +211,10 @@ function drawDisk(
 
 const _pointRadius = 5;
 
-function getPrimaryColor(isHighlighted: boolean, isSelected: boolean): string {
+function getPrimaryColor(isHovered: boolean, isSelected: boolean): string {
   if (isSelected) {
     return "#4063d5";
-  } else if (isHighlighted) {
+  } else if (isHovered) {
     return "#96a4d3";
   } else {
     return "black";
@@ -224,10 +224,10 @@ function getPrimaryColor(isHighlighted: boolean, isSelected: boolean): string {
 function drawPoint(
   ctx: CanvasRenderingContext2D,
   point: Point,
-  isHighlighted: boolean,
+  isHovered: boolean,
   isSelected: boolean,
 ) {
-  const fillStyle = getPrimaryColor(isHighlighted, isSelected);
+  const fillStyle = getPrimaryColor(isHovered, isSelected);
   drawDisk(ctx, point.position, _pointRadius, fillStyle);
 }
 
@@ -235,15 +235,15 @@ function drawPoints(
   ctx: CanvasRenderingContext2D,
   document: Document,
   elements: Array<ElementId>,
-  highlightedId: ElementId | undefined,
+  hoveredId: ElementId | undefined,
   selectedIds: Array<ElementId>,
 ) {
   for (const id of elements) {
     const element = document.getElementFromId(id);
     if (element && element.type === "Point") {
-      const isHighlighted = id === highlightedId;
+      const isHovered = id === hoveredId;
       const isSelected = selectedIds.includes(id);
-      drawPoint(ctx, element, isHighlighted, isSelected);
+      drawPoint(ctx, element, isHovered, isSelected);
     }
   }
 }
@@ -275,10 +275,10 @@ interface EdgeStyle {
   strokeStyle: StrokeStyle;
 }
 
-function getEdgeStyle(isHighlighted: boolean, isSelected: boolean) {
+function getEdgeStyle(isHovered: boolean, isSelected: boolean) {
   return {
     lineWidth: 2,
-    strokeStyle: getPrimaryColor(isHighlighted, isSelected),
+    strokeStyle: getPrimaryColor(isHovered, isSelected),
   };
 }
 
@@ -490,7 +490,7 @@ function drawEdges(
   ctx: CanvasRenderingContext2D,
   document: Document,
   elements: Array<ElementId>,
-  highlightedId: ElementId | undefined,
+  hoveredId: ElementId | undefined,
   selectedIds: Array<ElementId>,
 ) {
   for (const id of elements) {
@@ -568,16 +568,16 @@ function drawEdges(
           break;
         }
       }
-      const isHighlighted = id === highlightedId;
+      const isHovered = id === hoveredId;
       const isSelected = selectedIds.includes(id);
-      const edgeStyle = getEdgeStyle(isHighlighted, isSelected);
+      const edgeStyle = getEdgeStyle(isHovered, isSelected);
       for (const shape of shapes) {
         drawShape(ctx, shape, edgeStyle);
       }
       const cpColor = "#ff6f34";
       const cpRadius = 4;
       const tangentStyle = { lineWidth: 2, strokeStyle: cpColor };
-      getEdgeStyle(isHighlighted, isSelected);
+      getEdgeStyle(isHovered, isSelected);
       for (const lineSegment of tangents) {
         drawLineSegment(ctx, lineSegment, tangentStyle);
       }
@@ -591,7 +591,7 @@ function drawEdges(
 function drawDocument(
   ctx: CanvasRenderingContext2D,
   document: Document,
-  highlightedId: ElementId | undefined,
+  hoveredId: ElementId | undefined,
   selectedIds: Array<ElementId>,
 ) {
   document.layers.forEach((id: ElementId) => {
@@ -599,8 +599,8 @@ function drawDocument(
     if (layer) {
       // Note: we use two passes since we want to draw all points on top of
       // edges, regardless of layer order.
-      drawEdges(ctx, document, layer.elements, highlightedId, selectedIds);
-      drawPoints(ctx, document, layer.elements, highlightedId, selectedIds);
+      drawEdges(ctx, document, layer.elements, hoveredId, selectedIds);
+      drawPoints(ctx, document, layer.elements, hoveredId, selectedIds);
     }
   });
 }
@@ -619,9 +619,9 @@ function draw(
   drawGrid(ctx, camera);
   initializeViewTransform(ctx, camera);
   const document = documentManager.document();
-  const highlightedId = documentManager.highlightedElementId();
+  const hoveredId = documentManager.hoveredElementId();
   const selectedIds = documentManager.selectedElementIds();
-  drawDocument(ctx, document, highlightedId, selectedIds);
+  drawDocument(ctx, document, hoveredId, selectedIds);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -687,7 +687,7 @@ function findClosestElementInDocument(
   return { id: closestId, distance: closestDistance };
 }
 
-function highlight(
+function hover(
   documentManager: DocumentManager,
   mousePosition: Vector2,
   tolerance: number,
@@ -697,9 +697,9 @@ function highlight(
     mousePosition,
   );
   if (ce.id && ce.distance < tolerance) {
-    documentManager.setHighlightedElement(ce.id);
+    documentManager.setHoveredElement(ce.id);
   } else {
-    documentManager.setHighlightedElement(undefined);
+    documentManager.setHoveredElement(undefined);
   }
 }
 
@@ -826,19 +826,19 @@ export function Canvas({ documentManager }: CanvasProps) {
       switch (pointerState.button) {
         case 0: {
           // left drag: move elements
-          const highlightedElement = documentManager.highlightedElement();
-          if (!highlightedElement) {
+          const hoveredElement = documentManager.hoveredElement();
+          if (!hoveredElement) {
             return false;
           } else {
             const selectedElements = documentManager.selectedElements();
             let movedElements: Array<Element> = [];
-            if (selectedElements.includes(highlightedElement)) {
+            if (selectedElements.includes(hoveredElement)) {
               movedElements = selectedElements;
             } else {
-              // Moving an highlighted element that is not currently selected
+              // Moving a hovered element that is not currently selected
               // makes it the currently selected element.
-              movedElements = [highlightedElement];
-              documentManager.setSelectedElements([highlightedElement.id]);
+              movedElements = [hoveredElement];
+              documentManager.setSelectedElements([hoveredElement.id]);
             }
             // Remember start positions of all elements.
             // We only do this if not done already, otherwise
@@ -968,14 +968,14 @@ export function Canvas({ documentManager }: CanvasProps) {
         case 0: {
           // left click: create point or select
           const doc = documentManager.document();
-          const highlightedElement = documentManager.highlightedElement();
-          if (highlightedElement) {
+          const hoveredElement = documentManager.hoveredElement();
+          if (hoveredElement) {
             // select
-            const highlightedId = highlightedElement.id;
+            const hoveredId = hoveredElement.id;
             if (event.shiftKey) {
-              documentManager.toggleSelectedElement(highlightedId);
+              documentManager.toggleSelectedElement(hoveredId);
             } else {
-              documentManager.setSelectedElements([highlightedId]);
+              documentManager.setSelectedElements([hoveredId]);
             }
           } else {
             // create point
@@ -992,7 +992,7 @@ export function Canvas({ documentManager }: CanvasProps) {
                 position: pos,
               });
               layer.elements.push(point.id);
-              documentManager.setHighlightedElement(point.id);
+              documentManager.setHoveredElement(point.id);
               documentManager.setSelectedElements([point.id]);
               documentManager.commitChanges();
             }
@@ -1052,7 +1052,7 @@ export function Canvas({ documentManager }: CanvasProps) {
       const position = getMouseDocumentPosition(event, canvas, camera);
       const toleranceInPx = 3;
       const toleranceInDocCoords = toleranceInPx / camera.zoom;
-      highlight(documentManager, position, toleranceInDocCoords);
+      hover(documentManager, position, toleranceInDocCoords);
     },
     [pointerState, documentManager, camera],
   );

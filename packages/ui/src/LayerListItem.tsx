@@ -57,7 +57,7 @@ export const LayerListItem = memo(function LayerListItem({
           +
         </button>
       </div>
-      <div className="highlight-zone" onClick={onSelectLayer}>
+      <div className="hover-zone" onClick={onSelectLayer}>
         <p className="name single-line-text">{name}</p>
       </div>
     </div>

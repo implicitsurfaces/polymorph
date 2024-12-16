@@ -9,7 +9,7 @@ interface SkeletonListItemProps {
   documentManager: DocumentManager;
   id: ElementId;
   name: string;
-  isHighlighted: boolean;
+  isHovered: boolean;
   isSelected: boolean;
 }
 
@@ -17,16 +17,16 @@ export const SkeletonListItem = memo(function SkeletonListItem({
   documentManager,
   id,
   name,
-  isHighlighted,
+  isHovered,
   isSelected,
 }: SkeletonListItemProps) {
   const onMouseEnter = useCallback(() => {
-    documentManager.setHighlightedElement(id);
+    documentManager.setHoveredElement(id);
   }, [documentManager, id]);
 
   const onMouseLeave = useCallback(() => {
-    if (documentManager.highlightedElementId() === id) {
-      documentManager.setHighlightedElement(undefined);
+    if (documentManager.hoveredElementId() === id) {
+      documentManager.setHoveredElement(undefined);
     }
   }, [documentManager, id]);
 
@@ -42,8 +42,8 @@ export const SkeletonListItem = memo(function SkeletonListItem({
   );
 
   let extraClass = "";
-  if (isHighlighted) {
-    extraClass += " is-highlighted";
+  if (isHovered) {
+    extraClass += " is-hovered";
   }
   if (isSelected) {
     extraClass += " is-selected";
@@ -55,7 +55,7 @@ export const SkeletonListItem = memo(function SkeletonListItem({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      <div className="highlight-zone" onClick={onSelectElement}>
+      <div className="hover-zone" onClick={onSelectElement}>
         <p className="name single-line-text">{name}</p>
       </div>
     </div>

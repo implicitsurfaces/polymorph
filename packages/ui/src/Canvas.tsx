@@ -213,13 +213,29 @@ function drawDisk(
 const _pointRadius = 5;
 const _controlPointRadius = 4;
 
-function getPrimaryColor(isHovered: boolean, isSelected: boolean): string {
+const _elementColor = "black";
+const _controlColor = "#ff6f34";
+
+const _selectedColor = "#4063d5";
+const _hoveredColor = "#96a4d3";
+
+function getElementColor(isHovered: boolean, isSelected: boolean): string {
   if (isSelected) {
-    return "#4063d5";
+    return _selectedColor;
   } else if (isHovered) {
-    return "#96a4d3";
+    return _hoveredColor;
   } else {
-    return "black";
+    return _elementColor;
+  }
+}
+
+function getControlColor(isHovered: boolean, isSelected: boolean): string {
+  if (isSelected) {
+    return _selectedColor;
+  } else if (isHovered) {
+    return _hoveredColor;
+  } else {
+    return _controlColor;
   }
 }
 
@@ -230,7 +246,7 @@ function drawPoint(
 ) {
   const isHovered = selection.isHoveredElement(point.id);
   const isSelected = selection.isSelectedElement(point.id);
-  const fillStyle = getPrimaryColor(isHovered, isSelected);
+  const fillStyle = getElementColor(isHovered, isSelected);
   drawDisk(ctx, point.position, _pointRadius, fillStyle);
 }
 
@@ -278,7 +294,7 @@ interface EdgeStyle {
 function getEdgeStyle(isHovered: boolean, isSelected: boolean) {
   return {
     lineWidth: 2,
-    strokeStyle: getPrimaryColor(isHovered, isSelected),
+    strokeStyle: getElementColor(isHovered, isSelected),
   };
 }
 
@@ -590,14 +606,19 @@ function drawEdges(
       for (const shape of res.shapes) {
         drawShape(ctx, shape, edgeStyle);
       }
-      const tangentColor = "#ff6f34";
-      const tangentStyle = { lineWidth: 2, strokeStyle: tangentColor };
+      const tangentStyle = { lineWidth: 2, strokeStyle: _controlColor };
       for (const lineSegment of res.tangents) {
         drawLineSegment(ctx, lineSegment, tangentStyle);
       }
       for (const [i, point] of res.controlPoints.entries()) {
-        const isCpHovered = selection.isHoveredSubElement(id, `cp${i}`);
-        const cpColor = isCpHovered ? "#ff9f64" : tangentColor;
+        const selectable: Selectable = {
+          type: "SubElement",
+          id: id,
+          subName: `cp${i}`,
+        };
+        const isCpHovered = selection.isHovered(selectable);
+        const isCpSelected = selection.isSelected(selectable);
+        const cpColor = getControlColor(isCpHovered, isCpSelected);
         drawDisk(ctx, point, _controlPointRadius, cpColor);
       }
     }
@@ -1005,16 +1026,13 @@ export function Canvas({ documentManager }: CanvasProps) {
       switch (event.button) {
         case 0: {
           // left click: create point or select
-          const hoveredElement = doc.getElementFromId(
-            selection.hoveredElement(),
-          );
-          if (hoveredElement) {
+          const hovered = selection.hovered();
+          if (hovered) {
             // select
-            const hoveredId = hoveredElement.id;
             if (event.shiftKey) {
-              selection.toggleSelectedElement(hoveredId);
+              selection.toggleSelected(hovered);
             } else {
-              selection.setSelectedElements([hoveredId]);
+              selection.setSelected([hovered]);
             }
           } else {
             // create point

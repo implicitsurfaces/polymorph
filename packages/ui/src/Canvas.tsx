@@ -10,6 +10,7 @@ import {
   EdgeElement,
 } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
+import { Selectable } from "./Selection.ts";
 
 import "./Canvas.css";
 
@@ -210,6 +211,7 @@ function drawDisk(
 }
 
 const _pointRadius = 5;
+const _controlPointRadius = 5;
 
 function getPrimaryColor(isHovered: boolean, isSelected: boolean): string {
   if (isSelected) {
@@ -486,6 +488,94 @@ function getStartAndEndPositions(document: Document, element: EdgeElement) {
   }
 }
 
+interface EdgeShapesAndControls {
+  shapes: Array<CanvasShape>;
+  controlPoints: Array<Vector2>;
+  tangents: Array<CanvasLineSegment>;
+}
+
+function getEdgeShapesAndControls(
+  doc: Document,
+  element: Element,
+): EdgeShapesAndControls {
+  const res: EdgeShapesAndControls = {
+    shapes: [],
+    controlPoints: [],
+    tangents: [],
+  };
+
+  switch (element.type) {
+    case "LineSegment": {
+      const p = getStartAndEndPositions(doc, element);
+      if (p) {
+        res.shapes.push(getLineSegment(p.start, p.end));
+      }
+      break;
+    }
+    case "ArcFromStartTangent": {
+      const p = getStartAndEndPositions(doc, element);
+      if (p) {
+        const tangent = element.tangent;
+        const controlPoint = tangent.clone().add(p.start);
+        res.shapes.push(
+          getGeneralizedArcFromStartTangent(p.start, p.end, tangent),
+        );
+        res.controlPoints.push(controlPoint);
+        res.tangents.push(getLineSegment(p.start, controlPoint));
+      }
+      break;
+    }
+    case "CCurve": {
+      const p = getStartAndEndPositions(doc, element);
+      if (p) {
+        let controlPoint = element.controlPoint;
+        switch (element.mode) {
+          case "startTangent":
+            controlPoint = controlPoint.clone().add(p.start);
+            break;
+          case "endTangent":
+            controlPoint = controlPoint.clone().add(p.end);
+            break;
+        }
+        const shapes_ = getCCurveShapes(p.start, p.end, controlPoint);
+        for (const shape of shapes_) {
+          res.shapes.push(shape);
+        }
+        res.controlPoints.push(controlPoint);
+        res.tangents.push(getLineSegment(p.start, controlPoint));
+        res.tangents.push(getLineSegment(p.end, controlPoint));
+      }
+      break;
+    }
+    case "SCurve": {
+      const p = getStartAndEndPositions(doc, element);
+      if (p) {
+        let startControlPoint = element.startControlPoint;
+        let endControlPoint = element.endControlPoint;
+        if (element.mode === "tangent") {
+          startControlPoint = startControlPoint.clone().add(p.start);
+          endControlPoint = endControlPoint.clone().add(p.end);
+        }
+        const shapes_ = getSCurveShapes(
+          p.start,
+          p.end,
+          startControlPoint,
+          endControlPoint,
+        );
+        for (const shape of shapes_) {
+          res.shapes.push(shape);
+        }
+        res.controlPoints.push(startControlPoint);
+        res.controlPoints.push(endControlPoint);
+        res.tangents.push(getLineSegment(p.start, startControlPoint));
+        res.tangents.push(getLineSegment(p.end, endControlPoint));
+      }
+      break;
+    }
+  }
+  return res;
+}
+
 function drawEdges(
   ctx: CanvasRenderingContext2D,
   document: Document,
@@ -496,93 +586,21 @@ function drawEdges(
   for (const id of elements) {
     const element = document.getElementFromId(id);
     if (element) {
-      const shapes: Array<CanvasShape> = [];
-      const controlPoints: Array<Vector2> = [];
-      const tangents: Array<CanvasLineSegment> = [];
-      switch (element.type) {
-        case "LineSegment": {
-          const p = getStartAndEndPositions(document, element);
-          if (p) {
-            shapes.push(getLineSegment(p.start, p.end));
-          }
-          break;
-        }
-        case "ArcFromStartTangent": {
-          const p = getStartAndEndPositions(document, element);
-          if (p) {
-            const tangent = element.tangent;
-            const controlPoint = tangent.clone().add(p.start);
-            shapes.push(
-              getGeneralizedArcFromStartTangent(p.start, p.end, tangent),
-            );
-            controlPoints.push(controlPoint);
-            tangents.push(getLineSegment(p.start, controlPoint));
-          }
-          break;
-        }
-        case "CCurve": {
-          const p = getStartAndEndPositions(document, element);
-          if (p) {
-            let controlPoint = element.controlPoint;
-            switch (element.mode) {
-              case "startTangent":
-                controlPoint = controlPoint.clone().add(p.start);
-                break;
-              case "endTangent":
-                controlPoint = controlPoint.clone().add(p.end);
-                break;
-            }
-            const shapes_ = getCCurveShapes(p.start, p.end, controlPoint);
-            for (const shape of shapes_) {
-              shapes.push(shape);
-            }
-            controlPoints.push(controlPoint);
-            tangents.push(getLineSegment(p.start, controlPoint));
-            tangents.push(getLineSegment(p.end, controlPoint));
-          }
-          break;
-        }
-        case "SCurve": {
-          const p = getStartAndEndPositions(document, element);
-          if (p) {
-            let startControlPoint = element.startControlPoint;
-            let endControlPoint = element.endControlPoint;
-            if (element.mode === "tangent") {
-              startControlPoint = startControlPoint.clone().add(p.start);
-              endControlPoint = endControlPoint.clone().add(p.end);
-            }
-            const shapes_ = getSCurveShapes(
-              p.start,
-              p.end,
-              startControlPoint,
-              endControlPoint,
-            );
-            for (const shape of shapes_) {
-              shapes.push(shape);
-            }
-            controlPoints.push(startControlPoint);
-            controlPoints.push(endControlPoint);
-            tangents.push(getLineSegment(p.start, startControlPoint));
-            tangents.push(getLineSegment(p.end, endControlPoint));
-          }
-          break;
-        }
-      }
       const isHovered = id === hoveredId;
       const isSelected = selectedIds.includes(id);
       const edgeStyle = getEdgeStyle(isHovered, isSelected);
-      for (const shape of shapes) {
+      const res = getEdgeShapesAndControls(document, element);
+      for (const shape of res.shapes) {
         drawShape(ctx, shape, edgeStyle);
       }
       const cpColor = "#ff6f34";
-      const cpRadius = 4;
       const tangentStyle = { lineWidth: 2, strokeStyle: cpColor };
       getEdgeStyle(isHovered, isSelected);
-      for (const lineSegment of tangents) {
+      for (const lineSegment of res.tangents) {
         drawLineSegment(ctx, lineSegment, tangentStyle);
       }
-      for (const point of controlPoints) {
-        drawDisk(ctx, point, cpRadius, cpColor);
+      for (const point of res.controlPoints) {
+        drawDisk(ctx, point, _controlPointRadius, cpColor);
       }
     }
   }
@@ -621,71 +639,88 @@ function draw(
   const document = documentManager.document();
   const selection = documentManager.selection();
   const hoveredId = selection.hoveredElement();
-  const selectedIds = selection.selectedElement();
+  const selectedIds = selection.selectedElements();
   drawDocument(ctx, document, hoveredId, selectedIds);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 //                            Highlight util
 
-interface ClosestElement {
-  id: ElementId | undefined;
+interface ClosestSelectable {
+  selectable: Selectable | undefined;
   distance: number;
 }
 
-function findClosestElementInLayer(
+function findClosestSelectableInLayer(
   document: Document,
   layer: Layer,
   position: Vector2,
-): ClosestElement {
-  // Compute distance squared to closest point center
+): ClosestSelectable {
+  // Compute distance squared to closest point or control point center
   let closestDistanceSquared = Infinity;
-  let closestPoint: Point | undefined = undefined;
+  let closestSelectablePoint: Selectable | undefined = undefined;
   // For now, we only look for points
   for (const id of layer.elements) {
     const element = document.getElementFromId(id);
-    if (element && element.type === "Point") {
-      const d = element.position.distanceToSquared(position);
-      if (d < closestDistanceSquared) {
-        closestDistanceSquared = d;
-        closestPoint = element;
+    if (element) {
+      if (element.type === "Point") {
+        const d = element.position.distanceToSquared(position);
+        if (d < closestDistanceSquared) {
+          closestDistanceSquared = d;
+          closestSelectablePoint = { type: "element", id: element.id };
+        }
+      } else {
+        const res = getEdgeShapesAndControls(document, element);
+        for (const point of res.controlPoints) {
+          const d = point.distanceToSquared(position);
+          if (d < closestDistanceSquared) {
+            closestDistanceSquared = d;
+            closestSelectablePoint = {
+              type: "namedSubElement",
+              id: element.id,
+              subName: "cp",
+            };
+          }
+        }
       }
     }
   }
 
   // Compute distance to closest point disk
-  let closestId: ElementId | undefined = undefined;
   let closestDistance = Infinity;
-  if (closestPoint) {
-    closestId = closestPoint.id;
-    if (closestDistanceSquared <= _pointRadius * _pointRadius) {
+  if (closestSelectablePoint) {
+    let radius = _pointRadius;
+    if (closestSelectablePoint.type === "namedSubElement") {
+      radius = _controlPointRadius;
+    }
+    if (closestDistanceSquared <= radius * radius) {
       // Position is inside the disk
       closestDistance = 0;
     } else {
       // Position is outside the disk
-      closestDistance = Math.sqrt(closestDistanceSquared) - _pointRadius;
+      closestDistance = Math.sqrt(closestDistanceSquared) - radius;
     }
   }
-  return { id: closestId, distance: closestDistance };
+  return { selectable: closestSelectablePoint, distance: closestDistance };
 }
 
-function findClosestElementInDocument(
+function findClosestSelectableInDocument(
   document: Document,
   position: Vector2,
-): ClosestElement {
+): ClosestSelectable {
   let closestDistance = Infinity;
-  let closestId: ElementId | undefined = undefined;
+  let selectable: Selectable | undefined = undefined;
   for (const id of document.layers) {
     const layer = document.getElementFromId<Layer>(id);
     if (layer) {
-      const ce = findClosestElementInLayer(document, layer, position);
+      const ce = findClosestSelectableInLayer(document, layer, position);
       if (ce.distance < closestDistance) {
         closestDistance = ce.distance;
-        closestId = ce.id;
+        selectable = ce.selectable;
       }
     }
   }
-  return { id: closestId, distance: closestDistance };
+  return { selectable: selectable, distance: closestDistance };
 }
 
 function hover(
@@ -695,11 +730,11 @@ function hover(
 ) {
   const doc = documentManager.document();
   const selection = documentManager.selection();
-  const ce = findClosestElementInDocument(doc, mousePosition);
-  if (ce.id && ce.distance < tolerance) {
-    selection.setHoveredElement(ce.id);
+  const ce = findClosestSelectableInDocument(doc, mousePosition);
+  if (ce.selectable && ce.distance < tolerance) {
+    selection.setHovered(ce.selectable);
   } else {
-    selection.setHoveredElement(undefined);
+    selection.setHovered(undefined);
   }
 }
 
@@ -835,7 +870,7 @@ export function Canvas({ documentManager }: CanvasProps) {
             return false;
           } else {
             const selectedElements = doc.getElementsFromId(
-              selection.selectedElement(),
+              selection.selectedElements(),
             );
             let movedElements: Array<Element> = [];
             if (selectedElements.includes(hoveredElement)) {

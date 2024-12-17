@@ -11,7 +11,7 @@ export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
   const selection = documentManager.selection();
   const activeLayerId = selection.activeLayer();
   const hoveredElementId = selection.hoveredElement();
-  const selectedElementIds = selection.selectedElement();
+  const selectedElementIds = selection.selectedElements();
 
   function getItem(id: ElementId) {
     const element = doc.getElementFromId(id);

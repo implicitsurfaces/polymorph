@@ -220,6 +220,8 @@ const _controlColor = "#ff6f34";
 const _selectedColor = "#4063d5";
 const _hoveredColor = "#96a4d3";
 
+const _edgeWidth = 2;
+
 function getElementColor(isHovered: boolean, isSelected: boolean): string {
   if (isSelected) {
     return _selectedColor;
@@ -242,17 +244,19 @@ function getControlColor(isHovered: boolean, isSelected: boolean): string {
 
 function drawPoint(
   ctx: CanvasRenderingContext2D,
+  camera: Camera2,
   point: Point,
   selection: Selection,
 ) {
   const isHovered = selection.isHoveredElement(point.id);
   const isSelected = selection.isSelectedElement(point.id);
   const fillStyle = getElementColor(isHovered, isSelected);
-  drawDisk(ctx, point.position, _pointRadius, fillStyle);
+  drawDisk(ctx, point.position, _pointRadius / camera.zoom, fillStyle);
 }
 
 function drawPoints(
   ctx: CanvasRenderingContext2D,
+  camera: Camera2,
   document: Document,
   elements: Array<ElementId>,
   selection: Selection,
@@ -260,7 +264,7 @@ function drawPoints(
   for (const id of elements) {
     const element = document.getElementFromId(id);
     if (element && element.type === "Point") {
-      drawPoint(ctx, element, selection);
+      drawPoint(ctx, camera, element, selection);
     }
   }
 }
@@ -290,13 +294,6 @@ type CanvasShape = CanvasGeneralizedArc;
 interface EdgeStyle {
   lineWidth: number;
   strokeStyle: StrokeStyle;
-}
-
-function getEdgeStyle(isHovered: boolean, isSelected: boolean) {
-  return {
-    lineWidth: 2,
-    strokeStyle: getElementColor(isHovered, isSelected),
-  };
 }
 
 function drawEdgeBegin(ctx: CanvasRenderingContext2D) {
@@ -631,21 +628,28 @@ function getEdgeShapesAndControls(
 
 function drawEdges(
   ctx: CanvasRenderingContext2D,
+  camera: Camera2,
   document: Document,
   elements: Array<ElementId>,
   selection: Selection,
 ) {
+  const cpRadius = _controlPointRadius / camera.zoom;
+  const edgeWidth = _edgeWidth / camera.zoom;
+  const edgeStyle = { lineWidth: edgeWidth, strokeStyle: _elementColor };
+  const tangentStyle = {
+    lineWidth: edgeWidth,
+    strokeStyle: _controlColor,
+  };
   for (const id of elements) {
     const element = document.getElementFromId(id);
     if (element && isEdgeElement(element)) {
       const isEdgeHovered = selection.isHoveredElement(id);
       const isEdgeSelected = selection.isSelectedElement(id);
-      const edgeStyle = getEdgeStyle(isEdgeHovered, isEdgeSelected);
+      edgeStyle.strokeStyle = getElementColor(isEdgeHovered, isEdgeSelected);
       const sc = getEdgeShapesAndControls(document, element);
       for (const shape of sc.shapes) {
         drawShape(ctx, shape, edgeStyle);
       }
-      const tangentStyle = { lineWidth: 2, strokeStyle: _controlColor };
       for (const lineSegment of sc.tangents) {
         drawLineSegment(ctx, lineSegment, tangentStyle);
       }
@@ -658,7 +662,7 @@ function drawEdges(
         const isCpHovered = selection.isHovered(selectable);
         const isCpSelected = selection.isSelected(selectable);
         const cpColor = getControlColor(isCpHovered, isCpSelected);
-        drawDisk(ctx, cp.position, _controlPointRadius, cpColor);
+        drawDisk(ctx, cp.position, cpRadius, cpColor);
       }
     }
   }
@@ -666,6 +670,7 @@ function drawEdges(
 
 function drawDocument(
   ctx: CanvasRenderingContext2D,
+  camera: Camera2,
   document: Document,
   selection: Selection,
 ) {
@@ -674,8 +679,8 @@ function drawDocument(
     if (layer) {
       // Note: we use two passes since we want to draw all points on top of
       // edges, regardless of layer order.
-      drawEdges(ctx, document, layer.elements, selection);
-      drawPoints(ctx, document, layer.elements, selection);
+      drawEdges(ctx, camera, document, layer.elements, selection);
+      drawPoints(ctx, camera, document, layer.elements, selection);
     }
   });
 }
@@ -695,7 +700,7 @@ function draw(
   initializeViewTransform(ctx, camera);
   const document = documentManager.document();
   const selection = documentManager.selection();
-  drawDocument(ctx, document, selection);
+  drawDocument(ctx, camera, document, selection);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -708,6 +713,7 @@ interface ClosestSelectable {
 
 function findClosestSelectableInLayer(
   document: Document,
+  camera: Camera2,
   layer: Layer,
   position: Vector2,
 ): ClosestSelectable {
@@ -744,7 +750,7 @@ function findClosestSelectableInLayer(
   // Compute distance to closest point disk
   let closestDistance = Infinity;
   if (closestSelectablePoint) {
-    let radius = _pointRadius;
+    let radius = _pointRadius / camera.zoom;
     if (closestSelectablePoint.type === "SubElement") {
       radius = _controlPointRadius;
     }
@@ -761,6 +767,7 @@ function findClosestSelectableInLayer(
 
 function findClosestSelectableInDocument(
   document: Document,
+  camera: Camera2,
   position: Vector2,
 ): ClosestSelectable {
   let closestDistance = Infinity;
@@ -768,7 +775,12 @@ function findClosestSelectableInDocument(
   for (const id of document.layers) {
     const layer = document.getElementFromId<Layer>(id);
     if (layer) {
-      const ce = findClosestSelectableInLayer(document, layer, position);
+      const ce = findClosestSelectableInLayer(
+        document,
+        camera,
+        layer,
+        position,
+      );
       if (ce.distance < closestDistance) {
         closestDistance = ce.distance;
         selectable = ce.selectable;
@@ -780,12 +792,13 @@ function findClosestSelectableInDocument(
 
 function hover(
   documentManager: DocumentManager,
+  camera: Camera2,
   mousePosition: Vector2,
   tolerance: number,
 ) {
   const doc = documentManager.document();
   const selection = documentManager.selection();
-  const ce = findClosestSelectableInDocument(doc, mousePosition);
+  const ce = findClosestSelectableInDocument(doc, camera, mousePosition);
   if (ce.selectable && ce.distance < tolerance) {
     selection.setHovered(ce.selectable);
   } else {
@@ -1181,7 +1194,7 @@ export function Canvas({ documentManager }: CanvasProps) {
       const position = getMouseDocumentPosition(event, canvas, camera);
       const toleranceInPx = 3;
       const toleranceInDocCoords = toleranceInPx / camera.zoom;
-      hover(documentManager, position, toleranceInDocCoords);
+      hover(documentManager, camera, position, toleranceInDocCoords);
     },
     [pointerState, documentManager, camera],
   );

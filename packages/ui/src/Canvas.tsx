@@ -211,7 +211,7 @@ function drawDisk(
 }
 
 const _pointRadius = 5;
-const _controlPointRadius = 5;
+const _controlPointRadius = 4;
 
 function getPrimaryColor(isHovered: boolean, isSelected: boolean): string {
   if (isSelected) {

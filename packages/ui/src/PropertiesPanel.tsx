@@ -54,7 +54,9 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
   function getContent() {
     const doc = documentManager.document();
     const selection = documentManager.selection();
-    const selectedElements = doc.getElementsFromId(selection.selectedElement());
+    const selectedElements = doc.getElementsFromId(
+      selection.selectedElements(),
+    );
     if (selectedElements.length === 0) {
       return (
         <div className="panel-list-item">

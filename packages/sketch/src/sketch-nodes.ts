@@ -333,6 +333,16 @@ export class LinearExtrusion2DNode extends ProfileNode {
   }
 }
 
+export class ArcExtrusion2DNode extends ProfileNode {
+  constructor(
+    public readonly radius: DistanceNode,
+    public readonly angle: AngleNode,
+    public readonly widthModulation: WidthModulationNode,
+  ) {
+    super();
+  }
+}
+
 export class Circle extends ProfileNode {
   constructor(public readonly radius: DistanceNode) {
     super();

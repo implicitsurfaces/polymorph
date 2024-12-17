@@ -5,6 +5,8 @@ function nonZeroSign(n: Num): Num {
   return ifTruthyElse(lessThan(n, 0), asNum(-1), asNum(1));
 }
 
+const _2PI = asNum(Math.PI * 2);
+
 export class Angle {
   private _cos: Num;
   private _sin: Num;
@@ -79,6 +81,10 @@ export class Angle {
     return ifTruthyElse(isQ3Q4, this._cos.add(3), asNum(1).sub(this._cos)).div(
       2,
     );
+  }
+
+  asUnitArcLength(): Num {
+    return this.asRad().add(_2PI).mod(_2PI);
   }
 
   asVec(): UnitVec2 {

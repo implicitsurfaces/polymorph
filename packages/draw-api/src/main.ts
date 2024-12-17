@@ -1,4 +1,5 @@
 import {
+  ArcExtrusion2DNode,
   Box,
   Circle,
   LinearExtrusion2DNode,
@@ -7,7 +8,13 @@ import {
 } from "sketch";
 import { point, angle, vector, distance } from "./geom";
 import { ProfileEditor } from "./ProfileEditor";
-import { asDistance, DistanceLike, PointLike } from "./convert";
+import {
+  AngleLike,
+  asAngle,
+  asDistance,
+  DistanceLike,
+  PointLike,
+} from "./convert";
 
 export type { Point, Vector, Distance, Angle } from "./geom";
 export type { ProfileEditor } from "./ProfileEditor";
@@ -68,5 +75,27 @@ export function drawLinearExtrusion(
 
   return new ProfileEditor(
     new LinearExtrusion2DNode(asDistance(height), modulation),
+  );
+}
+
+export function drawArcExtrusion(
+  radius: DistanceLike,
+  angle: AngleLike,
+  startWidth: DistanceLike,
+  endWidth?: DistanceLike,
+): ProfileEditor {
+  let modulation: LinearWidthModulation | StaticWidthModulation;
+
+  if (endWidth === undefined) {
+    modulation = new StaticWidthModulation(asDistance(startWidth));
+  } else {
+    modulation = new LinearWidthModulation(
+      asDistance(startWidth),
+      asDistance(endWidth),
+    );
+  }
+
+  return new ProfileEditor(
+    new ArcExtrusion2DNode(asDistance(radius), asAngle(angle), modulation),
   );
 }

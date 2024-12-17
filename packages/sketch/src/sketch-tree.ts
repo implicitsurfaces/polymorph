@@ -69,6 +69,7 @@ import {
   StaticWidthModulation,
   LinearWidthModulation,
   LinearExtrusion2DNode,
+  ArcExtrusion2DNode,
 } from "./sketch-nodes";
 import { LineSegment } from "./segments";
 import {
@@ -98,6 +99,7 @@ import { cornerFillet } from "./segments-fillets";
 import { memoizeNodeEval } from "./utils/cache";
 import { sigmoid } from "./num-ops";
 import {
+  ArcExtrusion2D,
   LinearExtrusion2D,
   linearWidthVariation,
   staticWidth,
@@ -370,7 +372,7 @@ export const evalPath = memoizeNodeEval(function (node: PathNode): PartialPath {
 
 export const evalWidthModulation = memoizeNodeEval(function (
   node: WidthModulationNode,
-): (distance: Num, t: Num) => Num {
+): (t: Num) => Num {
   if (node instanceof StaticWidthModulation) {
     return staticWidth(evalDistance(node.width));
   }
@@ -406,6 +408,14 @@ export const evalProfile = memoizeNodeEval(function (
     const modulation = evalWidthModulation(node.widthModulation);
 
     return new LinearExtrusion2D(height, modulation);
+  }
+
+  if (node instanceof ArcExtrusion2DNode) {
+    const radius = evalDistance(node.radius);
+    const angle = evalAngle(node.angle);
+    const modulation = evalWidthModulation(node.widthModulation);
+
+    return new ArcExtrusion2D(radius, angle, modulation);
   }
 
   if (node instanceof CircleNode) {

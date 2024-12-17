@@ -79,6 +79,10 @@ export interface EdgeBaseData extends ElementBaseData {
   endPoint: ElementId;
 }
 
+export function isEdgeElement(element: Element): element is EdgeElement {
+  return "startPoint" in element && "endPoint" in element;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 //                               LineSegment
 

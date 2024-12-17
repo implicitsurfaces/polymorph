@@ -8,6 +8,7 @@ import {
   ElementId,
   Element,
   EdgeElement,
+  isEdgeElement,
 } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 import { Selection, Selectable } from "./Selection.ts";
@@ -492,25 +493,21 @@ function getSCurveShapes(
   ];
 }
 
-function getStartAndEndPositions(document: Document, element: EdgeElement) {
-  const startPoint = document.getElementFromId<Point>(element.startPoint);
-  const endPoint = document.getElementFromId<Point>(element.endPoint);
-  if (startPoint && endPoint) {
-    return { start: startPoint.position, end: endPoint.position };
-  } else {
-    return undefined;
-  }
+interface ControlPoint {
+  readonly name: string;
+  readonly position: Vector2;
+  readonly onMove: (delta: Vector2, selection: Selection) => void;
 }
 
 interface EdgeShapesAndControls {
   shapes: Array<CanvasShape>;
-  controlPoints: Array<Vector2>;
+  controlPoints: Array<ControlPoint>;
   tangents: Array<CanvasLineSegment>;
 }
 
 function getEdgeShapesAndControls(
   doc: Document,
-  element: Element,
+  element: EdgeElement,
 ): EdgeShapesAndControls {
   const res: EdgeShapesAndControls = {
     shapes: [],
@@ -518,72 +515,114 @@ function getEdgeShapesAndControls(
     tangents: [],
   };
 
+  const startPoint = doc.getElementFromId<Point>(element.startPoint);
+  const endPoint = doc.getElementFromId<Point>(element.endPoint);
+  if (!startPoint || !endPoint) {
+    return res;
+  }
+  const startPos = startPoint.position;
+  const endPos = endPoint.position;
+
   switch (element.type) {
     case "LineSegment": {
-      const p = getStartAndEndPositions(doc, element);
-      if (p) {
-        res.shapes.push(getLineSegment(p.start, p.end));
-      }
+      res.shapes.push(getLineSegment(startPos, endPos));
       break;
     }
     case "ArcFromStartTangent": {
-      const p = getStartAndEndPositions(doc, element);
-      if (p) {
-        const tangent = element.tangent;
-        const controlPoint = tangent.clone().add(p.start);
-        res.shapes.push(
-          getGeneralizedArcFromStartTangent(p.start, p.end, tangent),
-        );
-        res.controlPoints.push(controlPoint);
-        res.tangents.push(getLineSegment(p.start, controlPoint));
-      }
+      const tangent = element.tangent;
+      const cpAbsPos = tangent.clone().add(startPos);
+      res.shapes.push(
+        getGeneralizedArcFromStartTangent(startPos, endPos, tangent),
+      );
+      res.controlPoints.push({
+        name: "tangent",
+        position: cpAbsPos,
+        onMove: (delta: Vector2, selection: Selection) => {
+          if (!selection.isSelectedElement(startPoint.id)) {
+            element.tangent = tangent.clone().add(delta);
+          }
+        },
+      });
+      res.tangents.push(getLineSegment(startPos, cpAbsPos));
       break;
     }
     case "CCurve": {
-      const p = getStartAndEndPositions(doc, element);
-      if (p) {
-        let controlPoint = element.controlPoint;
+      const cpRelPoint = (function () {
         switch (element.mode) {
           case "startTangent":
-            controlPoint = controlPoint.clone().add(p.start);
-            break;
+            return startPoint;
           case "endTangent":
-            controlPoint = controlPoint.clone().add(p.end);
-            break;
+            return endPoint;
         }
-        const shapes_ = getCCurveShapes(p.start, p.end, controlPoint);
-        for (const shape of shapes_) {
-          res.shapes.push(shape);
-        }
-        res.controlPoints.push(controlPoint);
-        res.tangents.push(getLineSegment(p.start, controlPoint));
-        res.tangents.push(getLineSegment(p.end, controlPoint));
+        return undefined;
+      })();
+      const cpRelPos = element.controlPoint;
+      const cpAbsPos = cpRelPoint
+        ? cpRelPos.clone().add(cpRelPoint.position)
+        : cpRelPos;
+
+      const shapes_ = getCCurveShapes(startPos, endPos, cpAbsPos);
+      for (const shape of shapes_) {
+        res.shapes.push(shape);
       }
+      res.controlPoints.push({
+        name: "controlPoint",
+        position: cpAbsPos,
+        onMove: (delta: Vector2, selection: Selection) => {
+          const relId = cpRelPoint?.id;
+          if (!relId || !selection.isSelectedElement(relId)) {
+            element.controlPoint = cpRelPos.clone().add(delta);
+          }
+        },
+      });
+      res.tangents.push(getLineSegment(startPos, cpAbsPos));
+      res.tangents.push(getLineSegment(endPos, cpAbsPos));
       break;
     }
     case "SCurve": {
-      const p = getStartAndEndPositions(doc, element);
-      if (p) {
-        let startControlPoint = element.startControlPoint;
-        let endControlPoint = element.endControlPoint;
-        if (element.mode === "tangent") {
-          startControlPoint = startControlPoint.clone().add(p.start);
-          endControlPoint = endControlPoint.clone().add(p.end);
-        }
-        const shapes_ = getSCurveShapes(
-          p.start,
-          p.end,
-          startControlPoint,
-          endControlPoint,
-        );
-        for (const shape of shapes_) {
-          res.shapes.push(shape);
-        }
-        res.controlPoints.push(startControlPoint);
-        res.controlPoints.push(endControlPoint);
-        res.tangents.push(getLineSegment(p.start, startControlPoint));
-        res.tangents.push(getLineSegment(p.end, endControlPoint));
+      const startCpRelPos = element.startControlPoint;
+      const endCpRelPos = element.endControlPoint;
+      let startCpRelPoint = undefined;
+      let endCpRelPoint = undefined;
+      let startCpAbsPos = startCpRelPos;
+      let endCpAbsPos = endCpRelPos;
+      if (element.mode === "tangent") {
+        startCpRelPoint = startPoint;
+        endCpRelPoint = endPoint;
+        startCpAbsPos = startCpRelPos.clone().add(startPos);
+        endCpAbsPos = endCpRelPos.clone().add(endPos);
       }
+      const shapes_ = getSCurveShapes(
+        startPos,
+        endPos,
+        startCpAbsPos,
+        endCpAbsPos,
+      );
+      for (const shape of shapes_) {
+        res.shapes.push(shape);
+      }
+      res.controlPoints.push({
+        name: "startControlPoint",
+        position: startCpAbsPos,
+        onMove: (delta: Vector2, selection: Selection) => {
+          const relId = startCpRelPoint?.id;
+          if (!relId || !selection.isSelectedElement(relId)) {
+            element.startControlPoint = startCpRelPos.clone().add(delta);
+          }
+        },
+      });
+      res.controlPoints.push({
+        name: "endControlPoint",
+        position: endCpAbsPos,
+        onMove: (delta: Vector2, selection: Selection) => {
+          const relId = endCpRelPoint?.id;
+          if (!relId || !selection.isSelectedElement(relId)) {
+            element.endControlPoint = endCpRelPos.clone().add(delta);
+          }
+        },
+      });
+      res.tangents.push(getLineSegment(startPos, startCpAbsPos));
+      res.tangents.push(getLineSegment(endPos, endCpAbsPos));
       break;
     }
   }
@@ -598,28 +637,28 @@ function drawEdges(
 ) {
   for (const id of elements) {
     const element = document.getElementFromId(id);
-    if (element) {
+    if (element && isEdgeElement(element)) {
       const isEdgeHovered = selection.isHoveredElement(id);
       const isEdgeSelected = selection.isSelectedElement(id);
       const edgeStyle = getEdgeStyle(isEdgeHovered, isEdgeSelected);
-      const res = getEdgeShapesAndControls(document, element);
-      for (const shape of res.shapes) {
+      const sc = getEdgeShapesAndControls(document, element);
+      for (const shape of sc.shapes) {
         drawShape(ctx, shape, edgeStyle);
       }
       const tangentStyle = { lineWidth: 2, strokeStyle: _controlColor };
-      for (const lineSegment of res.tangents) {
+      for (const lineSegment of sc.tangents) {
         drawLineSegment(ctx, lineSegment, tangentStyle);
       }
-      for (const [i, point] of res.controlPoints.entries()) {
+      for (const cp of sc.controlPoints) {
         const selectable: Selectable = {
           type: "SubElement",
           id: id,
-          subName: `cp${i}`,
+          subName: cp.name,
         };
         const isCpHovered = selection.isHovered(selectable);
         const isCpSelected = selection.isSelected(selectable);
         const cpColor = getControlColor(isCpHovered, isCpSelected);
-        drawDisk(ctx, point, _controlPointRadius, cpColor);
+        drawDisk(ctx, cp.position, _controlPointRadius, cpColor);
       }
     }
   }
@@ -685,16 +724,16 @@ function findClosestSelectableInLayer(
           closestDistanceSquared = d;
           closestSelectablePoint = { type: "Element", id: element.id };
         }
-      } else {
-        const res = getEdgeShapesAndControls(document, element);
-        for (const [i, point] of res.controlPoints.entries()) {
-          const d = point.distanceToSquared(position);
+      } else if (isEdgeElement(element)) {
+        const sc = getEdgeShapesAndControls(document, element);
+        for (const cp of sc.controlPoints) {
+          const d = cp.position.distanceToSquared(position);
           if (d < closestDistanceSquared) {
             closestDistanceSquared = d;
             closestSelectablePoint = {
               type: "SubElement",
               id: element.id,
-              subName: `cp${i}`,
+              subName: cp.name,
             };
           }
         }
@@ -853,9 +892,48 @@ type IMouseEvent = MouseEvent | React.MouseEvent;
 type IPointerEvent = PointerEvent | React.PointerEvent;
 type IWheelEvent = WheelEvent | React.WheelEvent;
 
-interface MovedElementInfo {
-  element: Element;
-  positionOnPress: Vector2;
+interface Movable {
+  readonly selectable: Selectable;
+  readonly element: Element;
+  readonly onMove: (delta: Vector2, selection: Selection) => void;
+}
+
+function getMovable(
+  doc: Document,
+  selectable: Selectable | undefined,
+): Movable | undefined {
+  if (!selectable) {
+    return undefined;
+  }
+  if (selectable.type === "Element") {
+    const element = doc.getElementFromId(selectable.id);
+    if (element && element.type === "Point") {
+      const position = element.position.clone();
+      return {
+        selectable: selectable,
+        element: element,
+        onMove: (delta: Vector2) => {
+          element.position = position.clone().add(delta);
+        },
+      };
+    }
+  } else if (selectable.type === "SubElement") {
+    const element = doc.getElementFromId(selectable.id);
+    if (element && isEdgeElement(element)) {
+      // TODO: cache the controls from the draw call?
+      const sc = getEdgeShapesAndControls(doc, element);
+      for (const cp of sc.controlPoints) {
+        if (cp.name == selectable.subName) {
+          return {
+            selectable: selectable,
+            element: element,
+            onMove: cp.onMove,
+          };
+        }
+      }
+    }
+  }
+  return undefined;
 }
 
 export function Canvas({ documentManager }: CanvasProps) {
@@ -864,7 +942,7 @@ export function Canvas({ documentManager }: CanvasProps) {
 
   const ref = useRef<HTMLCanvasElement | null>(null);
 
-  const movedElementInfos = useRef<Array<MovedElementInfo>>([]);
+  const movedRef = useRef<Array<Movable>>([]);
 
   // Returns whether there is a drag action available for the drag button.
   //
@@ -879,46 +957,42 @@ export function Canvas({ documentManager }: CanvasProps) {
       switch (pointerState.button) {
         case 0: {
           // left drag: move elements
-          const hoveredElement = doc.getElementFromId(
-            selection.hoveredElement(),
-          );
-          if (!hoveredElement) {
+          const hovered = selection.hovered();
+          const hoveredMovable = getMovable(doc, hovered);
+          if (!hovered || !hoveredMovable) {
+            // No drag action if the hovered object is not movable
             return false;
-          } else {
-            const selectedElements = doc.getElementsFromId(
-              selection.selectedElements(),
-            );
-            let movedElements: Array<Element> = [];
-            if (selectedElements.includes(hoveredElement)) {
-              movedElements = selectedElements;
-            } else {
-              // Moving a hovered element that is not currently selected
-              // makes it the currently selected element.
-              movedElements = [hoveredElement];
-              selection.setSelectedElements([hoveredElement.id]);
-            }
-            // Remember start positions of all elements.
-            // We only do this if not done already, otherwise
-            // in React strict mode it might be done twice, and
-            // the second time the point.position might have already
-            // been moved a little.
-            if (movedElementInfos.current.length == 0) {
-              const infos: Array<MovedElementInfo> = [];
-              for (const element of movedElements) {
-                if (element.type === "Point") {
-                  infos.push({
-                    element: element,
-                    positionOnPress: element.position.clone(),
-                  });
-                }
+          }
+          const selected = selection.selected();
+          let moved: Array<Movable> = [];
+          if (selection.isSelected(hovered)) {
+            // If the hovered object is part of a larger selection, then move
+            // the whole selection (or more precisely, move the subset of the
+            // selection that is movable)
+            for (const s of selected) {
+              const movable = getMovable(doc, s);
+              if (movable) {
+                moved.push(movable);
               }
-              movedElementInfos.current = infos;
             }
-            if (movedElementInfos.current.length > 0) {
-              return true;
-            } else {
-              return false;
-            }
+          } else {
+            // If the hovered object is not currently selected,
+            // then move only this object and make it become the selection.
+            moved = [hoveredMovable];
+            selection.setSelected([hovered]);
+          }
+          // Remember start positions of all elements.
+          // We only do this if not done already, otherwise
+          // in React strict mode it might be done twice, and
+          // the second time the point.position might have already
+          // been moved a little.
+          if (movedRef.current.length == 0) {
+            movedRef.current = moved;
+          }
+          if (movedRef.current.length > 0) {
+            return true;
+          } else {
+            return false;
           }
         }
         case 1: {
@@ -957,11 +1031,9 @@ export function Canvas({ documentManager }: CanvasProps) {
             pointerState.cameraOnPress,
           );
           const delta = documentPos.sub(documentPosOnPress);
-          for (const info of movedElementInfos.current) {
-            if (info.element.type == "Point") {
-              const point = info.element;
-              point.position = info.positionOnPress.clone().add(delta);
-            }
+          const selection = documentManager.selection();
+          for (const movable of movedRef.current) {
+            movable.onMove(delta, selection);
           }
           documentManager.stageChanges();
           break;
@@ -1000,7 +1072,7 @@ export function Canvas({ documentManager }: CanvasProps) {
       switch (pointerState.button) {
         case 0: {
           // left drag: move elements
-          movedElementInfos.current = []; // See onDragStart
+          movedRef.current = []; // See onDragStart
           documentManager.commitChanges();
           break;
         }

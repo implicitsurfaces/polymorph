@@ -662,7 +662,7 @@ function findClosestSelectableInLayer(
         const d = element.position.distanceToSquared(position);
         if (d < closestDistanceSquared) {
           closestDistanceSquared = d;
-          closestSelectablePoint = { type: "element", id: element.id };
+          closestSelectablePoint = { type: "Element", id: element.id };
         }
       } else {
         const res = getEdgeShapesAndControls(document, element);
@@ -671,7 +671,7 @@ function findClosestSelectableInLayer(
           if (d < closestDistanceSquared) {
             closestDistanceSquared = d;
             closestSelectablePoint = {
-              type: "namedSubElement",
+              type: "SubElement",
               id: element.id,
               subName: `cp${i}`,
             };
@@ -685,7 +685,7 @@ function findClosestSelectableInLayer(
   let closestDistance = Infinity;
   if (closestSelectablePoint) {
     let radius = _pointRadius;
-    if (closestSelectablePoint.type === "namedSubElement") {
+    if (closestSelectablePoint.type === "SubElement") {
       radius = _controlPointRadius;
     }
     if (closestDistanceSquared <= radius * radius) {

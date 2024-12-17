@@ -10,7 +10,7 @@ import {
   EdgeElement,
 } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
-import { Selectable } from "./Selection.ts";
+import { Selection, Selectable } from "./Selection.ts";
 
 import "./Canvas.css";
 
@@ -226,9 +226,10 @@ function getPrimaryColor(isHovered: boolean, isSelected: boolean): string {
 function drawPoint(
   ctx: CanvasRenderingContext2D,
   point: Point,
-  isHovered: boolean,
-  isSelected: boolean,
+  selection: Selection,
 ) {
+  const isHovered = selection.isHoveredElement(point.id);
+  const isSelected = selection.isSelectedElement(point.id);
   const fillStyle = getPrimaryColor(isHovered, isSelected);
   drawDisk(ctx, point.position, _pointRadius, fillStyle);
 }
@@ -237,15 +238,12 @@ function drawPoints(
   ctx: CanvasRenderingContext2D,
   document: Document,
   elements: Array<ElementId>,
-  hoveredId: ElementId | undefined,
-  selectedIds: Array<ElementId>,
+  selection: Selection,
 ) {
   for (const id of elements) {
     const element = document.getElementFromId(id);
     if (element && element.type === "Point") {
-      const isHovered = id === hoveredId;
-      const isSelected = selectedIds.includes(id);
-      drawPoint(ctx, element, isHovered, isSelected);
+      drawPoint(ctx, element, selection);
     }
   }
 }
@@ -580,26 +578,26 @@ function drawEdges(
   ctx: CanvasRenderingContext2D,
   document: Document,
   elements: Array<ElementId>,
-  hoveredId: ElementId | undefined,
-  selectedIds: Array<ElementId>,
+  selection: Selection,
 ) {
   for (const id of elements) {
     const element = document.getElementFromId(id);
     if (element) {
-      const isHovered = id === hoveredId;
-      const isSelected = selectedIds.includes(id);
-      const edgeStyle = getEdgeStyle(isHovered, isSelected);
+      const isEdgeHovered = selection.isHoveredElement(id);
+      const isEdgeSelected = selection.isSelectedElement(id);
+      const edgeStyle = getEdgeStyle(isEdgeHovered, isEdgeSelected);
       const res = getEdgeShapesAndControls(document, element);
       for (const shape of res.shapes) {
         drawShape(ctx, shape, edgeStyle);
       }
-      const cpColor = "#ff6f34";
-      const tangentStyle = { lineWidth: 2, strokeStyle: cpColor };
-      getEdgeStyle(isHovered, isSelected);
+      const tangentColor = "#ff6f34";
+      const tangentStyle = { lineWidth: 2, strokeStyle: tangentColor };
       for (const lineSegment of res.tangents) {
         drawLineSegment(ctx, lineSegment, tangentStyle);
       }
-      for (const point of res.controlPoints) {
+      for (const [i, point] of res.controlPoints.entries()) {
+        const isCpHovered = selection.isHoveredSubElement(id, `cp${i}`);
+        const cpColor = isCpHovered ? "#ff9f64" : tangentColor;
         drawDisk(ctx, point, _controlPointRadius, cpColor);
       }
     }
@@ -609,16 +607,15 @@ function drawEdges(
 function drawDocument(
   ctx: CanvasRenderingContext2D,
   document: Document,
-  hoveredId: ElementId | undefined,
-  selectedIds: Array<ElementId>,
+  selection: Selection,
 ) {
   document.layers.forEach((id: ElementId) => {
     const layer = document.getElementFromId<Layer>(id);
     if (layer) {
       // Note: we use two passes since we want to draw all points on top of
       // edges, regardless of layer order.
-      drawEdges(ctx, document, layer.elements, hoveredId, selectedIds);
-      drawPoints(ctx, document, layer.elements, hoveredId, selectedIds);
+      drawEdges(ctx, document, layer.elements, selection);
+      drawPoints(ctx, document, layer.elements, selection);
     }
   });
 }
@@ -638,9 +635,7 @@ function draw(
   initializeViewTransform(ctx, camera);
   const document = documentManager.document();
   const selection = documentManager.selection();
-  const hoveredId = selection.hoveredElement();
-  const selectedIds = selection.selectedElements();
-  drawDocument(ctx, document, hoveredId, selectedIds);
+  drawDocument(ctx, document, selection);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -671,14 +666,14 @@ function findClosestSelectableInLayer(
         }
       } else {
         const res = getEdgeShapesAndControls(document, element);
-        for (const point of res.controlPoints) {
+        for (const [i, point] of res.controlPoints.entries()) {
           const d = point.distanceToSquared(position);
           if (d < closestDistanceSquared) {
             closestDistanceSquared = d;
             closestSelectablePoint = {
               type: "namedSubElement",
               id: element.id,
-              subName: "cp",
+              subName: `cp${i}`,
             };
           }
         }

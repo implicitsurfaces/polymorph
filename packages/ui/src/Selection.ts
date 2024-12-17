@@ -97,6 +97,22 @@ export class Selection {
     }
   }
 
+  isHovered(selectable: Selectable) {
+    return isSameSelectable(selectable, this._hovered);
+  }
+
+  isHoveredElement(id: ElementId) {
+    return this.isHovered({ type: "element", id: id });
+  }
+
+  isHoveredSubElement(id: ElementId, subName: string) {
+    return this.isHovered({
+      type: "namedSubElement",
+      id: id,
+      subName: subName,
+    });
+  }
+
   selected(): Array<Selectable> {
     // XXX: Use Immutable.js instead?
     return [...this._selected];
@@ -123,6 +139,25 @@ export class Selection {
       return { type: "element", id: id };
     });
     this._onChange();
+  }
+
+  isSelected(selectable: Selectable) {
+    const index = this._selected.findIndex((value: Selectable) => {
+      return isSameSelectable(value, selectable);
+    });
+    return index !== -1;
+  }
+
+  isSelectedElement(id: ElementId) {
+    return this.isSelected({ type: "element", id: id });
+  }
+
+  isSelectedSubElement(id: ElementId, subName: string) {
+    return this.isSelected({
+      type: "namedSubElement",
+      id: id,
+      subName: subName,
+    });
   }
 
   toggleSelected(selectable: Selectable) {

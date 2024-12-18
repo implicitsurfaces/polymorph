@@ -23,11 +23,7 @@ interface ClosestSelectable {
   distance: number;
 }
 
-type DistanceFunction<T> = (
-  element: T,
-  position: Vector2,
-  doc: Document,
-) => number;
+type DistanceFunction<T> = (element: T, position: Vector2) => number;
 type MakeSelectableFunction<T> = (element: T, id: ElementId) => Selectable;
 
 function distToPoint(point: Point, position: Vector2): number {
@@ -166,9 +162,8 @@ function findClosestSelectableInLayer(
     dist: DistanceFunction<T>,
     select: MakeSelectableFunction<T>,
     id: ElementId,
-    doc: Document,
   ) {
-    const d = dist(element, position, doc);
+    const d = dist(element, position);
     if (d < cs.distance) {
       cs.selectable = select(element, id);
       cs.distance = d;
@@ -179,15 +174,15 @@ function findClosestSelectableInLayer(
     const element = doc.getElementFromId(id);
     if (element) {
       if (element.type === "Point") {
-        update(csPoint, element, distToPoint, selectPoint, id, doc);
+        update(csPoint, element, distToPoint, selectPoint, id);
       } else if (isEdgeElement(element)) {
         // TODO: cache the controls from the draw call?
         const sc = getEdgeShapesAndControls(doc, element);
         for (const cp of sc.controlPoints) {
-          update(csPoint, cp, distToControlPoint, selectControlPoint, id, doc);
+          update(csPoint, cp, distToControlPoint, selectControlPoint, id);
         }
         console.log(element.type);
-        update(csEdge, sc.shapes, distToShapes, selectEdge, id, doc);
+        update(csEdge, sc.shapes, distToShapes, selectEdge, id);
       }
     }
   }
@@ -242,21 +237,16 @@ function findClosestSelectableInLayer(
 }
 
 function findClosestSelectableInDocument(
-  document: Document,
+  doc: Document,
   camera: Camera2,
   position: Vector2,
 ): ClosestSelectable {
   let closestDistance = Infinity;
   let selectable: Selectable | undefined = undefined;
-  for (const id of document.layers) {
-    const layer = document.getElementFromId<Layer>(id);
+  for (const id of doc.layers) {
+    const layer = doc.getElementFromId<Layer>(id);
     if (layer) {
-      const ce = findClosestSelectableInLayer(
-        document,
-        camera,
-        layer,
-        position,
-      );
+      const ce = findClosestSelectableInLayer(doc, camera, layer, position);
       if (ce.distance < closestDistance) {
         closestDistance = ce.distance;
         selectable = ce.selectable;

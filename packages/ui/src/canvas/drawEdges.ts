@@ -386,7 +386,7 @@ export function drawEdges(
   const edgeWidth_ = edgeWidth / camera.zoom;
   const edgeStyle = { lineWidth: edgeWidth_, strokeStyle: getElementColor() };
   const tangentStyle = {
-    lineWidth: edgeWidth,
+    lineWidth: edgeWidth_,
     strokeStyle: getControlColor(),
   };
   for (const id of elements) {

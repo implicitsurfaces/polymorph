@@ -324,6 +324,16 @@ export class LinearWidthModulation extends WidthModulationNode {
   }
 }
 
+export class EasedWidthModulation extends WidthModulationNode {
+  constructor(
+    public readonly start: DistanceNode,
+    public readonly end: DistanceNode,
+    public readonly easing: "in" | "out" | "inOut",
+  ) {
+    super();
+  }
+}
+
 export class LinearExtrusion2DNode extends ProfileNode {
   constructor(
     public readonly height: DistanceNode,

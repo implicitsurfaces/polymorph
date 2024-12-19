@@ -21,6 +21,38 @@ export function linearWidthVariation(
   };
 }
 
+export function easeInWidthVariation(
+  startWidth: Num,
+  endWidth: Num,
+): (t: Num) => Num {
+  const widthDiff = endWidth.sub(startWidth);
+  return (t) => {
+    return startWidth.add(widthDiff.mul(t.square()));
+  };
+}
+
+export function easeOutWidthVariation(
+  startWidth: Num,
+  endWidth: Num,
+): (t: Num) => Num {
+  const widthDiff = endWidth.sub(startWidth);
+  return (t) => {
+    return startWidth.add(widthDiff.mul(ONE.sub(ONE.sub(t).square())));
+  };
+}
+
+export function easeInOutWidthVariation(
+  startWidth: Num,
+  endWidth: Num,
+): (t: Num) => Num {
+  const widthDiff = endWidth.sub(startWidth);
+  return (t) => {
+    return startWidth.add(
+      widthDiff.mul(t.square().mul(3).sub(t.square().mul(t).mul(2))),
+    );
+  };
+}
+
 export class LinearExtrusion2D implements DistField {
   constructor(
     public readonly height: Num,

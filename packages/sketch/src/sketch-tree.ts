@@ -68,6 +68,7 @@ import {
   WidthModulationNode,
   StaticWidthModulation,
   LinearWidthModulation,
+  EasedWidthModulation,
   LinearExtrusion2DNode,
   ArcExtrusion2DNode,
 } from "./sketch-nodes";
@@ -100,6 +101,9 @@ import { memoizeNodeEval } from "./utils/cache";
 import { sigmoid } from "./num-ops";
 import {
   ArcExtrusion2D,
+  easeInOutWidthVariation,
+  easeInWidthVariation,
+  easeOutWidthVariation,
   LinearExtrusion2D,
   linearWidthVariation,
   staticWidth,
@@ -382,6 +386,25 @@ export const evalWidthModulation = memoizeNodeEval(function (
     const end = evalDistance(node.end);
 
     return linearWidthVariation(start, end);
+  }
+
+  if (node instanceof EasedWidthModulation) {
+    const start = evalDistance(node.start);
+    const end = evalDistance(node.end);
+
+    if (node.easing === "in") {
+      return easeInWidthVariation(start, end);
+    }
+
+    if (node.easing === "out") {
+      return easeOutWidthVariation(start, end);
+    }
+
+    if (node.easing === "inOut") {
+      return easeInOutWidthVariation(start, end);
+    }
+
+    throw new Error(`Unknown easing: ${node.easing}`);
   }
 
   throw new Error(`Unknown width modulation: ${node.constructor.name}`);

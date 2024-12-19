@@ -2,6 +2,7 @@ import {
   ArcExtrusion2DNode,
   Box,
   Circle,
+  EasedWidthModulation,
   LinearExtrusion2DNode,
   LinearWidthModulation,
   StaticWidthModulation,
@@ -57,21 +58,32 @@ export function drawBox(
   return box.translate(center);
 }
 
+function parseModulation(
+  startWidth: DistanceLike,
+  endWidth?: DistanceLike,
+  easing?: "in" | "out" | "inOut",
+) {
+  if (endWidth === undefined) {
+    return new StaticWidthModulation(asDistance(startWidth));
+  }
+
+  const startDistance = asDistance(startWidth);
+  const endDistance = asDistance(endWidth);
+
+  if (!easing) {
+    return new LinearWidthModulation(startDistance, endDistance);
+  }
+
+  return new EasedWidthModulation(startDistance, endDistance, easing);
+}
+
 export function drawLinearExtrusion(
   height: DistanceLike,
   startWidth: DistanceLike,
   endWidth?: DistanceLike,
+  easing?: "in" | "out" | "inOut",
 ): ProfileEditor {
-  let modulation: LinearWidthModulation | StaticWidthModulation;
-
-  if (endWidth === undefined) {
-    modulation = new StaticWidthModulation(asDistance(startWidth));
-  } else {
-    modulation = new LinearWidthModulation(
-      asDistance(startWidth),
-      asDistance(endWidth),
-    );
-  }
+  const modulation = parseModulation(startWidth, endWidth, easing);
 
   return new ProfileEditor(
     new LinearExtrusion2DNode(asDistance(height), modulation),
@@ -83,18 +95,9 @@ export function drawArcExtrusion(
   angle: AngleLike,
   startWidth: DistanceLike,
   endWidth?: DistanceLike,
+  easing?: "in" | "out" | "inOut",
 ): ProfileEditor {
-  let modulation: LinearWidthModulation | StaticWidthModulation;
-
-  if (endWidth === undefined) {
-    modulation = new StaticWidthModulation(asDistance(startWidth));
-  } else {
-    modulation = new LinearWidthModulation(
-      asDistance(startWidth),
-      asDistance(endWidth),
-    );
-  }
-
+  const modulation = parseModulation(startWidth, endWidth, easing);
   return new ProfileEditor(
     new ArcExtrusion2DNode(asDistance(radius), asAngle(angle), modulation),
   );

@@ -143,7 +143,7 @@ export class Num {
     return asNum(other).lessThanOrEqual(this);
   }
 
-  asDot(): string {
+  treeRepr(): string {
     return renderNodeAsDot(this.n);
   }
 }

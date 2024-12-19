@@ -5,6 +5,7 @@ import {
   ConstraintOnPoint,
   ConstraintOnProfileBoundary,
   findSolution,
+  treeReprLoss,
 } from "sketch";
 import { point } from "./geom";
 import {
@@ -162,5 +163,9 @@ export class LossFunction {
     } = {},
   ) {
     return findSolution(this.terms, options);
+  }
+
+  treeRepr() {
+    return treeReprLoss(this.terms);
   }
 }

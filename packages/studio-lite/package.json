@@ -14,6 +14,9 @@
     "@devbookhq/splitter": "^1.4.2",
     "@monaco-editor/react": "^4.6.0",
     "comlink": "^4.4.2",
+    "cytoscape": "^3.30.4",
+    "cytoscape-dagre": "^2.5.0",
+    "fidget": "*",
     "goober": "^2.1.16",
     "jszip": "^3.10.1",
     "mobx": "^6.13.5",
@@ -21,8 +24,9 @@
     "mobx-state-tree": "^6.0.1",
     "prettier": "^3.3.3",
     "react": "^18.3.1",
-    "fidget": "*",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-portal": "^4.2.2",
+    "vis-network": "^9.1.9"
   },
   "peerDependencies": {
     "draw-api": "*",

@@ -28,6 +28,11 @@ import {
   RealValueNode,
   readRealValue,
   VectorRotated,
+  treeReprRealValue,
+  treeReprDistance,
+  treeReprAngle,
+  treeReprVector,
+  treeReprPoint,
 } from "sketch";
 import {
   asAngle,
@@ -46,6 +51,10 @@ export class Real implements NodeWrapper<RealValueNode> {
   read(variables: Map<string, number>): number {
     return readRealValue(this.inner, variables);
   }
+
+  treeRepr(): string {
+    return treeReprRealValue(this.inner);
+  }
 }
 
 export class Distance implements NodeWrapper<DistanceNode> {
@@ -53,6 +62,10 @@ export class Distance implements NodeWrapper<DistanceNode> {
 
   read(variables: Map<string, number>): number {
     return readDistance(this.inner, variables);
+  }
+
+  treeRepr(): string {
+    return treeReprDistance(this.inner);
   }
 }
 
@@ -87,6 +100,10 @@ export class Angle implements NodeWrapper<AngleNode> {
 
   public read(variables: Map<string, number>): number {
     return readAngleAsDegree(this.inner, variables);
+  }
+
+  public treeRepr(): string {
+    return treeReprAngle(this.inner);
   }
 }
 
@@ -123,6 +140,10 @@ export class Vector implements NodeWrapper<VectorNode> {
 
   public rotate(angle: number | AngleNode): Vector {
     return new Vector(new VectorRotated(this.inner, asAngle(angle)));
+  }
+
+  public treeRepr(): string {
+    return treeReprVector(this.inner);
   }
 }
 
@@ -206,6 +227,10 @@ export class Point implements NodeWrapper<PointNode> {
     const c = point(center);
     const v = this.vecFrom(c);
     return c.translate(v.rotate(angle));
+  }
+
+  public treeRepr(): string {
+    return treeReprPoint(this.inner);
   }
 }
 

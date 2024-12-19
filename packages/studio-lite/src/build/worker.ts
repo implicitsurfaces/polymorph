@@ -61,6 +61,55 @@ const api = {
 
     return out;
   },
+
+  treeRepr: async (
+    code: string,
+    info: unknown,
+  ): Promise<{
+    image: string;
+    loss: string;
+    valueReads: { name: string; value: string }[];
+  }> => {
+    const loss = new LossFunction();
+    let values = await runAsModule(code, [loss, info]);
+    if (!Array.isArray(values)) {
+      values = [values];
+    }
+
+    const out: {
+      image: string;
+      loss: string;
+      valueReads: { name: string; value: string }[];
+    } = {
+      image: "",
+      valueReads: [],
+      loss: loss.treeRepr(),
+    };
+
+    let i = 0;
+    for (const value of values) {
+      if (value.render) {
+        out.image = value.treeRepr();
+      }
+
+      if (value?.value) {
+        out.valueReads.push({
+          name: value.name ?? `Value ${++i}`,
+          value: value.value.treeRepr(),
+        });
+      }
+
+      if (value.treeRepr) {
+        out.valueReads.push({
+          name: `Value ${++i}`,
+          value: value.treeRepr(),
+        });
+      }
+    }
+
+    console.log("out", out);
+    return out;
+  },
 };
 
 export { api };

@@ -16,6 +16,7 @@ import {
   SmoothIntersection,
   SmoothUnion,
   Translation,
+  treeReprProfile,
   Union,
 } from "sketch";
 import { booleansToASCII, intArrayToImageData } from "./utils";
@@ -146,5 +147,9 @@ export class ProfileEditor implements NodeWrapper<ProfileNode> {
     valuedVars?: Map<string, number>,
   ): Promise<Uint8ClampedArray> {
     return renderProfile(this.inner, valuedVars, size);
+  }
+
+  treeRepr(): string {
+    return treeReprProfile(this.inner);
   }
 }

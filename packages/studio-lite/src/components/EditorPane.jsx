@@ -5,6 +5,7 @@ import Editor from "@monaco-editor/react";
 
 import Splitter, { GutterTheme, SplitDirection } from "@devbookhq/splitter";
 import { HeaderButton, Spacer } from "./panes";
+import { TreeUI } from "./TreeUI";
 
 import LinkCode from "../icons/LinkCode";
 
@@ -14,6 +15,8 @@ import "../loadMonaco";
 import useEditorStore from "../state/useEditorStore";
 import { exportCode } from "../state/codeInit";
 import LoadingScreen from "./LoadingScreen";
+
+import { Dialog, DialogTitle } from "./Dialog";
 
 export const ErrorOverlay = styled("div")`
   display: flex;
@@ -116,6 +119,7 @@ export const EditorPane = observer(function EditorPane() {
 export const EditorButtons = observer(() => {
   const store = useEditorStore();
   const [linkShare, setLinkShare] = React.useState(false);
+  const [tree, setTree] = React.useState(false);
 
   const share = async () => {
     setLinkShare(true);
@@ -126,6 +130,10 @@ export const EditorButtons = observer(() => {
     }, 1000);
   };
 
+  const showTree = () => {
+    setTree(true);
+  };
+
   const style = linkShare ? { color: "lightgreen" } : {};
 
   return (
@@ -133,8 +141,18 @@ export const EditorButtons = observer(() => {
       <HeaderButton onClick={share} title="Link to current code">
         <LinkCode style={style} />
       </HeaderButton>
-      ;
+      <HeaderButton onClick={showTree} title="Link to current code">
+        Tree
+      </HeaderButton>
       <Spacer />
+      {tree && (
+        <Dialog onClose={() => setTree(false)}>
+          <DialogTitle onClose={() => setTree(false)}>
+            Num tree explorator
+          </DialogTitle>
+          <TreeUI />
+        </Dialog>
+      )}
     </>
   );
 });

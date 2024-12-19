@@ -1,3 +1,5 @@
+import { Point } from "./geom";
+import { NumX, NumY } from "./num";
 import { allVariables, naiveEval } from "./num-tree";
 import { fidgetRender } from "./num-tree-fidget";
 import { gradientDescentOpt } from "./opt";
@@ -108,4 +110,91 @@ export function findSolution(
   );
 
   return gradientDescentOpt(loss, initialX, options);
+}
+
+export function treeReprVector(vector: VectorNode): string {
+  const v = evalVector(vector);
+  return v.x.treeRepr();
+}
+
+export function treeReprPoint(point: PointNode): string {
+  const p = evalPoint(point);
+  return p.x.treeRepr();
+}
+
+export function treeReprAngle(angle: AngleNode): string {
+  const a = evalAngle(angle);
+  return a.sin().treeRepr();
+}
+
+export function treeReprDistance(distance: DistanceNode): string {
+  const d = evalDistance(distance);
+  return d.treeRepr();
+}
+
+export function treeReprRealValue(realValue: RealValueNode): string {
+  const d = evalRealValue(realValue);
+  return d.treeRepr();
+}
+
+export function treeReprProfile(profile: ProfileNode): string {
+  const d = evalProfile(profile);
+  return d.distanceTo(new Point(NumX, NumY)).treeRepr();
+}
+
+export function treeReprConstraint(constraint: ConstraintNode): string {
+  const d = evalConstraint(constraint);
+  return d.treeRepr();
+}
+
+export function treeReprLoss(constraints: ConstraintNode[]): string {
+  if (!constraints.length) {
+    return "";
+  }
+  let loss = evalConstraint(constraints[0]);
+
+  constraints.slice(1).forEach((term) => {
+    loss = loss.add(evalConstraint(term));
+  });
+
+  return loss.treeRepr();
+}
+
+export function treeRepr(
+  node:
+    | VectorNode
+    | PointNode
+    | AngleNode
+    | DistanceNode
+    | RealValueNode
+    | ProfileNode
+    | ConstraintNode,
+): string {
+  if (node instanceof VectorNode) {
+    return treeReprVector(node);
+  }
+  if (node instanceof PointNode) {
+    return treeReprPoint(node);
+  }
+  if (node instanceof AngleNode) {
+    return treeReprAngle(node);
+  }
+
+  if (node instanceof DistanceNode) {
+    return treeReprDistance(node);
+  }
+
+  if (node instanceof RealValueNode) {
+    return treeReprRealValue(node);
+  }
+
+  if (node instanceof ProfileNode) {
+    return treeReprProfile(node);
+  }
+
+  if (node instanceof ConstraintNode) {
+    return treeReprConstraint(node);
+  }
+
+  throw new Error(`Unknown node type: ${(node as unknown)?.constructor?.name}`);
 }

@@ -82,6 +82,8 @@ const AppState = types
     processingInfo: null,
     exceptionMode: "single",
     initializingCode: false,
+
+    currentTreeReprs: null,
   }))
   .actions((self) => ({
     addPoint([x, y]) {
@@ -93,6 +95,16 @@ const AppState = types
     },
     updateCode(newCode) {
       self.config.code = newCode;
+    },
+
+    computeTreeReprs: flow(function* () {
+      self.currentTreeReprs = yield api.treeRepr(self.currentValues.code, {
+        points: self.points.map((point) => [point.x, point.y]),
+      });
+    }),
+
+    clearTreeReprs() {
+      self.currentTreeReprs = null;
     },
 
     changeDefinition(newDefinition) {

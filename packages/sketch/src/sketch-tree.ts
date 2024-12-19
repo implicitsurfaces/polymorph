@@ -65,6 +65,12 @@ import {
   AngleVariable,
   VectorRotated,
   FlipNode,
+  WidthModulationNode,
+  StaticWidthModulation,
+  LinearWidthModulation,
+  EasedWidthModulation,
+  LinearExtrusion2DNode,
+  ArcExtrusion2DNode,
 } from "./sketch-nodes";
 import { LineSegment } from "./segments";
 import {
@@ -93,6 +99,15 @@ import {
 import { cornerFillet } from "./segments-fillets";
 import { memoizeNodeEval } from "./utils/cache";
 import { sigmoid } from "./num-ops";
+import {
+  ArcExtrusion2D,
+  easeInOutWidthVariation,
+  easeInWidthVariation,
+  easeOutWidthVariation,
+  LinearExtrusion2D,
+  linearWidthVariation,
+  staticWidth,
+} from "./extrusions-2d";
 
 export function evalRealValue(value: RealValueNode): Num {
   if (value instanceof RealValueVariable) {
@@ -359,6 +374,42 @@ export const evalPath = memoizeNodeEval(function (node: PathNode): PartialPath {
   throw new Error(`Unknown path: ${node.constructor.name}`);
 });
 
+export const evalWidthModulation = memoizeNodeEval(function (
+  node: WidthModulationNode,
+): (t: Num) => Num {
+  if (node instanceof StaticWidthModulation) {
+    return staticWidth(evalDistance(node.width));
+  }
+
+  if (node instanceof LinearWidthModulation) {
+    const start = evalDistance(node.start);
+    const end = evalDistance(node.end);
+
+    return linearWidthVariation(start, end);
+  }
+
+  if (node instanceof EasedWidthModulation) {
+    const start = evalDistance(node.start);
+    const end = evalDistance(node.end);
+
+    if (node.easing === "in") {
+      return easeInWidthVariation(start, end);
+    }
+
+    if (node.easing === "out") {
+      return easeOutWidthVariation(start, end);
+    }
+
+    if (node.easing === "inOut") {
+      return easeInOutWidthVariation(start, end);
+    }
+
+    throw new Error(`Unknown easing: ${node.easing}`);
+  }
+
+  throw new Error(`Unknown width modulation: ${node.constructor.name}`);
+});
+
 export const evalProfile = memoizeNodeEval(function (
   node: PathNode,
 ): DistField {
@@ -373,6 +424,21 @@ export const evalProfile = memoizeNodeEval(function (
   if (node instanceof PathOpenEnd) {
     const path = evalPath(node.path);
     return new OpenPath(path.segments);
+  }
+
+  if (node instanceof LinearExtrusion2DNode) {
+    const height = evalDistance(node.height);
+    const modulation = evalWidthModulation(node.widthModulation);
+
+    return new LinearExtrusion2D(height, modulation);
+  }
+
+  if (node instanceof ArcExtrusion2DNode) {
+    const radius = evalDistance(node.radius);
+    const angle = evalAngle(node.angle);
+    const modulation = evalWidthModulation(node.widthModulation);
+
+    return new ArcExtrusion2D(radius, angle, modulation);
   }
 
   if (node instanceof CircleNode) {

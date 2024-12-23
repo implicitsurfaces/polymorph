@@ -181,7 +181,6 @@ function findClosestSelectableInLayer(
         for (const cp of sc.controlPoints) {
           update(csPoint, cp, distToControlPoint, selectControlPoint, id);
         }
-        console.log(element.type);
         update(csEdge, sc.shapes, distToShapes, selectEdge, id);
       }
     }

@@ -242,7 +242,7 @@ function getSCurveShapes(
 export interface ControlPoint {
   readonly name: string;
   readonly position: Vector2;
-  readonly onMove: (delta: Vector2, selection: Selection) => void;
+  readonly relativeTo: ElementId | undefined;
 }
 
 export interface EdgeShapesAndControls {
@@ -253,7 +253,7 @@ export interface EdgeShapesAndControls {
 
 export function getEdgeShapesAndControls(
   doc: Document,
-  element: EdgeElement,
+  edge: EdgeElement,
 ): EdgeShapesAndControls {
   const res: EdgeShapesAndControls = {
     shapes: [],
@@ -261,21 +261,21 @@ export function getEdgeShapesAndControls(
     tangents: [],
   };
 
-  const startPoint = doc.getElementFromId<Point>(element.startPoint);
-  const endPoint = doc.getElementFromId<Point>(element.endPoint);
+  const startPoint = doc.getElementFromId<Point>(edge.startPoint);
+  const endPoint = doc.getElementFromId<Point>(edge.endPoint);
   if (!startPoint || !endPoint) {
     return res;
   }
   const startPos = startPoint.position;
   const endPos = endPoint.position;
 
-  switch (element.type) {
+  switch (edge.type) {
     case "LineSegment": {
       res.shapes.push(getLineSegment(startPos, endPos));
       break;
     }
     case "ArcFromStartTangent": {
-      const tangent = element.tangent;
+      const tangent = edge.tangent;
       const cpAbsPos = tangent.clone().add(startPos);
       res.shapes.push(
         getGeneralizedArcFromStartTangent(startPos, endPos, tangent),
@@ -283,18 +283,14 @@ export function getEdgeShapesAndControls(
       res.controlPoints.push({
         name: "tangent",
         position: cpAbsPos,
-        onMove: (delta: Vector2, selection: Selection) => {
-          if (!selection.isSelectedElement(startPoint.id)) {
-            element.tangent = tangent.clone().add(delta);
-          }
-        },
+        relativeTo: startPoint.id,
       });
       res.tangents.push(getLineSegment(startPos, cpAbsPos));
       break;
     }
     case "CCurve": {
       const cpRelPoint = (function () {
-        switch (element.mode) {
+        switch (edge.mode) {
           case "startTangent":
             return startPoint;
           case "endTangent":
@@ -302,7 +298,7 @@ export function getEdgeShapesAndControls(
         }
         return undefined;
       })();
-      const cpRelPos = element.controlPoint;
+      const cpRelPos = edge.controlPoint;
       const cpAbsPos = cpRelPoint
         ? cpRelPos.clone().add(cpRelPoint.position)
         : cpRelPos;
@@ -314,25 +310,20 @@ export function getEdgeShapesAndControls(
       res.controlPoints.push({
         name: "controlPoint",
         position: cpAbsPos,
-        onMove: (delta: Vector2, selection: Selection) => {
-          const relId = cpRelPoint?.id;
-          if (!relId || !selection.isSelectedElement(relId)) {
-            element.controlPoint = cpRelPos.clone().add(delta);
-          }
-        },
+        relativeTo: cpRelPoint?.id,
       });
       res.tangents.push(getLineSegment(startPos, cpAbsPos));
       res.tangents.push(getLineSegment(endPos, cpAbsPos));
       break;
     }
     case "SCurve": {
-      const startCpRelPos = element.startControlPoint;
-      const endCpRelPos = element.endControlPoint;
+      const startCpRelPos = edge.startControlPoint;
+      const endCpRelPos = edge.endControlPoint;
       let startCpRelPoint = undefined;
       let endCpRelPoint = undefined;
       let startCpAbsPos = startCpRelPos;
       let endCpAbsPos = endCpRelPos;
-      if (element.mode === "tangent") {
+      if (edge.mode === "tangent") {
         startCpRelPoint = startPoint;
         endCpRelPoint = endPoint;
         startCpAbsPos = startCpRelPos.clone().add(startPos);
@@ -350,22 +341,12 @@ export function getEdgeShapesAndControls(
       res.controlPoints.push({
         name: "startControlPoint",
         position: startCpAbsPos,
-        onMove: (delta: Vector2, selection: Selection) => {
-          const relId = startCpRelPoint?.id;
-          if (!relId || !selection.isSelectedElement(relId)) {
-            element.startControlPoint = startCpRelPos.clone().add(delta);
-          }
-        },
+        relativeTo: startCpRelPoint?.id,
       });
       res.controlPoints.push({
         name: "endControlPoint",
         position: endCpAbsPos,
-        onMove: (delta: Vector2, selection: Selection) => {
-          const relId = endCpRelPoint?.id;
-          if (!relId || !selection.isSelectedElement(relId)) {
-            element.endControlPoint = endCpRelPos.clone().add(delta);
-          }
-        },
+        relativeTo: endCpRelPoint?.id,
       });
       res.tangents.push(getLineSegment(startPos, startCpAbsPos));
       res.tangents.push(getLineSegment(endPos, endCpAbsPos));

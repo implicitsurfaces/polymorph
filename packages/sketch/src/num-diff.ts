@@ -205,7 +205,7 @@ function binaryDerivative(
   }
 
   if (operation === "MOD") {
-    throw new Error("Derivative of MOD is not implemented");
+    return ONE_NODE;
   }
 
   if (operation === "MAX") {

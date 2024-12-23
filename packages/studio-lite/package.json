@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "publish": "npx surge dist --domain polymorph-studio-lite.surge.sh"
+    "publish": "netlify deploy --prod -d packages/studio-lite/dist/ --site polymorph-studio-lite && npx surge dist --domain polymorph-studio-lite.surge.sh"
   },
   "dependencies": {
     "@devbookhq/splitter": "^1.4.2",

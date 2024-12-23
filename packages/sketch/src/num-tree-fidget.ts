@@ -146,7 +146,8 @@ const fidgetBinaryOp = (
     return context.mul(left, right);
   }
   if (operation === "DIV") {
-    return context.div(left, right);
+    const r = context.add(right, context.constant(1e-30));
+    return context.div(left, r);
   }
   if (operation === "MOD") {
     return context.modulo(left, right);

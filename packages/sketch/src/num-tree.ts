@@ -139,7 +139,7 @@ const simpleBinaryOp = (
     return left * right;
   }
   if (operation === "DIV") {
-    return left / right;
+    return right ? left / right : 1e50;
   }
   if (operation === "MOD") {
     return left % right;

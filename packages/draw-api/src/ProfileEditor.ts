@@ -4,8 +4,11 @@ import {
   Difference,
   Dilate,
   FlipNode,
+  GradientAt,
   Intersection,
+  MidSurfaceNode,
   Morph,
+  NormalizedFieldNode,
   ProfileNode,
   renderProfile,
   Rotation,
@@ -29,13 +32,17 @@ import {
   PointLike,
   VectorLike,
 } from "./convert";
-import { Real } from "./geom";
+import { Real, Vector, vector } from "./geom";
 
 export class ProfileEditor implements NodeWrapper<ProfileNode> {
   constructor(public inner: ProfileNode) {}
 
   get shape(): ProfileNode {
     return this.inner;
+  }
+
+  public gradientAt(p: PointLike): Vector {
+    return vector(new GradientAt(this.inner, asPoint(p)));
   }
 
   public translate(vector: VectorLike): ProfileEditor {
@@ -127,6 +134,14 @@ export class ProfileEditor implements NodeWrapper<ProfileNode> {
 
   public flip(axis: "x" | "y" = "y"): ProfileEditor {
     return new ProfileEditor(new FlipNode(this.inner, axis));
+  }
+
+  public midSurface(other: ProfileEditor): ProfileEditor {
+    return new ProfileEditor(new MidSurfaceNode(this.inner, other.inner));
+  }
+
+  public normalize(): ProfileEditor {
+    return new ProfileEditor(new NormalizedFieldNode(this.inner));
   }
 
   public distanceToPoint(p: PointLike): Real {

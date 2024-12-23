@@ -71,6 +71,9 @@ import {
   EasedWidthModulation,
   LinearExtrusion2DNode,
   ArcExtrusion2DNode,
+  NormalizedFieldNode,
+  MidSurfaceNode,
+  GradientAt,
 } from "./sketch-nodes";
 import { LineSegment } from "./segments";
 import {
@@ -95,10 +98,12 @@ import {
   Shell,
   Dilatation,
   Flip,
+  Normalized,
+  MidSurface,
 } from "./sdf-operations";
 import { cornerFillet } from "./segments-fillets";
 import { memoizeNodeEval } from "./utils/cache";
-import { sigmoid } from "./num-ops";
+import { gradientAt, sigmoid } from "./num-ops";
 import {
   ArcExtrusion2D,
   easeInOutWidthVariation,
@@ -255,6 +260,18 @@ export const evalVector = memoizeNodeEval(function evalVector(
 
   if (vector instanceof VectorRotated) {
     return evalVector(vector.vector).rotate(evalAngle(vector.angle));
+  }
+
+  if (vector instanceof GradientAt) {
+    const profile = evalProfile(vector.field);
+    const point = evalPoint(vector.point);
+
+    const p = new Point(variable("!!x"), variable("!!y"));
+    const grad = gradientAt(profile.distanceTo(p), [
+      ["!!x", point.x],
+      ["!!y", point.y],
+    ]);
+    return new Vec2(grad[0], grad[1]);
   }
 
   throw new Error(`Unknown vector: ${vector.constructor.name}`);
@@ -450,6 +467,17 @@ export const evalProfile = memoizeNodeEval(function (
     const width = evalDistance(node.width);
     const height = evalDistance(node.height);
     return new Box(width, height);
+  }
+
+  if (node instanceof MidSurfaceNode) {
+    const first = evalProfile(node.first);
+    const second = evalProfile(node.second);
+    return new MidSurface(first, second);
+  }
+
+  if (node instanceof NormalizedFieldNode) {
+    const profile = evalProfile(node.profile);
+    return new Normalized(profile);
   }
 
   if (node instanceof TranslationNode) {

@@ -202,6 +202,51 @@ export const naiveEval = (
   );
 };
 
+export const replaceVariable = (
+  node: NumNode,
+  variables: Map<string, number | NumNode>,
+): NumNode => {
+  if (node instanceof Variable) {
+    const value = variables.get(node.name);
+    if (value === undefined) {
+      return node;
+    }
+    if (value instanceof NumNode) {
+      return value;
+    }
+    return new LiteralNum(value);
+  } else if (node instanceof UnaryOp) {
+    return new UnaryOp(
+      node.operation,
+      replaceVariable(node.original, variables),
+    );
+  } else if (node instanceof BinaryOp) {
+    return new BinaryOp(
+      node.operation,
+      replaceVariable(node.left, variables),
+      replaceVariable(node.right, variables),
+    );
+  }
+  return node;
+};
+
+export const partialDerivative = (node: NumNode, variable: string): NumNode => {
+  if (node instanceof Derivative) {
+    if (node.variable.name === variable) {
+      return ONE_NODE;
+    }
+    return ZERO_NODE;
+  } else if (node instanceof UnaryOp) {
+    const operand = partialDerivative(node.original, variable);
+    return new UnaryOp(node.operation, operand);
+  } else if (node instanceof BinaryOp) {
+    const left = partialDerivative(node.left, variable);
+    const right = partialDerivative(node.right, variable);
+    return new BinaryOp(node.operation, left, right);
+  }
+  return node;
+};
+
 const simpleEval = memoizeNodeEval(function (node: NumNode): number {
   if (node instanceof LiteralNum) {
     return node.value;

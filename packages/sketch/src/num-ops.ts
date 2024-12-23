@@ -1,5 +1,6 @@
 import { Num, ONE, asNum, binaryOpNum, unaryOpNum } from "./num";
 import { fullDerivative } from "./num-diff";
+import { allVariables, partialDerivative, replaceVariable } from "./num-tree";
 
 export function add(a: Num | number, b: Num | number): Num {
   return binaryOpNum("ADD", asNum(a), asNum(b));
@@ -121,4 +122,20 @@ export function sigmoid(a: Num | number): Num {
 
 export function diff(num: Num): Num {
   return new Num(fullDerivative(num.n));
+}
+
+export function gradientAt(num: Num, point: [string, Num | number][]): Num[] {
+  const diffNum = fullDerivative(num.n);
+  console.log(allVariables(diffNum));
+  const diffAtPoint = replaceVariable(
+    diffNum,
+    new Map(point.map(([k, v]) => [k, asNum(v).n])),
+  );
+  console.log(allVariables(diffAtPoint));
+
+  const grad = point.map(([k]) => {
+    return new Num(partialDerivative(diffAtPoint, k));
+  });
+  console.log(grad);
+  return grad;
 }

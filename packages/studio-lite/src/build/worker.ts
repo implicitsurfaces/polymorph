@@ -45,6 +45,7 @@ const api = {
       }
 
       if (value?.value) {
+        console.log("v", value);
         out.valueReads.push({
           name: value.name ?? `Value ${++i}`,
           value: value.value.read(solution),

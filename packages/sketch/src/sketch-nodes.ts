@@ -241,6 +241,15 @@ export class VectorRotated extends VectorNode {
   }
 }
 
+export class GradientAt extends VectorNode {
+  constructor(
+    public readonly field: ProfileNode,
+    public readonly point: PointNode,
+  ) {
+    super();
+  }
+}
+
 export class Line extends EdgeNode {
   constructor() {
     super();
@@ -484,6 +493,21 @@ export class FlipNode extends ProfileNode {
   constructor(
     public readonly profile: ProfileNode,
     public readonly axis: "x" | "y",
+  ) {
+    super();
+  }
+}
+
+export class NormalizedFieldNode extends ProfileNode {
+  constructor(public readonly profile: ProfileNode) {
+    super();
+  }
+}
+
+export class MidSurfaceNode extends ProfileNode {
+  constructor(
+    public readonly first: ProfileNode,
+    public readonly second: ProfileNode,
   ) {
     super();
   }

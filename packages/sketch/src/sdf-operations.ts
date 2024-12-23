@@ -1,6 +1,6 @@
 import { Angle, Point, Vec2 } from "./geom";
-import { Num, ONE, asNum } from "./num";
-import { max, min, clamp } from "./num-ops";
+import { Num, ONE, asNum, variable } from "./num";
+import { max, min, clamp, hypot, gradientAt } from "./num-ops";
 import { DistField } from "./types";
 
 export class Translation implements DistField {
@@ -184,5 +184,30 @@ export class SmoothDifference implements DistField {
     const d2 = this.second.distanceTo(point);
 
     return smoothIntersect(this.k, d1, d2.neg());
+  }
+}
+
+export class MidSurface implements DistField {
+  constructor(
+    readonly first: DistField,
+    readonly second: DistField,
+  ) {}
+
+  distanceTo(point: Point): Num {
+    return this.first.distanceTo(point).sub(this.second.distanceTo(point));
+  }
+}
+
+export class Normalized implements DistField {
+  constructor(readonly sdf: DistField) {}
+
+  distanceTo(point: Point): Num {
+    const p = new Point(variable("!grad_x"), variable("!grad_y"));
+    const grad = gradientAt(this.sdf.distanceTo(p), [
+      ["!grad_x", point.x],
+      ["!grad_y", point.y],
+    ]);
+
+    return this.sdf.distanceTo(point).div(hypot(grad[0], grad[1]));
   }
 }

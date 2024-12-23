@@ -1,4 +1,6 @@
 import { memoizeNodeEval } from "./utils/cache";
+//import { renderNodeAsDot } from "./utils/num-to-dot";
+//import fs from "node:fs";
 
 export type UnaryOperation =
   | "SQRT"
@@ -247,21 +249,60 @@ export const partialDerivative = (node: NumNode, variable: string): NumNode => {
   return node;
 };
 
+const reportNaN = (node: NumNode) => {
+  //fs.writeFileSync("error.dot", renderNodeAsDot(treeEval(node)));
+  throw new Error(`NaN in binary op: ${node.operation}`);
+};
+
 const simpleEval = memoizeNodeEval(function (node: NumNode): number {
   if (node instanceof LiteralNum) {
     return node.value;
   } else if (node instanceof UnaryOp) {
     const operand = simpleEval(node.original);
+    if (Number.isNaN(operand)) {
+      reportNaN(node.original);
+    }
     return simpleUnaryOp(node.operation, operand);
   } else if (node instanceof BinaryOp) {
     const left = simpleEval(node.left);
+    if (Number.isNaN(left)) {
+      reportNaN(node.left);
+    }
     const right = simpleEval(node.right);
+    if (Number.isNaN(left)) {
+      reportNaN(node.right);
+    }
 
     return simpleBinaryOp(node.operation, left, right);
   }
 
   throw new Error(`Unknown node type: ${node?.operation}`);
 });
+
+export const treeEval = (node: NumNode): NumNode & { value: number } => {
+  if (node instanceof LiteralNum) {
+    return Object.assign(node, { value: node.value });
+  } else if (node instanceof UnaryOp) {
+    const operand = treeEval(node.original);
+    const value = simpleUnaryOp(node.operation, operand.value);
+    return Object.assign(node, {
+      operand,
+      value,
+    });
+  } else if (node instanceof BinaryOp) {
+    const left = treeEval(node.left);
+    const right = treeEval(node.right);
+
+    const value = simpleBinaryOp(node.operation, left.value, right.value);
+    return Object.assign(node, {
+      left,
+      right,
+      value,
+    });
+  }
+
+  throw new Error(`Unknown node type: ${node?.operation}`);
+};
 
 export async function dedupeEval(node: NumNode): Promise<number> {
   /* this is actually way slower than simpleEval */

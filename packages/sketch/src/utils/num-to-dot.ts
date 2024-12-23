@@ -7,7 +7,7 @@ import {
   Variable,
 } from "../num-tree";
 
-export function renderNodeAsDot(root: NumNode): string {
+export function renderNodeAsDot(root: NumNode & { value?: number }): string {
   let nodeId = 0;
   const lines: string[] = [];
 
@@ -15,7 +15,7 @@ export function renderNodeAsDot(root: NumNode): string {
     return nodeId++;
   }
 
-  function getNodeLabel(node: NumNode): string {
+  function getNodeLabel(node: NumNode & { value?: number }): string {
     if (node instanceof LiteralNum) {
       return `${node.value}`;
     } else if (node instanceof Variable) {
@@ -30,9 +30,13 @@ export function renderNodeAsDot(root: NumNode): string {
     return node.operation;
   }
 
-  function processNode(node: NumNode): number {
+  function processNode(node: NumNode & { value?: number }): number {
     const currentId = getNodeId();
-    const label = getNodeLabel(node);
+    let label = getNodeLabel(node);
+
+    if ((node.value || node.value === 0) && !(node instanceof LiteralNum)) {
+      label += ` (${node.value})`;
+    }
 
     // Add node definition
     lines.push(`    node${currentId} [label="${label}"];`);

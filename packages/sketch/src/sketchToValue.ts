@@ -1,5 +1,5 @@
 import { allVariables, naiveEval } from "./num-tree";
-import { fidgetRender } from "./num-tree-fidget";
+import { fidgetRender, fidgetRenderNode3D } from "./num-tree-fidget";
 import { gradientDescentOpt } from "./opt";
 import {
   AngleNode,
@@ -8,6 +8,7 @@ import {
   PointNode,
   ProfileNode,
   RealValueNode,
+  SolidNode,
   VectorNode,
 } from "./sketch-nodes";
 import {
@@ -17,6 +18,7 @@ import {
   evalPoint,
   evalProfile,
   evalRealValue,
+  evalSolid,
   evalVector,
 } from "./sketch-tree";
 
@@ -27,6 +29,16 @@ export async function renderProfile(
 ) {
   const distField = evalProfile(profile);
   const render = await fidgetRender(distField, size, true, valuedVars);
+  return new Uint8ClampedArray(render);
+}
+
+export async function renderSolid(
+  solid: SolidNode,
+  valuedVars: Map<string, number> = new Map(),
+  size: number,
+) {
+  const distField = evalSolid(solid);
+  const render = await fidgetRenderNode3D(distField, size, true, valuedVars);
   return new Uint8ClampedArray(render);
 }
 

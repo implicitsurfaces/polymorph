@@ -14,6 +14,8 @@ export class PathNode {}
 
 export class ProfileNode {}
 
+export class SolidNode {}
+
 export class WidthModulationNode {}
 
 export class ConstraintNode {}
@@ -517,6 +519,31 @@ export class SignedDistanceToProfile extends RealValueNode {
   constructor(
     public readonly profile: ProfileNode,
     public readonly point: PointNode,
+  ) {
+    super();
+  }
+}
+
+export class SphereNode extends SolidNode {
+  constructor(public readonly radius: DistanceNode) {
+    super();
+  }
+}
+
+export class ExtrusionNode extends SolidNode {
+  constructor(
+    public readonly profile: ProfileNode,
+    public readonly height: DistanceNode,
+  ) {
+    super();
+  }
+}
+
+export class SolidRotationNode extends SolidNode {
+  constructor(
+    public readonly solid: SolidNode,
+    public readonly angle: AngleNode,
+    public readonly axis: "x" | "y" | "z",
   ) {
     super();
   }

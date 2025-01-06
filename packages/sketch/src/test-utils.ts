@@ -1,9 +1,10 @@
 import { expect } from "vitest";
 import { simpleEval, dedupeEval, naiveEval } from "./num-tree";
 import { Point, asVec } from "./geom";
-import { Num } from "./num";
-import { DistField, Segment } from "./types";
+import { Num, ONE, ZERO } from "./num";
+import { DistField, Segment, SolidDistField } from "./types";
 import { fidgetRender } from "./num-tree-fidget";
+import { embedPoint, Point3D, XZ_PLANE } from "./geom-3d";
 
 export function ex(num: Num) {
   return expect(simpleEval(num.n));
@@ -101,6 +102,14 @@ export async function expectASCIISolidAngle(segment: Segment) {
 export async function expectASCIIDistance(distField: DistField) {
   const imageData = await callOnGrid((point) =>
     dedupeEval(distField.distanceTo(point).n),
+  );
+  return expect(gradientToASCII(imageData, 0.5));
+}
+
+export async function expectASCIIHeightMap(distField: SolidDistField) {
+  const plane = XZ_PLANE.translateTo(new Point3D(ZERO, ONE.neg(), ZERO));
+  const imageData = await callOnGrid((point) =>
+    dedupeEval(distField.valueAt(embedPoint(point, plane)).n),
   );
   return expect(gradientToASCII(imageData, 0.5));
 }

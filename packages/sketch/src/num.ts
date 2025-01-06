@@ -156,3 +156,4 @@ export const variable = (name: string) => new Num(new Variable(name));
 
 export const NumX = new Num(new Variable("x"));
 export const NumY = new Num(new Variable("y"));
+export const NumZ = new Num(new Variable("z"));

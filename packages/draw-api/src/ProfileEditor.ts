@@ -3,6 +3,7 @@ import {
   debugRenderProfile,
   Difference,
   Dilate,
+  ExtrusionNode,
   FlipNode,
   GradientAt,
   Intersection,
@@ -33,6 +34,7 @@ import {
   VectorLike,
 } from "./convert";
 import { Real, Vector, vector } from "./geom";
+import { SolidEditor } from "./SolidEditor";
 
 export class ProfileEditor implements NodeWrapper<ProfileNode> {
   constructor(public inner: ProfileNode) {}
@@ -146,6 +148,10 @@ export class ProfileEditor implements NodeWrapper<ProfileNode> {
 
   public distanceToPoint(p: PointLike): Real {
     return new Real(new SignedDistanceToProfile(this.inner, asPoint(p)));
+  }
+
+  public extrude(height: DistanceLike): SolidEditor {
+    return new SolidEditor(new ExtrusionNode(this.inner, asDistance(height)));
   }
 
   async debugRender(

@@ -74,6 +74,10 @@ import {
   NormalizedFieldNode,
   MidSurfaceNode,
   GradientAt,
+  SolidNode,
+  SphereNode,
+  ExtrusionNode,
+  SolidRotationNode,
 } from "./sketch-nodes";
 import { LineSegment } from "./segments";
 import {
@@ -82,7 +86,7 @@ import {
   bulgingSegmentUsingEndControl,
   bulgingSegmentUsingStartControl,
 } from "./segments-helpers";
-import { DistField, Segment } from "./types";
+import { DistField, Segment, SolidDistField } from "./types";
 import { Circle, ClosedPath, OpenPath, Box } from "./profiles";
 import {
   Rotation,
@@ -113,6 +117,8 @@ import {
   linearWidthVariation,
   staticWidth,
 } from "./extrusions-2d";
+import { Extrusion, SolidRotation, Sphere } from "./solids";
+import { X_AXIS, XY_PLANE, Y_AXIS, Z_AXIS } from "./geom-3d";
 
 export function evalRealValue(value: RealValueNode): Num {
   if (value instanceof RealValueVariable) {
@@ -552,6 +558,38 @@ export const evalProfile = memoizeNodeEval(function (
   }
 
   throw new Error(`Unknown profile: ${node.constructor.name}`);
+});
+
+const AXES = {
+  x: X_AXIS,
+  y: Y_AXIS,
+  z: Z_AXIS,
+};
+
+export const evalSolid = memoizeNodeEval(function (
+  node: SolidNode,
+): SolidDistField {
+  if (node instanceof SphereNode) {
+    return new Sphere(evalDistance(node.radius));
+  }
+
+  if (node instanceof ExtrusionNode) {
+    return new Extrusion(
+      evalDistance(node.height),
+      evalProfile(node.profile),
+      XY_PLANE,
+    );
+  }
+
+  if (node instanceof SolidRotationNode) {
+    return new SolidRotation(
+      evalAngle(node.angle),
+      evalSolid(node.solid),
+      AXES[node.axis],
+    );
+  }
+
+  throw new Error(`Unknown solid: ${node.constructor.name}`);
 });
 
 const DEFAULT_WEIGHT = ONE;

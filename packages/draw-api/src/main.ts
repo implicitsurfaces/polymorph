@@ -5,6 +5,7 @@ import {
   EasedWidthModulation,
   LinearExtrusion2DNode,
   LinearWidthModulation,
+  SphereNode,
   StaticWidthModulation,
 } from "sketch";
 import { point, angle, vector, distance } from "./geom";
@@ -16,6 +17,7 @@ import {
   DistanceLike,
   PointLike,
 } from "./convert";
+import { SolidEditor } from "./SolidEditor";
 
 export type { Point, Vector, Distance, Angle } from "./geom";
 export type { ProfileEditor } from "./ProfileEditor";
@@ -101,4 +103,8 @@ export function drawArcExtrusion(
   return new ProfileEditor(
     new ArcExtrusion2DNode(asDistance(radius), asAngle(angle), modulation),
   );
+}
+
+export function makeSphere(radius: DistanceLike): SolidEditor {
+  return new SolidEditor(new SphereNode(asDistance(radius)));
 }

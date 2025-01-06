@@ -1,6 +1,6 @@
 use std::sync::Once;
 
-use fidget::render::{BitRenderMode, ImageRenderConfig, SdfPixelRenderMode};
+use fidget::render::{BitRenderMode, ImageRenderConfig, SdfPixelRenderMode, VoxelRenderConfig};
 use fidget::vm::VmShape;
 
 use gpu_interp::{GPUExpression, GPURenderConfig, Projection, Viewport};
@@ -275,6 +275,35 @@ impl Context {
             cfg.run::<_, BitRenderMode>(shape)
                 .into_iter()
                 .map(|b| if b { 1 } else { 0 })
+                .collect()
+        }
+    }
+
+    #[wasm_bindgen(js_name = renderNodeIn3D)]
+    pub async fn render_node_in_3d(
+        &self,
+        node: &Node,
+        image_size: usize,
+        heightmap: bool,
+    ) -> Vec<u8> {
+        let shape = VmShape::new(&self.inner, node.inner).unwrap();
+
+        let cfg = VoxelRenderConfig {
+            image_size: (image_size as u32).into(),
+            ..VoxelRenderConfig::default()
+        };
+
+        let v = cfg.run(shape);
+        if heightmap {
+            v.0.into_iter()
+                .flat_map(|v| {
+                    let d = (v as usize * 255 / image_size) as u8;
+                    [d, d, d, 255]
+                })
+                .collect()
+        } else {
+            v.1.into_iter()
+                .flat_map(|[r, g, b]| [r, g, b, 255])
                 .collect()
         }
     }

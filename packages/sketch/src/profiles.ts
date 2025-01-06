@@ -1,7 +1,8 @@
 import { Point } from "./geom";
+import { embedPoint, Plane } from "./geom-3d";
 import { Num, ONE, asNum } from "./num";
 import { hypot, max, min } from "./num-ops";
-import { Segment } from "./types";
+import { Segment, SolidDistField } from "./types";
 
 export class Circle {
   readonly radius: Num;
@@ -85,5 +86,16 @@ export class OpenPath {
   distanceTo(point: Point): Num {
     const distances = this.segments.map((segment) => segment.distanceTo(point));
     return min(distances[0], ...distances.slice(1));
+  }
+}
+
+export class SolidSlice {
+  constructor(
+    public readonly solid: SolidDistField,
+    public readonly plane: Plane,
+  ) {}
+
+  distanceTo(point: Point): Num {
+    return this.solid.valueAt(embedPoint(point, this.plane));
   }
 }

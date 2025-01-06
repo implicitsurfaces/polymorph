@@ -9,9 +9,10 @@ import {
   UnaryOp,
   UnaryOperation,
 } from "./num-tree";
-import { DistField } from "./types";
+import { DistField, SolidDistField } from "./types";
 import { vecFromCartesianCoords } from "./geom";
-import { NumX, NumY } from "./num";
+import { NumX, NumY, NumZ } from "./num";
+import { vec3FromCartesianCoords } from "./geom-3d";
 
 interface EvalFn {
   (
@@ -196,5 +197,28 @@ export async function fidgetRender(
     new Map(),
   );
   const render = context.renderNode(fidgetNode, imageSize, colorPlot, useGPU);
+  return render;
+}
+
+export async function fidgetRenderNode3D(
+  node: SolidDistField,
+  imageSize = 50,
+  useHeightmap = false,
+  valuedVars: Map<string, number> = new Map(),
+): Promise<Uint8Array> {
+  const context = await createContext();
+
+  const genericPoint = vec3FromCartesianCoords(
+    NumX,
+    NumY,
+    NumZ,
+  ).pointFromOrigin();
+  const fidgetNode = _fidgetEval(
+    node.valueAt(genericPoint).n,
+    context,
+    valuedVars,
+    new Map(),
+  );
+  const render = context.renderNodeIn3D(fidgetNode, imageSize, useHeightmap);
   return render;
 }

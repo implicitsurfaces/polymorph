@@ -3,7 +3,7 @@ import {
   DistanceNode,
   ProfileNode,
   WidthModulationNode,
-} from "../sketch-nodes";
+} from "./bases";
 
 export class StaticWidthModulation extends WidthModulationNode {
   constructor(public readonly width: DistanceNode) {

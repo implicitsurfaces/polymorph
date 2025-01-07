@@ -4,7 +4,7 @@ import {
   ProfileNode,
   RealValueNode,
   VectorNode,
-} from "../sketch-nodes";
+} from "./bases";
 
 export class Translation extends ProfileNode {
   constructor(

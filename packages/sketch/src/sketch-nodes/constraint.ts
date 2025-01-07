@@ -5,7 +5,7 @@ import {
   PointNode,
   ProfileNode,
   RealValueNode,
-} from "../sketch-nodes";
+} from "./bases";
 
 export class ConstraintOnDistance extends ConstraintNode {
   constructor(

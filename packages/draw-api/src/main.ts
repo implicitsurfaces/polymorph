@@ -3,6 +3,7 @@ import {
   Box,
   Circle,
   ConeNode,
+  ConeSurfaceNode,
   EasedWidthModulation,
   LinearExtrusion2DNode,
   LinearWidthModulation,
@@ -10,6 +11,7 @@ import {
   StaticWidthModulation,
 } from "sketch";
 import { point, angle, vector, distance } from "./geom";
+export { point3D, vector3D, plane } from "./geom-3d";
 import { ProfileEditor } from "./ProfileEditor";
 import {
   AngleLike,
@@ -113,6 +115,10 @@ export function makeSphere(radius: DistanceLike): SolidEditor {
 export function makeCone(
   radius: DistanceLike,
   height: DistanceLike,
+  surfaceOnly = false,
 ): SolidEditor {
-  return new SolidEditor(new ConeNode(asDistance(radius), asDistance(height)));
+  const node = surfaceOnly
+    ? new ConeSurfaceNode(asDistance(radius), asDistance(height))
+    : new ConeNode(asDistance(radius), asDistance(height));
+  return new SolidEditor(node);
 }

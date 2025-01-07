@@ -101,3 +101,27 @@ export class Cone implements SolidDistField {
     return squareDistance.sqrt().mul(hypotSign.max(radiusSign).sign());
   }
 }
+
+export class ConeSurface implements SolidDistField {
+  constructor(
+    public readonly radius: Num,
+    public readonly height: Num,
+  ) {}
+
+  valueAt(point: Point3D): Num {
+    /* We are using the circular symmetry around the center of the cone
+     * to simplify the distance calculation.
+     * We are in the coordiantes system of a side view of the cone (the
+     * triangle).
+     */
+    const q = new Vec2(this.radius, this.height);
+
+    const xyCoord = hypot(point.x, point.y);
+    const pInTriangle = new Vec2(xyCoord, point.z);
+
+    const hypotCoord = pInTriangle.dot(q).div(q.dot(q)).max(ZERO).min(ONE);
+    const hypotPosition = pInTriangle.sub(q.scale(hypotCoord));
+
+    return hypotPosition.norm();
+  }
+}

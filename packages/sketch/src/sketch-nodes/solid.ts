@@ -1,4 +1,4 @@
-import { DistanceNode, ProfileNode, SolidNode } from "../sketch-nodes";
+import { DistanceNode, ProfileNode, SolidNode } from "./bases";
 
 export class SphereNode extends SolidNode {
   constructor(public readonly radius: DistanceNode) {
@@ -7,6 +7,15 @@ export class SphereNode extends SolidNode {
 }
 
 export class ConeNode extends SolidNode {
+  constructor(
+    public readonly radius: DistanceNode,
+    public readonly height: DistanceNode,
+  ) {
+    super();
+  }
+}
+
+export class ConeSurfaceNode extends SolidNode {
   constructor(
     public readonly radius: DistanceNode,
     public readonly height: DistanceNode,

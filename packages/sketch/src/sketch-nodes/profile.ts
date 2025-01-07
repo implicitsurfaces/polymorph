@@ -1,4 +1,10 @@
-import { DistanceNode, EdgeNode, PathNode, ProfileNode } from "../sketch-nodes";
+import {
+  DistanceNode,
+  EdgeNode,
+  PathNode,
+  PlaneNode,
+  ProfileNode,
+} from "./bases";
 
 export class PathClose extends ProfileNode {
   constructor(
@@ -25,6 +31,15 @@ export class Box extends ProfileNode {
   constructor(
     public readonly width: DistanceNode,
     public readonly height: DistanceNode,
+  ) {
+    super();
+  }
+}
+
+export class SolidSliceNode extends ProfileNode {
+  constructor(
+    public readonly solid: ProfileNode,
+    public readonly plane: PlaneNode,
   ) {
     super();
   }

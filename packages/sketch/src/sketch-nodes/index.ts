@@ -12,3 +12,6 @@ export * from "./profile-operation";
 export * from "./extrusion-2d";
 export * from "./solid";
 export * from "./solid-operation";
+export * from "./vector3";
+export * from "./point3";
+export * from "./plane";

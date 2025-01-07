@@ -5,10 +5,12 @@ import {
   AngleNode,
   ConstraintNode,
   DistanceNode,
+  Point3Node,
   PointNode,
   ProfileNode,
   RealValueNode,
   SolidNode,
+  Vector3Node,
   VectorNode,
 } from "./sketch-nodes";
 import {
@@ -16,10 +18,12 @@ import {
   evalConstraint,
   evalDistance,
   evalPoint,
+  evalPoint3,
   evalProfile,
   evalRealValue,
   evalSolid,
   evalVector,
+  evalVector3,
 } from "./sketch-tree";
 
 export async function renderProfile(
@@ -89,6 +93,30 @@ export function readVector(
 ): [number, number] {
   const v = evalVector(vector);
   return [naiveEval(v.x.n, valuedVars), naiveEval(v.y.n, valuedVars)];
+}
+
+export function readPoint3(
+  point: Point3Node,
+  valuedVars: Map<string, number>,
+): [number, number, number] {
+  const p = evalPoint3(point);
+  return [
+    naiveEval(p.x.n, valuedVars),
+    naiveEval(p.y.n, valuedVars),
+    naiveEval(p.z.n, valuedVars),
+  ];
+}
+
+export function readVector3(
+  vector: Vector3Node,
+  valuedVars: Map<string, number>,
+): [number, number, number] {
+  const v = evalVector3(vector);
+  return [
+    naiveEval(v.x.n, valuedVars),
+    naiveEval(v.y.n, valuedVars),
+    naiveEval(v.z.n, valuedVars),
+  ];
 }
 
 export function findSolution(

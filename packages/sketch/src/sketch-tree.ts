@@ -22,6 +22,11 @@ import {
   PointVectorSum,
   PointVectorDifference,
   PointMidPoint,
+  Point3Node,
+  Point3AsVectorFromOrigin,
+  Point3VectorSum,
+  Point3VectorDifference,
+  Point3MidPoint,
   VectorFromPoint,
   VectorFromPoints,
   VectorFromCartesianCoords,
@@ -79,6 +84,19 @@ import {
   ExtrusionNode,
   SolidRotationNode,
   ConeNode,
+  Vector3Node,
+  Vector3FromPoint,
+  Vector3FromPoints,
+  Vector3FromCartesianCoords,
+  Vector3Sum,
+  Vector3Difference,
+  Vector3Scaled,
+  Vector3Rotated,
+  SolidGradientAt,
+  PlaneNode,
+  Vector3Norm,
+  SolidSliceNode,
+  ConeSurfaceNode,
 } from "./sketch-nodes";
 import { LineSegment } from "./segments";
 import {
@@ -88,7 +106,7 @@ import {
   bulgingSegmentUsingStartControl,
 } from "./segments-helpers";
 import { DistField, Segment, SolidDistField } from "./types";
-import { Circle, ClosedPath, OpenPath, Box } from "./profiles";
+import { Circle, ClosedPath, OpenPath, Box, SolidSlice } from "./profiles";
 import {
   Rotation,
   Translation,
@@ -118,8 +136,26 @@ import {
   linearWidthVariation,
   staticWidth,
 } from "./extrusions-2d";
-import { Cone, Extrusion, SolidRotation, Sphere } from "./solids";
-import { X_AXIS, XY_PLANE, Y_AXIS, Z_AXIS } from "./geom-3d";
+import { Cone, ConeSurface, Extrusion, SolidRotation, Sphere } from "./solids";
+import {
+  Plane,
+  Point3D,
+  UnitVec3,
+  Vec3,
+  X_AXIS,
+  XY_PLANE,
+  XZ_PLANE,
+  Y_AXIS,
+  YZ_PLANE,
+  Z_AXIS,
+} from "./geom-3d";
+import {
+  BasePlaneNode,
+  PivotedPlaneNode,
+  PlaneFromPoints,
+  RotatedPlaneNode,
+  TranslatedPlaneNode,
+} from "./sketch-nodes/plane";
 
 export function evalRealValue(value: RealValueNode): Num {
   if (value instanceof RealValueVariable) {
@@ -170,6 +206,10 @@ export const evalDistance = memoizeNodeEval(function (
   if (distance instanceof VectorNorm) {
     return evalVector(distance.vector).norm();
   }
+  if (distance instanceof Vector3Norm) {
+    return evalVector3(distance.vector).norm();
+  }
+
   if (distance instanceof ArcLength) {
     return evalAngle(distance.angle).asRad().mul(evalDistance(distance.radius));
   }
@@ -234,6 +274,28 @@ export const evalPoint = memoizeNodeEval(function (point: PointNode): Point {
   throw new Error(`Unknown point: ${point.constructor.name}`);
 });
 
+export const evalPoint3 = memoizeNodeEval(function (
+  point: Point3Node,
+): Point3D {
+  if (point instanceof Point3AsVectorFromOrigin) {
+    return evalVector3(point.vector).pointFromOrigin();
+  }
+
+  if (point instanceof Point3VectorSum) {
+    return evalPoint3(point.point).add(evalVector3(point.vector));
+  }
+
+  if (point instanceof Point3VectorDifference) {
+    return evalPoint3(point.point).sub(evalVector3(point.vector));
+  }
+
+  if (point instanceof Point3MidPoint) {
+    return evalPoint3(point.left).midPoint(evalPoint3(point.right));
+  }
+
+  throw new Error(`Unknown point: ${point.constructor.name}`);
+});
+
 export const evalVector = memoizeNodeEval(function evalVector(
   vector: VectorNode,
 ): Vec2 {
@@ -279,6 +341,77 @@ export const evalVector = memoizeNodeEval(function evalVector(
       ["!!y", point.y],
     ]);
     return new Vec2(grad[0], grad[1]);
+  }
+
+  throw new Error(`Unknown vector: ${vector.constructor.name}`);
+});
+
+function getAxis(axis: "x" | "y" | "z" | Vector3Node): UnitVec3 {
+  if (axis === "x") {
+    return X_AXIS;
+  }
+  if (axis === "y") {
+    return Y_AXIS;
+  }
+  if (axis === "z") {
+    return Z_AXIS;
+  }
+  if (axis instanceof Vector3Node) {
+    return evalVector3(axis).normalize();
+  }
+
+  throw new Error(`Unknown axis: ${axis}`);
+}
+
+export const evalVector3 = memoizeNodeEval(function evalVector3(
+  vector: Vector3Node,
+): Vec3 {
+  if (vector instanceof Vector3FromPoint) {
+    return evalPoint3(vector.point).vecFromOrigin();
+  }
+
+  if (vector instanceof Vector3FromPoints) {
+    return evalPoint3(vector.p0).vecTo(evalPoint3(vector.p1));
+  }
+
+  if (vector instanceof Vector3FromCartesianCoords) {
+    return new Vec3(
+      evalRealValue(vector.x),
+      evalRealValue(vector.y),
+      evalRealValue(vector.z),
+    );
+  }
+
+  if (vector instanceof Vector3Sum) {
+    return evalVector3(vector.left).add(evalVector3(vector.right));
+  }
+
+  if (vector instanceof Vector3Difference) {
+    return evalVector3(vector.left).sub(evalVector3(vector.right));
+  }
+
+  if (vector instanceof Vector3Scaled) {
+    return evalVector3(vector.vector).scale(evalRealValue(vector.scale));
+  }
+
+  if (vector instanceof Vector3Rotated) {
+    return evalVector3(vector.vector).rotate(
+      evalAngle(vector.angle),
+      getAxis(vector.axis),
+    );
+  }
+
+  if (vector instanceof SolidGradientAt) {
+    const profile = evalSolid(vector.field);
+    const point = evalPoint3(vector.point);
+
+    const p = new Point3D(variable("!!x"), variable("!!y"), variable("!!z"));
+    const grad = gradientAt(profile.valueAt(p), [
+      ["!!x", point.x],
+      ["!!y", point.y],
+      ["!!z", point.z],
+    ]);
+    return new Vec3(grad[0], grad[1], grad[2]);
   }
 
   throw new Error(`Unknown vector: ${vector.constructor.name}`);
@@ -476,6 +609,10 @@ export const evalProfile = memoizeNodeEval(function (
     return new Box(width, height);
   }
 
+  if (node instanceof SolidSliceNode) {
+    return new SolidSlice(evalSolid(node.solid), evalPlane(node.plane));
+  }
+
   if (node instanceof MidSurfaceNode) {
     const first = evalProfile(node.first);
     const second = evalProfile(node.second);
@@ -561,11 +698,49 @@ export const evalProfile = memoizeNodeEval(function (
   throw new Error(`Unknown profile: ${node.constructor.name}`);
 });
 
-const AXES = {
-  x: X_AXIS,
-  y: Y_AXIS,
-  z: Z_AXIS,
-};
+export const evalPlane = memoizeNodeEval(function (node: PlaneNode): Plane {
+  if (node instanceof BasePlaneNode) {
+    if (node.plane === "xy") {
+      return XY_PLANE;
+    }
+    if (node.plane === "yz") {
+      return YZ_PLANE;
+    }
+    if (node.plane === "xz") {
+      return XZ_PLANE;
+    }
+    throw new Error(`Unknown base plane: ${node.plane}`);
+  }
+
+  if (node instanceof TranslatedPlaneNode) {
+    return evalPlane(node.plane).translate(evalVector3(node.vector));
+  }
+
+  if (node instanceof PivotedPlaneNode) {
+    return evalPlane(node.plane).pivot(
+      evalAngle(node.angle),
+      getAxis(node.axis),
+    );
+  }
+
+  if (node instanceof RotatedPlaneNode) {
+    return evalPlane(node.plane).rotateAroundZ(evalAngle(node.angle));
+  }
+
+  if (node instanceof PlaneFromPoints) {
+    const origin = evalPoint3(node.origin);
+    const p1 = evalPoint3(node.p1);
+    const p2 = evalPoint3(node.p2);
+
+    const xAxis = origin.vecTo(p1).normalize();
+    const yAxis = origin.vecTo(p2).normalize();
+    const zAxis = xAxis.cross(yAxis) as UnitVec3;
+
+    return new Plane(origin, zAxis, xAxis);
+  }
+
+  throw new Error(`Unknown plane: ${node.constructor.name}`);
+});
 
 export const evalSolid = memoizeNodeEval(function (
   node: SolidNode,
@@ -576,6 +751,13 @@ export const evalSolid = memoizeNodeEval(function (
 
   if (node instanceof ConeNode) {
     return new Cone(evalDistance(node.radius), evalDistance(node.height));
+  }
+
+  if (node instanceof ConeSurfaceNode) {
+    return new ConeSurface(
+      evalDistance(node.radius),
+      evalDistance(node.height),
+    );
   }
 
   if (node instanceof ExtrusionNode) {
@@ -590,7 +772,7 @@ export const evalSolid = memoizeNodeEval(function (
     return new SolidRotation(
       evalAngle(node.angle),
       evalSolid(node.solid),
-      AXES[node.axis],
+      getAxis(node.axis),
     );
   }
 

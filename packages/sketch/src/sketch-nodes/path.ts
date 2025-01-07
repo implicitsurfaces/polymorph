@@ -1,4 +1,4 @@
-import { DistanceNode, EdgeNode, PathNode, PointNode } from "../sketch-nodes";
+import { DistanceNode, EdgeNode, PathNode, PointNode } from "./bases";
 
 export class PathStart extends PathNode {
   constructor(

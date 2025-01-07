@@ -1,12 +1,19 @@
 import {
   AngleLiteral,
   AngleNode,
+  BasePlaneNode,
   DistanceLiteral,
   DistanceNode,
+  PlaneFromPoints,
+  PlaneNode,
+  Point3AsVectorFromOrigin,
+  Point3Node,
   PointAsVectorFromOrigin,
   PointNode,
   ProfileNode,
   RealValueNode,
+  Vector3FromCartesianCoords,
+  Vector3Node,
   VectorFromCartesianCoords,
   VectorFromPolarCoods,
   VectorNode,
@@ -77,6 +84,31 @@ export function asVector(vector: VectorLike): VectorNode {
   return new VectorFromCartesianCoords(asRealValue(x), asRealValue(y));
 }
 
+export type Vector3DLike =
+  | [RealLike, RealLike, RealLike]
+  | Vector3Node
+  | NodeWrapper<Vector3Node>;
+
+export function asVector3D(vector: Vector3DLike): Vector3Node {
+  if (vector instanceof Vector3Node) {
+    return vector;
+  }
+  if (isNodeWrapper(vector, Vector3Node)) {
+    return vector.inner;
+  }
+
+  if (isNodeWrapper(vector, Point3Node) || vector instanceof PointNode) {
+    throw new Error("Expected a Vector, but recieved a Point");
+  }
+
+  const [x, y, z] = vector;
+  return new Vector3FromCartesianCoords(
+    asRealValue(x),
+    asRealValue(y),
+    asRealValue(z),
+  );
+}
+
 export function asPolarVector(vector: VectorLike): VectorNode {
   if (vector instanceof VectorNode) {
     return vector;
@@ -118,6 +150,21 @@ export function asPolarPoint(point: PointLike): PointNode {
   return new PointAsVectorFromOrigin(asPolarVector(point));
 }
 
+export type Point3DLike =
+  | [RealLike, RealLike, RealLike]
+  | Point3Node
+  | NodeWrapper<Point3Node>;
+
+export function asPoint3D(point: Point3DLike): Point3Node {
+  if (point instanceof Point3Node) {
+    return point;
+  }
+  if (isNodeWrapper(point, Point3Node)) {
+    return point.inner;
+  }
+  return new Point3AsVectorFromOrigin(asVector3D(point));
+}
+
 export type ProfileLike = ProfileNode | NodeWrapper<ProfileNode>;
 
 export function asProfile(profile: ProfileLike): ProfileNode {
@@ -128,4 +175,28 @@ export function asProfile(profile: ProfileLike): ProfileNode {
     return profile.inner;
   }
   throw new Error("Expected a ProfileNode");
+}
+
+export type PlaneLike =
+  | PlaneNode
+  | NodeWrapper<PlaneNode>
+  | [PointLike, PointLike, PointLike]
+  | "xy"
+  | "yz"
+  | "xz";
+
+export function asPlane(plane: PlaneLike): PlaneNode {
+  if (plane instanceof PlaneNode) {
+    return plane;
+  }
+  if (isNodeWrapper(plane, PlaneNode)) {
+    return plane.inner;
+  }
+
+  if (plane === "xy" || plane === "yz" || plane === "xz") {
+    return new BasePlaneNode(plane);
+  }
+
+  const [origin, p1, p2] = plane;
+  return new PlaneFromPoints(asPoint3D(origin), asPoint3D(p1), asPoint3D(p2));
 }

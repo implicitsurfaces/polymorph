@@ -1,4 +1,4 @@
-import { PointNode, ProfileNode, VectorNode } from "../sketch-nodes";
+import { PointNode, ProfileNode, VectorNode } from "./bases";
 
 export class PointVectorSum extends PointNode {
   constructor(

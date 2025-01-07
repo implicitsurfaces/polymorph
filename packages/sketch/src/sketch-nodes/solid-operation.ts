@@ -1,4 +1,4 @@
-import { AngleNode, SolidNode } from "../sketch-nodes";
+import { AngleNode, SolidNode } from "./bases";
 
 export class SolidRotationNode extends SolidNode {
   constructor(

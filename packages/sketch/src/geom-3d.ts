@@ -335,4 +335,4 @@ export const Z_AXIS = new UnitVec3(ZERO, ZERO, ONE);
 
 export const XY_PLANE = new Plane(ORIGIN, Z_AXIS, X_AXIS);
 export const XZ_PLANE = new Plane(ORIGIN, Y_AXIS, X_AXIS);
-export const YZ_PLANE = new Plane(ORIGIN, X_AXIS, Y_AXIS);
+export const YZ_PLANE = new Plane(ORIGIN, X_AXIS.neg(), Y_AXIS);

@@ -1,4 +1,4 @@
-import { PointNode, ProfileNode, RealValueNode } from "../sketch-nodes";
+import { PointNode, ProfileNode, RealValueNode } from "./bases";
 
 export class RealValueVariable extends RealValueNode {
   constructor(public readonly name: string) {

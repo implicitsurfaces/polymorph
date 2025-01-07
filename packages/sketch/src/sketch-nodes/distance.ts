@@ -2,8 +2,9 @@ import {
   AngleNode,
   DistanceNode,
   RealValueNode,
+  Vector3Node,
   VectorNode,
-} from "../sketch-nodes";
+} from "./bases";
 
 export class DistanceLiteral extends DistanceNode {
   constructor(public readonly value: number) {
@@ -47,6 +48,12 @@ export class DistanceSum extends DistanceNode {
 
 export class VectorNorm extends DistanceNode {
   constructor(public readonly vector: VectorNode) {
+    super();
+  }
+}
+
+export class Vector3Norm extends DistanceNode {
+  constructor(public readonly vector: Vector3Node) {
     super();
   }
 }

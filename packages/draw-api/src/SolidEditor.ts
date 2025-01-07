@@ -1,6 +1,12 @@
-import { renderSolid, SolidNode, SolidRotationNode } from "sketch";
+import {
+  renderSolid,
+  SolidNode,
+  SolidRotationNode,
+  SolidSliceNode,
+} from "sketch";
 import { NodeWrapper } from "./types";
-import { AngleLike, asAngle } from "./convert";
+import { AngleLike, asAngle, asPlane, PlaneLike } from "./convert";
+import { ProfileEditor } from "./ProfileEditor";
 
 export class SolidEditor implements NodeWrapper<SolidNode> {
   constructor(public inner: SolidNode) {}
@@ -9,6 +15,10 @@ export class SolidEditor implements NodeWrapper<SolidNode> {
     return new SolidEditor(
       new SolidRotationNode(this.inner, asAngle(angle), axis),
     );
+  }
+
+  slice(plane: PlaneLike): ProfileEditor {
+    return new ProfileEditor(new SolidSliceNode(this.inner, asPlane(plane)));
   }
 
   async render(

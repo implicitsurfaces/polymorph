@@ -1,4 +1,4 @@
-import { EdgeNode, PointNode } from "../sketch-nodes";
+import { EdgeNode, PointNode } from "./bases";
 
 export class Line extends EdgeNode {
   constructor() {

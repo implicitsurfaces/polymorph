@@ -6,7 +6,11 @@ export class AngleNode {}
 
 export class PointNode {}
 
+export class Point3Node {}
+
 export class VectorNode {}
+
+export class Vector3Node {}
 
 export class PlaneNode {}
 

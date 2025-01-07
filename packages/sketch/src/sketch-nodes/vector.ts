@@ -5,7 +5,7 @@ import {
   ProfileNode,
   RealValueNode,
   VectorNode,
-} from "../sketch-nodes";
+} from "./bases";
 
 export class VectorFromPolarCoods extends VectorNode {
   constructor(

@@ -530,6 +530,15 @@ export class SphereNode extends SolidNode {
   }
 }
 
+export class ConeNode extends SolidNode {
+  constructor(
+    public readonly radius: DistanceNode,
+    public readonly height: DistanceNode,
+  ) {
+    super();
+  }
+}
+
 export class ExtrusionNode extends SolidNode {
   constructor(
     public readonly profile: ProfileNode,

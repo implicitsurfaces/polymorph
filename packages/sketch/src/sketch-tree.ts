@@ -78,6 +78,7 @@ import {
   SphereNode,
   ExtrusionNode,
   SolidRotationNode,
+  ConeNode,
 } from "./sketch-nodes";
 import { LineSegment } from "./segments";
 import {
@@ -117,7 +118,7 @@ import {
   linearWidthVariation,
   staticWidth,
 } from "./extrusions-2d";
-import { Extrusion, SolidRotation, Sphere } from "./solids";
+import { Cone, Extrusion, SolidRotation, Sphere } from "./solids";
 import { X_AXIS, XY_PLANE, Y_AXIS, Z_AXIS } from "./geom-3d";
 
 export function evalRealValue(value: RealValueNode): Num {
@@ -571,6 +572,10 @@ export const evalSolid = memoizeNodeEval(function (
 ): SolidDistField {
   if (node instanceof SphereNode) {
     return new Sphere(evalDistance(node.radius));
+  }
+
+  if (node instanceof ConeNode) {
+    return new Cone(evalDistance(node.radius), evalDistance(node.height));
   }
 
   if (node instanceof ExtrusionNode) {

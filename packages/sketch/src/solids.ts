@@ -1,6 +1,6 @@
-import { Angle } from "./geom";
+import { Angle, Vec2 } from "./geom";
 import { Plane, Point3D, projectPoint, UnitVec3, Vec3 } from "./geom-3d";
-import { Num, ZERO } from "./num";
+import { Num, ONE, ZERO } from "./num";
 import { hypot } from "./num-ops";
 import { DistField, SolidDistField } from "./types";
 
@@ -62,5 +62,42 @@ export class SolidTranslation implements SolidDistField {
 
   valueAt(point: Point3D): Num {
     return this.solid.valueAt(point.sub(this.translation));
+  }
+}
+
+export class Cone implements SolidDistField {
+  constructor(
+    public readonly radius: Num,
+    public readonly height: Num,
+  ) {}
+
+  valueAt(point: Point3D): Num {
+    /* We are using the circular symmetry around the center of the cone
+     * to simplify the distance calculation.
+     * We are in the coordiantes system of a side view of the cone (the
+     * triangle).
+     */
+    const q = new Vec2(this.radius, this.height);
+
+    const xyCoord = hypot(point.x, point.y);
+    const pInTriangle = new Vec2(xyCoord, point.z);
+
+    const hypotCoord = pInTriangle.dot(q).div(q.dot(q)).max(ZERO).min(ONE);
+    const hypotPosition = pInTriangle.sub(q.scale(hypotCoord));
+
+    const radiusCoord = xyCoord.div(this.radius).max(ZERO).min(ONE);
+    const radiusPosition = pInTriangle.sub(
+      new Vec2(this.radius.mul(radiusCoord), this.height),
+    );
+
+    const squareDistance = hypotPosition
+      .dot(hypotPosition)
+      .min(radiusPosition.dot(radiusPosition));
+
+    const zSign = pInTriangle.y.sign();
+    const hypotSign = pInTriangle.cross(q).mul(zSign);
+    const radiusSign = pInTriangle.y.sub(this.height).mul(zSign);
+
+    return squareDistance.sqrt().mul(hypotSign.max(radiusSign).sign());
   }
 }

@@ -2,6 +2,7 @@ import {
   ArcExtrusion2DNode,
   Box,
   Circle,
+  ConeNode,
   EasedWidthModulation,
   LinearExtrusion2DNode,
   LinearWidthModulation,
@@ -107,4 +108,11 @@ export function drawArcExtrusion(
 
 export function makeSphere(radius: DistanceLike): SolidEditor {
   return new SolidEditor(new SphereNode(asDistance(radius)));
+}
+
+export function makeCone(
+  radius: DistanceLike,
+  height: DistanceLike,
+): SolidEditor {
+  return new SolidEditor(new ConeNode(asDistance(radius), asDistance(height)));
 }

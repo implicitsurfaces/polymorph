@@ -240,6 +240,10 @@ export class Point3D {
   get y(): Num {
     return this._y;
   }
+
+  get z(): Num {
+    return this._z;
+  }
 }
 
 export function vec3FromCartesianCoords(

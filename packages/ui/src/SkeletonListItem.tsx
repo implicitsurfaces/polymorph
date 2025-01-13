@@ -11,6 +11,7 @@ interface SkeletonListItemProps {
   name: string;
   isHovered: boolean;
   isSelected: boolean;
+  title?: string;
 }
 
 export const SkeletonListItem = memo(function SkeletonListItem({
@@ -19,6 +20,7 @@ export const SkeletonListItem = memo(function SkeletonListItem({
   name,
   isHovered,
   isSelected,
+  title,
 }: SkeletonListItemProps) {
   const onMouseEnter = useCallback(() => {
     documentManager.selection().setHoveredElement(id);
@@ -55,6 +57,11 @@ export const SkeletonListItem = memo(function SkeletonListItem({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
+      {title && (
+        <div className="extra-zone">
+          <p className="name single-line-text">{title}</p>
+        </div>
+      )}
       <div className="hover-zone" onClick={onSelectElement}>
         <p className="name single-line-text">{name}</p>
       </div>

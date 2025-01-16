@@ -8,6 +8,7 @@ import {
   ZERO_NODE,
   ONE_NODE,
   TWO_NODE,
+  NEG_ONE_NODE,
 } from "./num-tree";
 import { renderNodeAsDot } from "./utils/num-to-dot";
 
@@ -149,6 +150,7 @@ export class Num {
 }
 
 export const ZERO = new Num(ZERO_NODE);
+export const NEG_ONE = new Num(NEG_ONE_NODE);
 export const ONE = new Num(ONE_NODE);
 export const TWO = new Num(TWO_NODE);
 

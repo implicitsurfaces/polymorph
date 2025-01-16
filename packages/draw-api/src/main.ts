@@ -5,6 +5,7 @@ import {
   ConeNode,
   ConeSurfaceNode,
   EasedWidthModulation,
+  EllipseNode,
   LinearExtrusion2DNode,
   LinearWidthModulation,
   SphereNode,
@@ -61,6 +62,20 @@ export function drawBox(
     return box;
   }
   return box.translate(center);
+}
+
+export function drawEllipse(
+  majorRadius: DistanceLike,
+  minorRadius: DistanceLike,
+  center: PointLike | null = null,
+): ProfileEditor {
+  const ellipse = new ProfileEditor(
+    new EllipseNode(asDistance(majorRadius), asDistance(minorRadius)),
+  );
+  if (!center) {
+    return ellipse;
+  }
+  return ellipse.translate(center);
 }
 
 function parseModulation(

@@ -1,5 +1,6 @@
 import { Point } from "./geom";
 import { embedPoint, Plane } from "./geom-3d";
+import { closestPointOnEllipse } from "./geom-utils/closestPointOnEllipse";
 import { Num, ONE, asNum } from "./num";
 import { hypot, max, min } from "./num-ops";
 import { Segment, SolidDistField } from "./types";
@@ -12,6 +13,30 @@ export class Circle {
 
   distanceTo(point: Point): Num {
     return point.vecFromOrigin().norm().sub(this.radius);
+  }
+}
+
+export class Ellipse {
+  readonly majorRadius: Num;
+  readonly minorRadius: Num;
+
+  constructor(majorRadius: Num | number, minorRadius: Num | number) {
+    this.majorRadius = asNum(majorRadius);
+    this.minorRadius = asNum(minorRadius);
+  }
+
+  distanceTo(point: Point): Num {
+    const closestPoint = closestPointOnEllipse(
+      this.majorRadius,
+      this.minorRadius,
+      point,
+    );
+    const sign = point
+      .vecFromOrigin()
+      .norm()
+      .sub(closestPoint.vecFromOrigin().norm())
+      .sign();
+    return point.vecFrom(closestPoint).norm().mul(sign);
   }
 }
 

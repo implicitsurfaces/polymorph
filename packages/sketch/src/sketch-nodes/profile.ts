@@ -44,3 +44,12 @@ export class SolidSliceNode extends ProfileNode {
     super();
   }
 }
+
+export class EllipseNode extends ProfileNode {
+  constructor(
+    public readonly majorRadius: DistanceNode,
+    public readonly minorRadius: DistanceNode,
+  ) {
+    super();
+  }
+}

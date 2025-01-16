@@ -97,6 +97,7 @@ import {
   Vector3Norm,
   SolidSliceNode,
   ConeSurfaceNode,
+  EllipseNode,
 } from "./sketch-nodes";
 import { LineSegment } from "./segments";
 import {
@@ -106,7 +107,14 @@ import {
   bulgingSegmentUsingStartControl,
 } from "./segments-helpers";
 import { DistField, Segment, SolidDistField } from "./types";
-import { Circle, ClosedPath, OpenPath, Box, SolidSlice } from "./profiles";
+import {
+  Circle,
+  ClosedPath,
+  OpenPath,
+  Box,
+  SolidSlice,
+  Ellipse,
+} from "./profiles";
 import {
   Rotation,
   Translation,
@@ -607,6 +615,12 @@ export const evalProfile = memoizeNodeEval(function (
     const width = evalDistance(node.width);
     const height = evalDistance(node.height);
     return new Box(width, height);
+  }
+
+  if (node instanceof EllipseNode) {
+    const majorRadius = evalDistance(node.majorRadius);
+    const minorRadius = evalDistance(node.minorRadius);
+    return new Ellipse(majorRadius, minorRadius);
   }
 
   if (node instanceof SolidSliceNode) {

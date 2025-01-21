@@ -1,16 +1,86 @@
+import { Vector2 } from "threejs-math";
+import { PropsWithChildren } from "react";
+
 import {
   ElementId,
   Element,
   Point,
   EdgeElement,
-  LineSegment,
-  ArcFromStartTangent,
-  CCurve,
-  SCurve,
+  isEdgeElement,
 } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
-import { NumberInput } from "./NumberInput.tsx";
+import { Vector2Input } from "./Vector2Input.tsx";
 import { SkeletonListItem } from "./SkeletonListItem.tsx";
+
+class ControlPointProperty {
+  readonly getValue: () => Vector2;
+  readonly setValue: (value: Vector2) => void;
+
+  constructor(
+    readonly name: string,
+    getValueMutableRef: () => Vector2,
+  ) {
+    this.getValue = () => {
+      return getValueMutableRef().clone();
+    };
+    this.setValue = (value: Vector2) => {
+      getValueMutableRef().copy(value);
+    };
+  }
+}
+
+function getControlPointProperties(
+  edge: EdgeElement,
+): Array<ControlPointProperty> {
+  switch (edge.type) {
+    case "LineSegment": {
+      return [];
+    }
+    case "ArcFromStartTangent": {
+      return [
+        new ControlPointProperty("Tangent", () => {
+          return edge.tangent;
+        }),
+      ];
+    }
+    case "CCurve": {
+      return [
+        new ControlPointProperty("Control Point", () => {
+          return edge.controlPoint;
+        }),
+      ];
+    }
+    case "SCurve": {
+      return [
+        new ControlPointProperty("Start Control Point", () => {
+          return edge.startControlPoint;
+        }),
+        new ControlPointProperty("End Control Point", () => {
+          return edge.endControlPoint;
+        }),
+      ];
+    }
+  }
+}
+
+interface PropertyItemProps {
+  name: string;
+}
+
+function PropertyItem({
+  name,
+  children,
+}: PropsWithChildren<PropertyItemProps>) {
+  const nameWithColon = `${name}:`;
+  return (
+    <div className="panel-list-item">
+      <div className="extra-zone">
+        <p className="name single-line-text">{nameWithColon}</p>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 interface PropertiesPanelProps {
   documentManager: DocumentManager;
@@ -22,39 +92,19 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
   const hoveredElementId = selection.hoveredElement();
   const selectedElementIds = selection.selectedElements();
 
-  const onXChange = (point: Point) => {
-    return (value: number) => {
-      point.position.x = value;
-      documentManager.commitChanges();
-    };
-  };
-
-  const onYChange = (point: Point) => {
-    return (value: number) => {
-      point.position.y = value;
-      documentManager.commitChanges();
-    };
-  };
-
   function getContentForPoint(point: Point) {
     return (
-      <div className="panel-list-item">
-        <div className="extra-zone">
-          <p className="name single-line-text">Position: </p>
-          <NumberInput
-            idBase={`number-input::x${point.id}`}
-            label="X"
-            value={point.position.x}
-            onChange={onXChange(point)}
-          />
-          <NumberInput
-            idBase={`number-input::y${point.id}`}
-            label="Y"
-            value={point.position.y}
-            onChange={onYChange(point)}
-          />
-        </div>
-      </div>
+      <PropertyItem name="Position">
+        <Vector2Input
+          getValue={() => {
+            return point.position.clone();
+          }}
+          setValue={(v: Vector2) => {
+            point.position.copy(v);
+            documentManager.commitChanges();
+          }}
+        />
+      </PropertyItem>
     );
   }
 
@@ -76,44 +126,36 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
   }
 
   function getContentForEdge(edge: EdgeElement) {
+    const cpProps = getControlPointProperties(edge);
+    const cpItems = cpProps.map((cp) => {
+      return (
+        <PropertyItem name={cp.name}>
+          <Vector2Input
+            getValue={cp.getValue}
+            setValue={(v: Vector2) => {
+              cp.setValue(v);
+              documentManager.commitChanges();
+            }}
+          />
+        </PropertyItem>
+      );
+    });
     return (
       <>
         {getSkeletonItem(edge.startPoint, "Start Point:")}
         {getSkeletonItem(edge.endPoint, "End Point:")}
+        {cpItems}
       </>
     );
   }
 
-  function getContentForLineSegment(seg: LineSegment) {
-    return <>{getContentForEdge(seg)}</>;
-  }
-
-  function getContentForArcFromStartTangent(arc: ArcFromStartTangent) {
-    return <>{getContentForEdge(arc)}</>;
-  }
-
-  function getContentForCCurve(ccurve: CCurve) {
-    return <>{getContentForEdge(ccurve)}</>;
-  }
-
-  function getContentForSCurve(scurve: SCurve) {
-    return <>{getContentForEdge(scurve)}</>;
-  }
-
   function getContentForElement(element: Element) {
-    switch (element.type) {
-      case "Point":
-        return getContentForPoint(element);
-      case "LineSegment":
-        return getContentForLineSegment(element);
-      case "ArcFromStartTangent":
-        return getContentForArcFromStartTangent(element);
-      case "CCurve":
-        return getContentForCCurve(element);
-      case "SCurve":
-        return getContentForSCurve(element);
-      case "Layer":
-        return <></>;
+    if (element.type === "Point") {
+      return getContentForPoint(element);
+    } else if (isEdgeElement(element)) {
+      return getContentForEdge(element);
+    } else {
+      return <></>;
     }
   }
 

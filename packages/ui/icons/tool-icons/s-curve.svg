@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32px" height="32px">
+  <circle style="fill:#ff6f34" cx="9.5" cy="9.5" r="1.5" />
+  <circle style="fill:#ff6f34" cx="22.5" cy="22.5" r="1.5" />
+  <path style="fill:none;stroke:#cccccc;stroke-width:1" d="M 22,10 C 13,10 19,22 10,22" />
+  <path style="fill:none;stroke:#ff6f34;stroke-width:1" d="M 22,9.5 H 10" />
+  <path style="fill:none;stroke:#ff6f34;stroke-width:1" d="m 22.5,22.5 h -12" />
+  <circle style="fill:#cccccc" cx="10" cy="22" r="2" />
+  <circle style="fill:#cccccc" cx="22" cy="10" r="2" />
+</svg>

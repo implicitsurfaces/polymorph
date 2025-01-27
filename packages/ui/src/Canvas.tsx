@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useContext } from "react";
 import { Vector2 } from "threejs-math";
 
 import { Camera2 } from "./canvas/Camera2.ts";
@@ -12,6 +12,8 @@ import {
 
 import { Point, Layer } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
+
+import { CurrentToolContext } from "./tools/CurrentTool.ts";
 
 import "./Canvas.css";
 
@@ -38,6 +40,7 @@ type IWheelEvent = WheelEvent | React.WheelEvent;
 export function Canvas({ documentManager }: CanvasProps) {
   const [camera, setCamera] = useState<Camera2>(new Camera2());
   const [pointerState, setPointerState] = useState<PointerState | null>(null);
+  const { currentTool } = useContext(CurrentToolContext);
 
   const ref = useRef<HTMLCanvasElement | null>(null);
 
@@ -53,8 +56,11 @@ export function Canvas({ documentManager }: CanvasProps) {
       }
       switch (pointerState.button) {
         case 0: {
-          // left drag: move elements
-          return mover.start();
+          if (currentTool === "Select") {
+            // left drag: move elements
+            return mover.start();
+          }
+          return false;
         }
         case 1: {
           // middle drag: pan
@@ -67,7 +73,7 @@ export function Canvas({ documentManager }: CanvasProps) {
       }
       return false;
     },
-    [pointerState, mover],
+    [pointerState, mover, currentTool],
   );
 
   const onDragMove = useCallback(
@@ -86,8 +92,10 @@ export function Canvas({ documentManager }: CanvasProps) {
       const docDelta = getMouseDocumentPosition(event, canvas, camera).sub(dp);
       switch (pointerState.button) {
         case 0: {
-          // left drag: move elements
-          mover.move(docDelta);
+          if (currentTool === "Select") {
+            // left drag: move elements
+            mover.move(docDelta);
+          }
           break;
         }
         case 1: {
@@ -112,7 +120,7 @@ export function Canvas({ documentManager }: CanvasProps) {
         }
       }
     },
-    [pointerState, mover],
+    [pointerState, mover, currentTool],
   );
 
   const onDragEnd = useCallback(
@@ -123,13 +131,15 @@ export function Canvas({ documentManager }: CanvasProps) {
       }
       switch (pointerState.button) {
         case 0: {
-          // left drag: move elements
-          mover.end();
+          if (currentTool === "Select") {
+            // left drag: move elements
+            mover.end();
+          }
           break;
         }
       }
     },
-    [pointerState, mover],
+    [pointerState, mover, currentTool],
   );
 
   const onClick = useCallback(
@@ -148,17 +158,17 @@ export function Canvas({ documentManager }: CanvasProps) {
       // a quick-and-dirty hard-coded dispatch.
       switch (event.button) {
         case 0: {
-          // left click: create point or select
-          const hovered = selection.hovered();
-          if (hovered) {
-            // select
-            if (event.shiftKey) {
-              selection.toggleSelected(hovered);
-            } else {
-              selection.setSelected([hovered]);
+          if (currentTool === "Select") {
+            const hovered = selection.hovered();
+            if (hovered) {
+              // select
+              if (event.shiftKey) {
+                selection.toggleSelected(hovered);
+              } else {
+                selection.setSelected([hovered]);
+              }
             }
-          } else {
-            // create point
+          } else if (currentTool === "Point") {
             const layer = doc.getElementFromId<Layer>(selection.activeLayer());
             if (layer) {
               const pos = getMouseDocumentPosition(
@@ -189,7 +199,7 @@ export function Canvas({ documentManager }: CanvasProps) {
         }
       }
     },
-    [pointerState, documentManager],
+    [pointerState, documentManager, currentTool],
   );
 
   const onPointerDown = useCallback(
@@ -228,13 +238,15 @@ export function Canvas({ documentManager }: CanvasProps) {
         // Mouse moves with mouse buttons down are handled by onPointerMove
         return;
       }
-      // Compute threshold in document coordinates
-      const position = getMouseDocumentPosition(event, canvas, camera);
-      const toleranceInPx = 3;
-      const toleranceInDocCoords = toleranceInPx / camera.zoom;
-      hover(documentManager, camera, position, toleranceInDocCoords);
+      if (currentTool === "Select") {
+        // Compute threshold in document coordinates
+        const position = getMouseDocumentPosition(event, canvas, camera);
+        const toleranceInPx = 3;
+        const toleranceInDocCoords = toleranceInPx / camera.zoom;
+        hover(documentManager, camera, position, toleranceInDocCoords);
+      }
     },
-    [pointerState, documentManager, camera],
+    [pointerState, documentManager, camera, currentTool],
   );
 
   const onPointerMove = useCallback(

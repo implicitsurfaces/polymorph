@@ -1,0 +1,30 @@
+
+.toolbar {
+  position: absolute;
+  z-index: 10; /* above the panels */
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0px;
+  padding: 8px;
+  background: #333;
+  border-radius: 5px;
+}
+
+.toolbar > img {
+	width: 32px;
+	height: 32px;
+	border: none;
+	border-radius: 5px;
+	background-color: none;
+}
+
+.toolbar > img:hover {
+	background-color: #555;
+}
+
+.toolbar > img.is-active {
+	background-color: #4063d5;
+}

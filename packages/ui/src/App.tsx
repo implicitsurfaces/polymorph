@@ -8,6 +8,10 @@ import {
 
 import { DocumentManager } from "./DocumentManager.ts";
 
+import { allTools } from "./tools/allTools.ts";
+import { Toolbar } from "./tools/Toolbar.tsx";
+import { CurrentTool, CurrentToolContext } from "./tools/CurrentTool.ts";
+
 import { Canvas } from "./Canvas.tsx";
 import { LayersPanel } from "./LayersPanel.tsx";
 import { SkeletonPanel } from "./SkeletonPanel.tsx";
@@ -50,6 +54,9 @@ function App() {
   }, [documentManager]);
 
   documentManager.onChange(onDocumentChange);
+
+  // Tools
+  const [currentTool, setCurrentTool] = useState<CurrentTool>("Select");
 
   // Application-wide shortcuts.
 
@@ -160,39 +167,47 @@ function App() {
 
   return (
     <div className="app" ref={ref}>
-      <PanelGroup className="root-panel-group" direction="vertical">
-        <Panel>
-          <PanelGroup className="canvas-panel-group" direction="horizontal">
-            <Panel defaultSize={50} minSize={10}>
-              <Canvas documentManager={documentManager} />
-            </Panel>
-            <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
-            <Panel minSize={10}>
-              <Canvas documentManager={documentManager} />
-            </Panel>
-          </PanelGroup>
-        </Panel>
-        <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
-        <Panel>
-          <PanelGroup className="panels-panel-group" direction="horizontal">
-            <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
-              <LayersPanel documentManager={documentManager} />
-            </Panel>
-            <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
-            <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
-              <SkeletonPanel documentManager={documentManager} />
-            </Panel>
-            <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
-            <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
-              <PropertiesPanel documentManager={documentManager} />
-            </Panel>
-            <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
-            <Panel minSize={0}>
-              <div className="panel leftover" />
-            </Panel>
-          </PanelGroup>
-        </Panel>
-      </PanelGroup>
+      <CurrentToolContext.Provider
+        value={{
+          currentTool,
+          setCurrentTool,
+        }}
+      >
+        <Toolbar tools={allTools} />
+        <PanelGroup className="root-panel-group" direction="vertical">
+          <Panel>
+            <PanelGroup className="canvas-panel-group" direction="horizontal">
+              <Panel defaultSize={50} minSize={10}>
+                <Canvas documentManager={documentManager} />
+              </Panel>
+              <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
+              <Panel minSize={10}>
+                <Canvas documentManager={documentManager} />
+              </Panel>
+            </PanelGroup>
+          </Panel>
+          <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
+          <Panel>
+            <PanelGroup className="panels-panel-group" direction="horizontal">
+              <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
+                <LayersPanel documentManager={documentManager} />
+              </Panel>
+              <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
+              <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
+                <SkeletonPanel documentManager={documentManager} />
+              </Panel>
+              <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
+              <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
+                <PropertiesPanel documentManager={documentManager} />
+              </Panel>
+              <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
+              <Panel minSize={0}>
+                <div className="panel leftover" />
+              </Panel>
+            </PanelGroup>
+          </Panel>
+        </PanelGroup>
+      </CurrentToolContext.Provider>
     </div>
   );
 }

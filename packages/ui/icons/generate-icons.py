@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import argparse
 import os
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -157,7 +156,7 @@ def remove_namespaced_attributes(
         remove_namespaced_attributes(child)
 
 
-def split_svg_group(input_file: str, group_name: str, output_dir: str):
+def split_svg_group(input_file: Path, group_name: str, output_dir: Path):
     """
     Splits elements from a specified group in an SVG file into separate SVG files.
 
@@ -176,7 +175,7 @@ def split_svg_group(input_file: str, group_name: str, output_dir: str):
     # Create output directory if it doesn't exist
     # We do this after parsing the SVG file so that it isn't
     # created if parsing fails, e.g., due to file not found.
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # Find the group
     label = "{http://www.inkscape.org/namespaces/inkscape}label"
@@ -248,24 +247,15 @@ def split_svg_group(input_file: str, group_name: str, output_dir: str):
 
         # Save the new SVG file
         ET.indent(new_tree, space="  ")
-        output_file = os.path.join(output_dir, f"{icon_name}.svg")
+        output_file = output_dir / f"{icon_name}.svg"
         new_tree.write(output_file, encoding="utf-8", xml_declaration=True)
-        print(f"Created: {output_file}")
+        print(f"Created: {output_file.absolute()}")
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Generate a separate SVG icon file for each icon of a given SVG group"
-    )
-    parser.add_argument("input_file", help="Input SVG file path")
-    parser.add_argument(
-        "group_name", help="Name of the group to split into separate icon files"
-    )
-    args = parser.parse_args()
-
-    output_dir = args.input_file.removesuffix(".svg")
-
-    split_svg_group(args.input_file, args.group_name, output_dir)
+    script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
+    assets_dir = script_dir.parent / "src" / "assets"
+    split_svg_group(script_dir / "tool-icons.svg", "Tools", assets_dir / "tool-icons")
 
 
 if __name__ == "__main__":

@@ -1,12 +1,12 @@
 For convenience, icons are meant to be designed via a "master file" (e.g., `tool-icons.svg`) that contains several icons, making it easier to have a coherent style.
 
-Then, individual icons can be generated via the `generate-icons.py` script that takes as input an SVG master file and the name of the group where icons are,
+Then, individual icons can be generated via the `generate-icons.py` script that write them to the `src/assets` folder.
 
 Example:
 
 ```
 cd polymorph/packages/ui/icons
-./generate-icons.py tool-icons.svg Tools
+./generate-icons.py
 ```
 
 ## How to create a new tool icon?
@@ -34,7 +34,7 @@ cd polymorph/packages/ui/icons
 6. Back in the "Tools" layer, double click in your new icon group (to "enter" the group)
    and edit the icon.
 
-7. Save and run the script: `./generate-icons.py tool-icons.svg Tools`
+7. Save and run the script: `./generate-icons.py`
 
 Tips:
 

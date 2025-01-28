@@ -1,5 +1,4 @@
 import { Vector2 } from "threejs-math";
-import { useMemo } from "react";
 
 import { DocumentManager } from "../DocumentManager.ts";
 import {
@@ -208,15 +207,6 @@ class MoveData {
 }
 
 function start(data: MoveData, documentManager: DocumentManager): boolean {
-  // This is important otherwise in React strict mode moveStart() might be
-  // called twice, and the second time the elements might have already moved
-  // a little, so we wouldn't use as start position their actual start
-  // position but their already slightly moved position.
-  //
-  if (data.isMoving) {
-    return true;
-  }
-
   // Check whether the hovered object is movable, otherwise
   // there is nothing to move and we can fast-return.
   //
@@ -289,19 +279,17 @@ export interface Mover {
   end: () => void;
 }
 
-export function useMover(documentManager: DocumentManager): Mover {
-  return useMemo(() => {
-    const data = new MoveData();
-    return {
-      start: () => {
-        return start(data, documentManager);
-      },
-      move: (delta: Vector2) => {
-        move(data, documentManager, delta);
-      },
-      end: () => {
-        end(data, documentManager);
-      },
-    };
-  }, [documentManager]);
+export function getMover(documentManager: DocumentManager): Mover {
+  const data = new MoveData();
+  return {
+    start: () => {
+      return start(data, documentManager);
+    },
+    move: (delta: Vector2) => {
+      move(data, documentManager, delta);
+    },
+    end: () => {
+      end(data, documentManager);
+    },
+  };
 }

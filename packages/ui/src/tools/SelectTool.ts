@@ -2,6 +2,7 @@ import { Tool } from "./Tool";
 import icon from "../assets/tool-icons/select.svg";
 
 import { hover } from "../canvas/hover";
+import { getMover } from "../canvas/move";
 import { CanvasPointerEvent } from "../canvas/events";
 
 export const SelectTool: Tool = {
@@ -27,5 +28,8 @@ export const SelectTool: Tool = {
         selection.setSelected([hovered]);
       }
     }
+  },
+  onCanvasDrag(event: CanvasPointerEvent) {
+    return getMover(event.documentManager);
   },
 };

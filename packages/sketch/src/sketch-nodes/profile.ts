@@ -1,4 +1,5 @@
 import {
+  AngleNode,
   DistanceNode,
   EdgeNode,
   PathNode,
@@ -49,6 +50,18 @@ export class EllipseNode extends ProfileNode {
   constructor(
     public readonly majorRadius: DistanceNode,
     public readonly minorRadius: DistanceNode,
+  ) {
+    super();
+  }
+}
+
+export class EllipseArcNode extends ProfileNode {
+  constructor(
+    public readonly majorRadius: DistanceNode,
+    public readonly minorRadius: DistanceNode,
+    public readonly startAngle: AngleNode,
+    public readonly endAngle: AngleNode,
+    public readonly orientation: 1 | -1,
   ) {
     super();
   }

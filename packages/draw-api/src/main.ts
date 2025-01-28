@@ -5,6 +5,7 @@ import {
   ConeNode,
   ConeSurfaceNode,
   EasedWidthModulation,
+  EllipseArcNode,
   EllipseNode,
   LinearExtrusion2DNode,
   LinearWidthModulation,
@@ -71,6 +72,29 @@ export function drawEllipse(
 ): ProfileEditor {
   const ellipse = new ProfileEditor(
     new EllipseNode(asDistance(majorRadius), asDistance(minorRadius)),
+  );
+  if (!center) {
+    return ellipse;
+  }
+  return ellipse.translate(center);
+}
+
+export function drawEllipseArc(
+  majorRadius: DistanceLike,
+  minorRadius: DistanceLike,
+  startAngle: AngleLike,
+  endAngle: AngleLike,
+  orientation: 1 | -1 = 1,
+  center: PointLike | null = null,
+): ProfileEditor {
+  const ellipse = new ProfileEditor(
+    new EllipseArcNode(
+      asDistance(majorRadius),
+      asDistance(minorRadius),
+      asAngle(startAngle),
+      asAngle(endAngle),
+      orientation,
+    ),
   );
   if (!center) {
     return ellipse;

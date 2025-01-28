@@ -18,13 +18,13 @@ export function Toolbar({ tools }: ToolbarProps) {
         const name = tool.name;
         return (
           <img
-            className={name === currentTool ? "is-active" : ""}
+            className={tool === currentTool ? "is-active" : ""}
             src={tool.icon}
             alt={name}
             title={name}
             key={name}
             onClick={() => {
-              setCurrentTool(name);
+              setCurrentTool(tool);
             }}
           />
         );

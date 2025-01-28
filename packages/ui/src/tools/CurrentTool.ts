@@ -1,6 +1,7 @@
 import { createContext, Dispatch, SetStateAction } from "react";
+import { Tool } from "./Tool";
 
-export type CurrentTool = string | undefined;
+export type CurrentTool = Tool | undefined;
 
 interface CurrentToolContext {
   currentTool: CurrentTool;

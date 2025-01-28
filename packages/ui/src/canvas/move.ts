@@ -1,5 +1,4 @@
 import { Vector2 } from "threejs-math";
-import { useMemo } from "react";
 
 import { DocumentManager } from "../DocumentManager.ts";
 import {
@@ -11,6 +10,9 @@ import {
 } from "../Document.ts";
 import { Selectable, Selection } from "../Selection.ts";
 
+// TODO: Refactor these out of `canvas/drawEdges.ts` and move this `move.ts`
+// file in a different folder, e.g., the `tools` folder.
+//
 import { getEdgeShapesAndControls, ControlPoint } from "./drawEdges.ts";
 
 type OnMoveCallback = (delta: Vector2) => void;
@@ -205,15 +207,6 @@ class MoveData {
 }
 
 function start(data: MoveData, documentManager: DocumentManager): boolean {
-  // This is important otherwise in React strict mode moveStart() might be
-  // called twice, and the second time the elements might have already moved
-  // a little, so we wouldn't use as start position their actual start
-  // position but their already slightly moved position.
-  //
-  if (data.isMoving) {
-    return true;
-  }
-
   // Check whether the hovered object is movable, otherwise
   // there is nothing to move and we can fast-return.
   //
@@ -286,19 +279,17 @@ export interface Mover {
   end: () => void;
 }
 
-export function useMover(documentManager: DocumentManager): Mover {
-  return useMemo(() => {
-    const data = new MoveData();
-    return {
-      start: () => {
-        return start(data, documentManager);
-      },
-      move: (delta: Vector2) => {
-        move(data, documentManager, delta);
-      },
-      end: () => {
-        end(data, documentManager);
-      },
-    };
-  }, [documentManager]);
+export function getMover(documentManager: DocumentManager): Mover {
+  const data = new MoveData();
+  return {
+    start: () => {
+      return start(data, documentManager);
+    },
+    move: (delta: Vector2) => {
+      move(data, documentManager, delta);
+    },
+    end: () => {
+      end(data, documentManager);
+    },
+  };
 }

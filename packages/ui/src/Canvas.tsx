@@ -3,19 +3,18 @@ import { Vector2 } from "threejs-math";
 
 import { Camera2 } from "./canvas/Camera2.ts";
 import { draw } from "./canvas/draw.ts";
-import { hover } from "./canvas/hover.ts";
-import { useMover } from "./canvas/move.ts";
+import { CanvasPointerEvent } from "./canvas/events.ts";
 import {
   getMouseViewPosition,
   getMouseDocumentPosition,
 } from "./canvas/getMousePosition.ts";
 
-import { Point, Layer } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 
 import { CurrentToolContext } from "./tools/CurrentTool.ts";
 
 import "./Canvas.css";
+import { CanvasDragAction } from "./tools/Tool.ts";
 
 /**
  * Stores information for handling a pointerdown-pointermove-pointerup
@@ -37,6 +36,21 @@ interface CanvasProps {
 type IPointerEvent = PointerEvent | React.PointerEvent;
 type IWheelEvent = WheelEvent | React.WheelEvent;
 
+function makeCanvasPointerEvent(
+  event: IPointerEvent,
+  camera: Camera2,
+  canvas: HTMLElement,
+  documentManager: DocumentManager,
+): CanvasPointerEvent {
+  return {
+    camera: camera,
+    viewPosition: getMouseViewPosition(event, canvas),
+    documentPosition: getMouseDocumentPosition(event, canvas, camera),
+    documentManager: documentManager,
+    shiftKey: event.shiftKey,
+  };
+}
+
 export function Canvas({ documentManager }: CanvasProps) {
   const [camera, setCamera] = useState<Camera2>(new Camera2());
   const [pointerState, setPointerState] = useState<PointerState | null>(null);
@@ -44,21 +58,47 @@ export function Canvas({ documentManager }: CanvasProps) {
 
   const ref = useRef<HTMLCanvasElement | null>(null);
 
-  const mover = useMover(documentManager);
+  // Note: it's important to use useState and not useRef to store the current
+  // dragAction, otherwise in React strict mode, the dragAction could be
+  // executed twice causing potential conflicts.
+  //
+  const [dragAction, setDragAction] = useState<CanvasDragAction | undefined>(
+    undefined,
+  );
 
   // Returns whether there is a drag action available for the drag button.
   //
   const onDragStart = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    (_event: IPointerEvent) => {
+    (event: IPointerEvent) => {
+      const canvas = ref.current;
+      if (!canvas) {
+        return false;
+      }
       if (!pointerState) {
         return false;
       }
       switch (pointerState.button) {
         case 0: {
-          if (currentTool === "Select") {
-            // left drag: move elements
-            return mover.start();
+          if (!dragAction && currentTool?.onCanvasDrag) {
+            const canvasEvent = makeCanvasPointerEvent(
+              event,
+              camera,
+              canvas,
+              documentManager,
+            );
+            let newDragAction = currentTool.onCanvasDrag(canvasEvent);
+            if (newDragAction) {
+              const started = newDragAction.start();
+              if (!started) {
+                newDragAction = undefined;
+              }
+            }
+            if (newDragAction) {
+              setDragAction(newDragAction);
+              return true;
+            } else {
+              return false;
+            }
           }
           return false;
         }
@@ -73,7 +113,7 @@ export function Canvas({ documentManager }: CanvasProps) {
       }
       return false;
     },
-    [pointerState, mover, currentTool],
+    [pointerState, camera, documentManager, currentTool, dragAction],
   );
 
   const onDragMove = useCallback(
@@ -92,9 +132,8 @@ export function Canvas({ documentManager }: CanvasProps) {
       const docDelta = getMouseDocumentPosition(event, canvas, camera).sub(dp);
       switch (pointerState.button) {
         case 0: {
-          if (currentTool === "Select") {
-            // left drag: move elements
-            mover.move(docDelta);
+          if (dragAction) {
+            dragAction.move(docDelta);
           }
           break;
         }
@@ -120,7 +159,7 @@ export function Canvas({ documentManager }: CanvasProps) {
         }
       }
     },
-    [pointerState, mover, currentTool],
+    [pointerState, dragAction],
   );
 
   const onDragEnd = useCallback(
@@ -131,75 +170,46 @@ export function Canvas({ documentManager }: CanvasProps) {
       }
       switch (pointerState.button) {
         case 0: {
-          if (currentTool === "Select") {
-            // left drag: move elements
-            mover.end();
+          if (dragAction) {
+            dragAction.end();
+            setDragAction(undefined);
           }
           break;
         }
       }
     },
-    [pointerState, mover, currentTool],
+    [pointerState, dragAction],
   );
 
   const onClick = useCallback(
     (event: IPointerEvent) => {
       const canvas = ref.current;
-      const doc = documentManager.document();
-      const selection = documentManager.selection();
       if (!canvas) {
         return;
       }
       if (!pointerState) {
         return;
       }
-      // TODO: more generic dispatch with registry of actions with
-      // corresponding mouse buttons and modifiers. For now we do
-      // a quick-and-dirty hard-coded dispatch.
-      switch (event.button) {
-        case 0: {
-          if (currentTool === "Select") {
-            const hovered = selection.hovered();
-            if (hovered) {
-              // select
-              if (event.shiftKey) {
-                selection.toggleSelected(hovered);
-              } else {
-                selection.setSelected([hovered]);
-              }
-            }
-          } else if (currentTool === "Point") {
-            const layer = doc.getElementFromId<Layer>(selection.activeLayer());
-            if (layer) {
-              const pos = getMouseDocumentPosition(
-                event,
-                canvas,
-                pointerState.cameraOnPress,
-              );
-              const name = doc.findAvailableName("Point ", layer.elements);
-              const point = doc.createElement(Point, {
-                name: name,
-                position: pos,
-              });
-              layer.elements.push(point.id);
-              selection.setHoveredElement(point.id);
-              selection.setSelectedElements([point.id]);
-              documentManager.commitChanges();
-            }
-          }
-          break;
-        }
-        case 2: {
-          // right click: reset rotation
-          const anchor = getMouseViewPosition(event, canvas);
-          const nextCamera = pointerState.cameraOnPress.clone();
-          nextCamera.setRotationAround(anchor, 0);
-          setCamera(nextCamera);
-          break;
-        }
+      if (event.button == 2) {
+        // right click: reset rotation
+        const anchor = getMouseViewPosition(event, canvas);
+        const nextCamera = pointerState.cameraOnPress.clone();
+        nextCamera.setRotationAround(anchor, 0);
+        setCamera(nextCamera);
+      } else if (event.button == 0 && currentTool?.onCanvasClick) {
+        // left click: tool action
+        // Note: for now, we assume that the click action of the tool
+        // is for the left click. We may want to generalize this later.
+        const canvasEvent = makeCanvasPointerEvent(
+          event,
+          camera,
+          canvas,
+          documentManager,
+        );
+        currentTool.onCanvasClick(canvasEvent);
       }
     },
-    [pointerState, documentManager, currentTool],
+    [pointerState, documentManager, camera, currentTool],
   );
 
   const onPointerDown = useCallback(
@@ -238,12 +248,14 @@ export function Canvas({ documentManager }: CanvasProps) {
         // Mouse moves with mouse buttons down are handled by onPointerMove
         return;
       }
-      if (currentTool === "Select") {
-        // Compute threshold in document coordinates
-        const position = getMouseDocumentPosition(event, canvas, camera);
-        const toleranceInPx = 3;
-        const toleranceInDocCoords = toleranceInPx / camera.zoom;
-        hover(documentManager, camera, position, toleranceInDocCoords);
+      if (currentTool?.onCanvasHover) {
+        const canvasEvent = makeCanvasPointerEvent(
+          event,
+          camera,
+          canvas,
+          documentManager,
+        );
+        currentTool.onCanvasHover(canvasEvent);
       }
     },
     [pointerState, documentManager, camera, currentTool],

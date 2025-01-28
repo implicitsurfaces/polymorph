@@ -255,6 +255,16 @@ function findClosestSelectableInDocument(
   return { selectable: selectable, distance: closestDistance };
 }
 
+// Note: For now, the hover function is in the canvas folder because there is
+// indeed a semantic dependency on the canvas. For example, it has to know
+// how the canvas renders the elements (e.g., the radius of a Point) in order
+// to determine whether they are hovered. In particular, this is why it needs
+// the `camera` parameter, since points are drawn with a fixed radius in
+// screen space. In the future, we might want to abstract this away in some
+// RenderSettings class, so that the hover function depends on
+// RenderSettings, instead of the current implicit coupling with the draw
+// code of the Canvas.
+//
 export function hover(
   documentManager: DocumentManager,
   camera: Camera2,

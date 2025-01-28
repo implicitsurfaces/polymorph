@@ -56,7 +56,7 @@ function App() {
   documentManager.onChange(onDocumentChange);
 
   // Tools
-  const [currentTool, setCurrentTool] = useState<CurrentTool>("Select");
+  const [currentTool, setCurrentTool] = useState<CurrentTool>(allTools[0]);
 
   // Application-wide shortcuts.
 

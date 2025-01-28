@@ -11,6 +11,9 @@ import {
 } from "../Document.ts";
 import { Selectable, Selection } from "../Selection.ts";
 
+// TODO: Refactor these out of `canvas/drawEdges.ts` and move this `move.ts`
+// file in a different folder, e.g., the `tools` folder.
+//
 import { getEdgeShapesAndControls, ControlPoint } from "./drawEdges.ts";
 
 type OnMoveCallback = (delta: Vector2) => void;

@@ -98,6 +98,7 @@ import {
   SolidSliceNode,
   ConeSurfaceNode,
   EllipseNode,
+  EllipseArcNode,
 } from "./sketch-nodes";
 import { LineSegment } from "./segments";
 import {
@@ -114,6 +115,7 @@ import {
   Box,
   SolidSlice,
   Ellipse,
+  EllipseArc,
 } from "./profiles";
 import {
   Rotation,
@@ -621,6 +623,22 @@ export const evalProfile = memoizeNodeEval(function (
     const majorRadius = evalDistance(node.majorRadius);
     const minorRadius = evalDistance(node.minorRadius);
     return new Ellipse(majorRadius, minorRadius);
+  }
+
+  if (node instanceof EllipseArcNode) {
+    const majorRadius = evalDistance(node.majorRadius);
+    const minorRadius = evalDistance(node.minorRadius);
+    const startAngle = evalAngle(node.startAngle);
+    const endAngle = evalAngle(node.endAngle);
+    const orientation = asNum(node.orientation);
+
+    return new EllipseArc(
+      majorRadius,
+      minorRadius,
+      startAngle,
+      endAngle,
+      orientation,
+    );
   }
 
   if (node instanceof SolidSliceNode) {

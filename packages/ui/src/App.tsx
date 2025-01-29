@@ -8,7 +8,7 @@ import {
 
 import { DocumentManager } from "./DocumentManager.ts";
 
-import { makeTools } from "./tools/allTools.ts";
+import { allTools } from "./tools/allTools.ts";
 import { Toolbar } from "./tools/Toolbar.tsx";
 import { CurrentTool, CurrentToolContext } from "./tools/CurrentTool.ts";
 
@@ -56,7 +56,7 @@ function App() {
   documentManager.onChange(onDocumentChange);
 
   // Tools
-  const [tools] = useState(makeTools());
+  const [tools] = useState(allTools());
   const [currentTool, setCurrentTool] = useState<CurrentTool>(tools[0]);
 
   // Application-wide shortcuts.

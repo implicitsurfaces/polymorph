@@ -273,23 +273,20 @@ function end(data: MoveData, documentManager: DocumentManager) {
   documentManager.commitChanges();
 }
 
-export interface Mover {
-  start: () => boolean; // Returns whether there is something to move
-  move: (delta: Vector2) => void;
-  end: () => void;
-}
+export class Mover {
+  private data: MoveData = new MoveData();
 
-export function getMover(documentManager: DocumentManager): Mover {
-  const data = new MoveData();
-  return {
-    start: () => {
-      return start(data, documentManager);
-    },
-    move: (delta: Vector2) => {
-      move(data, documentManager, delta);
-    },
-    end: () => {
-      end(data, documentManager);
-    },
-  };
+  constructor(readonly documentManager: DocumentManager) {}
+
+  start(): boolean {
+    return start(this.data, this.documentManager);
+  }
+
+  move(delta: Vector2) {
+    move(this.data, this.documentManager, delta);
+  }
+
+  end() {
+    end(this.data, this.documentManager);
+  }
 }

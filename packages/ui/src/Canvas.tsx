@@ -21,6 +21,7 @@ import "./Canvas.css";
  */
 interface PointerState {
   button: number;
+  eventOnPress: IPointerEvent;
   viewPosOnPress: Vector2;
   documentPosOnPress: Vector2;
   cameraOnPress: Camera2;
@@ -206,6 +207,7 @@ export function Canvas({ documentManager }: CanvasProps) {
       }
       setPointerState({
         button: event.button,
+        eventOnPress: event,
         viewPosOnPress: getMouseViewPosition(event, canvas),
         documentPosOnPress: getMouseDocumentPosition(event, canvas, camera),
         cameraOnPress: camera.clone(),
@@ -259,7 +261,9 @@ export function Canvas({ documentManager }: CanvasProps) {
       if (!pointerState.isDrag && deltaPos.manhattanLength() > dragThreshold) {
         nextPointerState = { ...pointerState };
         nextPointerState.isDrag = true;
-        nextPointerState.isDragAccepted = onDragStart(event);
+        nextPointerState.isDragAccepted = onDragStart(
+          pointerState.eventOnPress,
+        );
         isDragAccepted = nextPointerState.isDragAccepted;
       }
       if (isDragAccepted) {

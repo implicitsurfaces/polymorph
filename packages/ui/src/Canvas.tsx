@@ -14,7 +14,6 @@ import { DocumentManager } from "./DocumentManager.ts";
 import { CurrentToolContext } from "./tools/CurrentTool.ts";
 
 import "./Canvas.css";
-import { CanvasDragAction } from "./tools/Tool.ts";
 
 /**
  * Stores information for handling a pointerdown-pointermove-pointerup
@@ -58,14 +57,6 @@ export function Canvas({ documentManager }: CanvasProps) {
 
   const ref = useRef<HTMLCanvasElement | null>(null);
 
-  // Note: it's important to use useState and not useRef to store the current
-  // dragAction, otherwise in React strict mode, the dragAction could be
-  // executed twice causing potential conflicts.
-  //
-  const [dragAction, setDragAction] = useState<CanvasDragAction | undefined>(
-    undefined,
-  );
-
   // Returns whether there is a drag action available for the drag button.
   //
   const onDragStart = useCallback(
@@ -79,26 +70,14 @@ export function Canvas({ documentManager }: CanvasProps) {
       }
       switch (pointerState.button) {
         case 0: {
-          if (!dragAction && currentTool?.onCanvasDrag) {
+          if (currentTool?.onCanvasDragStart) {
             const canvasEvent = makeCanvasPointerEvent(
               event,
               camera,
               canvas,
               documentManager,
             );
-            let newDragAction = currentTool.onCanvasDrag(canvasEvent);
-            if (newDragAction) {
-              const started = newDragAction.start();
-              if (!started) {
-                newDragAction = undefined;
-              }
-            }
-            if (newDragAction) {
-              setDragAction(newDragAction);
-              return true;
-            } else {
-              return false;
-            }
+            return currentTool.onCanvasDragStart(canvasEvent);
           }
           return false;
         }
@@ -113,7 +92,7 @@ export function Canvas({ documentManager }: CanvasProps) {
       }
       return false;
     },
-    [pointerState, camera, documentManager, currentTool, dragAction],
+    [pointerState, camera, documentManager, currentTool],
   );
 
   const onDragMove = useCallback(
@@ -132,8 +111,8 @@ export function Canvas({ documentManager }: CanvasProps) {
       const docDelta = getMouseDocumentPosition(event, canvas, camera).sub(dp);
       switch (pointerState.button) {
         case 0: {
-          if (dragAction) {
-            dragAction.move(docDelta);
+          if (currentTool?.onCanvasDragMove) {
+            currentTool.onCanvasDragMove(docDelta);
           }
           break;
         }
@@ -159,7 +138,7 @@ export function Canvas({ documentManager }: CanvasProps) {
         }
       }
     },
-    [pointerState, dragAction],
+    [pointerState, currentTool],
   );
 
   const onDragEnd = useCallback(
@@ -170,15 +149,14 @@ export function Canvas({ documentManager }: CanvasProps) {
       }
       switch (pointerState.button) {
         case 0: {
-          if (dragAction) {
-            dragAction.end();
-            setDragAction(undefined);
+          if (currentTool?.onCanvasDragEnd) {
+            currentTool.onCanvasDragEnd();
           }
           break;
         }
       }
     },
-    [pointerState, dragAction],
+    [pointerState, currentTool],
   );
 
   const onClick = useCallback(

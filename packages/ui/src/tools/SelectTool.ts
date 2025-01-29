@@ -1,13 +1,20 @@
+import { Vector2 } from "threejs-math";
+
 import { Tool } from "./Tool";
 import icon from "../assets/tool-icons/select.svg";
 
 import { hover } from "../canvas/hover";
-import { getMover } from "../canvas/move";
+import { Mover } from "../canvas/move";
 import { CanvasPointerEvent } from "../canvas/events";
 
-export const SelectTool: Tool = {
-  name: "Select",
-  icon: icon,
+export class SelectTool implements Tool {
+  readonly name = "Select";
+  readonly icon = icon;
+
+  private mover: Mover | undefined = undefined;
+
+  constructor() {}
+
   onCanvasHover(event: CanvasPointerEvent) {
     const toleranceInPx = 3;
     const toleranceInDocCoords = toleranceInPx / event.camera.zoom;
@@ -17,7 +24,8 @@ export const SelectTool: Tool = {
       event.documentPosition,
       toleranceInDocCoords,
     );
-  },
+  }
+
   onCanvasClick(event: CanvasPointerEvent) {
     const selection = event.documentManager.selection();
     const hovered = selection.hovered();
@@ -28,8 +36,35 @@ export const SelectTool: Tool = {
         selection.setSelected([hovered]);
       }
     }
-  },
-  onCanvasDrag(event: CanvasPointerEvent) {
-    return getMover(event.documentManager);
-  },
-};
+  }
+
+  onCanvasDragStart(event: CanvasPointerEvent) {
+    if (this.mover) {
+      // This can happen in React strict mode, for which onCanvasDragStart may
+      // be called twice before onCanvasDragEnd. In such scenario, we have to
+      // return the same value as in the first call, that is, `true`.
+      return true;
+    }
+    this.mover = new Mover(event.documentManager);
+    const started = this.mover.start();
+    if (!started) {
+      this.mover = undefined;
+    }
+    return started;
+  }
+
+  onCanvasDragMove(delta: Vector2) {
+    if (!this.mover) {
+      return;
+    }
+    this.mover.move(delta);
+  }
+
+  onCanvasDragEnd() {
+    if (!this.mover) {
+      return;
+    }
+    this.mover.end();
+    this.mover = undefined;
+  }
+}

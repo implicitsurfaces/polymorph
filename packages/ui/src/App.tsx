@@ -56,7 +56,8 @@ function App() {
   documentManager.onChange(onDocumentChange);
 
   // Tools
-  const [currentTool, setCurrentTool] = useState<CurrentTool>(allTools[0]);
+  const [tools] = useState(allTools());
+  const [currentTool, setCurrentTool] = useState<CurrentTool>(tools[0]);
 
   // Application-wide shortcuts.
 
@@ -173,7 +174,7 @@ function App() {
           setCurrentTool,
         }}
       >
-        <Toolbar tools={allTools} />
+        <Toolbar tools={tools} />
         <PanelGroup className="root-panel-group" direction="vertical">
           <Panel>
             <PanelGroup className="canvas-panel-group" direction="horizontal">

@@ -5,9 +5,12 @@ import { CanvasPointerEvent } from "../canvas/events";
 
 import { Layer, Point } from "../Document";
 
-export const PointTool: Tool = {
-  name: "Point",
-  icon: icon,
+export class PointTool implements Tool {
+  readonly name = "Point";
+  readonly icon = icon;
+
+  constructor() {}
+
   onCanvasClick(event: CanvasPointerEvent) {
     const doc = event.documentManager.document();
     const selection = event.documentManager.selection();
@@ -24,5 +27,5 @@ export const PointTool: Tool = {
     selection.setHoveredElement(point.id);
     selection.setSelectedElements([point.id]);
     event.documentManager.commitChanges();
-  },
-};
+  }
+}

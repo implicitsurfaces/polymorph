@@ -327,7 +327,7 @@ function sortAndRemoveDuplicates(array: Array<number>) {
   if (copy.length === 0) {
     return copy;
   }
-  copy.sort();
+  copy.sort((a, b) => a - b); // sort by increasing value (default = alphabetical)
   const res = [copy[0]];
   for (let i = 1; i < copy.length; i++) {
     if (copy[i - 1] !== copy[i]) {

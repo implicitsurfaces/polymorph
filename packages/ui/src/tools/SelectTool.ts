@@ -3,7 +3,7 @@ import { Vector2 } from "threejs-math";
 import { Tool } from "./Tool";
 import icon from "../assets/tool-icons/select.svg";
 
-import { hover } from "../canvas/hover";
+import { hoverFromCanvas } from "../canvas/hover";
 import { Mover } from "../canvas/move";
 import { CanvasPointerEvent } from "../canvas/events";
 
@@ -16,14 +16,7 @@ export class SelectTool implements Tool {
   constructor() {}
 
   onCanvasHover(event: CanvasPointerEvent) {
-    const toleranceInPx = 3;
-    const toleranceInDocCoords = toleranceInPx / event.camera.zoom;
-    hover(
-      event.documentManager,
-      event.camera,
-      event.documentPosition,
-      toleranceInDocCoords,
-    );
+    hoverFromCanvas(event);
   }
 
   onCanvasClick(event: CanvasPointerEvent) {

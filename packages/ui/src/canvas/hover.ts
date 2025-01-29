@@ -18,6 +18,8 @@ import {
 } from "./drawEdges.ts";
 import { controlPointRadius, edgeWidth, pointRadius } from "./style.ts";
 
+import { CanvasPointerEvent } from "../canvas/events";
+
 interface ClosestSelectable {
   selectable: Selectable | undefined;
   distance: number;
@@ -269,8 +271,12 @@ export function hover(
   documentManager: DocumentManager,
   camera: Camera2,
   mousePosition: Vector2,
-  tolerance: number,
+  tolerance?: number,
 ) {
+  if (tolerance === undefined) {
+    const toleranceInPx = 3;
+    tolerance = toleranceInPx / camera.zoom;
+  }
   const doc = documentManager.document();
   const selection = documentManager.selection();
   const ce = findClosestSelectableInDocument(doc, camera, mousePosition);
@@ -279,4 +285,8 @@ export function hover(
   } else {
     selection.setHovered(undefined);
   }
+}
+
+export function hoverFromCanvas(event: CanvasPointerEvent) {
+  hover(event.documentManager, event.camera, event.documentPosition);
 }

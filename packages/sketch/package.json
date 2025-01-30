@@ -8,6 +8,7 @@
   "scripts": {
     "test": "vitest",
     "dev": "vite",
+    "watch": "watchexec -w . -w ../fidget/dist vite build",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },

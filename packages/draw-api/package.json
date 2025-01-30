@@ -7,6 +7,7 @@
   "types": "dist/main.d.ts",
   "scripts": {
     "test": "vitest",
+    "watch": "watchexec -w . -w ../sketch/dist -w ../fidget/dist vite build",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview"

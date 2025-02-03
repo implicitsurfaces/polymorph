@@ -276,6 +276,7 @@ export const Layer: ElementSpec<Layer, LayerOptions> = {
       id: id,
       type: "Layer",
       ...LayerDefaultOptions,
+      elements: [...LayerDefaultOptions.elements],
       ...options,
     };
   },

@@ -157,10 +157,10 @@ const simpleBinaryOp = (
     return Math.sign(left - right);
   }
   if (operation === "AND") {
-    return left && right;
+    return left === 0 ? left : right;
   }
   if (operation === "OR") {
-    return left || right;
+    return left === 0 ? right : left;
   }
   throw new Error(`Unknown binary operation: ${operation}`);
 };

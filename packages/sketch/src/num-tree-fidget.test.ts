@@ -14,6 +14,9 @@ const t = (s: Segment) => new Dilatation(asNum(0.2), new OpenPath([s]));
 const expectToBe = async (node: Num, value: number) =>
   expect(await fidgetEval(node.n)).toBeCloseTo(value);
 
+const expectToBeNaN = async (node: Num) =>
+  expect(await fidgetEval(node.n)).toBeNaN();
+
 describe("fidgetEval", () => {
   test("simple sum", async () => {
     await expectToBe(asNum(40).add(2), 42);
@@ -128,6 +131,11 @@ describe("fidgetEval", () => {
     await expectToBe(asNum(1).equals(1), 1);
     await expectToBe(asNum(1).equals(-1), 0);
     await expectToBe(asNum(-1).equals(1), 0);
+  });
+
+  test("NaN behaviour with boolean operations", async () => {
+    await expectToBeNaN(asNum(NaN).or(0));
+    await expectToBe(asNum(NaN).and(0), 0);
   });
 
   test("distance to a circle", async () => {

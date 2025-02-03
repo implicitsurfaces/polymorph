@@ -2,7 +2,7 @@ import { Angle, Point } from "./geom";
 import { embedPoint, Plane } from "./geom-3d";
 import {
   closestPointOnEllipse,
-  closestPointOnEllipseArc,
+  closestPointsOnEllipseArc,
 } from "./geom-utils/closestPointOnEllipse";
 import { Num, ONE, asNum } from "./num";
 import { hypot, max, min } from "./num-ops";
@@ -80,7 +80,7 @@ export class EllipseArc {
   }
 
   distanceTo(point: Point): Num {
-    const closestPoint = closestPointOnEllipseArc(
+    const closestPoints = closestPointsOnEllipseArc(
       this.majorRadius,
       this.minorRadius,
       this.startAngle,
@@ -88,9 +88,17 @@ export class EllipseArc {
       this.orientation,
       point,
     );
+
+    const minDist = min(
+      ...(closestPoints.map((closestPoint) =>
+        point.vecFrom(closestPoint).norm(),
+      ) as [Num, Num, Num, Num]),
+    );
+
     const firstDist = point.vecFrom(this.firstPoint).norm();
     const lastDist = point.vecFrom(this.lastPoint).norm();
-    return point.vecFrom(closestPoint).norm().min(firstDist).min(lastDist);
+
+    return minDist.min(firstDist).min(lastDist);
   }
 }
 

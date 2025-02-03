@@ -34,8 +34,11 @@ export function renderNodeAsDot(root: NumNode & { value?: number }): string {
     const currentId = getNodeId();
     let label = getNodeLabel(node);
 
-    if ((node.value || node.value === 0) && !(node instanceof LiteralNum)) {
-      label += ` (${node.value})`;
+    if (
+      (node.value || node.value === 0 || Number.isNaN(node.value)) &&
+      !(node instanceof LiteralNum)
+    ) {
+      label += ` (${Number.isNaN(node.value) ? "NaN" : node.value})`;
     }
 
     // Add node definition

@@ -1,7 +1,7 @@
 import { test } from "vitest";
 import { asNum } from "./num";
 
-import { ex } from "./test-utils";
+import { ex, exNaN } from "./test-utils";
 
 test("literal nums", () => {
   ex(asNum(1)).toBe(1);
@@ -205,4 +205,29 @@ test("num equals", () => {
   ex(asNum(1).equals(1)).toBeCloseTo(1);
   ex(asNum(1).equals(-1)).toBeCloseTo(0);
   ex(asNum(-1).equals(1)).toBeCloseTo(0);
+});
+
+test("handle nans", () => {
+  exNaN(asNum(NaN).add(1)).toBeNaN();
+  exNaN(asNum(1).add(NaN)).toBeNaN();
+  exNaN(asNum(NaN).add(NaN)).toBeNaN();
+
+  //ex(asNum(1).div(0)).toBe(Infinity);
+  //ex(asNum(-1).div(0)).toBe(-Infinity);
+  //exNaN(asNum(0).div(0)).toBeNaN();
+
+  exNaN(asNum(-1).sqrt()).toBeNaN();
+
+  exNaN(asNum(NaN).compare(0)).toBeNaN();
+  exNaN(asNum(0).compare(NaN)).toBeNaN();
+
+  exNaN(asNum(0).or(NaN)).toBeNaN();
+  exNaN(asNum(NaN).or(0)).toBeNaN();
+  exNaN(asNum(1).or(NaN)).toBeCloseTo(1);
+  exNaN(asNum(NaN).or(NaN)).toBeNaN();
+
+  exNaN(asNum(NaN).and(0)).toBeCloseTo(0);
+  exNaN(asNum(1).and(NaN)).toBeNaN();
+  exNaN(asNum(0).and(NaN)).toBeCloseTo(0);
+  exNaN(asNum(NaN).and(NaN)).toBeNaN();
 });

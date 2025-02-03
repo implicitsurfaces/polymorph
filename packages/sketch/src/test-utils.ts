@@ -9,6 +9,9 @@ import { embedPoint, Point3D, XZ_PLANE } from "./geom-3d";
 export function ex(num: Num) {
   return expect(simpleEval(num.n));
 }
+export function exNaN(num: Num) {
+  return expect(naiveEval(num.n, new Map()));
+}
 
 export function exVar(num: Num, vars: Record<string, number>) {
   return expect(naiveEval(num.n, new Map(Object.entries(vars))));

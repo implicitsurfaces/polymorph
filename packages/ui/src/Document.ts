@@ -47,17 +47,13 @@ export interface Point extends ElementBase, PointData {
   type: "Point";
 }
 
-export const PointDefaultOptions = {
-  name: "Point",
-  position: new Vector2(0, 0),
-};
-
 export const Point: ElementSpec<Point, PointOptions> = {
   create: (id: ElementId, options: PointOptions) => {
     return {
       id: id,
       type: "Point",
-      ...PointDefaultOptions,
+      name: "Point",
+      position: new Vector2(0, 0),
       ...options,
     };
   },
@@ -100,18 +96,14 @@ export interface LineSegment extends ElementBase, LineSegmentData {
   type: "LineSegment";
 }
 
-export const LineSegmentDefaultOptions = {
-  name: "Line Segment",
-  startPoint: "",
-  endPoint: "",
-};
-
 export const LineSegment: ElementSpec<LineSegment, LineSegmentOptions> = {
   create: (id: ElementId, options: LineSegmentOptions) => {
     return {
       id: id,
       type: "LineSegment",
-      ...LineSegmentDefaultOptions,
+      name: "Line Segment",
+      startPoint: "",
+      endPoint: "",
       ...options,
     };
   },
@@ -137,13 +129,6 @@ export interface ArcFromStartTangent
   type: "ArcFromStartTangent";
 }
 
-export const ArcFromStartTangentDefaultOptions = {
-  name: "Arc",
-  startPoint: "",
-  endPoint: "",
-  tangent: new Vector2(1, 0),
-};
-
 export const ArcFromStartTangent: ElementSpec<
   ArcFromStartTangent,
   ArcFromStartTangentOptions
@@ -152,7 +137,10 @@ export const ArcFromStartTangent: ElementSpec<
     return {
       id: id,
       type: "ArcFromStartTangent",
-      ...ArcFromStartTangentDefaultOptions,
+      name: "Arc",
+      startPoint: "",
+      endPoint: "",
+      tangent: new Vector2(1, 0),
       ...options,
     };
   },
@@ -180,20 +168,16 @@ export interface CCurve extends ElementBase, CCurveData {
   type: "CCurve";
 }
 
-export const CCurveDefaultOptions = {
-  name: "C-Curve",
-  startPoint: "",
-  endPoint: "",
-  controlPoint: new Vector2(1, 0),
-  mode: "startTangent" as const,
-};
-
 export const CCurve: ElementSpec<CCurve, CCurveOptions> = {
   create: (id: ElementId, options: CCurveOptions) => {
     return {
       id: id,
       type: "CCurve",
-      ...CCurveDefaultOptions,
+      name: "C-Curve",
+      startPoint: "",
+      endPoint: "",
+      controlPoint: new Vector2(1, 0),
+      mode: "startTangent" as const,
       ...options,
     };
   },
@@ -223,21 +207,17 @@ export interface SCurve extends ElementBase, SCurveData {
   type: "SCurve";
 }
 
-export const SCurveDefaultOptions = {
-  name: "S-Curve",
-  startPoint: "",
-  endPoint: "",
-  startControlPoint: new Vector2(1, 0),
-  endControlPoint: new Vector2(1, 0),
-  mode: "tangent" as const,
-};
-
 export const SCurve: ElementSpec<SCurve, SCurveOptions> = {
   create: (id: ElementId, options: SCurveOptions) => {
     return {
       id: id,
       type: "SCurve",
-      ...SCurveDefaultOptions,
+      name: "S-Curve",
+      startPoint: "",
+      endPoint: "",
+      startControlPoint: new Vector2(1, 0),
+      endControlPoint: new Vector2(1, 0),
+      mode: "tangent" as const,
       ...options,
     };
   },
@@ -265,18 +245,13 @@ export interface Layer extends ElementBase, LayerData {
   type: "Layer";
 }
 
-export const LayerDefaultOptions = {
-  name: "Layer",
-  elements: [],
-};
-
 export const Layer: ElementSpec<Layer, LayerOptions> = {
   create: (id: ElementId, options: LayerOptions) => {
     return {
       id: id,
       type: "Layer",
-      ...LayerDefaultOptions,
-      elements: [...LayerDefaultOptions.elements],
+      name: "Layer",
+      elements: [],
       ...options,
     };
   },

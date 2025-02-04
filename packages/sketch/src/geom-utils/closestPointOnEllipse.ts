@@ -1,6 +1,7 @@
-import { Angle, Point, Vec2 } from "../geom";
-import { asNum, NEG_ONE, Num, ONE, ZERO } from "../num";
+import { Angle, angleFromCos, Point, Vec2 } from "../geom";
+import { asNum, NEG_ONE, Num, ONE, TWO, ZERO } from "../num";
 import { hypot, ifTruthyElse, max, min } from "../num-ops";
+import { solveQuartic } from "./solve-polynomial";
 
 function pow3(x: Num) {
   return x.mul(x).mul(x);
@@ -128,84 +129,41 @@ export function closestPointOnEllipse(
   return new Point(majorRadius.mul(angle.cos()), minorRadius.mul(angle.sin()));
 }
 
-function closestAngleOnEllipseArcFromAngle(
-  majorRadius: Num,
-  minorRadius: Num,
-  fromAngle: Angle,
-  minCos: Num,
-  maxCos: Num,
-  minSin: Num,
-  maxSin: Num,
-  point: Point,
-) {
-  let angle = fromAngle;
-  const majorRadiusSq = majorRadius.square();
-  const minorRadiusSq = minorRadius.square();
-
-  const squareDiff = majorRadiusSq.sub(minorRadiusSq);
-
-  const evoluteX = squareDiff.div(majorRadius);
-  const evoluteY = squareDiff.neg().div(minorRadius);
-
-  for (let i = 0; i < 5; i++) {
-    const x = majorRadius.mul(angle.cos());
-    const y = minorRadius.mul(angle.sin());
-
-    const p = new Point(x, y);
-
-    const ex = evoluteX.mul(pow3(angle.cos()));
-    const ey = evoluteY.mul(pow3(angle.sin()));
-
-    const e = new Point(ex, ey);
-
-    const r = e.vecTo(p);
-    const q = e.vecTo(point);
-
-    const c = e.add(q.normalize().scale(r.norm()));
-
-    let tx = c.x.div(majorRadius).max(minCos).min(maxCos);
-    const ty = c.y.div(minorRadius).max(minSin).min(maxSin);
-
-    tx = ifTruthyElse(tx.or(ty), tx, minCos.or(maxCos));
-
-    const t = hypot(tx, ty);
-
-    angle = new Angle(tx.div(t), ty.div(t));
-  }
-
-  return angle;
-}
-
-const DEFAULT_ANGLES: [Angle, Num, Num, Num, Num][] = [
-  [new Angle(T0, T0), ZERO, ONE, ZERO, ONE],
-  [new Angle(T0.neg(), T0.neg()), NEG_ONE, ZERO, NEG_ONE, ZERO],
-  [new Angle(T0.neg(), T0), NEG_ONE, ZERO, ZERO, ONE],
-  [new Angle(T0, T0.neg()), ZERO, ONE, NEG_ONE, ZERO],
-];
-
-export function closestPointsOnEllipseArc(
+export function candidateClosestPointsWithinEllipseArc(
   majorRadius: Num,
   minorRadius: Num,
   startAngle: Angle,
   endAngle: Angle,
   orientation: Num,
   point: Point,
-): [Point, Point, Point, Point] {
-  return DEFAULT_ANGLES.map(([angle, minCos, maxCos, minSin, maxSin]) =>
-    closestAngleOnEllipseArcFromAngle(
-      majorRadius,
-      minorRadius,
-      angle,
-      minCos,
-      maxCos,
-      minSin,
-      maxSin,
-      point,
-    ),
-  )
-    .map((angle) => clampAngle(angle, startAngle, endAngle, orientation))
-    .map(
-      (angle) =>
-        new Point(majorRadius.mul(angle.cos()), minorRadius.mul(angle.sin())),
-    ) as [Point, Point, Point, Point];
+): Point[] {
+  const l = minorRadius.square().sub(majorRadius.square());
+  const ax = majorRadius.mul(point.x).div(l);
+  const by = minorRadius.mul(point.y).div(l);
+
+  const a2x2 = ax.square();
+  const b2y2 = by.square();
+
+  const roots = solveQuartic(
+    ONE,
+    ax.mul(TWO),
+    a2x2.add(b2y2).sub(ONE),
+    ax.mul(-2),
+    a2x2.neg(),
+  );
+
+  return roots
+    .flatMap((root) => {
+      const angle = angleFromCos(root.max(NEG_ONE).min(ONE));
+      return [angle, angle.neg()];
+    })
+    .map((angle) => {
+      return clampAngle(angle, startAngle, endAngle, orientation);
+    })
+    .map((angle) => {
+      return new Point(
+        majorRadius.mul(angle.cos()),
+        minorRadius.mul(angle.sin()),
+      );
+    });
 }

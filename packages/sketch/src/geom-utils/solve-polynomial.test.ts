@@ -1,6 +1,7 @@
 import { describe, test, expect } from "vitest";
 
 import { naiveEval } from "../num-tree";
+import { fidgetEval } from "../num-tree-fidget";
 import { solveCubic, solveQuadratic, solveQuartic } from "./solve-polynomial";
 import { asNum } from "../num";
 
@@ -146,5 +147,69 @@ describe("solveQuartic", () => {
 
   test("two real roots (plus two complex)", () => {
     expect(solve(1, -1, 1, 1, -1)).toEqual(new Set([-0.848375, 0.660993]));
+  });
+});
+
+describe("solveQuartic with fidget", async () => {
+  const solve = async (
+    a: number,
+    b: number,
+    c: number,
+    d: number,
+    e: number,
+  ) => {
+    const [x1, x2, x3, x4] = solveQuartic(
+      asNum(a),
+      asNum(b),
+      asNum(c),
+      asNum(d),
+      asNum(e),
+    );
+    return new Set([
+      round(await fidgetEval(x1.n)),
+      round(await fidgetEval(x2.n)),
+      round(await fidgetEval(x3.n)),
+      round(await fidgetEval(x4.n)),
+    ]);
+  };
+  test("two roots", async () => {
+    expect(await solve(1, -6, 11, -6, 1)).toEqual(
+      new Set([round(0.38196601), round(2.618033988)]),
+    );
+  });
+
+  test("three roots", async () => {
+    expect(await solve(1, -5, 8, -4, 0)).toEqual(new Set([0, 1, 2]));
+  });
+
+  test("four roots", async () => {
+    expect(await solve(1, -6, 11, -6, 0)).toEqual(new Set([0, 1, 2, 3]));
+    expect(await solve(1, -10, 35, -50, 24)).toEqual(new Set([2, 3, 4, 1]));
+  });
+
+  test("complex roots only", async () => {
+    expect(await solve(1, 0, 1, 0, 1)).toEqual(new Set([NaN]));
+  });
+
+  test("repeated roots", async () => {
+    expect(await solve(1, -4, 6, -4, 1)).toEqual(new Set([1]));
+  });
+
+  test("zero coefficient", async () => {
+    expect(await solve(1, 0, -5, 0, 4)).toEqual(new Set([1, -1, 2, -2]));
+  });
+
+  test("large coefficients", async () => {
+    expect(await solve(1, -100, 3750, -62500, 390625)).toEqual(new Set([25]));
+  });
+
+  test("actually a cubic", async () => {
+    expect(await solve(0, 1, -6, 11, -6)).toEqual(new Set([1, 2, 3]));
+  });
+
+  test("two real roots (plus two complex)", async () => {
+    expect(await solve(1, -1, 1, 1, -1)).toEqual(
+      new Set([-0.848375, 0.660993]),
+    );
   });
 });

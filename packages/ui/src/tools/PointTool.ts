@@ -19,11 +19,10 @@ export class PointTool implements Tool {
       return;
     }
     const name = doc.findAvailableName("Point ", layer.elements);
-    const point = doc.createElement(Point, {
+    const point = doc.createElementInLayer(Point, layer, {
       name: name,
       position: event.documentPosition,
     });
-    layer.elements.push(point.id);
     selection.setHoveredElement(point.id);
     selection.setSelectedElements([point.id]);
     event.documentManager.commitChanges();

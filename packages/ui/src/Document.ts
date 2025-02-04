@@ -341,6 +341,9 @@ export class Document {
     return new Document(this);
   }
 
+  /**
+   * Returns the element that has the given `id`, if any.
+   */
   getElementFromId<T extends Element>(
     id: ElementId | undefined,
   ): T | undefined {
@@ -351,6 +354,9 @@ export class Document {
     return element as T | undefined;
   }
 
+  /**
+   * Returns an array of elements corresponding to the given array of `ids`.
+   */
   getElementsFromId<T extends Element>(ids: Array<ElementId>): Array<T> {
     const res: Array<T> = [];
     for (const id of ids) {
@@ -362,6 +368,22 @@ export class Document {
     return res;
   }
 
+  /**
+   * Creates and returns a new element of the given `spec` with the given `options`.
+   *
+   * Example:
+   *
+   * ```
+   * const p = doc.createElement(Point, {
+   *   name: "New Point",
+   *   position: new Vector2(42, 12),
+   * });
+   * ```
+   *
+   * Note: this does not add the element to any layer. You typically want to:
+   * 1. Mutate the `elements` attribute of some layer after calling this function, or
+   * 2. Use `createElementInLayer()` instead of this function.
+   */
   createElement<T extends Element, Options>(
     spec: ElementSpec<T, Options>,
     options: Options,
@@ -371,6 +393,59 @@ export class Document {
     this._elements.set(id, element);
     return element;
   }
+
+  /**
+   * Creates a new element of the given `spec` with the given `options`, adds it
+   * as last element of the given layer, then returns it.
+   */
+  createElementInLayer<T extends Element, Options>(
+    spec: ElementSpec<T, Options>,
+    layer: Layer,
+    options: Options,
+  ): T {
+    const element = this.createElement(spec, options);
+    layer.elements.push(element.id);
+    return element;
+  }
+
+  /**
+   * Removes the element that has the given `id` from this document.
+   *
+   * Note: this does not remove the element from any layer. You typically want to:
+   * 1. Mutate the `elements` attribute of some layer before calling this function, or
+   * 2. Use `removeElementInLayer()` instead of this function.
+   */
+  removeElement(id: ElementId) {
+    this._elements.delete(id);
+  }
+
+  /**
+   * Removes the element that has the given `id` from this document and from
+   * the given `layer`.
+   *
+   * Note: if the element belongs to another layer than the given `layer`,
+   * then it will not be removed from that other layer, which will then still
+   * reference the now-stale element.
+   */
+  removeElementInLayer(id: ElementId, layer: Layer) {
+    for (let i = layer.elements.length - 1; i >= 0; i--) {
+      if (layer.elements[i] === id) {
+        layer.elements.splice(i, 1);
+      }
+    }
+    this.removeElement(id);
+  }
+
+  // TODO: Safer / more convenient API that prevents layers having stale
+  // elements? For example, `layerId` could be a (readonly?) attribute of
+  // each element, enforcing that each element only belongs to one layer, and
+  // making it possible to automatically remove the element from its parent
+  // layer in removeElement(). Also note that if instead of using the current
+  // Element interface, client code were instead using some smarter Element
+  // handle object that knows which document it belongs to, then it would be
+  // possible to implement element.remove(), which may be an even more
+  // convenient API, as close as possible as the UI equivalent of selecting
+  // an element and deleting it via the delete key.
 
   /**
    * Finds the smallest positive integer `n` such that the name `${prefix}${n}`
@@ -447,63 +522,63 @@ export function createTestDocument() {
   const doc = new Document();
   const layer = doc.createElement(Layer, { name: "Layer 1" });
   doc.layers = [layer.id];
-  const p1 = doc.createElement(Point, {
+  const p1 = doc.createElementInLayer(Point, layer, {
     name: "Point 1",
     position: new Vector2(-100, 0),
   });
-  const p2 = doc.createElement(Point, {
+  const p2 = doc.createElementInLayer(Point, layer, {
     name: "Point 2",
     position: new Vector2(0, 0),
   });
-  const p3 = doc.createElement(Point, {
+  const p3 = doc.createElementInLayer(Point, layer, {
     name: "Point 3",
     position: new Vector2(100, 100),
   });
-  const p4 = doc.createElement(Point, {
+  const p4 = doc.createElementInLayer(Point, layer, {
     name: "Point 4",
     position: new Vector2(200, 100),
   });
-  const p5 = doc.createElement(Point, {
+  const p5 = doc.createElementInLayer(Point, layer, {
     name: "Point 5",
     position: new Vector2(200, 0),
   });
-  const p6 = doc.createElement(Point, {
+  const p6 = doc.createElementInLayer(Point, layer, {
     name: "Point 6",
     position: new Vector2(100, -100),
   });
-  const p7 = doc.createElement(Point, {
+  const p7 = doc.createElementInLayer(Point, layer, {
     name: "Point 7",
     position: new Vector2(-100, -100),
   });
-  const s1 = doc.createElement(LineSegment, {
+  doc.createElementInLayer(LineSegment, layer, {
     name: "Segment 1",
     startPoint: p1.id,
     endPoint: p2.id,
   });
-  const arc = doc.createElement(ArcFromStartTangent, {
+  doc.createElementInLayer(ArcFromStartTangent, layer, {
     name: "Arc 1",
     startPoint: p2.id,
     endPoint: p3.id,
     tangent: new Vector2(50, 0),
   });
-  const s2 = doc.createElement(LineSegment, {
+  doc.createElementInLayer(LineSegment, layer, {
     name: "Segment 2",
     startPoint: p3.id,
     endPoint: p4.id,
   });
-  const cc = doc.createElement(CCurve, {
+  doc.createElementInLayer(CCurve, layer, {
     name: "C-Curve 1",
     startPoint: p4.id,
     endPoint: p5.id,
     controlPoint: new Vector2(-50, -50),
     mode: "startTangent",
   });
-  const s3 = doc.createElement(LineSegment, {
+  doc.createElementInLayer(LineSegment, layer, {
     name: "Segment 3",
     startPoint: p5.id,
     endPoint: p6.id,
   });
-  const sc = doc.createElement(SCurve, {
+  doc.createElementInLayer(SCurve, layer, {
     name: "S-Curve 1",
     startPoint: p6.id,
     endPoint: p7.id,
@@ -511,32 +586,16 @@ export function createTestDocument() {
     endControlPoint: new Vector2(20, 40),
     mode: "tangent",
   });
-  const s4 = doc.createElement(LineSegment, {
+  doc.createElementInLayer(LineSegment, layer, {
     name: "Segment 4",
     startPoint: p7.id,
     endPoint: p1.id,
   });
-  const s5 = doc.createElement(LineSegment, {
+  const ls = doc.createElementInLayer(LineSegment, layer, {
     name: "Segment 5",
     startPoint: p2.id,
     endPoint: p6.id,
   });
-  layer.elements = [
-    p1,
-    p2,
-    p3,
-    p4,
-    p5,
-    p6,
-    p7,
-    s1,
-    arc,
-    s2,
-    cc,
-    s3,
-    sc,
-    s4,
-    s5,
-  ].map((e) => e.id);
+  doc.removeElementInLayer(ls.id, layer);
   return doc;
 }

@@ -18,9 +18,7 @@ export class PointTool implements Tool {
     if (!layer) {
       return;
     }
-    const name = doc.findAvailableName("Point ", layer.elements);
     const point = doc.createElementInLayer(Point, layer, {
-      name: name,
       position: event.documentPosition,
     });
     selection.setHoveredElement(point.id);

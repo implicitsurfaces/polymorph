@@ -48,9 +48,7 @@ export class LineSegmentTool implements Tool {
       return [hoveredElement.id, false];
     } else {
       // Create new point, set it as hovered, and return it
-      const name = doc.findAvailableName("Point ", layer.elements);
       const point = doc.createElementInLayer(Point, layer, {
-        name: name,
         position: position,
       });
       selection.setHoveredElement(point.id);
@@ -116,9 +114,7 @@ export class LineSegmentTool implements Tool {
       return;
     }
     // Create the line segment
-    const name = doc.findAvailableName("Line Segment ", layer.elements);
     const lineSegment = doc.createElementInLayer(LineSegment, layer, {
-      name: name,
       startPoint: this.firstStepData.pointId,
       endPoint: endPointId,
     });

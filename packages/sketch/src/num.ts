@@ -47,6 +47,9 @@ export class Num {
   sqrt() {
     return unaryOpNum("SQRT", this);
   }
+  cbrt() {
+    return this.abs().log().div(3).exp().mul(this.sign());
+  }
   neg() {
     return unaryOpNum("NEG", this);
   }

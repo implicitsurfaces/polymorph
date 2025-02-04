@@ -45,6 +45,14 @@ export interface PointData extends ElementBaseData {
   position: Vector2;
 }
 
+// TODO:
+/*
+export interface PointData extends ElementBaseData {
+  x: ParamId;
+  y: ParamId;
+}
+*/
+
 export interface Point extends ElementBase, PointData {
   type: "Point";
 }

@@ -11,6 +11,7 @@ import { DocumentManager } from "./DocumentManager.ts";
 import { allTools } from "./tools/allTools.ts";
 import { Toolbar } from "./tools/Toolbar.tsx";
 import { CurrentTool, CurrentToolContext } from "./tools/CurrentTool.ts";
+import { addDistanceConstraint } from "./tools/DistanceConstraint.ts";
 
 import { Canvas } from "./Canvas.tsx";
 import { LayersPanel } from "./LayersPanel.tsx";
@@ -73,6 +74,8 @@ function App() {
         } else {
           documentManager.undo();
         }
+      } else if (event.key === "d") {
+        addDistanceConstraint(documentManager);
       }
     },
     [documentManager],

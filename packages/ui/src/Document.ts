@@ -591,11 +591,10 @@ export function createTestDocument() {
     startPoint: p7.id,
     endPoint: p1.id,
   });
-  const ls = doc.createElementInLayer(LineSegment, layer, {
+  doc.createElementInLayer(LineSegment, layer, {
     name: "Segment 5",
     startPoint: p2.id,
     endPoint: p6.id,
   });
-  doc.removeElementInLayer(ls.id, layer);
   return doc;
 }

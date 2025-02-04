@@ -19,7 +19,9 @@ export interface ElementBase extends ElementBaseData {
   readonly type: string;
 }
 
-export interface ElementSpec<T, Options> {
+export interface ElementSpec<T, Options extends ElementBaseOptions> {
+  readonly type: string;
+  readonly name: string;
   readonly create: (id: ElementId, options: Options) => T;
   readonly clone: (other: T) => T;
 }
@@ -48,6 +50,8 @@ export interface Point extends ElementBase, PointData {
 }
 
 export const Point: ElementSpec<Point, PointOptions> = {
+  type: "Point",
+  name: "Point",
   create: (id: ElementId, options: PointOptions) => {
     return {
       id: id,
@@ -97,6 +101,8 @@ export interface LineSegment extends ElementBase, LineSegmentData {
 }
 
 export const LineSegment: ElementSpec<LineSegment, LineSegmentOptions> = {
+  type: "LineSegment",
+  name: "Line Segment",
   create: (id: ElementId, options: LineSegmentOptions) => {
     return {
       id: id,
@@ -133,6 +139,8 @@ export const ArcFromStartTangent: ElementSpec<
   ArcFromStartTangent,
   ArcFromStartTangentOptions
 > = {
+  type: "ArcFromStartTangent",
+  name: "Arc",
   create: (id: ElementId, options: ArcFromStartTangentOptions) => {
     return {
       id: id,
@@ -169,6 +177,8 @@ export interface CCurve extends ElementBase, CCurveData {
 }
 
 export const CCurve: ElementSpec<CCurve, CCurveOptions> = {
+  type: "CCurve",
+  name: "C-Curve",
   create: (id: ElementId, options: CCurveOptions) => {
     return {
       id: id,
@@ -208,6 +218,8 @@ export interface SCurve extends ElementBase, SCurveData {
 }
 
 export const SCurve: ElementSpec<SCurve, SCurveOptions> = {
+  type: "SCurve",
+  name: "S-Curve",
   create: (id: ElementId, options: SCurveOptions) => {
     return {
       id: id,
@@ -246,6 +258,8 @@ export interface Layer extends ElementBase, LayerData {
 }
 
 export const Layer: ElementSpec<Layer, LayerOptions> = {
+  type: "Layer",
+  name: "Layer",
   create: (id: ElementId, options: LayerOptions) => {
     return {
       id: id,
@@ -384,7 +398,7 @@ export class Document {
    * 1. Mutate the `elements` attribute of some layer after calling this function, or
    * 2. Use `createElementInLayer()` instead of this function.
    */
-  createElement<T extends Element, Options>(
+  createElement<T extends Element, Options extends ElementBaseOptions>(
     spec: ElementSpec<T, Options>,
     options: Options,
   ): T {
@@ -397,12 +411,19 @@ export class Document {
   /**
    * Creates a new element of the given `spec` with the given `options`, adds it
    * as last element of the given layer, then returns it.
+   *
+   * If no name is provided in the options, then this function will
+   * automatically a unique name withing the `layer` suitable for the given
+   * `spec`, e.g., "Point 42".
    */
-  createElementInLayer<T extends Element, Options>(
+  createElementInLayer<T extends Element, Options extends ElementBaseOptions>(
     spec: ElementSpec<T, Options>,
     layer: Layer,
     options: Options,
   ): T {
+    if (options.name === undefined) {
+      options.name = this.findAvailableName(spec.name + " ", layer.elements);
+    }
     const element = this.createElement(spec, options);
     layer.elements.push(element.id);
     return element;
@@ -523,63 +544,50 @@ export function createTestDocument() {
   const layer = doc.createElement(Layer, { name: "Layer 1" });
   doc.layers = [layer.id];
   const p1 = doc.createElementInLayer(Point, layer, {
-    name: "Point 1",
     position: new Vector2(-100, 0),
   });
   const p2 = doc.createElementInLayer(Point, layer, {
-    name: "Point 2",
     position: new Vector2(0, 0),
   });
   const p3 = doc.createElementInLayer(Point, layer, {
-    name: "Point 3",
     position: new Vector2(100, 100),
   });
   const p4 = doc.createElementInLayer(Point, layer, {
-    name: "Point 4",
     position: new Vector2(200, 100),
   });
   const p5 = doc.createElementInLayer(Point, layer, {
-    name: "Point 5",
     position: new Vector2(200, 0),
   });
   const p6 = doc.createElementInLayer(Point, layer, {
-    name: "Point 6",
     position: new Vector2(100, -100),
   });
   const p7 = doc.createElementInLayer(Point, layer, {
-    name: "Point 7",
     position: new Vector2(-100, -100),
   });
   doc.createElementInLayer(LineSegment, layer, {
-    name: "Segment 1",
     startPoint: p1.id,
     endPoint: p2.id,
   });
   doc.createElementInLayer(ArcFromStartTangent, layer, {
-    name: "Arc 1",
     startPoint: p2.id,
     endPoint: p3.id,
     tangent: new Vector2(50, 0),
   });
   doc.createElementInLayer(LineSegment, layer, {
-    name: "Segment 2",
     startPoint: p3.id,
     endPoint: p4.id,
   });
   doc.createElementInLayer(CCurve, layer, {
-    name: "C-Curve 1",
     startPoint: p4.id,
     endPoint: p5.id,
     controlPoint: new Vector2(-50, -50),
     mode: "startTangent",
   });
   doc.createElementInLayer(LineSegment, layer, {
-    name: "Segment 3",
     startPoint: p5.id,
     endPoint: p6.id,
   });
   doc.createElementInLayer(SCurve, layer, {
-    name: "S-Curve 1",
     startPoint: p6.id,
     endPoint: p7.id,
     startControlPoint: new Vector2(-50, -50),
@@ -587,12 +595,10 @@ export function createTestDocument() {
     mode: "tangent",
   });
   doc.createElementInLayer(LineSegment, layer, {
-    name: "Segment 4",
     startPoint: p7.id,
     endPoint: p1.id,
   });
   doc.createElementInLayer(LineSegment, layer, {
-    name: "Segment 5",
     startPoint: p2.id,
     endPoint: p6.id,
   });

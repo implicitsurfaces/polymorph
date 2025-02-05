@@ -27,6 +27,7 @@ interface ClosestSelectable {
 
 type DistanceFunction<T> = (element: T, position: Vector2) => number;
 type MakeSelectableFunction<T> = (element: T, id: ElementId) => Selectable;
+type Filter = (id: ElementId) => boolean;
 
 function distToPoint(point: Point, position: Vector2): number {
   return point.position.distanceTo(position);
@@ -147,6 +148,7 @@ function findClosestSelectableInLayer(
   camera: Camera2,
   layer: Layer,
   position: Vector2,
+  filter?: Filter,
 ): ClosestSelectable {
   //
   const csPoint: ClosestSelectable = {
@@ -174,7 +176,7 @@ function findClosestSelectableInLayer(
 
   for (const id of layer.elements) {
     const element = doc.getElementFromId(id);
-    if (element) {
+    if (element && (!filter || filter(id))) {
       if (element.type === "Point") {
         update(csPoint, element, distToPoint, selectPoint, id);
       } else if (isEdgeElement(element)) {
@@ -241,13 +243,20 @@ function findClosestSelectableInDocument(
   doc: Document,
   camera: Camera2,
   position: Vector2,
+  filter?: Filter,
 ): ClosestSelectable {
   let closestDistance = Infinity;
   let selectable: Selectable | undefined = undefined;
   for (const id of doc.layers) {
     const layer = doc.getElementFromId<Layer>(id);
     if (layer) {
-      const ce = findClosestSelectableInLayer(doc, camera, layer, position);
+      const ce = findClosestSelectableInLayer(
+        doc,
+        camera,
+        layer,
+        position,
+        filter,
+      );
       if (ce.distance < closestDistance) {
         closestDistance = ce.distance;
         selectable = ce.selectable;
@@ -272,6 +281,7 @@ export function hover(
   camera: Camera2,
   mousePosition: Vector2,
   tolerance?: number,
+  filter?: Filter,
 ) {
   if (tolerance === undefined) {
     const toleranceInPx = 3;
@@ -279,7 +289,12 @@ export function hover(
   }
   const doc = documentManager.document();
   const selection = documentManager.selection();
-  const ce = findClosestSelectableInDocument(doc, camera, mousePosition);
+  const ce = findClosestSelectableInDocument(
+    doc,
+    camera,
+    mousePosition,
+    filter,
+  );
   if (ce.selectable && ce.distance < tolerance) {
     selection.setHovered(ce.selectable);
   } else {

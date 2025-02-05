@@ -28,6 +28,8 @@ export class SelectTool implements Tool {
       } else {
         selection.setSelected([hovered]);
       }
+    } else {
+      selection.setSelected([]);
     }
   }
 

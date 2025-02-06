@@ -1,5 +1,12 @@
+import { vecFromCartesianCoords } from "./geom";
+import { vec3FromCartesianCoords } from "./geom-3d";
+import { NumX, NumY, NumZ } from "./num";
 import { allVariables, naiveEval } from "./num-tree";
-import { fidgetRender, fidgetRenderNode3D } from "./num-tree-fidget";
+import {
+  fidgetRender,
+  fidgetRenderNode3D,
+  fidgetStringify,
+} from "./num-tree-fidget";
 import { gradientDescentOpt } from "./opt";
 import {
   AngleNode,
@@ -148,4 +155,21 @@ export function findSolution(
   );
 
   return gradientDescentOpt(loss, initialX, options);
+}
+
+export function exportAsFidget(node: SolidNode | ProfileNode) {
+  const generic2dPoint = vecFromCartesianCoords(NumX, NumY).pointFromOrigin();
+  const generic3dPoint = vec3FromCartesianCoords(
+    NumX,
+    NumY,
+    NumZ,
+  ).pointFromOrigin();
+
+  console.log("exporting");
+
+  const distNode =
+    node instanceof SolidNode
+      ? evalSolid(node).valueAt(generic3dPoint)
+      : evalProfile(node).distanceTo(generic2dPoint);
+  return fidgetStringify(distNode.n);
 }

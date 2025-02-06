@@ -44,7 +44,7 @@ const Point = types
 const AppState = types
   .model("AppState", {
     code: CodeState,
-    definition: types.optional(types.number, 768),
+    definition: types.optional(types.number, 750),
     points: types.optional(types.array(Point), []),
     config: types.optional(
       types.model({

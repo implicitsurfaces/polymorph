@@ -62,6 +62,20 @@ const api = {
 
     return out;
   },
+
+  exportFidget: async (code: string, info: unknown) => {
+    await initLib();
+    const loss = new LossFunction();
+    let values = await runAsModule(code, [loss, info]);
+    if (!Array.isArray(values)) {
+      values = [values];
+    }
+    for (const value of values) {
+      if (value?.fidgetExport) {
+        return value.fidgetExport();
+      }
+    }
+  },
 };
 
 export { api };

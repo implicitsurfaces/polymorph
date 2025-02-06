@@ -11,7 +11,7 @@ import {
 } from "./num-tree";
 import { DistField, SolidDistField } from "./types";
 import { vecFromCartesianCoords } from "./geom";
-import { NumX, NumY, NumZ } from "./num";
+import { NumX, NumY, NumZ, ZERO } from "./num";
 import { vec3FromCartesianCoords } from "./geom-3d";
 
 interface EvalFn {
@@ -221,4 +221,67 @@ export async function fidgetRenderNode3D(
   );
   const render = context.renderNodeIn3D(fidgetNode, imageSize, useHeightmap);
   return render;
+}
+
+const OP_MAP: Record<string, string> = {
+  LOG: "ln",
+};
+
+const mapOperationName = (op: string) => {
+  return OP_MAP[op] || op.toLowerCase();
+};
+
+export function nodeToString(
+  node: NumNode,
+  opList: string[],
+  cache: Map<NumNode, string>,
+): string {
+  if (cache.has(node)) {
+    return cache.get(node)!;
+  }
+
+  const out = (s: string) => {
+    const index = opList.length;
+    const id = `_${index.toString(16)}`;
+    const op = `${id} ${s}`;
+    opList.push(op);
+    cache.set(node, id);
+    return id;
+  };
+
+  if (node instanceof LiteralNum) {
+    return out(`const ${node.value}`);
+  } else if (node instanceof Variable) {
+    if (node.name === "x") {
+      return out("var-x");
+    } else if (node.name === "y") {
+      return out("var-y");
+    } else if (node.name === "z") {
+      return out("var-z");
+    }
+    throw new Error(`Unknown variable: ${node.name}`);
+  } else if (node instanceof UnaryOp) {
+    const operand = nodeToString(node.original, opList, cache);
+
+    if (node.operation === "SIGN") {
+      const zero = nodeToString(ZERO.n, opList, cache);
+      return out(`compare ${operand} ${zero}`);
+    }
+
+    return out(`${mapOperationName(node.operation)} ${operand}`);
+  } else if (node instanceof BinaryOp) {
+    const left = nodeToString(node.left, opList, cache);
+    const right = nodeToString(node.right, opList, cache);
+
+    return out(`${mapOperationName(node.operation)} ${left} ${right}`);
+  }
+
+  throw new Error(`Unknown node type: ${node?.operation}`);
+}
+
+export function fidgetStringify(node: NumNode): string {
+  const opList: string[] = [];
+  const cache = new Map<NumNode, string>();
+  nodeToString(node, opList, cache);
+  return opList.join("\n");
 }

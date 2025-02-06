@@ -4,7 +4,10 @@ import { observer } from "mobx-react";
 
 import Splitter, { GutterTheme, SplitDirection } from "@devbookhq/splitter";
 
-import { HeaderSelect, Spacer } from "./panes";
+import { HeaderSelect, HeaderButton, Spacer } from "./panes";
+import drawAPI from "../build/api";
+
+import FidgetIcon from "../icons/Fidget";
 
 import useEditorStore from "../state/useEditorStore";
 
@@ -271,6 +274,20 @@ const DEFINITONS = [
 export const VisualizerButtons = observer(() => {
   const store = useEditorStore();
 
+  const download = async () => {
+    const code = await drawAPI.exportFidget(store.currentValues.code, {
+      points: store.points.map((point) => [point.x, point.y]),
+    });
+
+    const blob = new Blob([code], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "fidget.vm";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <>
       <>
@@ -285,6 +302,9 @@ export const VisualizerButtons = observer(() => {
           ))}
         </HeaderSelect>
         <Spacer />
+        <HeaderButton onClick={download} title="fidget export">
+          <FidgetIcon />
+        </HeaderButton>
       </>
     </>
   );

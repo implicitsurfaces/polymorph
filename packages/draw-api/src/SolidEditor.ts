@@ -1,4 +1,5 @@
 import {
+  exportAsFidget,
   renderSolid,
   SolidNode,
   SolidRotationNode,
@@ -26,5 +27,9 @@ export class SolidEditor implements NodeWrapper<SolidNode> {
     valuedVars?: Map<string, number>,
   ): Promise<Uint8ClampedArray> {
     return renderSolid(this.inner, valuedVars, size);
+  }
+
+  async fidgetExport(): Promise<string> {
+    return exportAsFidget(this.inner);
   }
 }

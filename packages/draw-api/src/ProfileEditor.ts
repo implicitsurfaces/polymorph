@@ -3,6 +3,7 @@ import {
   debugRenderProfile,
   Difference,
   Dilate,
+  exportAsFidget,
   ExtrusionNode,
   FlipNode,
   GradientAt,
@@ -167,5 +168,9 @@ export class ProfileEditor implements NodeWrapper<ProfileNode> {
     valuedVars?: Map<string, number>,
   ): Promise<Uint8ClampedArray> {
     return renderProfile(this.inner, valuedVars, size);
+  }
+
+  async fidgetExport(): Promise<string> {
+    return exportAsFidget(this.inner);
   }
 }

@@ -242,7 +242,6 @@ function getSCurveShapes(
 export interface ControlPoint {
   readonly name: string;
   readonly position: Vector2;
-  readonly relativeTo: ElementId | undefined;
 }
 
 export interface EdgeShapesAndControls {
@@ -275,34 +274,20 @@ export function getEdgeShapesAndControls(
       break;
     }
     case "ArcFromStartTangent": {
-      const tangent = edge.tangent;
-      const cpAbsPos = tangent.clone().add(startPos);
+      const cpAbsPos = edge.controlPoint;
+      const tangent = cpAbsPos.clone().sub(startPos);
       res.shapes.push(
         getGeneralizedArcFromStartTangent(startPos, endPos, tangent),
       );
       res.controlPoints.push({
-        name: "tangent",
+        name: "controlPoint",
         position: cpAbsPos,
-        relativeTo: startPoint.id,
       });
       res.tangents.push(getLineSegment(startPos, cpAbsPos));
       break;
     }
     case "CCurve": {
-      const cpRelPoint = (function () {
-        switch (edge.mode) {
-          case "startTangent":
-            return startPoint;
-          case "endTangent":
-            return endPoint;
-        }
-        return undefined;
-      })();
-      const cpRelPos = edge.controlPoint;
-      const cpAbsPos = cpRelPoint
-        ? cpRelPos.clone().add(cpRelPoint.position)
-        : cpRelPos;
-
+      const cpAbsPos = edge.controlPoint;
       const shapes_ = getCCurveShapes(startPos, endPos, cpAbsPos);
       for (const shape of shapes_) {
         res.shapes.push(shape);
@@ -310,25 +295,14 @@ export function getEdgeShapesAndControls(
       res.controlPoints.push({
         name: "controlPoint",
         position: cpAbsPos,
-        relativeTo: cpRelPoint?.id,
       });
       res.tangents.push(getLineSegment(startPos, cpAbsPos));
       res.tangents.push(getLineSegment(endPos, cpAbsPos));
       break;
     }
     case "SCurve": {
-      const startCpRelPos = edge.startControlPoint;
-      const endCpRelPos = edge.endControlPoint;
-      let startCpRelPoint = undefined;
-      let endCpRelPoint = undefined;
-      let startCpAbsPos = startCpRelPos;
-      let endCpAbsPos = endCpRelPos;
-      if (edge.mode === "tangent") {
-        startCpRelPoint = startPoint;
-        endCpRelPoint = endPoint;
-        startCpAbsPos = startCpRelPos.clone().add(startPos);
-        endCpAbsPos = endCpRelPos.clone().add(endPos);
-      }
+      const startCpAbsPos = edge.startControlPoint;
+      const endCpAbsPos = edge.endControlPoint;
       const shapes_ = getSCurveShapes(
         startPos,
         endPos,
@@ -341,12 +315,10 @@ export function getEdgeShapesAndControls(
       res.controlPoints.push({
         name: "startControlPoint",
         position: startCpAbsPos,
-        relativeTo: startCpRelPoint?.id,
       });
       res.controlPoints.push({
         name: "endControlPoint",
         position: endCpAbsPos,
-        relativeTo: endCpRelPoint?.id,
       });
       res.tangents.push(getLineSegment(startPos, startCpAbsPos));
       res.tangents.push(getLineSegment(endPos, endCpAbsPos));

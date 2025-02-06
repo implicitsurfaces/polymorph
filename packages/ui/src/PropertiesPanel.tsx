@@ -38,8 +38,8 @@ function getControlPointProperties(
     }
     case "ArcFromStartTangent": {
       return [
-        new ControlPointProperty("Tangent", () => {
-          return edge.tangent;
+        new ControlPointProperty("Control Point", () => {
+          return edge.controlPoint;
         }),
       ];
     }

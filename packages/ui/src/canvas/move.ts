@@ -7,50 +7,169 @@ import {
   Point,
   EdgeElement,
   isEdgeElement,
+  Layer,
 } from "../Document.ts";
 import { Selectable, Selection } from "../Selection.ts";
 
-// TODO: Refactor these out of `canvas/drawEdges.ts` and move this `move.ts`
-// file in a different folder, e.g., the `tools` folder.
-//
-import { getEdgeShapesAndControls, ControlPoint } from "./drawEdges.ts";
-
 type OnMoveCallback = (delta: Vector2) => void;
 
-// Adds to the given `movedPoints` set all the points IDs that are explicitly
-// or implicitly moved if the given `selectable` is to be moved.
+// Stores information about a control point.
 //
-function populateMovedPoints(
-  doc: Document,
-  selectable: Selectable,
-  movedPoints: Set<ElementId>,
-) {
-  if (selectable.type === "Element") {
-    const element = doc.getElementFromId(selectable.id);
-    if (!element) {
-      return;
+// If provided, the `anchor` represents a point such that moving the anchor
+// should also move the control point, as a convenience to the user.
+//
+// Notes:
+//
+// 1. We considered having control points be stored as a position relative to
+// their anchor, instead of an absolute position, but we decided that this
+// would not play well with the constraint solver.
+//
+// 2. If the control points are stored as a position relative to their anchor,
+// then some care must be done to avoid double-moving the control point if
+// both the control point and its anchor are explicitly selected.
+//
+interface ControlPoint {
+  readonly edge: EdgeElement;
+  readonly name: string;
+  readonly position: Vector2;
+  readonly anchor?: ElementId;
+}
+
+export function getControlPoints(edge: EdgeElement): Array<ControlPoint> {
+  switch (edge.type) {
+    case "LineSegment": {
+      return [];
     }
-    if (element.type === "Point") {
-      movedPoints.add(element.id);
-    } else if (isEdgeElement(element)) {
-      movedPoints.add(element.startPoint);
-      movedPoints.add(element.endPoint);
+    case "ArcFromStartTangent": {
+      return [
+        {
+          edge: edge,
+          name: "controlPoint",
+          position: edge.controlPoint,
+          anchor: edge.startPoint,
+        },
+      ];
+    }
+    case "CCurve": {
+      return [
+        {
+          edge: edge,
+          name: "controlPoint",
+          position: edge.controlPoint,
+          anchor: edge.startPoint,
+          // Note: alternatively, for symmetry, we could either have both
+          // startPoint and endPoint be anchors (or none of them), but it
+          // isn't clear if this makes the user experience better or worse.
+        },
+      ];
+    }
+    case "SCurve": {
+      return [
+        {
+          edge: edge,
+          name: "startControlPoint",
+          position: edge.startControlPoint,
+          anchor: edge.startPoint,
+        },
+        {
+          edge: edge,
+          name: "endControlPoint",
+          position: edge.endControlPoint,
+          anchor: edge.endPoint,
+        },
+      ];
     }
   }
 }
 
-// Computes the set of all points that are explicitly or implicitly moved if
-// the given `selection` is to be moved.
+// Computes the set of all points that are either selected,
+// or that are the endpoint of a selected edge.
 //
 function computeMovedPoints(
   doc: Document,
   selection: Selection,
 ): Set<ElementId> {
   const movedPoints = new Set<ElementId>();
-  for (const s of selection.selected()) {
-    populateMovedPoints(doc, s, movedPoints);
+  for (const selectable of selection.selected()) {
+    if (selectable.type === "Element") {
+      const element = doc.getElementFromId(selectable.id);
+      if (!element) {
+        continue;
+      }
+      if (element.type === "Point") {
+        movedPoints.add(element.id);
+      } else if (isEdgeElement(element)) {
+        movedPoints.add(element.startPoint);
+        movedPoints.add(element.endPoint);
+      }
+    }
   }
   return movedPoints;
+}
+
+// Computes the set of edges that are incident to the given `points`.
+//
+function computeIncidentEdges(
+  doc: Document,
+  points: Set<ElementId>,
+): Set<EdgeElement> {
+  const edges = new Set<EdgeElement>();
+  for (const layerId of doc.layers) {
+    const layer = doc.getElementFromId<Layer>(layerId);
+    if (!layer) {
+      continue;
+    }
+    for (const elementId of layer.elements) {
+      const edge = doc.getElementFromId(elementId);
+      if (!edge || !isEdgeElement(edge)) {
+        continue;
+      }
+      if (points.has(edge.startPoint) || points.has(edge.endPoint)) {
+        edges.add(edge);
+      }
+    }
+  }
+  return edges;
+}
+
+// Computes the set of all control points that are explicitly or implicitly
+// moved if the given `selection` is to be moved.
+//
+function computeMovedControlPoints(
+  doc: Document,
+  selection: Selection,
+  movedPoints: Set<ElementId>,
+): Set<ControlPoint> {
+  const movedControlPoints = new Set<ControlPoint>();
+
+  // Control points that are explicitly selected.
+  //
+  for (const selectable of selection.selected()) {
+    if (selectable.type === "SubElement") {
+      const element = doc.getElementFromId(selectable.id);
+      if (element && isEdgeElement(element)) {
+        const edge = element;
+        for (const cp of getControlPoints(edge)) {
+          if (cp.name === selectable.subName) {
+            movedControlPoints.add(cp);
+          }
+        }
+      }
+    }
+  }
+
+  // Control points that are anchored to moved points.
+  //
+  const incidentEdges = computeIncidentEdges(doc, movedPoints);
+  for (const edge of incidentEdges) {
+    for (const cp of getControlPoints(edge)) {
+      if (cp.anchor && movedPoints.has(cp.anchor)) {
+        movedControlPoints.add(cp);
+      }
+    }
+  }
+
+  return movedControlPoints;
 }
 
 // Returns the onMove callback for a Point element.
@@ -64,25 +183,24 @@ function onPointMove(point: Point): OnMoveCallback {
 
 // Returns the onMove callback for a ControlPoint sub-element.
 //
-function onControlPointMove(
-  edge: EdgeElement,
-  controlPointName: string,
-): OnMoveCallback | undefined {
+function onControlPointMove(cp: ControlPoint): OnMoveCallback | undefined {
+  const edge = cp.edge;
+  const name = cp.name;
   switch (edge.type) {
     case "LineSegment": {
       break;
     }
     case "ArcFromStartTangent": {
-      if (controlPointName === "tangent") {
-        const tangent = edge.tangent.clone();
+      if (name === "controlPoint") {
+        const controlPoint = edge.controlPoint.clone();
         return (delta: Vector2) => {
-          edge.tangent = tangent.clone().add(delta);
+          edge.controlPoint = controlPoint.clone().add(delta);
         };
       }
       break;
     }
     case "CCurve": {
-      if (controlPointName === "controlPoint") {
+      if (name === "controlPoint") {
         const controlPoint = edge.controlPoint.clone();
         return (delta: Vector2) => {
           edge.controlPoint = controlPoint.clone().add(delta);
@@ -91,12 +209,12 @@ function onControlPointMove(
       break;
     }
     case "SCurve": {
-      if (controlPointName === "startControlPoint") {
+      if (name === "startControlPoint") {
         const startControlPoint = edge.startControlPoint.clone();
         return (delta: Vector2) => {
           edge.startControlPoint = startControlPoint.clone().add(delta);
         };
-      } else if (controlPointName === "endControlPoint") {
+      } else if (name === "endControlPoint") {
         const endControlPoint = edge.endControlPoint.clone();
         return (delta: Vector2) => {
           edge.endControlPoint = endControlPoint.clone().add(delta);
@@ -106,44 +224,6 @@ function onControlPointMove(
     }
   }
   return undefined;
-}
-
-function populateControlPointOnMove(
-  edge: EdgeElement,
-  cp: ControlPoint,
-  movedPoints: Set<ElementId>,
-  onMoves: Array<OnMoveCallback>,
-) {
-  if (!cp.relativeTo || !movedPoints.has(cp.relativeTo)) {
-    const onMove = onControlPointMove(edge, cp.name);
-    if (onMove) {
-      onMoves.push(onMove);
-    }
-  }
-}
-
-// Note: if an edge and one its a control points are both selected, then the
-// onMove() callback of the control point will be twice in `onMoves`, but
-// it's okay since they simply compute the same value from their cached
-// onMousePress position and the provided delta (it won't be moved "twice as
-// much").
-//
-function populateControlPointOnMoves(
-  doc: Document,
-  edge: EdgeElement,
-  movedPoints: Set<ElementId>,
-  onMoves: Array<OnMoveCallback>,
-) {
-  const startPoint = doc.getElementFromId<Point>(edge.startPoint);
-  const endPoint = doc.getElementFromId<Point>(edge.endPoint);
-  if (!startPoint || !endPoint) {
-    return;
-  }
-  // TODO: cache the controls from the draw call?
-  const sc = getEdgeShapesAndControls(doc, edge);
-  for (const cp of sc.controlPoints) {
-    populateControlPointOnMove(edge, cp, movedPoints, onMoves);
-  }
 }
 
 // Whether a given selectable is movable or has movable sub-elements
@@ -164,34 +244,6 @@ function isMovable(doc: Document, selectable: Selectable | undefined): boolean {
     return true;
   }
   return false;
-}
-
-function populateNonPointOnMoves(
-  doc: Document,
-  selectable: Selectable,
-  movedPoints: Set<ElementId>,
-  onMoves: Array<OnMoveCallback>,
-) {
-  if (selectable.type === "Element") {
-    const element = doc.getElementFromId(selectable.id);
-    if (element && isEdgeElement(element)) {
-      populateControlPointOnMoves(doc, element, movedPoints, onMoves);
-    }
-  } else if (selectable.type === "SubElement") {
-    const element = doc.getElementFromId(selectable.id);
-    if (element && isEdgeElement(element)) {
-      // TODO: Avoid having to recompute the ControlPoints?
-      // For now we need it as we need `cp.relativeTo` which is
-      // not stored in the Selectable, but perhaps we could refactor
-      // the code differently to make this cleaner/faster.
-      const sc = getEdgeShapesAndControls(doc, element);
-      for (const cp of sc.controlPoints) {
-        if (cp.name === selectable.subName) {
-          populateControlPointOnMove(element, cp, movedPoints, onMoves);
-        }
-      }
-    }
-  }
 }
 
 class MoveData {
@@ -230,13 +282,32 @@ function start(data: MoveData, documentManager: DocumentManager): boolean {
     selection.setSelected([hovered]);
   }
 
-  // Make a first pass to collect all explicitly or implicitly moved points.
-  // We use this to avoid double-moving points or control points that are
-  // already implicitly moved via an edge or another point.
+  // Compute which objects to move. Note that an edge implicitly moves its
+  // endpoints, and a point implicitly moves all its anchored control points
+  // in all their incident edges.
+  //
+  // Legend:
+  // = selected edge
+  // - unselected edge
+  // O unselected point
+  // X unselected control point
+  //
+  //  moved as endpoint of moved edge
+  //             v
+  // O===X===X===O---X---X---O
+  //                 ^
+  //      moved as anchored control point of implicitly moved point
+  //
+  // This is why we need the two passes below.
   //
   const movedPoints = computeMovedPoints(doc, selection);
+  const movedControlPoints = computeMovedControlPoints(
+    doc,
+    selection,
+    movedPoints,
+  );
 
-  // Add the onMove() callbacks for all moved points.
+  // Store their onMove() callbacks.
   //
   data.onMoves = [];
   for (const id of movedPoints) {
@@ -245,12 +316,11 @@ function start(data: MoveData, documentManager: DocumentManager): boolean {
       data.onMoves.push(onPointMove(point));
     }
   }
-
-  // Make a second pass to collect all the onMove() callbacks of non-point
-  // objects.
-  //
-  for (const s of selection.selected()) {
-    populateNonPointOnMoves(doc, s, movedPoints, data.onMoves);
+  for (const cp of movedControlPoints) {
+    const onMove = onControlPointMove(cp);
+    if (onMove) {
+      data.onMoves.push(onMove);
+    }
   }
 
   data.isMoving = true;

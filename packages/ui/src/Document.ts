@@ -122,11 +122,11 @@ export const LineSegment: ElementSpec<LineSegment, LineSegmentOptions> = {
 //                               ArcFromStartTangent
 
 export interface ArcFromStartTangentOptions extends EdgeBaseOptions {
-  tangent?: Vector2;
+  controlPoint?: Vector2;
 }
 
 export interface ArcFromStartTangentData extends EdgeBaseData {
-  tangent: Vector2;
+  controlPoint: Vector2;
 }
 
 export interface ArcFromStartTangent
@@ -148,28 +148,24 @@ export const ArcFromStartTangent: ElementSpec<
       name: "Arc",
       startPoint: "",
       endPoint: "",
-      tangent: new Vector2(1, 0),
+      controlPoint: new Vector2(0, 0),
       ...options,
     };
   },
   clone: (other: ArcFromStartTangent) => {
-    return { ...other, tangent: other.tangent.clone() };
+    return { ...other, controlPoint: other.controlPoint.clone() };
   },
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 //                                  CCurve
 
-type CCurveMode = "startTangent" | "endTangent" | "controlPoint";
-
 export interface CCurveOptions extends EdgeBaseOptions {
   controlPoint?: Vector2;
-  mode?: CCurveMode;
 }
 
 export interface CCurveData extends EdgeBaseData {
   controlPoint: Vector2;
-  mode: CCurveMode;
 }
 
 export interface CCurve extends ElementBase, CCurveData {
@@ -186,8 +182,7 @@ export const CCurve: ElementSpec<CCurve, CCurveOptions> = {
       name: "C-Curve",
       startPoint: "",
       endPoint: "",
-      controlPoint: new Vector2(1, 0),
-      mode: "startTangent" as const,
+      controlPoint: new Vector2(0, 0),
       ...options,
     };
   },
@@ -199,18 +194,14 @@ export const CCurve: ElementSpec<CCurve, CCurveOptions> = {
 ///////////////////////////////////////////////////////////////////////////////
 //                                  SCurve
 
-type SCurveMode = "tangent" | "controlPoint";
-
 export interface SCurveOptions extends EdgeBaseOptions {
   startControlPoint?: Vector2;
   endControlPoint?: Vector2;
-  mode?: SCurveMode;
 }
 
 export interface SCurveData extends EdgeBaseData {
   startControlPoint: Vector2;
   endControlPoint: Vector2;
-  mode: SCurveMode;
 }
 
 export interface SCurve extends ElementBase, SCurveData {
@@ -227,9 +218,8 @@ export const SCurve: ElementSpec<SCurve, SCurveOptions> = {
       name: "S-Curve",
       startPoint: "",
       endPoint: "",
-      startControlPoint: new Vector2(1, 0),
-      endControlPoint: new Vector2(1, 0),
-      mode: "tangent" as const,
+      startControlPoint: new Vector2(0, 0),
+      endControlPoint: new Vector2(0, 0),
       ...options,
     };
   },
@@ -571,7 +561,7 @@ export function createTestDocument() {
   doc.createElementInLayer(ArcFromStartTangent, layer, {
     startPoint: p2.id,
     endPoint: p3.id,
-    tangent: new Vector2(50, 0),
+    controlPoint: new Vector2(50, 0),
   });
   doc.createElementInLayer(LineSegment, layer, {
     startPoint: p3.id,
@@ -580,8 +570,7 @@ export function createTestDocument() {
   doc.createElementInLayer(CCurve, layer, {
     startPoint: p4.id,
     endPoint: p5.id,
-    controlPoint: new Vector2(-50, -50),
-    mode: "startTangent",
+    controlPoint: new Vector2(150, 50),
   });
   doc.createElementInLayer(LineSegment, layer, {
     startPoint: p5.id,
@@ -590,9 +579,8 @@ export function createTestDocument() {
   doc.createElementInLayer(SCurve, layer, {
     startPoint: p6.id,
     endPoint: p7.id,
-    startControlPoint: new Vector2(-50, -50),
-    endControlPoint: new Vector2(20, 40),
-    mode: "tangent",
+    startControlPoint: new Vector2(50, -150),
+    endControlPoint: new Vector2(-80, -60),
   });
   doc.createElementInLayer(LineSegment, layer, {
     startPoint: p7.id,

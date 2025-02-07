@@ -6,298 +6,224 @@ import { v4 as uuidv4 } from "uuid";
 
 export type ElementId = string;
 
-export interface ElementBaseOptions {
+export interface ElementOptions {
   name?: string;
 }
 
-export interface ElementBaseData {
-  name: string;
-}
-
-export interface ElementBase extends ElementBaseData {
+export abstract class Element {
   readonly id: ElementId;
-  readonly type: string;
+  name: string;
+
+  constructor(id: ElementId, options: ElementOptions) {
+    this.id = id;
+    this.name = options.name !== undefined ? options.name : "Element";
+  }
+
+  abstract clone(): Element;
 }
 
-export interface ElementSpec<T, Options extends ElementBaseOptions> {
-  readonly type: string;
-  readonly name: string;
-  readonly create: (id: ElementId, options: Options) => T;
-  readonly clone: (other: T) => T;
-}
+/**
+ * Represents any constructible Element type.
+ *
+ * This is used for typing factory functions like `Document.createElement()`.
+ */
+type ElementType<T, Options> = (new (id: ElementId, options: Options) => T) & {
+  defaultName: string;
+};
 
-// Note: we currently need clone() for deep cloning purposes.
-//
-// If all data properties of elements were immutable types (which is currently
-// not the case, e.g., Vector2 and Array<ElementId>), then we could instead
-// do a shallow copy via `clonedElement = {...element}` which would make
-// element types more convenient to implement, and would likely improve
-// performance.
+/**
+ * Represents any Element type, not necessarily constructible.
+ *
+ * This is used for functions with runtime type checks like `Document.getElement()`.
+ */
+type AbstractElementType<T> = abstract new (id: ElementId, options: never) => T;
+
+///////////////////////////////////////////////////////////////////////////////
+//                               SkeletonElement
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface SkeletonElementOptions extends ElementOptions {}
+
+export abstract class SkeletonElement extends Element {
+  constructor(id: ElementId, options: SkeletonElementOptions) {
+    super(id, options);
+  }
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               Point
 
-export interface PointOptions extends ElementBaseOptions {
+export interface PointOptions extends SkeletonElementOptions {
   position?: Vector2;
 }
 
-export interface PointData extends ElementBaseData {
+export class Point extends SkeletonElement {
+  static readonly defaultName = "Point";
   position: Vector2;
-}
 
-export interface Point extends ElementBase, PointData {
-  type: "Point";
-}
+  constructor(id: ElementId, options: PointOptions) {
+    super(id, options);
+    this.position = options.position
+      ? options.position.clone()
+      : new Vector2(0, 0);
+  }
 
-export const Point: ElementSpec<Point, PointOptions> = {
-  type: "Point",
-  name: "Point",
-  create: (id: ElementId, options: PointOptions) => {
-    return {
-      id: id,
-      type: "Point",
-      name: "Point",
-      position: new Vector2(0, 0),
-      ...options,
-    };
-  },
-  clone: (other: Point) => {
-    return { ...other, position: other.position.clone() };
-  },
-};
+  clone() {
+    return new Point(this.id, this);
+  }
+}
 
 ///////////////////////////////////////////////////////////////////////////////
-//                               EdgeBase
+//                               EdgeElement
 
-export interface EdgeBaseOptions extends ElementBaseOptions {
-  startPoint?: ElementId;
-  endPoint?: ElementId;
-}
-
-export interface EdgeBaseData extends ElementBaseData {
+export interface EdgeElementOptions extends SkeletonElementOptions {
   startPoint: ElementId;
   endPoint: ElementId;
 }
 
-export function isEdgeElement(element: Element): element is EdgeElement {
-  return "startPoint" in element && "endPoint" in element;
+export abstract class EdgeElement extends SkeletonElement {
+  startPoint: ElementId;
+  endPoint: ElementId;
+
+  constructor(id: ElementId, options: EdgeElementOptions) {
+    super(id, options);
+    this.startPoint = options.startPoint;
+    this.endPoint = options.endPoint;
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               LineSegment
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface LineSegmentOptions extends EdgeBaseOptions {
-  // No additional options w.r.t EdgeBase
-}
+export interface LineSegmentOptions extends EdgeElementOptions {}
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface LineSegmentData extends EdgeBaseData {
-  // No additional data w.r.t EdgeBase
-}
+export class LineSegment extends EdgeElement {
+  static readonly defaultName = "Line Segment";
 
-export interface LineSegment extends ElementBase, LineSegmentData {
-  type: "LineSegment";
-}
+  constructor(
+    readonly id: ElementId,
+    options: LineSegmentOptions,
+  ) {
+    super(id, options);
+  }
 
-export const LineSegment: ElementSpec<LineSegment, LineSegmentOptions> = {
-  type: "LineSegment",
-  name: "Line Segment",
-  create: (id: ElementId, options: LineSegmentOptions) => {
-    return {
-      id: id,
-      type: "LineSegment",
-      name: "Line Segment",
-      startPoint: "",
-      endPoint: "",
-      ...options,
-    };
-  },
-  clone: (other: LineSegment) => {
-    return { ...other };
-  },
-};
+  clone() {
+    return new LineSegment(this.id, this);
+  }
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               ArcFromStartTangent
 
-export interface ArcFromStartTangentOptions extends EdgeBaseOptions {
+export interface ArcFromStartTangentOptions extends EdgeElementOptions {
   controlPoint?: Vector2;
 }
 
-export interface ArcFromStartTangentData extends EdgeBaseData {
+export class ArcFromStartTangent extends EdgeElement {
+  static readonly defaultName = "Arc";
   controlPoint: Vector2;
-}
 
-export interface ArcFromStartTangent
-  extends ElementBase,
-    ArcFromStartTangentData {
-  type: "ArcFromStartTangent";
-}
+  constructor(
+    readonly id: ElementId,
+    options: ArcFromStartTangentOptions,
+  ) {
+    super(id, options);
+    this.controlPoint = options.controlPoint
+      ? options.controlPoint.clone()
+      : new Vector2(0, 0);
+  }
 
-export const ArcFromStartTangent: ElementSpec<
-  ArcFromStartTangent,
-  ArcFromStartTangentOptions
-> = {
-  type: "ArcFromStartTangent",
-  name: "Arc",
-  create: (id: ElementId, options: ArcFromStartTangentOptions) => {
-    return {
-      id: id,
-      type: "ArcFromStartTangent",
-      name: "Arc",
-      startPoint: "",
-      endPoint: "",
-      controlPoint: new Vector2(0, 0),
-      ...options,
-    };
-  },
-  clone: (other: ArcFromStartTangent) => {
-    return { ...other, controlPoint: other.controlPoint.clone() };
-  },
-};
+  clone() {
+    return new ArcFromStartTangent(this.id, this);
+  }
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 //                                  CCurve
 
-export interface CCurveOptions extends EdgeBaseOptions {
+export interface CCurveOptions extends EdgeElementOptions {
   controlPoint?: Vector2;
 }
 
-export interface CCurveData extends EdgeBaseData {
+export class CCurve extends EdgeElement {
+  static readonly defaultName = "C-Curve";
   controlPoint: Vector2;
-}
 
-export interface CCurve extends ElementBase, CCurveData {
-  type: "CCurve";
-}
+  constructor(
+    readonly id: ElementId,
+    options: CCurveOptions,
+  ) {
+    super(id, options);
+    this.controlPoint = options.controlPoint
+      ? options.controlPoint.clone()
+      : new Vector2(0, 0);
+  }
 
-export const CCurve: ElementSpec<CCurve, CCurveOptions> = {
-  type: "CCurve",
-  name: "C-Curve",
-  create: (id: ElementId, options: CCurveOptions) => {
-    return {
-      id: id,
-      type: "CCurve",
-      name: "C-Curve",
-      startPoint: "",
-      endPoint: "",
-      controlPoint: new Vector2(0, 0),
-      ...options,
-    };
-  },
-  clone: (other: CCurve) => {
-    return { ...other, controlPoint: other.controlPoint.clone() };
-  },
-};
+  clone() {
+    return new CCurve(this.id, this);
+  }
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 //                                  SCurve
 
-export interface SCurveOptions extends EdgeBaseOptions {
+export interface SCurveOptions extends EdgeElementOptions {
   startControlPoint?: Vector2;
   endControlPoint?: Vector2;
 }
 
-export interface SCurveData extends EdgeBaseData {
+export class SCurve extends EdgeElement {
+  static readonly defaultName = "S-Curve";
   startControlPoint: Vector2;
   endControlPoint: Vector2;
-}
 
-export interface SCurve extends ElementBase, SCurveData {
-  type: "SCurve";
-}
+  constructor(
+    readonly id: ElementId,
+    options: SCurveOptions,
+  ) {
+    super(id, options);
+    this.startControlPoint = options.startControlPoint
+      ? options.startControlPoint.clone()
+      : new Vector2(0, 0);
+    this.endControlPoint = options.endControlPoint
+      ? options.endControlPoint.clone()
+      : new Vector2(0, 0);
+  }
 
-export const SCurve: ElementSpec<SCurve, SCurveOptions> = {
-  type: "SCurve",
-  name: "S-Curve",
-  create: (id: ElementId, options: SCurveOptions) => {
-    return {
-      id: id,
-      type: "SCurve",
-      name: "S-Curve",
-      startPoint: "",
-      endPoint: "",
-      startControlPoint: new Vector2(0, 0),
-      endControlPoint: new Vector2(0, 0),
-      ...options,
-    };
-  },
-  clone: (other: SCurve) => {
-    return {
-      ...other,
-      startControlPoint: other.startControlPoint.clone(),
-      endControlPoint: other.endControlPoint.clone(),
-    };
-  },
-};
+  clone() {
+    return new SCurve(this.id, this);
+  }
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               Layer
 
-export interface LayerOptions extends ElementBaseOptions {
+export interface LayerOptions extends ElementOptions {
   elements?: Array<ElementId>;
 }
 
-export interface LayerData extends ElementBaseData {
+export class Layer extends Element {
+  static readonly defaultName = "Layer";
   elements: Array<ElementId>;
+
+  constructor(id: ElementId, options: LayerOptions) {
+    super(id, options);
+    this.elements = options.elements ? [...options.elements] : [];
+  }
+
+  clone() {
+    return new Layer(this.id, this);
+  }
 }
-
-export interface Layer extends ElementBase, LayerData {
-  type: "Layer";
-}
-
-export const Layer: ElementSpec<Layer, LayerOptions> = {
-  type: "Layer",
-  name: "Layer",
-  create: (id: ElementId, options: LayerOptions) => {
-    return {
-      id: id,
-      type: "Layer",
-      name: "Layer",
-      elements: [],
-      ...options,
-    };
-  },
-  clone: (other: Layer) => {
-    return { ...other, elements: [...other.elements] };
-  },
-};
-
-///////////////////////////////////////////////////////////////////////////////
-//                               Tagged Union
-
-export type EdgeElement = LineSegment | ArcFromStartTangent | CCurve | SCurve;
-export type SkeletonElement = Point | EdgeElement;
-
-export type Element = SkeletonElement | Layer;
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               Util
 
-function cloneElement(element: Element): Element {
-  // Note: this could be simplified to: `return {.. element}` if all element
-  // properties where immutable.
-  switch (element.type) {
-    case "Point":
-      return Point.clone(element);
-    case "Layer":
-      return Layer.clone(element);
-    case "LineSegment":
-      return LineSegment.clone(element);
-    case "ArcFromStartTangent":
-      return ArcFromStartTangent.clone(element);
-    case "CCurve":
-      return CCurve.clone(element);
-    case "SCurve":
-      return SCurve.clone(element);
-  }
-}
-
 function cloneElementMap(source: Map<ElementId, Element>) {
   const dest = new Map<ElementId, Element>();
   source.forEach((element, id) => {
-    dest.set(id, cloneElement(element));
+    dest.set(id, element.clone());
   });
   return dest;
 }
@@ -346,25 +272,65 @@ export class Document {
   }
 
   /**
-   * Returns the element that has the given `id`, if any.
+   * Returns the element that has the given `id`, if any:
+   *
+   * ```
+   * const element = doc.getElementFromId(id);
+   * ```
+   *
+   * If `type` is given as argument to this function, then this function
+   * checks at runtime via `instanceof` that the element is of the given
+   * `type`, and otherwise returns `undefined`:
+   *
+   * ```
+   * const point = doc.createElement(Point);
+   * const segment = doc.createElement(LineSegment);
+   * const p1 = doc.getElement(point.id, Point);   // === point
+   * const p2 = doc.getElement(segment.id, Point); // === undefined
+   * ```
+   *
+   * If no `type` is given as argument to this function, but an explicit type
+   * argument `T` is provided, then this function assumes the element is
+   * indeed of type `T` and performs type narrowing from `Element |
+   * undefined` to `T | undefined` without runtime checks. This is unsafe and
+   * therefore not recommended.
+   *
+   * ```
+   * const point = doc.createElement(Point);
+   * const segment = doc.createElement(LineSegment);
+   * const p1 = doc.getElement<Point>(point.id, Point);   // === point
+   * const p2 = doc.getElement<Point>(segment.id, Point); // === segment as Point (bug!)
+   * ```
    */
-  getElementFromId<T extends Element>(
+  getElement<T extends Element>(
     id: ElementId | undefined,
+    type?: AbstractElementType<T> | undefined,
   ): T | undefined {
     if (!id) {
       return undefined;
     }
     const element: Element | undefined = this._elements.get(id);
-    return element as T | undefined;
+    if (type === undefined) {
+      // unchecked type narrowing
+      return element as T | undefined;
+    } else if (element instanceof type) {
+      // checked type narrowing
+      return element;
+    } else {
+      return undefined;
+    }
   }
 
   /**
    * Returns an array of elements corresponding to the given array of `ids`.
    */
-  getElementsFromId<T extends Element>(ids: Array<ElementId>): Array<T> {
+  getElements<T extends Element>(
+    ids: Array<ElementId>,
+    type?: AbstractElementType<T>,
+  ): Array<T> {
     const res: Array<T> = [];
     for (const id of ids) {
-      const element = this.getElementFromId<T>(id);
+      const element = this.getElement(id, type);
       if (element) {
         res.push(element);
       }
@@ -388,16 +354,19 @@ export class Document {
    * 1. Mutate the `elements` attribute of some layer after calling this function, or
    * 2. Use `createElementInLayer()` instead of this function.
    */
-  createElement<T extends Element, Options extends ElementBaseOptions>(
-    spec: ElementSpec<T, Options>,
+  createElement<T extends Element, Options>(
+    type: ElementType<T, Options>,
     options: Options,
   ): T {
     const id = uuidv4();
-    const element = spec.create(id, options);
+    const element = new type(id, options);
     this._elements.set(id, element);
     return element;
   }
 
+  foo() {
+    this.createElement(Point, { name: "My Point" });
+  }
   /**
    * Creates a new element of the given `spec` with the given `options`, adds it
    * as last element of the given layer, then returns it.
@@ -406,15 +375,18 @@ export class Document {
    * automatically a unique name withing the `layer` suitable for the given
    * `spec`, e.g., "Point 42".
    */
-  createElementInLayer<T extends Element, Options extends ElementBaseOptions>(
-    spec: ElementSpec<T, Options>,
+  createElementInLayer<T extends Element, Options extends ElementOptions>(
+    type: ElementType<T, Options>,
     layer: Layer,
     options: Options,
   ): T {
     if (options.name === undefined) {
-      options.name = this.findAvailableName(spec.name + " ", layer.elements);
+      options.name = this.findAvailableName(
+        type.defaultName + " ",
+        layer.elements,
+      );
     }
-    const element = this.createElement(spec, options);
+    const element = this.createElement(type, options);
     layer.elements.push(element.id);
     return element;
   }
@@ -470,7 +442,7 @@ export class Document {
     const re = new RegExp(`${prefix}\\d+`);
     const numbers = [];
     for (const id of elements) {
-      const element = this.getElementFromId(id);
+      const element = this.getElement(id);
       if (element && re.test(element.name)) {
         const suffix = element.name.substring(prefix.length);
         const n = parseInt(suffix, 10);
@@ -516,7 +488,7 @@ export class Document {
     if (id === undefined) {
       return this;
     }
-    const layer = this.getElementFromId<Layer>(id);
+    const layer = this.getElement(id, Layer);
     if (layer === undefined) {
       return this;
     }

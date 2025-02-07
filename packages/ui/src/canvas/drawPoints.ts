@@ -37,9 +37,9 @@ export function drawPoints(
   selection: Selection,
 ) {
   for (const id of elements) {
-    const element = document.getElementFromId(id);
-    if (element && element.type === "Point") {
-      drawPoint(ctx, camera, element, selection);
+    const point = document.getElement(id, Point);
+    if (point) {
+      drawPoint(ctx, camera, point, selection);
     }
   }
 }

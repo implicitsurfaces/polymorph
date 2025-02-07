@@ -40,9 +40,9 @@ function getHoveredPoint(
   const doc = documentManager.document();
   const selection = documentManager.selection();
   const hoveredElementId = selection.hoveredElement();
-  const hoveredElement = doc.getElementFromId(hoveredElementId);
-  if (hoveredElement?.type === "Point") {
-    return hoveredElement.id;
+  const hoveredPoint = doc.getElement(hoveredElementId, Point);
+  if (hoveredPoint) {
+    return hoveredPoint.id;
   } else {
     return undefined;
   }
@@ -92,7 +92,7 @@ export class LineSegmentTool implements Tool {
     const documentManager = event.documentManager;
     const doc = documentManager.document();
     const selection = documentManager.selection();
-    const layer = doc.getElementFromId<Layer>(selection.activeLayer());
+    const layer = doc.getElement(selection.activeLayer(), Layer);
     if (!layer) {
       return false;
     }
@@ -138,15 +138,16 @@ export class LineSegmentTool implements Tool {
     const documentManager = this.firstStepData.documentManager;
     const doc = documentManager.document();
     const selection = documentManager.selection();
-    const layer = doc.getElementFromId<Layer>(selection.activeLayer());
+    const layer = doc.getElement(selection.activeLayer(), Layer);
     if (!layer) {
       this.reset();
       return;
     }
 
     // Get line segment
-    const lineSegment = doc.getElementFromId<LineSegment>(
+    const lineSegment = doc.getElement(
       this.firstStepData.lineSegmentId,
+      LineSegment,
     );
     if (!lineSegment) {
       this.reset();
@@ -181,7 +182,7 @@ export class LineSegmentTool implements Tool {
         this.firstStepData.isEndPointPreexisting = false;
       } else {
         // Update the position of the temporary new endpoint
-        const point = doc.getElementFromId<Point>(lineSegment.endPoint);
+        const point = doc.getElement(lineSegment.endPoint, Point);
         if (point) {
           point.position = position;
         }

@@ -2,13 +2,7 @@ import { Vector2 } from "threejs-math";
 import { Camera2 } from "./Camera2.ts";
 import { Selectable } from "../Selection.ts";
 import { DocumentManager } from "../DocumentManager.ts";
-import {
-  Document,
-  ElementId,
-  isEdgeElement,
-  Layer,
-  Point,
-} from "../Document.ts";
+import { Document, ElementId, EdgeElement, Layer, Point } from "../Document.ts";
 import {
   ControlPoint,
   getEdgeShapesAndControls,
@@ -175,11 +169,11 @@ function findClosestSelectableInLayer(
   }
 
   for (const id of layer.elements) {
-    const element = doc.getElementFromId(id);
+    const element = doc.getElement(id);
     if (element && (!filter || filter(id))) {
-      if (element.type === "Point") {
+      if (element instanceof Point) {
         update(csPoint, element, distToPoint, selectPoint, id);
-      } else if (isEdgeElement(element)) {
+      } else if (element instanceof EdgeElement) {
         // TODO: cache the controls from the draw call?
         const sc = getEdgeShapesAndControls(doc, element);
         for (const cp of sc.controlPoints) {
@@ -248,7 +242,7 @@ function findClosestSelectableInDocument(
   let closestDistance = Infinity;
   let selectable: Selectable | undefined = undefined;
   for (const id of doc.layers) {
-    const layer = doc.getElementFromId<Layer>(id);
+    const layer = doc.getElement(id, Layer);
     if (layer) {
       const ce = findClosestSelectableInLayer(
         doc,

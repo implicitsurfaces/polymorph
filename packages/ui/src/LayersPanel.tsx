@@ -12,7 +12,7 @@ export function LayersPanel({ documentManager }: LayersPanelProps) {
   const activeLayerId = selection.activeLayer();
 
   function getItem(id: ElementId, index: number) {
-    const layer = doc.getElementFromId<Layer>(id);
+    const layer = doc.getElement(id, Layer);
     if (!layer) {
       return <></>;
     }

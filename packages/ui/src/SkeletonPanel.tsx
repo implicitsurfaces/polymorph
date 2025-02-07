@@ -14,7 +14,7 @@ export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
   const selectedElementIds = selection.selectedElements();
 
   function getItem(id: ElementId) {
-    const element = doc.getElementFromId(id);
+    const element = doc.getElement(id);
     if (!element) {
       return <></>;
     }
@@ -31,7 +31,7 @@ export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
   }
 
   function getItems() {
-    const activeLayer = doc.getElementFromId<Layer>(activeLayerId);
+    const activeLayer = doc.getElement(activeLayerId, Layer);
     if (!activeLayer) {
       return <></>;
     }

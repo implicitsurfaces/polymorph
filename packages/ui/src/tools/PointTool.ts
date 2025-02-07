@@ -14,7 +14,7 @@ export class PointTool implements Tool {
   onCanvasClick(event: CanvasPointerEvent) {
     const doc = event.documentManager.document();
     const selection = event.documentManager.selection();
-    const layer = doc.getElementFromId<Layer>(selection.activeLayer());
+    const layer = doc.getElement(selection.activeLayer(), Layer);
     if (!layer) {
       return;
     }

@@ -6,7 +6,10 @@ import {
   Element,
   Point,
   EdgeElement,
-  isEdgeElement,
+  LineSegment,
+  ArcFromStartTangent,
+  CCurve,
+  SCurve,
 } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 import { Vector2Input } from "./Vector2Input.tsx";
@@ -32,35 +35,34 @@ class ControlPointProperty {
 function getControlPointProperties(
   edge: EdgeElement,
 ): Array<ControlPointProperty> {
-  switch (edge.type) {
-    case "LineSegment": {
-      return [];
-    }
-    case "ArcFromStartTangent": {
-      return [
-        new ControlPointProperty("Control Point", () => {
-          return edge.controlPoint;
-        }),
-      ];
-    }
-    case "CCurve": {
-      return [
-        new ControlPointProperty("Control Point", () => {
-          return edge.controlPoint;
-        }),
-      ];
-    }
-    case "SCurve": {
-      return [
-        new ControlPointProperty("Start Control Point", () => {
-          return edge.startControlPoint;
-        }),
-        new ControlPointProperty("End Control Point", () => {
-          return edge.endControlPoint;
-        }),
-      ];
-    }
+  if (edge instanceof LineSegment) {
+    return [];
   }
+  if (edge instanceof ArcFromStartTangent) {
+    return [
+      new ControlPointProperty("Control Point", () => {
+        return edge.controlPoint;
+      }),
+    ];
+  }
+  if (edge instanceof CCurve) {
+    return [
+      new ControlPointProperty("Control Point", () => {
+        return edge.controlPoint;
+      }),
+    ];
+  }
+  if (edge instanceof SCurve) {
+    return [
+      new ControlPointProperty("Start Control Point", () => {
+        return edge.startControlPoint;
+      }),
+      new ControlPointProperty("End Control Point", () => {
+        return edge.endControlPoint;
+      }),
+    ];
+  }
+  return [];
 }
 
 interface PropertyItemProps {
@@ -109,15 +111,15 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
   }
 
   function getSkeletonItem(id: ElementId, title: string) {
-    const element = doc.getElementFromId<Point>(id);
-    if (!element) {
+    const point = doc.getElement(id, Point);
+    if (!point) {
       return <></>;
     }
     return (
       <SkeletonListItem
         documentManager={documentManager}
         id={id}
-        name={element.name}
+        name={point.name}
         isHovered={id === hoveredElementId}
         isSelected={selectedElementIds.includes(id)}
         title={title}
@@ -150,9 +152,9 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
   }
 
   function getContentForElement(element: Element) {
-    if (element.type === "Point") {
+    if (element instanceof Point) {
       return getContentForPoint(element);
-    } else if (isEdgeElement(element)) {
+    } else if (element instanceof EdgeElement) {
       return getContentForEdge(element);
     } else {
       return <></>;
@@ -162,9 +164,7 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
   function getContent() {
     const doc = documentManager.document();
     const selection = documentManager.selection();
-    const selectedElements = doc.getElementsFromId(
-      selection.selectedElements(),
-    );
+    const selectedElements = doc.getElements(selection.selectedElements());
     if (selectedElements.length === 0) {
       return (
         <div className="panel-list-item">
@@ -172,12 +172,12 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
         </div>
       );
     } else if (selectedElements.length === 1) {
+      const element = selectedElements[0];
+      const type = Object.getPrototypeOf(element).constructor;
       return (
         <>
           <div className="panel-list-item">
-            <p className="name single-line-text">
-              Type: {selectedElements[0].type}
-            </p>
+            <p className="name single-line-text">Type: {type.defaultName}</p>
           </div>
           {getContentForElement(selectedElements[0])}
         </>

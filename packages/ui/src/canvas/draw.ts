@@ -33,7 +33,7 @@ function drawDocument(
   selection: Selection,
 ) {
   document.layers.forEach((id: ElementId) => {
-    const layer = document.getElementFromId<Layer>(id);
+    const layer = document.getElement(id, Layer);
     if (layer) {
       // Note: we use two passes since we want to draw all points on top of
       // edges, regardless of layer order.

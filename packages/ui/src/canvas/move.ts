@@ -6,8 +6,11 @@ import {
   ElementId,
   Point,
   EdgeElement,
-  isEdgeElement,
   Layer,
+  LineSegment,
+  ArcFromStartTangent,
+  CCurve,
+  SCurve,
 } from "../Document.ts";
 import { Selectable, Selection } from "../Selection.ts";
 
@@ -36,50 +39,46 @@ interface ControlPoint {
 }
 
 export function getControlPoints(edge: EdgeElement): Array<ControlPoint> {
-  switch (edge.type) {
-    case "LineSegment": {
-      return [];
-    }
-    case "ArcFromStartTangent": {
-      return [
-        {
-          edge: edge,
-          name: "controlPoint",
-          position: edge.controlPoint,
-          anchor: edge.startPoint,
-        },
-      ];
-    }
-    case "CCurve": {
-      return [
-        {
-          edge: edge,
-          name: "controlPoint",
-          position: edge.controlPoint,
-          anchor: edge.startPoint,
-          // Note: alternatively, for symmetry, we could either have both
-          // startPoint and endPoint be anchors (or none of them), but it
-          // isn't clear if this makes the user experience better or worse.
-        },
-      ];
-    }
-    case "SCurve": {
-      return [
-        {
-          edge: edge,
-          name: "startControlPoint",
-          position: edge.startControlPoint,
-          anchor: edge.startPoint,
-        },
-        {
-          edge: edge,
-          name: "endControlPoint",
-          position: edge.endControlPoint,
-          anchor: edge.endPoint,
-        },
-      ];
-    }
+  if (edge instanceof LineSegment) {
+    return [];
+  } else if (edge instanceof ArcFromStartTangent) {
+    return [
+      {
+        edge: edge,
+        name: "controlPoint",
+        position: edge.controlPoint,
+        anchor: edge.startPoint,
+      },
+    ];
+  } else if (edge instanceof CCurve) {
+    return [
+      {
+        edge: edge,
+        name: "controlPoint",
+        position: edge.controlPoint,
+        anchor: edge.startPoint,
+        // Note: alternatively, for symmetry, we could either have both
+        // startPoint and endPoint be anchors (or none of them), but it
+        // isn't clear if this makes the user experience better or worse.
+      },
+    ];
+  } else if (edge instanceof SCurve) {
+    return [
+      {
+        edge: edge,
+        name: "startControlPoint",
+        position: edge.startControlPoint,
+        anchor: edge.startPoint,
+      },
+      {
+        edge: edge,
+        name: "endControlPoint",
+        position: edge.endControlPoint,
+        anchor: edge.endPoint,
+      },
+    ];
   }
+  return [];
 }
 
 // Computes the set of all points that are either selected,
@@ -92,13 +91,10 @@ function computeMovedPoints(
   const movedPoints = new Set<ElementId>();
   for (const selectable of selection.selected()) {
     if (selectable.type === "Element") {
-      const element = doc.getElementFromId(selectable.id);
-      if (!element) {
-        continue;
-      }
-      if (element.type === "Point") {
+      const element = doc.getElement(selectable.id);
+      if (element instanceof Point) {
         movedPoints.add(element.id);
-      } else if (isEdgeElement(element)) {
+      } else if (element instanceof EdgeElement) {
         movedPoints.add(element.startPoint);
         movedPoints.add(element.endPoint);
       }
@@ -115,13 +111,13 @@ function computeIncidentEdges(
 ): Set<EdgeElement> {
   const edges = new Set<EdgeElement>();
   for (const layerId of doc.layers) {
-    const layer = doc.getElementFromId<Layer>(layerId);
+    const layer = doc.getElement(layerId, Layer);
     if (!layer) {
       continue;
     }
     for (const elementId of layer.elements) {
-      const edge = doc.getElementFromId(elementId);
-      if (!edge || !isEdgeElement(edge)) {
+      const edge = doc.getElement(elementId, EdgeElement);
+      if (!edge) {
         continue;
       }
       if (points.has(edge.startPoint) || points.has(edge.endPoint)) {
@@ -146,9 +142,8 @@ function computeMovedControlPoints(
   //
   for (const selectable of selection.selected()) {
     if (selectable.type === "SubElement") {
-      const element = doc.getElementFromId(selectable.id);
-      if (element && isEdgeElement(element)) {
-        const edge = element;
+      const edge = doc.getElement(selectable.id, EdgeElement);
+      if (edge) {
         for (const cp of getControlPoints(edge)) {
           if (cp.name === selectable.subName) {
             movedControlPoints.add(cp);
@@ -186,41 +181,33 @@ function onPointMove(point: Point): OnMoveCallback {
 function onControlPointMove(cp: ControlPoint): OnMoveCallback | undefined {
   const edge = cp.edge;
   const name = cp.name;
-  switch (edge.type) {
-    case "LineSegment": {
-      break;
+  if (edge instanceof LineSegment) {
+    // Nothing
+  } else if (edge instanceof ArcFromStartTangent) {
+    if (name === "controlPoint") {
+      const controlPoint = edge.controlPoint.clone();
+      return (delta: Vector2) => {
+        edge.controlPoint = controlPoint.clone().add(delta);
+      };
     }
-    case "ArcFromStartTangent": {
-      if (name === "controlPoint") {
-        const controlPoint = edge.controlPoint.clone();
-        return (delta: Vector2) => {
-          edge.controlPoint = controlPoint.clone().add(delta);
-        };
-      }
-      break;
+  } else if (edge instanceof CCurve) {
+    if (name === "controlPoint") {
+      const controlPoint = edge.controlPoint.clone();
+      return (delta: Vector2) => {
+        edge.controlPoint = controlPoint.clone().add(delta);
+      };
     }
-    case "CCurve": {
-      if (name === "controlPoint") {
-        const controlPoint = edge.controlPoint.clone();
-        return (delta: Vector2) => {
-          edge.controlPoint = controlPoint.clone().add(delta);
-        };
-      }
-      break;
-    }
-    case "SCurve": {
-      if (name === "startControlPoint") {
-        const startControlPoint = edge.startControlPoint.clone();
-        return (delta: Vector2) => {
-          edge.startControlPoint = startControlPoint.clone().add(delta);
-        };
-      } else if (name === "endControlPoint") {
-        const endControlPoint = edge.endControlPoint.clone();
-        return (delta: Vector2) => {
-          edge.endControlPoint = endControlPoint.clone().add(delta);
-        };
-      }
-      break;
+  } else if (edge instanceof SCurve) {
+    if (name === "startControlPoint") {
+      const startControlPoint = edge.startControlPoint.clone();
+      return (delta: Vector2) => {
+        edge.startControlPoint = startControlPoint.clone().add(delta);
+      };
+    } else if (name === "endControlPoint") {
+      const endControlPoint = edge.endControlPoint.clone();
+      return (delta: Vector2) => {
+        edge.endControlPoint = endControlPoint.clone().add(delta);
+      };
     }
   }
   return undefined;
@@ -233,11 +220,11 @@ function isMovable(doc: Document, selectable: Selectable | undefined): boolean {
     return false;
   }
   if (selectable.type === "Element") {
-    const element = doc.getElementFromId(selectable.id);
+    const element = doc.getElement(selectable.id);
     if (!element) {
       return false;
     }
-    return element.type === "Point" || isEdgeElement(element);
+    return element instanceof Point || element instanceof EdgeElement;
   } else if (selectable.type === "SubElement") {
     // For now, all sub-elements are movable, since the only implemented
     // sub-elements are control points which are all movable.
@@ -311,7 +298,7 @@ function start(data: MoveData, documentManager: DocumentManager): boolean {
   //
   data.onMoves = [];
   for (const id of movedPoints) {
-    const point = doc.getElementFromId<Point>(id);
+    const point = doc.getElement(id, Point);
     if (point) {
       data.onMoves.push(onPointMove(point));
     }

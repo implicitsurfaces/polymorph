@@ -1,69 +1,11 @@
 import { Vector2 } from "threejs-math";
 import { PropsWithChildren } from "react";
 
-import {
-  NodeId,
-  Node,
-  Point,
-  EdgeNode,
-  LineSegment,
-  ArcFromStartTangent,
-  CCurve,
-  SCurve,
-} from "./Document.ts";
+import { NodeId, Node, Point, EdgeNode } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 import { Vector2Input } from "./Vector2Input.tsx";
 import { SkeletonListItem } from "./SkeletonListItem.tsx";
-
-class ControlPointProperty {
-  readonly getValue: () => Vector2;
-  readonly setValue: (value: Vector2) => void;
-
-  constructor(
-    readonly name: string,
-    getValueMutableRef: () => Vector2,
-  ) {
-    this.getValue = () => {
-      return getValueMutableRef().clone();
-    };
-    this.setValue = (value: Vector2) => {
-      getValueMutableRef().copy(value);
-    };
-  }
-}
-
-function getControlPointProperties(
-  edge: EdgeNode,
-): Array<ControlPointProperty> {
-  if (edge instanceof LineSegment) {
-    return [];
-  }
-  if (edge instanceof ArcFromStartTangent) {
-    return [
-      new ControlPointProperty("Control Point", () => {
-        return edge.controlPoint;
-      }),
-    ];
-  }
-  if (edge instanceof CCurve) {
-    return [
-      new ControlPointProperty("Control Point", () => {
-        return edge.controlPoint;
-      }),
-    ];
-  }
-  if (edge instanceof SCurve) {
-    return [
-      new ControlPointProperty("Start Control Point", () => {
-        return edge.startControlPoint;
-      }),
-      new ControlPointProperty("End Control Point", () => {
-        return edge.endControlPoint;
-      }),
-    ];
-  }
-  return [];
-}
+import { getControlPoints } from "./ControlPoint.ts";
 
 interface PropertyItemProps {
   name: string;
@@ -119,6 +61,7 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
       <SkeletonListItem
         documentManager={documentManager}
         id={id}
+        key={title}
         name={point.name}
         isHovered={id === hoveredNodeId}
         isSelected={selectedNodeIds.includes(id)}
@@ -128,25 +71,15 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
   }
 
   function getContentForEdge(edge: EdgeNode) {
-    const cpProps = getControlPointProperties(edge);
-    const cpItems = cpProps.map((cp) => {
-      return (
-        <PropertyItem name={cp.name}>
-          <Vector2Input
-            getValue={cp.getValue}
-            setValue={(v: Vector2) => {
-              cp.setValue(v);
-              documentManager.commitChanges();
-            }}
-          />
-        </PropertyItem>
-      );
+    const controlPoints = getControlPoints(doc, edge);
+    const controlPointItems = controlPoints.map((cp) => {
+      return getSkeletonItem(cp.point.id, `${cp.prettyName}:`);
     });
     return (
       <>
         {getSkeletonItem(edge.startPoint, "Start Point:")}
         {getSkeletonItem(edge.endPoint, "End Point:")}
-        {cpItems}
+        {controlPointItems}
       </>
     );
   }
@@ -162,8 +95,6 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
   }
 
   function getContent() {
-    const doc = documentManager.document();
-    const selection = documentManager.selection();
     const selectedNodes = doc.getNodes(selection.selectedNodes());
     if (selectedNodes.length === 0) {
       return (

@@ -274,50 +274,59 @@ export function getEdgeShapesAndControls(
   if (edge instanceof LineSegment) {
     res.shapes.push(getLineSegment(startPos, endPos));
   } else if (edge instanceof ArcFromStartTangent) {
-    const cpAbsPos = edge.controlPoint;
-    const tangent = cpAbsPos.clone().sub(startPos);
+    const cp = doc.getNode(edge.controlPoint, Point);
+    if (!cp) {
+      return res;
+    }
+    const tangent = cp.position.clone().sub(startPos);
     res.shapes.push(
       getGeneralizedArcFromStartTangent(startPos, endPos, tangent),
     );
     res.controlPoints.push({
       name: "controlPoint",
-      position: cpAbsPos,
+      position: cp.position,
     });
-    res.tangents.push(getLineSegment(startPos, cpAbsPos));
+    res.tangents.push(getLineSegment(startPos, cp.position));
   } else if (edge instanceof CCurve) {
-    const cpAbsPos = edge.controlPoint;
-    const shapes_ = getCCurveShapes(startPos, endPos, cpAbsPos);
+    const cp = doc.getNode(edge.controlPoint, Point);
+    if (!cp) {
+      return res;
+    }
+    const shapes_ = getCCurveShapes(startPos, endPos, cp.position);
     for (const shape of shapes_) {
       res.shapes.push(shape);
     }
     res.controlPoints.push({
       name: "controlPoint",
-      position: cpAbsPos,
+      position: cp.position,
     });
-    res.tangents.push(getLineSegment(startPos, cpAbsPos));
-    res.tangents.push(getLineSegment(endPos, cpAbsPos));
+    res.tangents.push(getLineSegment(startPos, cp.position));
+    res.tangents.push(getLineSegment(endPos, cp.position));
   } else if (edge instanceof SCurve) {
-    const startCpAbsPos = edge.startControlPoint;
-    const endCpAbsPos = edge.endControlPoint;
+    const startCp = doc.getNode(edge.startControlPoint, Point);
+    const endCp = doc.getNode(edge.endControlPoint, Point);
+    if (!startCp || !endCp) {
+      return res;
+    }
     const shapes_ = getSCurveShapes(
       startPos,
       endPos,
-      startCpAbsPos,
-      endCpAbsPos,
+      startCp.position,
+      endCp.position,
     );
     for (const shape of shapes_) {
       res.shapes.push(shape);
     }
     res.controlPoints.push({
       name: "startControlPoint",
-      position: startCpAbsPos,
+      position: startCp.position,
     });
     res.controlPoints.push({
       name: "endControlPoint",
-      position: endCpAbsPos,
+      position: endCp.position,
     });
-    res.tangents.push(getLineSegment(startPos, startCpAbsPos));
-    res.tangents.push(getLineSegment(endPos, endCpAbsPos));
+    res.tangents.push(getLineSegment(startPos, startCp.position));
+    res.tangents.push(getLineSegment(endPos, endCp.position));
   }
   return res;
 }

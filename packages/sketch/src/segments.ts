@@ -7,7 +7,7 @@ import {
   twoVectorsAngle,
 } from "./geom";
 import { candidateClosestPointsWithinEllipseArc } from "./geom-utils/closestPointOnEllipse";
-import { Num } from "./num";
+import { Num, ONE, ZERO } from "./num";
 import { min, max, clamp, ifTruthyElse } from "./num-ops";
 import { Segment } from "./types";
 
@@ -300,6 +300,28 @@ export class EllipseArcSegment implements Segment {
   }
 
   solidAngle(p: Point): SolidAngle {
-    return new SolidAngle(p.x);
+    const point = this.pointInEllipseCoordinates(p);
+    const isInside = point.x
+      .square()
+      .div(this.majorRadius.square())
+      .add(point.y.square().div(this.minorRadius.square()))
+      .lessThan(ONE);
+
+    const a = this.p1.vecTo(p);
+    const b = this.p2.vecTo(p);
+    const segmentAngle = twoVectorsAngle(b, a);
+
+    const chord = this.p2.vecTo(this.p1);
+    const withinChord = b.cross(chord).greaterThan(ZERO);
+
+    const outsideSolidAngle = new SolidAngle(ZERO).addAngle(segmentAngle);
+    const insideSolidAngle = new SolidAngle(ONE).sub(outsideSolidAngle);
+
+    const turns = ifTruthyElse(
+      isInside.and(withinChord),
+      insideSolidAngle.turns,
+      outsideSolidAngle.turns,
+    );
+    return new SolidAngle(turns);
   }
 }

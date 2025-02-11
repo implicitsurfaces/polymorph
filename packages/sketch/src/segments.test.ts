@@ -231,3 +231,19 @@ test("translated and rotated ellipse", async () => {
     )
   ).toMatchSnapshot();
 });
+
+test("ellipse solid angle", async () => {
+  (
+    await expectASCIISolidAngle(
+      new EllipseArcSegment(
+        asNum(0.6),
+        asNum(0.2),
+        angleFromDeg(20),
+        angleFromDeg(210),
+        asNum(1),
+        p(0, 0),
+        angleFromDeg(0),
+      ),
+    )
+  ).toMatchSnapshot();
+});

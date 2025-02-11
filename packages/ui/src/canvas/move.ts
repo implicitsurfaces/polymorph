@@ -97,10 +97,6 @@ function isMovable(doc: Document, selectable: Selectable | undefined): boolean {
       return false;
     }
     return node instanceof Point || node instanceof EdgeNode;
-  } else if (selectable.type === "SubNode") {
-    // For now, all sub-nodes are movable, since the only implemented
-    // sub-nodes are control points which are all movable.
-    return true;
   }
   return false;
 }

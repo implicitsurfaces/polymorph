@@ -251,7 +251,7 @@ export const partialDerivative = (node: NumNode, variable: string): NumNode => {
 
 const reportNaN = (node: NumNode) => {
   //fs.writeFileSync("error.dot", renderNodeAsDot(treeEval(node)));
-  throw new Error(`NaN in binary op: ${node.operation}`);
+  //throw new Error(`NaN in binary op: ${node.operation}`);
 };
 
 const simpleEval = memoizeNodeEval(function (node: NumNode): number {

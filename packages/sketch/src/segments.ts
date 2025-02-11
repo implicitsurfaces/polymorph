@@ -6,6 +6,7 @@ import {
   arcTan,
   twoVectorsAngle,
 } from "./geom";
+import { candidateClosestPointsWithinEllipseArc } from "./geom-utils/closestPointOnEllipse";
 import { Num } from "./num";
 import { min, max, clamp, ifTruthyElse } from "./num-ops";
 import { Segment } from "./types";
@@ -231,5 +232,74 @@ export class BulgingSegment implements Segment {
     const correctionSolidAngle = new SolidAngle(piCrossingCorrectionTurns);
 
     return endAngleIntegral.sub(startAngleIntegral).add(correctionSolidAngle);
+  }
+}
+
+export class EllipseArcSegment implements Segment {
+  readonly p1: Point;
+  readonly p2: Point;
+  constructor(
+    readonly majorRadius: Num,
+    readonly minorRadius: Num,
+    readonly startAngle: Angle,
+    readonly endAngle: Angle,
+    readonly orientation: Num,
+    readonly center: Point,
+    readonly xAxisAngle: Angle,
+    p1?: Point,
+    p2?: Point,
+  ) {
+    this.p1 =
+      p1 ??
+      this.center.add(
+        new Vec2(
+          this.majorRadius.mul(this.startAngle.cos()),
+          this.minorRadius.mul(this.startAngle.sin()),
+        ).rotate(this.xAxisAngle),
+      );
+
+    this.p2 =
+      p2 ??
+      this.center.add(
+        new Vec2(
+          this.majorRadius.mul(this.endAngle.cos()),
+          this.minorRadius.mul(this.endAngle.sin()),
+        ).rotate(this.xAxisAngle),
+      );
+  }
+
+  private pointInEllipseCoordinates(p: Point): Point {
+    return p
+      .vecFromOrigin()
+      .sub(this.center.vecFromOrigin())
+      .rotate(this.xAxisAngle.neg())
+      .pointFromOrigin();
+  }
+
+  distanceTo(p: Point): Num {
+    const point = this.pointInEllipseCoordinates(p);
+    const candidates = candidateClosestPointsWithinEllipseArc(
+      this.majorRadius,
+      this.minorRadius,
+      this.startAngle,
+      this.endAngle,
+      this.orientation,
+      point,
+    );
+
+    const distances = candidates.map((closestPoint) =>
+      point.vecFrom(closestPoint).norm(),
+    );
+
+    const minDist = min(...(distances as [Num]));
+
+    const firstDist = p.vecFrom(this.p1).norm();
+    const lastDist = p.vecFrom(this.p2).norm();
+
+    return minDist.min(firstDist).min(lastDist);
+  }
+
+  solidAngle(p: Point): SolidAngle {
+    return new SolidAngle(p.x);
   }
 }

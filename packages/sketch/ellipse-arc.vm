@@ -1,0 +1,1126 @@
+_0 var-x
+_1 const 0.6
+_2 const 1
+_3 const 0
+_4 const 0
+_5 const 1
+_6 const 1
+_7 const 0
+_8 mul _1 _0
+_9 const 0.1
+_a mul _9 _9
+_b mul _1 _1
+_c sub _a _b
+_d div _8 _c
+_e const 2
+_f mul _d _e
+_10 div _f _6
+_11 const -2
+_12 mul _d _11
+_13 div _12 _6
+_14 mul _10 _13
+_15 mul _d _d
+_16 neg _15
+_17 div _16 _6
+_18 const 4
+_19 mul _17 _18
+_1a sub _14 _19
+_1b const 3
+_1c mul _6 _1b
+_1d div _1a _1c
+_1e var-y
+_1f mul _9 _1e
+_20 div _1f _c
+_21 mul _20 _20
+_22 add _15 _21
+_23 sub _22 _6
+_24 div _23 _6
+_25 neg _24
+_26 const 3
+_27 mul _6 _26
+_28 div _25 _27
+_29 mul _28 _28
+_2a sub _1d _29
+_2b const 4
+_2c mul _2a _2b
+_2d const 4
+_2e mul _17 _2d
+_2f mul _2e _24
+_30 mul _10 _10
+_31 mul _30 _17
+_32 sub _2f _31
+_33 mul _13 _13
+_34 sub _32 _33
+_35 div _34 _6
+_36 mul _28 _35
+_37 mul _1d _1d
+_38 sub _36 _37
+_39 mul _2c _38
+_3a mul _1d _28
+_3b sub _35 _3a
+_3c mul _3b _3b
+_3d sub _39 _3c
+_3e compare _7 _3d
+_3f max _3e _7
+_40 mul _28 _2a
+_41 const 2
+_42 mul _40 _41
+_43 sub _3b _42
+_44 const -0.5
+_45 mul _43 _44
+_46 const -0.25
+_47 mul _3d _46
+_48 max _47 _7
+_49 sqrt _48
+_4a add _45 _49
+_4b abs _4a
+_4c ln _4b
+_4d const 3
+_4e div _4c _4d
+_4f exp _4e
+_50 compare _4a _7
+_51 mul _4f _50
+_52 sub _45 _49
+_53 abs _52
+_54 ln _53
+_55 const 3
+_56 div _54 _55
+_57 exp _56
+_58 compare _52 _7
+_59 mul _57 _58
+_5a add _51 _59
+_5b and _3f _5a
+_5c not _3f
+_5d neg _2a
+_5e max _5d _7
+_5f sqrt _5e
+_60 const 2
+_61 mul _5f _60
+_62 max _3d _7
+_63 sqrt _62
+_64 neg _43
+_65 atan2 _63 _64
+_66 const 3
+_67 div _65 _66
+_68 cos _67
+_69 mul _61 _68
+_6a and _3d _69
+_6b not _3d
+_6c compare _7 _43
+_6d max _6c _7
+_6e neg _2a
+_6f max _6e _7
+_70 sqrt _6f
+_71 neg _70
+_72 and _6d _71
+_73 not _6d
+_74 and _73 _70
+_75 or _72 _74
+_76 and _6b _75
+_77 or _6a _76
+_78 and _5c _77
+_79 or _5b _78
+_7a sub _79 _28
+_7b and _6 _7a
+_7c not _6
+_7d neg _1a
+_7e mul _1a _1a
+_7f mul _25 _34
+_80 const 4
+_81 mul _7f _80
+_82 sub _7e _81
+_83 sqrt _82
+_84 add _7d _83
+_85 mul _25 _e
+_86 div _84 _85
+_87 and _25 _86
+_88 not _25
+_89 neg _34
+_8a div _89 _1a
+_8b and _88 _8a
+_8c or _87 _8b
+_8d and _7c _8c
+_8e or _7b _8d
+_8f const 4
+_90 div _30 _8f
+_91 add _8e _90
+_92 sub _91 _24
+_93 max _92 _7
+_94 sqrt _93
+_95 const 0.75
+_96 mul _30 _95
+_97 mul _24 _e
+_98 sub _96 _97
+_99 sub _98 _92
+_9a mul _10 _24
+_9b const 4
+_9c mul _9a _9b
+_9d const 8
+_9e mul _13 _9d
+_9f sub _9c _9e
+_a0 mul _30 _10
+_a1 sub _9f _a0
+_a2 const 4
+_a3 mul _94 _a2
+_a4 div _a1 _a3
+_a5 add _99 _a4
+_a6 and _94 _a5
+_a7 not _94
+_a8 mul _8e _8e
+_a9 const 4
+_aa mul _17 _a9
+_ab sub _a8 _aa
+_ac mul _e _ab
+_ad add _98 _ac
+_ae and _a7 _ad
+_af or _a6 _ae
+_b0 compare _af _7
+_b1 max _b0 _7
+_b2 const -4
+_b3 div _10 _b2
+_b4 max _af _7
+_b5 sqrt _b4
+_b6 add _94 _b5
+_b7 div _b6 _e
+_b8 add _b3 _b7
+_b9 and _b1 _b8
+_ba not _b1
+_bb sub _98 _92
+_bc sub _bb _a4
+_bd and _94 _bc
+_be not _94
+_bf sub _98 _ac
+_c0 and _be _bf
+_c1 or _bd _c0
+_c2 max _c1 _7
+_c3 sqrt _c2
+_c4 add _94 _c3
+_c5 div _c4 _e
+_c6 sub _b3 _c5
+_c7 and _ba _c6
+_c8 or _b9 _c7
+_c9 and _6 _c8
+_ca not _6
+_cb const 3
+_cc mul _f _cb
+_cd div _12 _cc
+_ce const 3
+_cf mul _f _ce
+_d0 div _23 _cf
+_d1 mul _d0 _d0
+_d2 sub _cd _d1
+_d3 const 4
+_d4 mul _d2 _d3
+_d5 div _16 _f
+_d6 mul _d0 _d5
+_d7 mul _cd _cd
+_d8 sub _d6 _d7
+_d9 mul _d4 _d8
+_da mul _cd _d0
+_db sub _d5 _da
+_dc mul _db _db
+_dd sub _d9 _dc
+_de compare _7 _dd
+_df max _de _7
+_e0 mul _d0 _d2
+_e1 const 2
+_e2 mul _e0 _e1
+_e3 sub _db _e2
+_e4 const -0.5
+_e5 mul _e3 _e4
+_e6 const -0.25
+_e7 mul _dd _e6
+_e8 max _e7 _7
+_e9 sqrt _e8
+_ea add _e5 _e9
+_eb abs _ea
+_ec ln _eb
+_ed const 3
+_ee div _ec _ed
+_ef exp _ee
+_f0 compare _ea _7
+_f1 mul _ef _f0
+_f2 sub _e5 _e9
+_f3 abs _f2
+_f4 ln _f3
+_f5 const 3
+_f6 div _f4 _f5
+_f7 exp _f6
+_f8 compare _f2 _7
+_f9 mul _f7 _f8
+_fa add _f1 _f9
+_fb and _df _fa
+_fc not _df
+_fd neg _d2
+_fe max _fd _7
+_ff sqrt _fe
+_100 const 2
+_101 mul _ff _100
+_102 max _dd _7
+_103 sqrt _102
+_104 neg _e3
+_105 atan2 _103 _104
+_106 const 3
+_107 div _105 _106
+_108 cos _107
+_109 mul _101 _108
+_10a and _dd _109
+_10b not _dd
+_10c compare _7 _e3
+_10d max _10c _7
+_10e neg _d2
+_10f max _10e _7
+_110 sqrt _10f
+_111 neg _110
+_112 and _10d _111
+_113 not _10d
+_114 and _113 _110
+_115 or _112 _114
+_116 and _10b _115
+_117 or _10a _116
+_118 and _fc _117
+_119 or _fb _118
+_11a sub _119 _d0
+_11b and _f _11a
+_11c not _f
+_11d neg _12
+_11e mul _12 _12
+_11f mul _23 _16
+_120 const 4
+_121 mul _11f _120
+_122 sub _11e _121
+_123 sqrt _122
+_124 add _11d _123
+_125 mul _23 _e
+_126 div _124 _125
+_127 and _23 _126
+_128 not _23
+_129 neg _16
+_12a div _129 _12
+_12b and _128 _12a
+_12c or _127 _12b
+_12d and _11c _12c
+_12e or _11b _12d
+_12f and _ca _12e
+_130 or _c9 _12f
+_131 const -1
+_132 max _130 _131
+_133 min _132 _6
+_134 mul _133 _133
+_135 sub _5 _134
+_136 sqrt _135
+_137 compare _4 _136
+_138 max _3 _137
+_139 const 3
+_13a add _133 _139
+_13b and _138 _13a
+_13c not _138
+_13d const 1
+_13e sub _13d _133
+_13f and _13c _13e
+_140 or _13b _13f
+_141 const 2
+_142 div _140 _141
+_143 mul _2 _142
+_144 const 0
+_145 const 0
+_146 const 5
+_147 const 3.141592653589793
+_148 mul _146 _147
+_149 const 180
+_14a div _148 _149
+_14b sin _14a
+_14c compare _145 _14b
+_14d max _144 _14c
+_14e cos _14a
+_14f const 3
+_150 add _14e _14f
+_151 and _14d _150
+_152 not _14d
+_153 const 1
+_154 sub _153 _14e
+_155 and _152 _154
+_156 or _151 _155
+_157 const 2
+_158 div _156 _157
+_159 mul _2 _158
+_15a compare _143 _159
+_15b max _15a _7
+_15c const 0
+_15d const 0
+_15e const 288
+_15f const 3.141592653589793
+_160 mul _15e _15f
+_161 const 180
+_162 div _160 _161
+_163 sin _162
+_164 compare _15d _163
+_165 max _15c _164
+_166 cos _162
+_167 const 3
+_168 add _166 _167
+_169 and _165 _168
+_16a not _165
+_16b const 1
+_16c sub _16b _166
+_16d and _16a _16c
+_16e or _169 _16d
+_16f const 2
+_170 div _16e _16f
+_171 mul _2 _170
+_172 min _159 _171
+_173 min _172 _143
+_174 compare _173 _171
+_175 not _174
+_176 max _159 _171
+_177 max _176 _143
+_178 compare _177 _171
+_179 not _178
+_17a or _175 _179
+_17b and _17a _6
+_17c not _17a
+_17d and _17c _7
+_17e or _17b _17d
+_17f and _15b _17e
+_180 not _15b
+_181 and _17a _7
+_182 not _17a
+_183 and _182 _6
+_184 or _181 _183
+_185 and _180 _184
+_186 or _17f _185
+_187 and _186 _133
+_188 not _186
+_189 and _188 _14e
+_18a or _187 _189
+_18b mul _1 _18a
+_18c sub _0 _18b
+_18d mul _18c _18c
+_18e and _186 _136
+_18f not _186
+_190 and _18f _14b
+_191 or _18e _190
+_192 mul _9 _191
+_193 sub _1e _192
+_194 mul _193 _193
+_195 add _18d _194
+_196 sqrt _195
+_197 const 0
+_198 const 0
+_199 neg _136
+_19a compare _198 _199
+_19b max _197 _19a
+_19c const 3
+_19d add _133 _19c
+_19e and _19b _19d
+_19f not _19b
+_1a0 const 1
+_1a1 sub _1a0 _133
+_1a2 and _19f _1a1
+_1a3 or _19e _1a2
+_1a4 const 2
+_1a5 div _1a3 _1a4
+_1a6 mul _2 _1a5
+_1a7 const 0
+_1a8 const 0
+_1a9 compare _1a8 _14b
+_1aa max _1a7 _1a9
+_1ab const 3
+_1ac add _14e _1ab
+_1ad and _1aa _1ac
+_1ae not _1aa
+_1af const 1
+_1b0 sub _1af _14e
+_1b1 and _1ae _1b0
+_1b2 or _1ad _1b1
+_1b3 const 2
+_1b4 div _1b2 _1b3
+_1b5 mul _2 _1b4
+_1b6 compare _1a6 _1b5
+_1b7 max _1b6 _7
+_1b8 const 0
+_1b9 const 0
+_1ba compare _1b9 _163
+_1bb max _1b8 _1ba
+_1bc const 3
+_1bd add _166 _1bc
+_1be and _1bb _1bd
+_1bf not _1bb
+_1c0 const 1
+_1c1 sub _1c0 _166
+_1c2 and _1bf _1c1
+_1c3 or _1be _1c2
+_1c4 const 2
+_1c5 div _1c3 _1c4
+_1c6 mul _2 _1c5
+_1c7 min _1b5 _1c6
+_1c8 min _1c7 _1a6
+_1c9 compare _1c8 _1c6
+_1ca not _1c9
+_1cb max _1b5 _1c6
+_1cc max _1cb _1a6
+_1cd compare _1cc _1c6
+_1ce not _1cd
+_1cf or _1ca _1ce
+_1d0 and _1cf _6
+_1d1 not _1cf
+_1d2 and _1d1 _7
+_1d3 or _1d0 _1d2
+_1d4 and _1b7 _1d3
+_1d5 not _1b7
+_1d6 and _1cf _7
+_1d7 not _1cf
+_1d8 and _1d7 _6
+_1d9 or _1d6 _1d8
+_1da and _1d5 _1d9
+_1db or _1d4 _1da
+_1dc and _1db _133
+_1dd not _1db
+_1de and _1dd _14e
+_1df or _1dc _1de
+_1e0 mul _1 _1df
+_1e1 sub _0 _1e0
+_1e2 mul _1e1 _1e1
+_1e3 and _1db _199
+_1e4 not _1db
+_1e5 and _1e4 _14b
+_1e6 or _1e3 _1e5
+_1e7 mul _9 _1e6
+_1e8 sub _1e _1e7
+_1e9 mul _1e8 _1e8
+_1ea add _1e2 _1e9
+_1eb sqrt _1ea
+_1ec min _196 _1eb
+_1ed const 0
+_1ee const 0
+_1ef const 1
+_1f0 sub _94 _b5
+_1f1 div _1f0 _e
+_1f2 add _b3 _1f1
+_1f3 and _b1 _1f2
+_1f4 not _b1
+_1f5 sub _94 _c3
+_1f6 div _1f5 _e
+_1f7 sub _b3 _1f6
+_1f8 and _1f4 _1f7
+_1f9 or _1f3 _1f8
+_1fa and _6 _1f9
+_1fb not _6
+_1fc compare _7 _dd
+_1fd max _1fc _7
+_1fe and _1fd _fa
+_1ff not _1fd
+_200 neg _108
+_201 sin _107
+_202 const 1.7320508075688772
+_203 mul _201 _202
+_204 add _200 _203
+_205 const 0.5
+_206 mul _204 _205
+_207 mul _101 _206
+_208 and _dd _207
+_209 not _dd
+_20a const -2
+_20b mul _115 _20a
+_20c and _209 _20b
+_20d or _208 _20c
+_20e and _1ff _20d
+_20f or _1fe _20e
+_210 sub _20f _d0
+_211 and _f _210
+_212 not _f
+_213 sqrt _122
+_214 sub _11d _213
+_215 div _214 _125
+_216 and _23 _215
+_217 not _23
+_218 and _217 _12a
+_219 or _216 _218
+_21a and _212 _219
+_21b or _211 _21a
+_21c and _1fb _21b
+_21d or _1fa _21c
+_21e max _21d _131
+_21f min _21e _6
+_220 mul _21f _21f
+_221 sub _1ef _220
+_222 sqrt _221
+_223 compare _1ee _222
+_224 max _1ed _223
+_225 const 3
+_226 add _21f _225
+_227 and _224 _226
+_228 not _224
+_229 const 1
+_22a sub _229 _21f
+_22b and _228 _22a
+_22c or _227 _22b
+_22d const 2
+_22e div _22c _22d
+_22f mul _2 _22e
+_230 const 0
+_231 const 0
+_232 compare _231 _14b
+_233 max _230 _232
+_234 const 3
+_235 add _14e _234
+_236 and _233 _235
+_237 not _233
+_238 const 1
+_239 sub _238 _14e
+_23a and _237 _239
+_23b or _236 _23a
+_23c const 2
+_23d div _23b _23c
+_23e mul _2 _23d
+_23f compare _22f _23e
+_240 max _23f _7
+_241 const 0
+_242 const 0
+_243 compare _242 _163
+_244 max _241 _243
+_245 const 3
+_246 add _166 _245
+_247 and _244 _246
+_248 not _244
+_249 const 1
+_24a sub _249 _166
+_24b and _248 _24a
+_24c or _247 _24b
+_24d const 2
+_24e div _24c _24d
+_24f mul _2 _24e
+_250 min _23e _24f
+_251 min _250 _22f
+_252 compare _251 _24f
+_253 not _252
+_254 max _23e _24f
+_255 max _254 _22f
+_256 compare _255 _24f
+_257 not _256
+_258 or _253 _257
+_259 and _258 _6
+_25a not _258
+_25b and _25a _7
+_25c or _259 _25b
+_25d and _240 _25c
+_25e not _240
+_25f and _258 _7
+_260 not _258
+_261 and _260 _6
+_262 or _25f _261
+_263 and _25e _262
+_264 or _25d _263
+_265 and _264 _21f
+_266 not _264
+_267 and _266 _14e
+_268 or _265 _267
+_269 mul _1 _268
+_26a sub _0 _269
+_26b mul _26a _26a
+_26c and _264 _222
+_26d not _264
+_26e and _26d _14b
+_26f or _26c _26e
+_270 mul _9 _26f
+_271 sub _1e _270
+_272 mul _271 _271
+_273 add _26b _272
+_274 sqrt _273
+_275 min _1ec _274
+_276 const 0
+_277 const 0
+_278 neg _222
+_279 compare _277 _278
+_27a max _276 _279
+_27b const 3
+_27c add _21f _27b
+_27d and _27a _27c
+_27e not _27a
+_27f const 1
+_280 sub _27f _21f
+_281 and _27e _280
+_282 or _27d _281
+_283 const 2
+_284 div _282 _283
+_285 mul _2 _284
+_286 const 0
+_287 const 0
+_288 compare _287 _14b
+_289 max _286 _288
+_28a const 3
+_28b add _14e _28a
+_28c and _289 _28b
+_28d not _289
+_28e const 1
+_28f sub _28e _14e
+_290 and _28d _28f
+_291 or _28c _290
+_292 const 2
+_293 div _291 _292
+_294 mul _2 _293
+_295 compare _285 _294
+_296 max _295 _7
+_297 const 0
+_298 const 0
+_299 compare _298 _163
+_29a max _297 _299
+_29b const 3
+_29c add _166 _29b
+_29d and _29a _29c
+_29e not _29a
+_29f const 1
+_2a0 sub _29f _166
+_2a1 and _29e _2a0
+_2a2 or _29d _2a1
+_2a3 const 2
+_2a4 div _2a2 _2a3
+_2a5 mul _2 _2a4
+_2a6 min _294 _2a5
+_2a7 min _2a6 _285
+_2a8 compare _2a7 _2a5
+_2a9 not _2a8
+_2aa max _294 _2a5
+_2ab max _2aa _285
+_2ac compare _2ab _2a5
+_2ad not _2ac
+_2ae or _2a9 _2ad
+_2af and _2ae _6
+_2b0 not _2ae
+_2b1 and _2b0 _7
+_2b2 or _2af _2b1
+_2b3 and _296 _2b2
+_2b4 not _296
+_2b5 and _2ae _7
+_2b6 not _2ae
+_2b7 and _2b6 _6
+_2b8 or _2b5 _2b7
+_2b9 and _2b4 _2b8
+_2ba or _2b3 _2b9
+_2bb and _2ba _21f
+_2bc not _2ba
+_2bd and _2bc _14e
+_2be or _2bb _2bd
+_2bf mul _1 _2be
+_2c0 sub _0 _2bf
+_2c1 mul _2c0 _2c0
+_2c2 and _2ba _278
+_2c3 not _2ba
+_2c4 and _2c3 _14b
+_2c5 or _2c2 _2c4
+_2c6 mul _9 _2c5
+_2c7 sub _1e _2c6
+_2c8 mul _2c7 _2c7
+_2c9 add _2c1 _2c8
+_2ca sqrt _2c9
+_2cb min _275 _2ca
+_2cc const 0
+_2cd const 0
+_2ce const 1
+_2cf compare _c1 _7
+_2d0 max _2cf _7
+_2d1 and _2d0 _c6
+_2d2 not _2d0
+_2d3 and _2d2 _b8
+_2d4 or _2d1 _2d3
+_2d5 and _6 _2d4
+_2d6 not _6
+_2d7 compare _7 _dd
+_2d8 max _2d7 _7
+_2d9 and _2d8 _fa
+_2da not _2d8
+_2db neg _108
+_2dc sub _2db _203
+_2dd const 0.5
+_2de mul _2dc _2dd
+_2df mul _101 _2de
+_2e0 and _dd _2df
+_2e1 not _dd
+_2e2 and _2e1 _20b
+_2e3 or _2e0 _2e2
+_2e4 and _2da _2e3
+_2e5 or _2d9 _2e4
+_2e6 sub _2e5 _d0
+_2e7 and _f _2e6
+_2e8 not _f
+_2e9 and _2e8 _219
+_2ea or _2e7 _2e9
+_2eb and _2d6 _2ea
+_2ec or _2d5 _2eb
+_2ed max _2ec _131
+_2ee min _2ed _6
+_2ef mul _2ee _2ee
+_2f0 sub _2ce _2ef
+_2f1 sqrt _2f0
+_2f2 compare _2cd _2f1
+_2f3 max _2cc _2f2
+_2f4 const 3
+_2f5 add _2ee _2f4
+_2f6 and _2f3 _2f5
+_2f7 not _2f3
+_2f8 const 1
+_2f9 sub _2f8 _2ee
+_2fa and _2f7 _2f9
+_2fb or _2f6 _2fa
+_2fc const 2
+_2fd div _2fb _2fc
+_2fe mul _2 _2fd
+_2ff const 0
+_300 const 0
+_301 compare _300 _14b
+_302 max _2ff _301
+_303 const 3
+_304 add _14e _303
+_305 and _302 _304
+_306 not _302
+_307 const 1
+_308 sub _307 _14e
+_309 and _306 _308
+_30a or _305 _309
+_30b const 2
+_30c div _30a _30b
+_30d mul _2 _30c
+_30e compare _2fe _30d
+_30f max _30e _7
+_310 const 0
+_311 const 0
+_312 compare _311 _163
+_313 max _310 _312
+_314 const 3
+_315 add _166 _314
+_316 and _313 _315
+_317 not _313
+_318 const 1
+_319 sub _318 _166
+_31a and _317 _319
+_31b or _316 _31a
+_31c const 2
+_31d div _31b _31c
+_31e mul _2 _31d
+_31f min _30d _31e
+_320 min _31f _2fe
+_321 compare _320 _31e
+_322 not _321
+_323 max _30d _31e
+_324 max _323 _2fe
+_325 compare _324 _31e
+_326 not _325
+_327 or _322 _326
+_328 and _327 _6
+_329 not _327
+_32a and _329 _7
+_32b or _328 _32a
+_32c and _30f _32b
+_32d not _30f
+_32e and _327 _7
+_32f not _327
+_330 and _32f _6
+_331 or _32e _330
+_332 and _32d _331
+_333 or _32c _332
+_334 and _333 _2ee
+_335 not _333
+_336 and _335 _14e
+_337 or _334 _336
+_338 mul _1 _337
+_339 sub _0 _338
+_33a mul _339 _339
+_33b and _333 _2f1
+_33c not _333
+_33d and _33c _14b
+_33e or _33b _33d
+_33f mul _9 _33e
+_340 sub _1e _33f
+_341 mul _340 _340
+_342 add _33a _341
+_343 sqrt _342
+_344 min _2cb _343
+_345 const 0
+_346 const 0
+_347 neg _2f1
+_348 compare _346 _347
+_349 max _345 _348
+_34a const 3
+_34b add _2ee _34a
+_34c and _349 _34b
+_34d not _349
+_34e const 1
+_34f sub _34e _2ee
+_350 and _34d _34f
+_351 or _34c _350
+_352 const 2
+_353 div _351 _352
+_354 mul _2 _353
+_355 const 0
+_356 const 0
+_357 compare _356 _14b
+_358 max _355 _357
+_359 const 3
+_35a add _14e _359
+_35b and _358 _35a
+_35c not _358
+_35d const 1
+_35e sub _35d _14e
+_35f and _35c _35e
+_360 or _35b _35f
+_361 const 2
+_362 div _360 _361
+_363 mul _2 _362
+_364 compare _354 _363
+_365 max _364 _7
+_366 const 0
+_367 const 0
+_368 compare _367 _163
+_369 max _366 _368
+_36a const 3
+_36b add _166 _36a
+_36c and _369 _36b
+_36d not _369
+_36e const 1
+_36f sub _36e _166
+_370 and _36d _36f
+_371 or _36c _370
+_372 const 2
+_373 div _371 _372
+_374 mul _2 _373
+_375 min _363 _374
+_376 min _375 _354
+_377 compare _376 _374
+_378 not _377
+_379 max _363 _374
+_37a max _379 _354
+_37b compare _37a _374
+_37c not _37b
+_37d or _378 _37c
+_37e and _37d _6
+_37f not _37d
+_380 and _37f _7
+_381 or _37e _380
+_382 and _365 _381
+_383 not _365
+_384 and _37d _7
+_385 not _37d
+_386 and _385 _6
+_387 or _384 _386
+_388 and _383 _387
+_389 or _382 _388
+_38a and _389 _2ee
+_38b not _389
+_38c and _38b _14e
+_38d or _38a _38c
+_38e mul _1 _38d
+_38f sub _0 _38e
+_390 mul _38f _38f
+_391 and _389 _347
+_392 not _389
+_393 and _392 _14b
+_394 or _391 _393
+_395 mul _9 _394
+_396 sub _1e _395
+_397 mul _396 _396
+_398 add _390 _397
+_399 sqrt _398
+_39a min _344 _399
+_39b const 0
+_39c const 0
+_39d const 1
+_39e and _2d0 _1f7
+_39f not _2d0
+_3a0 and _39f _1f2
+_3a1 or _39e _3a0
+_3a2 and _6 _3a1
+_3a3 not _6
+_3a4 and _3a3 _12e
+_3a5 or _3a2 _3a4
+_3a6 max _3a5 _131
+_3a7 min _3a6 _6
+_3a8 mul _3a7 _3a7
+_3a9 sub _39d _3a8
+_3aa sqrt _3a9
+_3ab compare _39c _3aa
+_3ac max _39b _3ab
+_3ad const 3
+_3ae add _3a7 _3ad
+_3af and _3ac _3ae
+_3b0 not _3ac
+_3b1 const 1
+_3b2 sub _3b1 _3a7
+_3b3 and _3b0 _3b2
+_3b4 or _3af _3b3
+_3b5 const 2
+_3b6 div _3b4 _3b5
+_3b7 mul _2 _3b6
+_3b8 const 0
+_3b9 const 0
+_3ba compare _3b9 _14b
+_3bb max _3b8 _3ba
+_3bc const 3
+_3bd add _14e _3bc
+_3be and _3bb _3bd
+_3bf not _3bb
+_3c0 const 1
+_3c1 sub _3c0 _14e
+_3c2 and _3bf _3c1
+_3c3 or _3be _3c2
+_3c4 const 2
+_3c5 div _3c3 _3c4
+_3c6 mul _2 _3c5
+_3c7 compare _3b7 _3c6
+_3c8 max _3c7 _7
+_3c9 const 0
+_3ca const 0
+_3cb compare _3ca _163
+_3cc max _3c9 _3cb
+_3cd const 3
+_3ce add _166 _3cd
+_3cf and _3cc _3ce
+_3d0 not _3cc
+_3d1 const 1
+_3d2 sub _3d1 _166
+_3d3 and _3d0 _3d2
+_3d4 or _3cf _3d3
+_3d5 const 2
+_3d6 div _3d4 _3d5
+_3d7 mul _2 _3d6
+_3d8 min _3c6 _3d7
+_3d9 min _3d8 _3b7
+_3da compare _3d9 _3d7
+_3db not _3da
+_3dc max _3c6 _3d7
+_3dd max _3dc _3b7
+_3de compare _3dd _3d7
+_3df not _3de
+_3e0 or _3db _3df
+_3e1 and _3e0 _6
+_3e2 not _3e0
+_3e3 and _3e2 _7
+_3e4 or _3e1 _3e3
+_3e5 and _3c8 _3e4
+_3e6 not _3c8
+_3e7 and _3e0 _7
+_3e8 not _3e0
+_3e9 and _3e8 _6
+_3ea or _3e7 _3e9
+_3eb and _3e6 _3ea
+_3ec or _3e5 _3eb
+_3ed and _3ec _3a7
+_3ee not _3ec
+_3ef and _3ee _14e
+_3f0 or _3ed _3ef
+_3f1 mul _1 _3f0
+_3f2 sub _0 _3f1
+_3f3 mul _3f2 _3f2
+_3f4 and _3ec _3aa
+_3f5 not _3ec
+_3f6 and _3f5 _14b
+_3f7 or _3f4 _3f6
+_3f8 mul _9 _3f7
+_3f9 sub _1e _3f8
+_3fa mul _3f9 _3f9
+_3fb add _3f3 _3fa
+_3fc sqrt _3fb
+_3fd min _39a _3fc
+_3fe const 0
+_3ff const 0
+_400 neg _3aa
+_401 compare _3ff _400
+_402 max _3fe _401
+_403 const 3
+_404 add _3a7 _403
+_405 and _402 _404
+_406 not _402
+_407 const 1
+_408 sub _407 _3a7
+_409 and _406 _408
+_40a or _405 _409
+_40b const 2
+_40c div _40a _40b
+_40d mul _2 _40c
+_40e const 0
+_40f const 0
+_410 compare _40f _14b
+_411 max _40e _410
+_412 const 3
+_413 add _14e _412
+_414 and _411 _413
+_415 not _411
+_416 const 1
+_417 sub _416 _14e
+_418 and _415 _417
+_419 or _414 _418
+_41a const 2
+_41b div _419 _41a
+_41c mul _2 _41b
+_41d compare _40d _41c
+_41e max _41d _7
+_41f const 0
+_420 const 0
+_421 compare _420 _163
+_422 max _41f _421
+_423 const 3
+_424 add _166 _423
+_425 and _422 _424
+_426 not _422
+_427 const 1
+_428 sub _427 _166
+_429 and _426 _428
+_42a or _425 _429
+_42b const 2
+_42c div _42a _42b
+_42d mul _2 _42c
+_42e min _41c _42d
+_42f min _42e _40d
+_430 compare _42f _42d
+_431 not _430
+_432 max _41c _42d
+_433 max _432 _40d
+_434 compare _433 _42d
+_435 not _434
+_436 or _431 _435
+_437 and _436 _6
+_438 not _436
+_439 and _438 _7
+_43a or _437 _439
+_43b and _41e _43a
+_43c not _41e
+_43d and _436 _7
+_43e not _436
+_43f and _43e _6
+_440 or _43d _43f
+_441 and _43c _440
+_442 or _43b _441
+_443 and _442 _3a7
+_444 not _442
+_445 and _444 _14e
+_446 or _443 _445
+_447 mul _1 _446
+_448 sub _0 _447
+_449 mul _448 _448
+_44a and _442 _400
+_44b not _442
+_44c and _44b _14b
+_44d or _44a _44c
+_44e mul _9 _44d
+_44f sub _1e _44e
+_450 mul _44f _44f
+_451 add _449 _450
+_452 sqrt _451
+_453 min _3fd _452
+_454 mul _1 _14e
+_455 sub _0 _454
+_456 mul _455 _455
+_457 mul _9 _14b
+_458 sub _1e _457
+_459 mul _458 _458
+_45a add _456 _459
+_45b sqrt _45a
+_45c min _453 _45b
+_45d mul _1 _166
+_45e sub _0 _45d
+_45f mul _45e _45e
+_460 mul _9 _163
+_461 sub _1e _460
+_462 mul _461 _461
+_463 add _45f _462
+_464 sqrt _463
+_465 min _45c _464

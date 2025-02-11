@@ -1,6 +1,7 @@
 import { Angle, Point, Vec2 } from "./geom";
-import { Num } from "./num";
-import { BulgingSegment } from "./segments";
+import { NEG_ONE, Num, ONE } from "./num";
+import { ifTruthyElse } from "./num-ops";
+import { BulgingSegment, EllipseArcSegment } from "./segments";
 
 function bulgeFromSandC(s: Num, c: Num) {
   return s.neg().div(c.add(c.square().add(s.square()).sqrt()));
@@ -147,4 +148,63 @@ export function biarcS(p1: Point, p2: Point, control1: Point, control2: Point) {
     bulgingSegmentUsingStartTangent(p1, junction, theta1),
     bulgingSegmentUsingEndTangent(junction, p2, theta2),
   ];
+}
+
+export function endpointsEllipticArc(
+  p1: Point,
+  p2: Point,
+  majorRadius: Num,
+  minorRadius: Num,
+  xAxisAngle: Angle,
+  largeArc: Num,
+  sweep: Num,
+) {
+  const p1Prime = p1.vecTo(p2).scale(0.5).rotate(xAxisAngle.neg());
+  const p2Prime = p2.vecTo(p1).scale(0.5).rotate(xAxisAngle.neg());
+
+  const f1 = p1Prime.x
+    .square()
+    .mul(minorRadius.square())
+    .add(p1Prime.y.square().mul(majorRadius.square()));
+
+  const fSign = ifTruthyElse(largeArc.equals(sweep), ONE, NEG_ONE);
+
+  const f2 = majorRadius
+    .square()
+    .mul(minorRadius.square())
+    .sub(f1)
+    .div(f1)
+    .sqrt()
+    .mul(fSign);
+
+  const cPrime = new Vec2(
+    majorRadius.mul(p1Prime.y).div(minorRadius),
+    minorRadius.mul(p1Prime.x).div(majorRadius).neg(),
+  ).scale(f2);
+
+  const center = p1.midPoint(p2).add(cPrime.rotate(xAxisAngle));
+
+  const startAngle = new Vec2(
+    p1Prime.x.sub(cPrime.x).div(majorRadius),
+    p1Prime.y.sub(cPrime.y).div(minorRadius),
+  ).asAngle();
+
+  const endAngle = new Vec2(
+    p2Prime.x.sub(cPrime.x).div(majorRadius),
+    p2Prime.y.sub(cPrime.y).div(minorRadius),
+  ).asAngle();
+
+  const orientation = ifTruthyElse(sweep, NEG_ONE, ONE);
+
+  return new EllipseArcSegment(
+    majorRadius,
+    minorRadius,
+    startAngle,
+    endAngle,
+    orientation,
+    center,
+    xAxisAngle,
+    p1,
+    p2,
+  );
 }

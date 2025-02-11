@@ -16,12 +16,15 @@ import {
   PointVectorSum,
   VectorFromCartesianCoords,
   VectorFromPolarCoods,
+  EllipseArcNode,
 } from "sketch";
 import {
+  AngleLike,
   asAngle,
   asDistance,
   asDistanceOrUndefined,
   asPoint,
+  DistanceLike,
   PointLike,
 } from "./convert";
 import { point, angle, Point } from "./geom";
@@ -178,6 +181,24 @@ export class EdgeMaker {
 
       return new SCurve(asPoint(c0), asPoint(c1));
     });
+  }
+
+  public ellipseArc(
+    majorRadius: DistanceLike,
+    minorRadius: DistanceLike,
+    rotation: AngleLike = 0,
+    largeArc = false,
+    sweep = false,
+  ): PointMaker {
+    return this.returnEdge(
+      new EllipseArcNode(
+        asDistance(majorRadius),
+        asDistance(minorRadius),
+        asAngle(rotation),
+        largeArc,
+        sweep,
+      ),
+    );
   }
 }
 

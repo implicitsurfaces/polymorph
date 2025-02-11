@@ -1,4 +1,4 @@
-import { Num, ONE, TWO, asNum, variable } from "./num";
+import { Num, ONE, TWO, ZERO, asNum, variable } from "./num";
 import { Vec2, Angle, angleFromDeg, Point, angleFromSin } from "./geom";
 import {
   DistanceNode,
@@ -106,6 +106,7 @@ import {
   biarcS,
   bulgingSegmentUsingEndControl,
   bulgingSegmentUsingStartControl,
+  endpointsEllipticArc,
 } from "./segments-helpers";
 import { DistField, Segment, SolidDistField } from "./types";
 import {
@@ -115,7 +116,6 @@ import {
   Box,
   SolidSlice,
   Ellipse,
-  EllipseArc,
 } from "./profiles";
 import {
   Rotation,
@@ -427,6 +427,8 @@ export const evalVector3 = memoizeNodeEval(function evalVector3(
   throw new Error(`Unknown vector: ${vector.constructor.name}`);
 });
 
+const numBool = (num: boolean): Num => (num ? ONE : ZERO);
+
 export const evalEdge = memoizeNodeEval(function (
   edge: EdgeNode,
 ): (p0: Point, p1: Point) => Segment[] {
@@ -453,6 +455,27 @@ export const evalEdge = memoizeNodeEval(function (
   if (edge instanceof SCurve) {
     return (p0: Point, p1: Point) =>
       biarcS(p0, p1, evalPoint(edge.control0), evalPoint(edge.control1));
+  }
+
+  if (edge instanceof EllipseArcNode) {
+    return (p0: Point, p1: Point) => {
+      const majorRadius = evalDistance(edge.majorRadius);
+      const minorRadius = evalDistance(edge.minorRadius);
+
+      const xAxisAngle = evalAngle(edge.rotation);
+
+      return [
+        endpointsEllipticArc(
+          p0,
+          p1,
+          majorRadius,
+          minorRadius,
+          xAxisAngle,
+          numBool(edge.largeArc),
+          numBool(edge.sweep),
+        ),
+      ];
+    };
   }
 
   throw new Error(`Unknown edge: ${edge.constructor.name}`);
@@ -623,22 +646,6 @@ export const evalProfile = memoizeNodeEval(function (
     const majorRadius = evalDistance(node.majorRadius);
     const minorRadius = evalDistance(node.minorRadius);
     return new Ellipse(majorRadius, minorRadius);
-  }
-
-  if (node instanceof EllipseArcNode) {
-    const majorRadius = evalDistance(node.majorRadius);
-    const minorRadius = evalDistance(node.minorRadius);
-    const startAngle = evalAngle(node.startAngle);
-    const endAngle = evalAngle(node.endAngle);
-    const orientation = asNum(node.orientation);
-
-    return new EllipseArc(
-      majorRadius,
-      minorRadius,
-      startAngle,
-      endAngle,
-      orientation,
-    );
   }
 
   if (node instanceof SolidSliceNode) {

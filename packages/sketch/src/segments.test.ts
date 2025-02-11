@@ -2,6 +2,7 @@ import { test } from "vitest";
 import {
   arcWindingNumberIndefiniteIntegral,
   BulgingSegment,
+  EllipseArcSegment,
   LineSegment,
 } from "./segments";
 
@@ -139,4 +140,94 @@ test("arc pill", async () => {
   const pill = t(new BulgingSegment(p0, p1, asNum(0.9)));
 
   (await expectASCIIDistance(pill)).toMatchSnapshot();
+});
+
+test("axis aligned ellipse", async () => {
+  (
+    await expectASCIIshape(
+      t(
+        new EllipseArcSegment(
+          asNum(0.8),
+          asNum(0.4),
+          angleFromDeg(10),
+          angleFromDeg(120),
+          asNum(1),
+          p(0, 0),
+          angleFromDeg(0),
+        ),
+      ),
+    )
+  ).toMatchSnapshot();
+});
+
+test("axis aligned ellipse, inverse rotation", async () => {
+  (
+    await expectASCIIshape(
+      t(
+        new EllipseArcSegment(
+          asNum(0.8),
+          asNum(0.4),
+          angleFromDeg(10),
+          angleFromDeg(120),
+          asNum(-1),
+          p(0, 0),
+          angleFromDeg(0),
+        ),
+      ),
+    )
+  ).toMatchSnapshot();
+});
+
+test("rotated ellipse", async () => {
+  (
+    await expectASCIIshape(
+      t(
+        new EllipseArcSegment(
+          asNum(0.6),
+          asNum(0.4),
+          angleFromDeg(10),
+          angleFromDeg(170),
+          asNum(1),
+          p(0, 0),
+          angleFromDeg(45),
+        ),
+      ),
+    )
+  ).toMatchSnapshot();
+});
+
+test("translated ellipse", async () => {
+  (
+    await expectASCIIshape(
+      t(
+        new EllipseArcSegment(
+          asNum(0.6),
+          asNum(0.2),
+          angleFromDeg(10),
+          angleFromDeg(170),
+          asNum(1),
+          p(-0.2, 0.2),
+          angleFromDeg(0),
+        ),
+      ),
+    )
+  ).toMatchSnapshot();
+});
+
+test("translated and rotated ellipse", async () => {
+  (
+    await expectASCIIshape(
+      t(
+        new EllipseArcSegment(
+          asNum(0.6),
+          asNum(0.2),
+          angleFromDeg(10),
+          angleFromDeg(170),
+          asNum(1),
+          p(-0.2, 0.2),
+          angleFromDeg(45),
+        ),
+      ),
+    )
+  ).toMatchSnapshot();
 });

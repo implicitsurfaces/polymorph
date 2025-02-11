@@ -9,13 +9,7 @@ export interface SelectableNode extends SelectableBase {
   readonly id: NodeId;
 }
 
-export interface SelectableSubNode extends SelectableBase {
-  readonly type: "SubNode";
-  readonly id: NodeId;
-  readonly subName: string;
-}
-
-export type Selectable = SelectableNode | SelectableSubNode;
+export type Selectable = SelectableNode;
 
 function isSameSelectable(
   s1: Selectable | undefined,
@@ -33,11 +27,6 @@ function isSameSelectable(
         return false;
       }
       return s1.id === s2.id;
-    case "SubNode":
-      if (s2.type !== "SubNode") {
-        return false;
-      }
-      return s1.id === s2.id && s1.subName === s2.subName;
   }
 }
 
@@ -77,8 +66,6 @@ export class Selection {
     switch (this._hovered.type) {
       case "Node":
         return this._hovered.id;
-      case "SubNode":
-        return undefined;
     }
   }
 
@@ -103,14 +90,6 @@ export class Selection {
 
   isHoveredNode(id: NodeId) {
     return this.isHovered({ type: "Node", id: id });
-  }
-
-  isHoveredSubNode(id: NodeId, subName: string) {
-    return this.isHovered({
-      type: "SubNode",
-      id: id,
-      subName: subName,
-    });
   }
 
   selected(): Array<Selectable> {
@@ -150,14 +129,6 @@ export class Selection {
 
   isSelectedNode(id: NodeId) {
     return this.isSelected({ type: "Node", id: id });
-  }
-
-  isSelectedSubNode(id: NodeId, subName: string) {
-    return this.isSelected({
-      type: "SubNode",
-      id: id,
-      subName: subName,
-    });
   }
 
   toggleSelected(selectable: Selectable) {

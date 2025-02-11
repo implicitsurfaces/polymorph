@@ -259,8 +259,8 @@ export function getEdgeShapesAndControls(
   if (!startPoint || !endPoint) {
     return res;
   }
-  const startPos = startPoint.position;
-  const endPos = endPoint.position;
+  const startPos = startPoint.getPosition();
+  const endPos = endPoint.getPosition();
 
   if (edge instanceof LineSegment) {
     res.shapes.push(getLineSegment(startPos, endPos));
@@ -269,22 +269,22 @@ export function getEdgeShapesAndControls(
     if (!cp) {
       return res;
     }
-    const tangent = cp.position.clone().sub(startPos);
+    const tangent = cp.getPosition().clone().sub(startPos);
     res.shapes.push(
       getGeneralizedArcFromStartTangent(startPos, endPos, tangent),
     );
-    res.tangents.push(getLineSegment(startPos, cp.position));
+    res.tangents.push(getLineSegment(startPos, cp.getPosition()));
   } else if (edge instanceof CCurve) {
     const cp = doc.getNode(edge.controlPoint, Point);
     if (!cp) {
       return res;
     }
-    const shapes_ = getCCurveShapes(startPos, endPos, cp.position);
+    const shapes_ = getCCurveShapes(startPos, endPos, cp.getPosition());
     for (const shape of shapes_) {
       res.shapes.push(shape);
     }
-    res.tangents.push(getLineSegment(startPos, cp.position));
-    res.tangents.push(getLineSegment(endPos, cp.position));
+    res.tangents.push(getLineSegment(startPos, cp.getPosition()));
+    res.tangents.push(getLineSegment(endPos, cp.getPosition()));
   } else if (edge instanceof SCurve) {
     const startCp = doc.getNode(edge.startControlPoint, Point);
     const endCp = doc.getNode(edge.endControlPoint, Point);
@@ -294,14 +294,14 @@ export function getEdgeShapesAndControls(
     const shapes_ = getSCurveShapes(
       startPos,
       endPos,
-      startCp.position,
-      endCp.position,
+      startCp.getPosition(),
+      endCp.getPosition(),
     );
     for (const shape of shapes_) {
       res.shapes.push(shape);
     }
-    res.tangents.push(getLineSegment(startPos, startCp.position));
-    res.tangents.push(getLineSegment(endPos, endCp.position));
+    res.tangents.push(getLineSegment(startPos, startCp.getPosition()));
+    res.tangents.push(getLineSegment(endPos, endCp.getPosition()));
   }
   return res;
 }

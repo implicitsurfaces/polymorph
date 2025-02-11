@@ -1,4 +1,4 @@
-import { NodeId, Layer } from "./Document.ts";
+import { NodeId, Layer, SkeletonNode } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 import { SkeletonListItem } from "./SkeletonListItem.tsx";
 
@@ -15,7 +15,7 @@ export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
 
   function getItem(id: NodeId) {
     const node = doc.getNode(id);
-    if (!node) {
+    if (!(node instanceof SkeletonNode)) {
       return <></>;
     }
     return (

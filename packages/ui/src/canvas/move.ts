@@ -73,9 +73,9 @@ function computeMovedControlPoints(
 // Returns the onMove callback for a Point node.
 //
 function onPointMove(point: Point): OnMoveCallback {
-  const position = point.position.clone();
+  const position = point.getPosition();
   return (delta: Vector2) => {
-    point.position = position.clone().add(delta);
+    point.setPosition(position.clone().add(delta));
   };
 }
 

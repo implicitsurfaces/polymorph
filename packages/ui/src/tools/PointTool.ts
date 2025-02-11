@@ -18,7 +18,8 @@ export class PointTool implements Tool {
     if (!layer) {
       return;
     }
-    const point = doc.createNodeInLayer(Point, layer, {
+    const point = doc.createNode(Point, {
+      layer: layer,
       position: event.documentPosition,
     });
     selection.setHoveredNode(point.id);

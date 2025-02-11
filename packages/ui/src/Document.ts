@@ -7,19 +7,30 @@ import { v4 as uuidv4 } from "uuid";
 export type NodeId = string;
 
 export interface NodeOptions {
-  name?: string;
+  readonly name?: string;
+  readonly layer?: Layer | NodeId;
 }
 
 export abstract class Node {
+  readonly doc: Document;
   readonly id: NodeId;
+  readonly layer?: NodeId;
   name: string;
 
-  constructor(id: NodeId, options: NodeOptions) {
+  constructor(doc: Document, id: NodeId, options: NodeOptions) {
+    this.doc = doc;
     this.id = id;
+    if (options.layer) {
+      if (options.layer instanceof Layer) {
+        this.layer = options.layer.id;
+      } else {
+        this.layer = options.layer;
+      }
+    }
     this.name = options.name !== undefined ? options.name : "Node";
   }
 
-  abstract clone(): Node;
+  abstract clone(newDoc: Document): Node;
 }
 
 /**
@@ -27,7 +38,11 @@ export abstract class Node {
  *
  * This is used for typing factory functions like `Document.createNode()`.
  */
-type NodeType<T, Options> = (new (id: NodeId, options: Options) => T) & {
+type NodeType<T, Options> = (new (
+  doc: Document,
+  id: NodeId,
+  options: Options,
+) => T) & {
   defaultName: string;
 };
 
@@ -36,7 +51,48 @@ type NodeType<T, Options> = (new (id: NodeId, options: Options) => T) & {
  *
  * This is used for functions with runtime type checks like `Document.getNode()`.
  */
-type AbstractNodeType<T> = abstract new (id: NodeId, options: never) => T;
+type AbstractNodeType<T> = abstract new (
+  doc: Document,
+  id: NodeId,
+  options: never,
+) => T;
+
+///////////////////////////////////////////////////////////////////////////////
+//                               Number
+
+export interface NumberOptions extends NodeOptions {
+  readonly value?: number;
+}
+
+export class Number extends Node {
+  static readonly defaultName = "Number";
+  value: number;
+
+  constructor(doc: Document, id: NodeId, options: NumberOptions) {
+    super(doc, id, options);
+    this.value = options.value ? options.value : 0;
+  }
+
+  clone(newDoc: Document) {
+    return new Number(newDoc, this.id, this);
+  }
+
+  static getOrCreate(
+    doc: Document,
+    id: NodeId | undefined,
+    options: NumberOptions,
+  ): NodeId {
+    if (id === undefined) {
+      return doc.createNode(Number, options).id;
+    } else {
+      // Note: if `id` is provided, then it is trusted to be in the document
+      // and returned as is. This is important when cloning a whole document,
+      // as the Number node may not be cloned yet, but another node being
+      // cloned now may reference its ID.
+      return id;
+    }
+  }
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               SkeletonNode
@@ -45,8 +101,8 @@ type AbstractNodeType<T> = abstract new (id: NodeId, options: never) => T;
 export interface SkeletonNodeOptions extends NodeOptions {}
 
 export abstract class SkeletonNode extends Node {
-  constructor(id: NodeId, options: SkeletonNodeOptions) {
-    super(id, options);
+  constructor(doc: Document, id: NodeId, options: SkeletonNodeOptions) {
+    super(doc, id, options);
   }
 }
 
@@ -54,22 +110,58 @@ export abstract class SkeletonNode extends Node {
 //                               Point
 
 export interface PointOptions extends SkeletonNodeOptions {
-  position?: Vector2;
+  readonly position?: Vector2 | [number, number];
+  readonly x?: NodeId;
+  readonly y?: NodeId;
+}
+
+function getVec2Pair(position?: Vector2 | [number, number]): [number, number] {
+  if (!position) {
+    return [0, 0];
+  }
+  if (position instanceof Vector2) {
+    return [position.x, position.y];
+  }
+  return position;
 }
 
 export class Point extends SkeletonNode {
   static readonly defaultName = "Point";
-  position: Vector2;
+  x: NodeId;
+  y: NodeId;
 
-  constructor(id: NodeId, options: PointOptions) {
-    super(id, options);
-    this.position = options.position
-      ? options.position.clone()
-      : new Vector2(0, 0);
+  constructor(doc: Document, id: NodeId, options: PointOptions) {
+    super(doc, id, options);
+    const defaultPos = getVec2Pair(options.position);
+    this.x = Number.getOrCreate(doc, options.x, {
+      layer: options.layer,
+      value: defaultPos[0],
+    });
+    this.y = Number.getOrCreate(doc, options.y, {
+      layer: options.layer,
+      value: defaultPos[1],
+    });
   }
 
-  clone() {
-    return new Point(this.id, this);
+  clone(newDoc: Document) {
+    return new Point(newDoc, this.id, this);
+  }
+
+  getPosition(): Vector2 {
+    const x = this.doc.getNode(this.x, Number);
+    const y = this.doc.getNode(this.y, Number);
+    return new Vector2(x ? x.value : 0, y ? y.value : 0);
+  }
+
+  setPosition(position: Vector2) {
+    const x = this.doc.getNode(this.x, Number);
+    const y = this.doc.getNode(this.y, Number);
+    if (x) {
+      x.value = position.x;
+    }
+    if (y) {
+      y.value = position.y;
+    }
   }
 }
 
@@ -77,16 +169,16 @@ export class Point extends SkeletonNode {
 //                               EdgeNode
 
 export interface EdgeNodeOptions extends SkeletonNodeOptions {
-  startPoint: NodeId;
-  endPoint: NodeId;
+  readonly startPoint: NodeId;
+  readonly endPoint: NodeId;
 }
 
 export abstract class EdgeNode extends SkeletonNode {
   startPoint: NodeId;
   endPoint: NodeId;
 
-  constructor(id: NodeId, options: EdgeNodeOptions) {
-    super(id, options);
+  constructor(doc: Document, id: NodeId, options: EdgeNodeOptions) {
+    super(doc, id, options);
     this.startPoint = options.startPoint;
     this.endPoint = options.endPoint;
   }
@@ -101,15 +193,12 @@ export interface LineSegmentOptions extends EdgeNodeOptions {}
 export class LineSegment extends EdgeNode {
   static readonly defaultName = "Line Segment";
 
-  constructor(
-    readonly id: NodeId,
-    options: LineSegmentOptions,
-  ) {
-    super(id, options);
+  constructor(doc: Document, id: NodeId, options: LineSegmentOptions) {
+    super(doc, id, options);
   }
 
-  clone() {
-    return new LineSegment(this.id, this);
+  clone(newDoc: Document) {
+    return new LineSegment(newDoc, this.id, this);
   }
 }
 
@@ -117,23 +206,20 @@ export class LineSegment extends EdgeNode {
 //                               ArcFromStartTangent
 
 export interface ArcFromStartTangentOptions extends EdgeNodeOptions {
-  controlPoint: NodeId;
+  readonly controlPoint: NodeId;
 }
 
 export class ArcFromStartTangent extends EdgeNode {
   static readonly defaultName = "Arc";
   controlPoint: NodeId;
 
-  constructor(
-    readonly id: NodeId,
-    options: ArcFromStartTangentOptions,
-  ) {
-    super(id, options);
+  constructor(doc: Document, id: NodeId, options: ArcFromStartTangentOptions) {
+    super(doc, id, options);
     this.controlPoint = options.controlPoint;
   }
 
-  clone() {
-    return new ArcFromStartTangent(this.id, this);
+  clone(newDoc: Document) {
+    return new ArcFromStartTangent(newDoc, this.id, this);
   }
 }
 
@@ -141,23 +227,20 @@ export class ArcFromStartTangent extends EdgeNode {
 //                                  CCurve
 
 export interface CCurveOptions extends EdgeNodeOptions {
-  controlPoint: NodeId;
+  readonly controlPoint: NodeId;
 }
 
 export class CCurve extends EdgeNode {
   static readonly defaultName = "C-Curve";
   controlPoint: NodeId;
 
-  constructor(
-    readonly id: NodeId,
-    options: CCurveOptions,
-  ) {
-    super(id, options);
+  constructor(doc: Document, id: NodeId, options: CCurveOptions) {
+    super(doc, id, options);
     this.controlPoint = options.controlPoint;
   }
 
-  clone() {
-    return new CCurve(this.id, this);
+  clone(newDoc: Document) {
+    return new CCurve(newDoc, this.id, this);
   }
 }
 
@@ -165,8 +248,8 @@ export class CCurve extends EdgeNode {
 //                                  SCurve
 
 export interface SCurveOptions extends EdgeNodeOptions {
-  startControlPoint: NodeId;
-  endControlPoint: NodeId;
+  readonly startControlPoint: NodeId;
+  readonly endControlPoint: NodeId;
 }
 
 export class SCurve extends EdgeNode {
@@ -174,17 +257,14 @@ export class SCurve extends EdgeNode {
   startControlPoint: NodeId;
   endControlPoint: NodeId;
 
-  constructor(
-    readonly id: NodeId,
-    options: SCurveOptions,
-  ) {
-    super(id, options);
+  constructor(doc: Document, id: NodeId, options: SCurveOptions) {
+    super(doc, id, options);
     this.startControlPoint = options.startControlPoint;
     this.endControlPoint = options.endControlPoint;
   }
 
-  clone() {
-    return new SCurve(this.id, this);
+  clone(newDoc: Document) {
+    return new SCurve(newDoc, this.id, this);
   }
 }
 
@@ -192,30 +272,30 @@ export class SCurve extends EdgeNode {
 //                               Layer
 
 export interface LayerOptions extends NodeOptions {
-  nodes?: Array<NodeId>;
+  readonly nodes?: Array<NodeId>;
 }
 
 export class Layer extends Node {
   static readonly defaultName = "Layer";
   nodes: Array<NodeId>;
 
-  constructor(id: NodeId, options: LayerOptions) {
-    super(id, options);
+  constructor(doc: Document, id: NodeId, options: LayerOptions) {
+    super(doc, id, options);
     this.nodes = options.nodes ? [...options.nodes] : [];
   }
 
-  clone() {
-    return new Layer(this.id, this);
+  clone(newDoc: Document) {
+    return new Layer(newDoc, this.id, this);
   }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               Util
 
-function cloneNodeMap(source: Map<NodeId, Node>) {
+function cloneNodeMap(source: Map<NodeId, Node>, newDoc: Document) {
   const dest = new Map<NodeId, Node>();
   source.forEach((node, id) => {
-    dest.set(id, node.clone());
+    dest.set(id, node.clone(newDoc));
   });
   return dest;
 }
@@ -248,7 +328,7 @@ export class Document {
 
   constructor(other?: Document) {
     if (other) {
-      this._nodes = cloneNodeMap(other._nodes);
+      this._nodes = cloneNodeMap(other._nodes, this);
       this.layers = [...other.layers];
     } else {
       this._nodes = new Map();
@@ -342,85 +422,57 @@ export class Document {
    * });
    * ```
    *
-   * Note: this does not add the node to any layer. You typically want to:
-   * 1. Mutate the `nodes` attribute of some layer after calling this function, or
-   * 2. Use `createNodeInLayer()` instead of this function.
+   * If `options.layer` is provided, then the element is added to the layer.
+   * Otherwise, it is created as a layer-less node.
+   *
+   * If `options.layer` is provided and `options.name` is not provided, then
+   * this function will automatically assign a unique name within the `layer`
+   * suitable for the given `spec`, e.g., "Point 42".
    */
-  createNode<T extends Node, Options>(
+  createNode<T extends Node, Options extends NodeOptions>(
     type: NodeType<T, Options>,
     options: Options,
   ): T {
     const id = uuidv4();
-    const node = new type(id, options);
-    this._nodes.set(id, node);
-    return node;
-  }
-
-  foo() {
-    this.createNode(Point, { name: "My Point" });
-  }
-  /**
-   * Creates a new node of the given `spec` with the given `options`, adds it
-   * as last node of the given layer, then returns it.
-   *
-   * If no name is provided in the options, then this function will
-   * automatically a unique name withing the `layer` suitable for the given
-   * `spec`, e.g., "Point 42".
-   */
-  createNodeInLayer<T extends Node, Options extends NodeOptions>(
-    type: NodeType<T, Options>,
-    layer: Layer,
-    options: Options,
-  ): T {
-    if (options.name === undefined) {
-      options.name = this.findAvailableName(
-        type.defaultName + " ",
-        layer.nodes,
-      );
+    let layer: undefined | Layer = undefined;
+    if (options.layer instanceof Layer) {
+      layer = options.layer;
+    } else if (options.layer) {
+      layer = this.getNode(options.layer, Layer);
     }
-    const node = this.createNode(type, options);
-    layer.nodes.push(node.id);
+    if (layer && options.name === undefined) {
+      const name = this.findAvailableName(`${type.defaultName} `, layer.nodes);
+      options = { ...options, name: name };
+    }
+    const node = new type(this, id, options);
+    this._nodes.set(id, node);
+    if (layer) {
+      layer.nodes.push(node.id);
+    }
     return node;
   }
 
   /**
    * Removes the node that has the given `id` from this document.
-   *
-   * Note: this does not remove the node from any layer. You typically want to:
-   * 1. Mutate the `nodes` attribute of some layer before calling this function, or
-   * 2. Use `removeNodeInLayer()` instead of this function.
    */
   removeNode(id: NodeId) {
-    this._nodes.delete(id);
-  }
-
-  /**
-   * Removes the node that has the given `id` from this document and from
-   * the given `layer`.
-   *
-   * Note: if the node belongs to another layer than the given `layer`,
-   * then it will not be removed from that other layer, which will then still
-   * reference the now-stale node.
-   */
-  removeNodeInLayer(id: NodeId, layer: Layer) {
-    for (let i = layer.nodes.length - 1; i >= 0; i--) {
-      if (layer.nodes[i] === id) {
-        layer.nodes.splice(i, 1);
+    const node = this.getNode(id);
+    if (!node) {
+      return;
+    }
+    if (node.layer !== undefined) {
+      // Remove from layer
+      const layer = this.getNode(node.layer, Layer);
+      if (layer) {
+        for (let i = layer.nodes.length - 1; i >= 0; i--) {
+          if (layer.nodes[i] === id) {
+            layer.nodes.splice(i, 1);
+          }
+        }
       }
     }
-    this.removeNode(id);
+    this._nodes.delete(id);
   }
-
-  // TODO: Safer / more convenient API that prevents layers having stale
-  // nodes? For example, `layerId` could be a (readonly?) attribute of
-  // each node, enforcing that each node only belongs to one layer, and
-  // making it possible to automatically remove the node from its parent
-  // layer in removeNode(). Also note that if instead of using the current
-  // Node interface, client code were instead using some smarter Node
-  // handle object that knows which document it belongs to, then it would be
-  // possible to implement node.remove(), which may be an even more
-  // convenient API, as close as possible as the UI equivalent of selecting
-  // an node and deleting it via the delete key.
 
   /**
    * Finds the smallest positive integer `n` such that the name `${prefix}${n}`
@@ -497,72 +549,91 @@ export function createTestDocument() {
   const doc = new Document();
   const layer = doc.createNode(Layer, { name: "Layer 1" });
   doc.layers = [layer.id];
-  const p1 = doc.createNodeInLayer(Point, layer, {
+  const p1 = doc.createNode(Point, {
+    layer: layer,
     position: new Vector2(-100, 0),
   });
-  const p2 = doc.createNodeInLayer(Point, layer, {
+  const p2 = doc.createNode(Point, {
+    layer: layer,
     position: new Vector2(0, 0),
   });
-  const p3 = doc.createNodeInLayer(Point, layer, {
+  const p3 = doc.createNode(Point, {
+    layer: layer,
     position: new Vector2(100, 100),
   });
-  const p4 = doc.createNodeInLayer(Point, layer, {
+  const p4 = doc.createNode(Point, {
+    layer: layer,
     position: new Vector2(200, 100),
   });
-  const p5 = doc.createNodeInLayer(Point, layer, {
+  const p5 = doc.createNode(Point, {
+    layer: layer,
     position: new Vector2(200, 0),
   });
-  const p6 = doc.createNodeInLayer(Point, layer, {
+  const p6 = doc.createNode(Point, {
+    layer: layer,
     position: new Vector2(100, -100),
   });
-  const p7 = doc.createNodeInLayer(Point, layer, {
+  const p7 = doc.createNode(Point, {
+    layer: layer,
     position: new Vector2(-100, -100),
   });
-  doc.createNodeInLayer(LineSegment, layer, {
+  doc.createNode(LineSegment, {
+    layer: layer,
     startPoint: p1.id,
     endPoint: p2.id,
   });
-  const cp1 = doc.createNodeInLayer(Point, layer, {
+  const cp1 = doc.createNode(Point, {
+    layer: layer,
     position: new Vector2(50, 0),
   });
-  doc.createNodeInLayer(ArcFromStartTangent, layer, {
+  doc.createNode(ArcFromStartTangent, {
+    layer: layer,
     startPoint: p2.id,
     endPoint: p3.id,
     controlPoint: cp1.id,
   });
-  doc.createNodeInLayer(LineSegment, layer, {
+  doc.createNode(LineSegment, {
+    layer: layer,
     startPoint: p3.id,
     endPoint: p4.id,
   });
-  const cp2 = doc.createNodeInLayer(Point, layer, {
+  const cp2 = doc.createNode(Point, {
+    layer: layer,
     position: new Vector2(150, 50),
   });
-  doc.createNodeInLayer(CCurve, layer, {
+  doc.createNode(CCurve, {
+    layer: layer,
     startPoint: p4.id,
     endPoint: p5.id,
     controlPoint: cp2.id,
   });
-  doc.createNodeInLayer(LineSegment, layer, {
+  doc.createNode(LineSegment, {
+    layer: layer,
     startPoint: p5.id,
     endPoint: p6.id,
   });
-  const cp3 = doc.createNodeInLayer(Point, layer, {
+  const cp3 = doc.createNode(Point, {
+    layer: layer,
     position: new Vector2(50, -150),
   });
-  const cp4 = doc.createNodeInLayer(Point, layer, {
+  const cp4 = doc.createNode(Point, {
+    layer: layer,
     position: new Vector2(-80, -60),
   });
-  doc.createNodeInLayer(SCurve, layer, {
+  doc.createNode(SCurve, {
+    layer: layer,
     startPoint: p6.id,
     endPoint: p7.id,
     startControlPoint: cp3.id,
     endControlPoint: cp4.id,
   });
-  doc.createNodeInLayer(LineSegment, layer, {
+  doc.createNode(LineSegment, {
+    layer: layer,
     startPoint: p7.id,
     endPoint: p1.id,
   });
-  doc.createNodeInLayer(LineSegment, layer, {
+  doc.createNode(LineSegment, {
+    layer: layer,
     startPoint: p2.id,
     endPoint: p6.id,
   });

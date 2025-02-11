@@ -26,7 +26,7 @@ export function drawPoint(
   const isHovered = selection.isHoveredNode(point.id);
   const isSelected = selection.isSelectedNode(point.id);
   const fillStyle = getNodeColor(isHovered, isSelected);
-  drawDisk(ctx, point.position, pointRadius / camera.zoom, fillStyle);
+  drawDisk(ctx, point.getPosition(), pointRadius / camera.zoom, fillStyle);
 }
 
 export function drawPoints(

@@ -41,10 +41,10 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
       <PropertyItem name="Position">
         <Vector2Input
           getValue={() => {
-            return point.position.clone();
+            return point.getPosition();
           }}
           setValue={(v: Vector2) => {
-            point.position.copy(v);
+            point.setPosition(v);
             documentManager.commitChanges();
           }}
         />

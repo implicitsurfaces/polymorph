@@ -23,7 +23,7 @@ type MakeSelectableFunction<T> = (node: T, id: NodeId) => Selectable;
 type Filter = (id: NodeId) => boolean;
 
 function distToPoint(point: Point, position: Vector2): number {
-  return point.position.distanceTo(position);
+  return point.getPosition().distanceTo(position);
 }
 
 function selectPoint(point: Point): Selectable {

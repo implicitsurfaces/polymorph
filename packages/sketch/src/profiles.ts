@@ -1,9 +1,6 @@
-import { Angle, Point } from "./geom";
+import { Point } from "./geom";
 import { embedPoint, Plane } from "./geom-3d";
-import {
-  candidateClosestPointsWithinEllipseArc,
-  closestPointOnEllipse,
-} from "./geom-utils/closestPointOnEllipse";
+import { closestPointOnEllipse } from "./geom-utils/closestPointOnEllipse";
 import { Num, ONE, asNum } from "./num";
 import { hypot, max, min } from "./num-ops";
 import { Segment, SolidDistField } from "./types";
@@ -42,63 +39,6 @@ export class Ellipse {
       point,
     );
     return point.vecFrom(closestPoint).norm().mul(this.sign(point));
-  }
-}
-
-export class EllipseArc {
-  readonly majorRadius: Num;
-  readonly minorRadius: Num;
-  readonly startAngle: Angle;
-  readonly endAngle: Angle;
-  readonly orientation: Num;
-
-  private firstPoint: Point;
-  private lastPoint: Point;
-
-  constructor(
-    majorRadius: Num | number,
-    minorRadius: Num | number,
-    startAngle: Angle,
-    endAngle: Angle,
-    orientation: Num | number,
-  ) {
-    this.majorRadius = asNum(majorRadius);
-    this.minorRadius = asNum(minorRadius);
-    this.startAngle = startAngle;
-    this.endAngle = endAngle;
-    this.orientation = asNum(orientation);
-
-    this.firstPoint = new Point(
-      this.majorRadius.mul(this.startAngle.cos()),
-      this.minorRadius.mul(this.startAngle.sin()),
-    );
-
-    this.lastPoint = new Point(
-      this.majorRadius.mul(this.endAngle.cos()),
-      this.minorRadius.mul(this.endAngle.sin()),
-    );
-  }
-
-  distanceTo(point: Point): Num {
-    const closestPoints = candidateClosestPointsWithinEllipseArc(
-      this.majorRadius,
-      this.minorRadius,
-      this.startAngle,
-      this.endAngle,
-      this.orientation,
-      point,
-    );
-
-    const distances = closestPoints.map((closestPoint) =>
-      point.vecFrom(closestPoint).norm(),
-    );
-
-    const minDist = min(...(distances as [Num]));
-
-    const firstDist = point.vecFrom(this.firstPoint).norm();
-    const lastDist = point.vecFrom(this.lastPoint).norm();
-
-    return minDist.min(firstDist).min(lastDist);
   }
 }
 

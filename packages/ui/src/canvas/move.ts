@@ -51,33 +51,14 @@ function computeIncidentEdges(
   return edges;
 }
 
-// Computes the set of all control points that are explicitly or implicitly
+// Computes the set of all control points that are implicitly
 // moved if the given `selection` is to be moved.
 //
 function computeMovedControlPoints(
   doc: Document,
-  selection: Selection,
   movedPoints: Set<NodeId>,
 ): Set<ControlPoint> {
   const movedControlPoints = new Set<ControlPoint>();
-
-  // Control points that are explicitly selected.
-  //
-  for (const selectable of selection.selected()) {
-    if (selectable.type === "SubNode") {
-      const edge = doc.getNode(selectable.id, EdgeNode);
-      if (edge) {
-        for (const cp of getControlPoints(doc, edge)) {
-          if (cp.name === selectable.subName) {
-            movedControlPoints.add(cp);
-          }
-        }
-      }
-    }
-  }
-
-  // Control points that are anchored to moved points.
-  //
   const incidentEdges = computeIncidentEdges(doc, movedPoints);
   for (const edge of incidentEdges) {
     for (const cp of getControlPoints(doc, edge)) {
@@ -86,7 +67,6 @@ function computeMovedControlPoints(
       }
     }
   }
-
   return movedControlPoints;
 }
 
@@ -180,11 +160,7 @@ function start(data: MoveData, documentManager: DocumentManager): boolean {
   // This is why we need the two passes below.
   //
   const movedPoints = computeMovedPoints(doc, selection);
-  const movedControlPoints = computeMovedControlPoints(
-    doc,
-    selection,
-    movedPoints,
-  );
+  const movedControlPoints = computeMovedControlPoints(doc, movedPoints);
 
   // Store their onMove() callbacks.
   //

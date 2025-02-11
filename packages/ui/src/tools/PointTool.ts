@@ -14,15 +14,15 @@ export class PointTool implements Tool {
   onCanvasClick(event: CanvasPointerEvent) {
     const doc = event.documentManager.document();
     const selection = event.documentManager.selection();
-    const layer = doc.getElement(selection.activeLayer(), Layer);
+    const layer = doc.getNode(selection.activeLayer(), Layer);
     if (!layer) {
       return;
     }
-    const point = doc.createElementInLayer(Point, layer, {
+    const point = doc.createNodeInLayer(Point, layer, {
       position: event.documentPosition,
     });
-    selection.setHoveredElement(point.id);
-    selection.setSelectedElements([point.id]);
+    selection.setHoveredNode(point.id);
+    selection.setSelectedNodes([point.id]);
     event.documentManager.commitChanges();
   }
 }

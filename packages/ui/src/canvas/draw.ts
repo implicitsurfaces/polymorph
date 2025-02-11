@@ -1,5 +1,5 @@
 import { Selection } from "../Selection.ts";
-import { Document, ElementId, Layer } from "../Document.ts";
+import { Document, NodeId, Layer } from "../Document.ts";
 import { DocumentManager } from "../DocumentManager.ts";
 import { Camera2 } from "./Camera2.ts";
 import { FillStyle } from "./style.ts";
@@ -32,13 +32,13 @@ function drawDocument(
   document: Document,
   selection: Selection,
 ) {
-  document.layers.forEach((id: ElementId) => {
-    const layer = document.getElement(id, Layer);
+  document.layers.forEach((id: NodeId) => {
+    const layer = document.getNode(id, Layer);
     if (layer) {
       // Note: we use two passes since we want to draw all points on top of
       // edges, regardless of layer order.
-      drawEdges(ctx, camera, document, layer.elements, selection);
-      drawPoints(ctx, camera, document, layer.elements, selection);
+      drawEdges(ctx, camera, document, layer.nodes, selection);
+      drawPoints(ctx, camera, document, layer.nodes, selection);
     }
   });
 }

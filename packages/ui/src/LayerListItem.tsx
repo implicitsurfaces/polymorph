@@ -1,10 +1,10 @@
 import { memo, useCallback, MouseEvent } from "react";
-import { ElementId } from "./Document.ts";
+import { NodeId } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 
 interface LayerListItemProps {
   documentManager: DocumentManager;
-  id: ElementId;
+  id: NodeId;
   index: number;
   name: string;
   isActive: boolean;

@@ -67,7 +67,7 @@ export class DocumentManager {
     const doc = this.document();
     const selection = this.selection();
     if (doc.layers.length > 0) {
-      if (!doc.getElement(selection.activeLayer(), Layer)) {
+      if (!doc.getNode(selection.activeLayer(), Layer)) {
         selection.setActiveLayer(doc.layers[0]);
       }
     }

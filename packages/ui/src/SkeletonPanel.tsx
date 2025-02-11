@@ -1,4 +1,4 @@
-import { ElementId, Layer } from "./Document.ts";
+import { NodeId, Layer } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 import { SkeletonListItem } from "./SkeletonListItem.tsx";
 
@@ -10,12 +10,12 @@ export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
   const doc = documentManager.document();
   const selection = documentManager.selection();
   const activeLayerId = selection.activeLayer();
-  const hoveredElementId = selection.hoveredElement();
-  const selectedElementIds = selection.selectedElements();
+  const hoveredNodeId = selection.hoveredNode();
+  const selectedNodeIds = selection.selectedNodes();
 
-  function getItem(id: ElementId) {
-    const element = doc.getElement(id);
-    if (!element) {
+  function getItem(id: NodeId) {
+    const node = doc.getNode(id);
+    if (!node) {
       return <></>;
     }
     return (
@@ -23,19 +23,19 @@ export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
         key={id}
         documentManager={documentManager}
         id={id}
-        name={element.name}
-        isHovered={id === hoveredElementId}
-        isSelected={selectedElementIds.includes(id)}
+        name={node.name}
+        isHovered={id === hoveredNodeId}
+        isSelected={selectedNodeIds.includes(id)}
       />
     );
   }
 
   function getItems() {
-    const activeLayer = doc.getElement(activeLayerId, Layer);
+    const activeLayer = doc.getNode(activeLayerId, Layer);
     if (!activeLayer) {
       return <></>;
     }
-    return activeLayer.elements.map((id: ElementId) => getItem(id));
+    return activeLayer.nodes.map((id: NodeId) => getItem(id));
   }
 
   const items = getItems();

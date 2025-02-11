@@ -2,14 +2,12 @@ import { Vector2 } from "threejs-math";
 import { Camera2 } from "./Camera2.ts";
 import {
   StrokeStyle,
-  controlPointRadius,
   edgeWidth,
   getNodeColor,
   getControlColor,
 } from "./style.ts";
 
-import { drawDisk } from "./drawPoints.ts";
-import { Selection, Selectable } from "../Selection.ts";
+import { Selection } from "../Selection.ts";
 import {
   Point,
   Document,
@@ -242,14 +240,8 @@ function getSCurveShapes(
   ];
 }
 
-export interface ControlPoint {
-  readonly name: string;
-  readonly position: Vector2;
-}
-
 export interface EdgeShapesAndControls {
   shapes: Array<CanvasShape>;
-  controlPoints: Array<ControlPoint>;
   tangents: Array<CanvasLineSegment>;
 }
 
@@ -259,7 +251,6 @@ export function getEdgeShapesAndControls(
 ): EdgeShapesAndControls {
   const res: EdgeShapesAndControls = {
     shapes: [],
-    controlPoints: [],
     tangents: [],
   };
 
@@ -282,10 +273,6 @@ export function getEdgeShapesAndControls(
     res.shapes.push(
       getGeneralizedArcFromStartTangent(startPos, endPos, tangent),
     );
-    res.controlPoints.push({
-      name: "controlPoint",
-      position: cp.position,
-    });
     res.tangents.push(getLineSegment(startPos, cp.position));
   } else if (edge instanceof CCurve) {
     const cp = doc.getNode(edge.controlPoint, Point);
@@ -296,10 +283,6 @@ export function getEdgeShapesAndControls(
     for (const shape of shapes_) {
       res.shapes.push(shape);
     }
-    res.controlPoints.push({
-      name: "controlPoint",
-      position: cp.position,
-    });
     res.tangents.push(getLineSegment(startPos, cp.position));
     res.tangents.push(getLineSegment(endPos, cp.position));
   } else if (edge instanceof SCurve) {
@@ -317,14 +300,6 @@ export function getEdgeShapesAndControls(
     for (const shape of shapes_) {
       res.shapes.push(shape);
     }
-    res.controlPoints.push({
-      name: "startControlPoint",
-      position: startCp.position,
-    });
-    res.controlPoints.push({
-      name: "endControlPoint",
-      position: endCp.position,
-    });
     res.tangents.push(getLineSegment(startPos, startCp.position));
     res.tangents.push(getLineSegment(endPos, endCp.position));
   }
@@ -338,7 +313,6 @@ export function drawEdges(
   nodes: Array<NodeId>,
   selection: Selection,
 ) {
-  const cpRadius = controlPointRadius / camera.zoom;
   const edgeWidth_ = edgeWidth / camera.zoom;
   const edgeStyle = { lineWidth: edgeWidth_, strokeStyle: getNodeColor() };
   const tangentStyle = {
@@ -357,17 +331,6 @@ export function drawEdges(
       }
       for (const lineSegment of sc.tangents) {
         drawLineSegment(ctx, lineSegment, tangentStyle);
-      }
-      for (const cp of sc.controlPoints) {
-        const selectable: Selectable = {
-          type: "SubNode",
-          id: id,
-          subName: cp.name,
-        };
-        const isCpHovered = selection.isHovered(selectable);
-        const isCpSelected = selection.isSelected(selectable);
-        const cpColor = getControlColor(isCpHovered, isCpSelected);
-        drawDisk(ctx, cp.position, cpRadius, cpColor);
       }
     }
   }

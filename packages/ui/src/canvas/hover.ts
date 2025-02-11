@@ -4,13 +4,12 @@ import { Selectable } from "../Selection.ts";
 import { DocumentManager } from "../DocumentManager.ts";
 import { Document, NodeId, EdgeNode, Layer, Point } from "../Document.ts";
 import {
-  ControlPoint,
   getEdgeShapesAndControls,
   CanvasShape,
   CanvasArc,
   CanvasLineSegment,
 } from "./drawEdges.ts";
-import { controlPointRadius, edgeWidth, pointRadius } from "./style.ts";
+import { edgeWidth, pointRadius } from "./style.ts";
 
 import { CanvasPointerEvent } from "../canvas/events";
 
@@ -29,14 +28,6 @@ function distToPoint(point: Point, position: Vector2): number {
 
 function selectPoint(point: Point): Selectable {
   return { type: "Node", id: point.id };
-}
-
-function distToControlPoint(cp: ControlPoint, position: Vector2): number {
-  return cp.position.distanceTo(position);
-}
-
-function selectControlPoint(cp: ControlPoint, id: NodeId): Selectable {
-  return { type: "SubNode", id: id, subName: cp.name };
 }
 
 function distToLineSegment(seg: CanvasLineSegment, position: Vector2): number {
@@ -176,9 +167,6 @@ function findClosestSelectableInLayer(
       } else if (node instanceof EdgeNode) {
         // TODO: cache the controls from the draw call?
         const sc = getEdgeShapesAndControls(doc, node);
-        for (const cp of sc.controlPoints) {
-          update(csPoint, cp, distToControlPoint, selectControlPoint, id);
-        }
         update(csEdge, sc.shapes, distToShapes, selectEdge, id);
       }
     }
@@ -197,11 +185,7 @@ function findClosestSelectableInLayer(
   // used above.
   //
   if (csPoint.selectable) {
-    let radius = pointRadius;
-    if (csPoint.selectable.type === "SubNode") {
-      radius = controlPointRadius;
-    }
-    radius /= camera.zoom;
+    const radius = pointRadius / camera.zoom;
     if (csPoint.distance <= radius) {
       csPoint.distance = 0;
     } else {

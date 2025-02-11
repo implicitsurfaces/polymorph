@@ -2,7 +2,7 @@ import { Vector2 } from "threejs-math";
 import { Camera2 } from "./Camera2.ts";
 import { Selectable } from "../Selection.ts";
 import { DocumentManager } from "../DocumentManager.ts";
-import { Document, ElementId, EdgeElement, Layer, Point } from "../Document.ts";
+import { Document, NodeId, EdgeNode, Layer, Point } from "../Document.ts";
 import {
   ControlPoint,
   getEdgeShapesAndControls,
@@ -19,24 +19,24 @@ interface ClosestSelectable {
   distance: number;
 }
 
-type DistanceFunction<T> = (element: T, position: Vector2) => number;
-type MakeSelectableFunction<T> = (element: T, id: ElementId) => Selectable;
-type Filter = (id: ElementId) => boolean;
+type DistanceFunction<T> = (node: T, position: Vector2) => number;
+type MakeSelectableFunction<T> = (node: T, id: NodeId) => Selectable;
+type Filter = (id: NodeId) => boolean;
 
 function distToPoint(point: Point, position: Vector2): number {
   return point.position.distanceTo(position);
 }
 
 function selectPoint(point: Point): Selectable {
-  return { type: "Element", id: point.id };
+  return { type: "Node", id: point.id };
 }
 
 function distToControlPoint(cp: ControlPoint, position: Vector2): number {
   return cp.position.distanceTo(position);
 }
 
-function selectControlPoint(cp: ControlPoint, id: ElementId): Selectable {
-  return { type: "SubElement", id: id, subName: cp.name };
+function selectControlPoint(cp: ControlPoint, id: NodeId): Selectable {
+  return { type: "SubNode", id: id, subName: cp.name };
 }
 
 function distToLineSegment(seg: CanvasLineSegment, position: Vector2): number {
@@ -133,8 +133,8 @@ function distToShapes(shapes: Array<CanvasShape>, position: Vector2): number {
   );
 }
 
-function selectEdge(_shapes: Array<CanvasShape>, id: ElementId): Selectable {
-  return { type: "Element", id: id };
+function selectEdge(_shapes: Array<CanvasShape>, id: NodeId): Selectable {
+  return { type: "Node", id: id };
 }
 
 function findClosestSelectableInLayer(
@@ -156,26 +156,26 @@ function findClosestSelectableInLayer(
 
   function update<T>(
     cs: ClosestSelectable,
-    element: T,
+    node: T,
     dist: DistanceFunction<T>,
     select: MakeSelectableFunction<T>,
-    id: ElementId,
+    id: NodeId,
   ) {
-    const d = dist(element, position);
+    const d = dist(node, position);
     if (d < cs.distance) {
-      cs.selectable = select(element, id);
+      cs.selectable = select(node, id);
       cs.distance = d;
     }
   }
 
-  for (const id of layer.elements) {
-    const element = doc.getElement(id);
-    if (element && (!filter || filter(id))) {
-      if (element instanceof Point) {
-        update(csPoint, element, distToPoint, selectPoint, id);
-      } else if (element instanceof EdgeElement) {
+  for (const id of layer.nodes) {
+    const node = doc.getNode(id);
+    if (node && (!filter || filter(id))) {
+      if (node instanceof Point) {
+        update(csPoint, node, distToPoint, selectPoint, id);
+      } else if (node instanceof EdgeNode) {
         // TODO: cache the controls from the draw call?
-        const sc = getEdgeShapesAndControls(doc, element);
+        const sc = getEdgeShapesAndControls(doc, node);
         for (const cp of sc.controlPoints) {
           update(csPoint, cp, distToControlPoint, selectControlPoint, id);
         }
@@ -198,7 +198,7 @@ function findClosestSelectableInLayer(
   //
   if (csPoint.selectable) {
     let radius = pointRadius;
-    if (csPoint.selectable.type === "SubElement") {
+    if (csPoint.selectable.type === "SubNode") {
       radius = controlPointRadius;
     }
     radius /= camera.zoom;
@@ -242,7 +242,7 @@ function findClosestSelectableInDocument(
   let closestDistance = Infinity;
   let selectable: Selectable | undefined = undefined;
   for (const id of doc.layers) {
-    const layer = doc.getElement(id, Layer);
+    const layer = doc.getNode(id, Layer);
     if (layer) {
       const ce = findClosestSelectableInLayer(
         doc,
@@ -262,7 +262,7 @@ function findClosestSelectableInDocument(
 
 // Note: For now, the hover function is in the canvas folder because there is
 // indeed a semantic dependency on the canvas. For example, it has to know
-// how the canvas renders the elements (e.g., the radius of a Point) in order
+// how the canvas renders the nodes (e.g., the radius of a Point) in order
 // to determine whether they are hovered. In particular, this is why it needs
 // the `camera` parameter, since points are drawn with a fixed radius in
 // screen space. In the future, we might want to abstract this away in some

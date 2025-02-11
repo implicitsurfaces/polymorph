@@ -1,4 +1,4 @@
-import { Layer, ElementId } from "./Document.ts";
+import { Layer, NodeId } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 import { LayerListItem } from "./LayerListItem.tsx";
 
@@ -11,8 +11,8 @@ export function LayersPanel({ documentManager }: LayersPanelProps) {
   const selection = documentManager.selection();
   const activeLayerId = selection.activeLayer();
 
-  function getItem(id: ElementId, index: number) {
-    const layer = doc.getElement(id, Layer);
+  function getItem(id: NodeId, index: number) {
+    const layer = doc.getNode(id, Layer);
     if (!layer) {
       return <></>;
     }
@@ -28,7 +28,7 @@ export function LayersPanel({ documentManager }: LayersPanelProps) {
     );
   }
 
-  const items = doc.layers.map((id: ElementId, index: number) =>
+  const items = doc.layers.map((id: NodeId, index: number) =>
     getItem(id, index),
   );
 

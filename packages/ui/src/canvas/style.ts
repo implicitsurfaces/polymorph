@@ -13,12 +13,12 @@ export const pointRadius = 5;
 export const controlPointRadius = 4;
 export const edgeWidth = 2;
 
-const _elementColor = "black";
+const _nodeColor = "black";
 const _controlColor = "#ff6f34";
 const _selectedColor = "#4063d5";
 const _hoveredColor = "#96a4d3";
 
-export function getElementColor(
+export function getNodeColor(
   isHovered: boolean = false,
   isSelected: boolean = false,
 ): string {
@@ -27,7 +27,7 @@ export function getElementColor(
   } else if (isHovered) {
     return _hoveredColor;
   } else {
-    return _elementColor;
+    return _nodeColor;
   }
 }
 

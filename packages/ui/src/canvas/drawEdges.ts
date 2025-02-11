@@ -4,7 +4,7 @@ import {
   StrokeStyle,
   controlPointRadius,
   edgeWidth,
-  getElementColor,
+  getNodeColor,
   getControlColor,
 } from "./style.ts";
 
@@ -13,8 +13,8 @@ import { Selection, Selectable } from "../Selection.ts";
 import {
   Point,
   Document,
-  ElementId,
-  EdgeElement,
+  NodeId,
+  EdgeNode,
   LineSegment,
   ArcFromStartTangent,
   CCurve,
@@ -255,7 +255,7 @@ export interface EdgeShapesAndControls {
 
 export function getEdgeShapesAndControls(
   doc: Document,
-  edge: EdgeElement,
+  edge: EdgeNode,
 ): EdgeShapesAndControls {
   const res: EdgeShapesAndControls = {
     shapes: [],
@@ -263,8 +263,8 @@ export function getEdgeShapesAndControls(
     tangents: [],
   };
 
-  const startPoint = doc.getElement(edge.startPoint, Point);
-  const endPoint = doc.getElement(edge.endPoint, Point);
+  const startPoint = doc.getNode(edge.startPoint, Point);
+  const endPoint = doc.getNode(edge.endPoint, Point);
   if (!startPoint || !endPoint) {
     return res;
   }
@@ -326,22 +326,22 @@ export function drawEdges(
   ctx: CanvasRenderingContext2D,
   camera: Camera2,
   document: Document,
-  elements: Array<ElementId>,
+  nodes: Array<NodeId>,
   selection: Selection,
 ) {
   const cpRadius = controlPointRadius / camera.zoom;
   const edgeWidth_ = edgeWidth / camera.zoom;
-  const edgeStyle = { lineWidth: edgeWidth_, strokeStyle: getElementColor() };
+  const edgeStyle = { lineWidth: edgeWidth_, strokeStyle: getNodeColor() };
   const tangentStyle = {
     lineWidth: edgeWidth_,
     strokeStyle: getControlColor(),
   };
-  for (const id of elements) {
-    const edge = document.getElement(id, EdgeElement);
+  for (const id of nodes) {
+    const edge = document.getNode(id, EdgeNode);
     if (edge) {
-      const isEdgeHovered = selection.isHoveredElement(id);
-      const isEdgeSelected = selection.isSelectedElement(id);
-      edgeStyle.strokeStyle = getElementColor(isEdgeHovered, isEdgeSelected);
+      const isEdgeHovered = selection.isHoveredNode(id);
+      const isEdgeSelected = selection.isSelectedNode(id);
+      edgeStyle.strokeStyle = getNodeColor(isEdgeHovered, isEdgeSelected);
       const sc = getEdgeShapesAndControls(document, edge);
       for (const shape of sc.shapes) {
         drawShape(ctx, shape, edgeStyle);
@@ -351,7 +351,7 @@ export function drawEdges(
       }
       for (const cp of sc.controlPoints) {
         const selectable: Selectable = {
-          type: "SubElement",
+          type: "SubNode",
           id: id,
           subName: cp.name,
         };

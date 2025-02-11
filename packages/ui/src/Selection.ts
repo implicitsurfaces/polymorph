@@ -1,21 +1,21 @@
-import { ElementId } from "./Document.ts";
+import { NodeId } from "./Document.ts";
 
 export interface SelectableBase {
   readonly type: string;
 }
 
-export interface SelectableElement extends SelectableBase {
-  readonly type: "Element";
-  readonly id: ElementId;
+export interface SelectableNode extends SelectableBase {
+  readonly type: "Node";
+  readonly id: NodeId;
 }
 
-export interface SelectableSubElement extends SelectableBase {
-  readonly type: "SubElement";
-  readonly id: ElementId;
+export interface SelectableSubNode extends SelectableBase {
+  readonly type: "SubNode";
+  readonly id: NodeId;
   readonly subName: string;
 }
 
-export type Selectable = SelectableElement | SelectableSubElement;
+export type Selectable = SelectableNode | SelectableSubNode;
 
 function isSameSelectable(
   s1: Selectable | undefined,
@@ -28,13 +28,13 @@ function isSameSelectable(
     return s1 === undefined;
   }
   switch (s1.type) {
-    case "Element":
-      if (s2.type !== "Element") {
+    case "Node":
+      if (s2.type !== "Node") {
         return false;
       }
       return s1.id === s2.id;
-    case "SubElement":
-      if (s2.type !== "SubElement") {
+    case "SubNode":
+      if (s2.type !== "SubNode") {
         return false;
       }
       return s1.id === s2.id && s1.subName === s2.subName;
@@ -44,7 +44,7 @@ function isSameSelectable(
 export class Selection {
   private _onChange: () => void;
 
-  private _activeLayer: ElementId;
+  private _activeLayer: NodeId;
   private _hovered: Selectable | undefined;
   private _selected: Array<Selectable>;
 
@@ -55,11 +55,11 @@ export class Selection {
     this._selected = [];
   }
 
-  activeLayer(): ElementId {
+  activeLayer(): NodeId {
     return this._activeLayer;
   }
 
-  setActiveLayer(id: ElementId) {
+  setActiveLayer(id: NodeId) {
     if (this._activeLayer !== id) {
       this._activeLayer = id;
       this._onChange();
@@ -70,14 +70,14 @@ export class Selection {
     return this._hovered;
   }
 
-  hoveredElement(): ElementId | undefined {
+  hoveredNode(): NodeId | undefined {
     if (!this._hovered) {
       return undefined;
     }
     switch (this._hovered.type) {
-      case "Element":
+      case "Node":
         return this._hovered.id;
-      case "SubElement":
+      case "SubNode":
         return undefined;
     }
   }
@@ -89,9 +89,9 @@ export class Selection {
     }
   }
 
-  setHoveredElement(id: ElementId | undefined) {
+  setHoveredNode(id: NodeId | undefined) {
     if (id) {
-      this.setHovered({ type: "Element", id: id });
+      this.setHovered({ type: "Node", id: id });
     } else {
       this.setHovered(undefined);
     }
@@ -101,13 +101,13 @@ export class Selection {
     return isSameSelectable(selectable, this._hovered);
   }
 
-  isHoveredElement(id: ElementId) {
-    return this.isHovered({ type: "Element", id: id });
+  isHoveredNode(id: NodeId) {
+    return this.isHovered({ type: "Node", id: id });
   }
 
-  isHoveredSubElement(id: ElementId, subName: string) {
+  isHoveredSubNode(id: NodeId, subName: string) {
     return this.isHovered({
-      type: "SubElement",
+      type: "SubNode",
       id: id,
       subName: subName,
     });
@@ -118,10 +118,10 @@ export class Selection {
     return [...this._selected];
   }
 
-  selectedElements(): Array<ElementId> {
-    const res: Array<ElementId> = [];
+  selectedNodes(): Array<NodeId> {
+    const res: Array<NodeId> = [];
     for (const s of this._selected) {
-      if (s.type === "Element") {
+      if (s.type === "Node") {
         res.push(s.id);
       }
     }
@@ -134,9 +134,9 @@ export class Selection {
     this._onChange();
   }
 
-  setSelectedElements(ids: Array<ElementId>) {
+  setSelectedNodes(ids: Array<NodeId>) {
     this._selected = ids.map((id) => {
-      return { type: "Element", id: id };
+      return { type: "Node", id: id };
     });
     this._onChange();
   }
@@ -148,13 +148,13 @@ export class Selection {
     return index !== -1;
   }
 
-  isSelectedElement(id: ElementId) {
-    return this.isSelected({ type: "Element", id: id });
+  isSelectedNode(id: NodeId) {
+    return this.isSelected({ type: "Node", id: id });
   }
 
-  isSelectedSubElement(id: ElementId, subName: string) {
+  isSelectedSubNode(id: NodeId, subName: string) {
     return this.isSelected({
-      type: "SubElement",
+      type: "SubNode",
       id: id,
       subName: subName,
     });
@@ -173,7 +173,7 @@ export class Selection {
     this.setSelected(selected);
   }
 
-  toggleSelectedElement(id: ElementId) {
-    this.toggleSelected({ type: "Element", id: id });
+  toggleSelectedNode(id: NodeId) {
+    this.toggleSelected({ type: "Node", id: id });
   }
 }

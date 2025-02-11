@@ -3,9 +3,9 @@ import { Vector2 } from "threejs-math";
 import { DocumentManager } from "../DocumentManager.ts";
 import {
   Document,
-  ElementId,
+  NodeId,
   Point,
-  EdgeElement,
+  EdgeNode,
   Layer,
   LineSegment,
   ArcFromStartTangent,
@@ -32,13 +32,13 @@ type OnMoveCallback = (delta: Vector2) => void;
 // both the control point and its anchor are explicitly selected.
 //
 interface ControlPoint {
-  readonly edge: EdgeElement;
+  readonly edge: EdgeNode;
   readonly name: string;
   readonly position: Vector2;
-  readonly anchor?: ElementId;
+  readonly anchor?: NodeId;
 }
 
-export function getControlPoints(edge: EdgeElement): Array<ControlPoint> {
+export function getControlPoints(edge: EdgeNode): Array<ControlPoint> {
   if (edge instanceof LineSegment) {
     return [];
   } else if (edge instanceof ArcFromStartTangent) {
@@ -84,19 +84,16 @@ export function getControlPoints(edge: EdgeElement): Array<ControlPoint> {
 // Computes the set of all points that are either selected,
 // or that are the endpoint of a selected edge.
 //
-function computeMovedPoints(
-  doc: Document,
-  selection: Selection,
-): Set<ElementId> {
-  const movedPoints = new Set<ElementId>();
+function computeMovedPoints(doc: Document, selection: Selection): Set<NodeId> {
+  const movedPoints = new Set<NodeId>();
   for (const selectable of selection.selected()) {
-    if (selectable.type === "Element") {
-      const element = doc.getElement(selectable.id);
-      if (element instanceof Point) {
-        movedPoints.add(element.id);
-      } else if (element instanceof EdgeElement) {
-        movedPoints.add(element.startPoint);
-        movedPoints.add(element.endPoint);
+    if (selectable.type === "Node") {
+      const node = doc.getNode(selectable.id);
+      if (node instanceof Point) {
+        movedPoints.add(node.id);
+      } else if (node instanceof EdgeNode) {
+        movedPoints.add(node.startPoint);
+        movedPoints.add(node.endPoint);
       }
     }
   }
@@ -107,16 +104,16 @@ function computeMovedPoints(
 //
 function computeIncidentEdges(
   doc: Document,
-  points: Set<ElementId>,
-): Set<EdgeElement> {
-  const edges = new Set<EdgeElement>();
+  points: Set<NodeId>,
+): Set<EdgeNode> {
+  const edges = new Set<EdgeNode>();
   for (const layerId of doc.layers) {
-    const layer = doc.getElement(layerId, Layer);
+    const layer = doc.getNode(layerId, Layer);
     if (!layer) {
       continue;
     }
-    for (const elementId of layer.elements) {
-      const edge = doc.getElement(elementId, EdgeElement);
+    for (const nodeId of layer.nodes) {
+      const edge = doc.getNode(nodeId, EdgeNode);
       if (!edge) {
         continue;
       }
@@ -134,15 +131,15 @@ function computeIncidentEdges(
 function computeMovedControlPoints(
   doc: Document,
   selection: Selection,
-  movedPoints: Set<ElementId>,
+  movedPoints: Set<NodeId>,
 ): Set<ControlPoint> {
   const movedControlPoints = new Set<ControlPoint>();
 
   // Control points that are explicitly selected.
   //
   for (const selectable of selection.selected()) {
-    if (selectable.type === "SubElement") {
-      const edge = doc.getElement(selectable.id, EdgeElement);
+    if (selectable.type === "SubNode") {
+      const edge = doc.getNode(selectable.id, EdgeNode);
       if (edge) {
         for (const cp of getControlPoints(edge)) {
           if (cp.name === selectable.subName) {
@@ -167,7 +164,7 @@ function computeMovedControlPoints(
   return movedControlPoints;
 }
 
-// Returns the onMove callback for a Point element.
+// Returns the onMove callback for a Point node.
 //
 function onPointMove(point: Point): OnMoveCallback {
   const position = point.position.clone();
@@ -176,7 +173,7 @@ function onPointMove(point: Point): OnMoveCallback {
   };
 }
 
-// Returns the onMove callback for a ControlPoint sub-element.
+// Returns the onMove callback for a ControlPoint sub-node.
 //
 function onControlPointMove(cp: ControlPoint): OnMoveCallback | undefined {
   const edge = cp.edge;
@@ -213,21 +210,21 @@ function onControlPointMove(cp: ControlPoint): OnMoveCallback | undefined {
   return undefined;
 }
 
-// Whether a given selectable is movable or has movable sub-elements
+// Whether a given selectable is movable or has movable sub-nodes
 //
 function isMovable(doc: Document, selectable: Selectable | undefined): boolean {
   if (!selectable) {
     return false;
   }
-  if (selectable.type === "Element") {
-    const element = doc.getElement(selectable.id);
-    if (!element) {
+  if (selectable.type === "Node") {
+    const node = doc.getNode(selectable.id);
+    if (!node) {
       return false;
     }
-    return element instanceof Point || element instanceof EdgeElement;
-  } else if (selectable.type === "SubElement") {
-    // For now, all sub-elements are movable, since the only implemented
-    // sub-elements are control points which are all movable.
+    return node instanceof Point || node instanceof EdgeNode;
+  } else if (selectable.type === "SubNode") {
+    // For now, all sub-nodes are movable, since the only implemented
+    // sub-nodes are control points which are all movable.
     return true;
   }
   return false;
@@ -298,7 +295,7 @@ function start(data: MoveData, documentManager: DocumentManager): boolean {
   //
   data.onMoves = [];
   for (const id of movedPoints) {
-    const point = doc.getElement(id, Point);
+    const point = doc.getNode(id, Point);
     if (point) {
       data.onMoves.push(onPointMove(point));
     }

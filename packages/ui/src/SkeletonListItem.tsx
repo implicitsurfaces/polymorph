@@ -1,5 +1,5 @@
 import { memo, useCallback, MouseEvent } from "react";
-import { ElementId } from "./Document.ts";
+import { NodeId } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 
 // TODO: use some sort of unique ID instead of layerIndex/pointIndex,
@@ -7,7 +7,7 @@ import { DocumentManager } from "./DocumentManager.ts";
 
 interface SkeletonListItemProps {
   documentManager: DocumentManager;
-  id: ElementId;
+  id: NodeId;
   name: string;
   isHovered: boolean;
   isSelected: boolean;
@@ -23,21 +23,21 @@ export const SkeletonListItem = memo(function SkeletonListItem({
   title,
 }: SkeletonListItemProps) {
   const onMouseEnter = useCallback(() => {
-    documentManager.selection().setHoveredElement(id);
+    documentManager.selection().setHoveredNode(id);
   }, [documentManager, id]);
 
   const onMouseLeave = useCallback(() => {
-    if (documentManager.selection().hoveredElement() === id) {
-      documentManager.selection().setHoveredElement(undefined);
+    if (documentManager.selection().hoveredNode() === id) {
+      documentManager.selection().setHoveredNode(undefined);
     }
   }, [documentManager, id]);
 
-  const onSelectElement = useCallback(
+  const onSelectNode = useCallback(
     (event: MouseEvent<HTMLElement>) => {
       if (event.shiftKey) {
-        documentManager.selection().toggleSelectedElement(id);
+        documentManager.selection().toggleSelectedNode(id);
       } else {
-        documentManager.selection().setSelectedElements([id]);
+        documentManager.selection().setSelectedNodes([id]);
       }
     },
     [documentManager, id],
@@ -62,7 +62,7 @@ export const SkeletonListItem = memo(function SkeletonListItem({
           <p className="name single-line-text">{title}</p>
         </div>
       )}
-      <div className="hover-zone" onClick={onSelectElement}>
+      <div className="hover-zone" onClick={onSelectNode}>
         <p className="name single-line-text">{name}</p>
       </div>
     </div>

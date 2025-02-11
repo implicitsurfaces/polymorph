@@ -8,7 +8,7 @@ import { CanvasPointerEvent } from "../canvas/events";
 import { hover, hoverFromCanvas } from "../canvas/hover";
 
 import { DocumentManager } from "../DocumentManager";
-import { ElementId, Layer, Point, LineSegment } from "../Document";
+import { NodeId, Layer, Point, LineSegment } from "../Document";
 
 // The tool works equivalently either via two separate clicks or one drag:
 //
@@ -26,21 +26,19 @@ import { ElementId, Layer, Point, LineSegment } from "../Document";
 interface FirstStepData {
   readonly documentManager: DocumentManager;
   readonly camera: Camera2;
-  readonly startPointId: ElementId;
+  readonly startPointId: NodeId;
   readonly startPosition: Vector2;
-  readonly lineSegmentId: ElementId;
+  readonly lineSegmentId: NodeId;
   isEndPointPreexisting: boolean;
 }
 
 // Returns the ID of the currently hovered point if any.
 //
-function getHoveredPoint(
-  documentManager: DocumentManager,
-): ElementId | undefined {
+function getHoveredPoint(documentManager: DocumentManager): NodeId | undefined {
   const doc = documentManager.document();
   const selection = documentManager.selection();
-  const hoveredElementId = selection.hoveredElement();
-  const hoveredPoint = doc.getElement(hoveredElementId, Point);
+  const hoveredNodeId = selection.hoveredNode();
+  const hoveredPoint = doc.getNode(hoveredNodeId, Point);
   if (hoveredPoint) {
     return hoveredPoint.id;
   } else {
@@ -55,7 +53,7 @@ function getOrCreatePoint(
   documentManager: DocumentManager,
   position: Vector2,
   layer: Layer,
-): ElementId {
+): NodeId {
   const hoveredPointId = getHoveredPoint(documentManager);
   if (hoveredPointId !== undefined) {
     return hoveredPointId;
@@ -63,10 +61,10 @@ function getOrCreatePoint(
     // Create new point, set it as hovered, and return it
     const doc = documentManager.document();
     const selection = documentManager.selection();
-    const point = doc.createElementInLayer(Point, layer, {
+    const point = doc.createNodeInLayer(Point, layer, {
       position: position,
     });
-    selection.setHoveredElement(point.id);
+    selection.setHoveredNode(point.id);
     return point.id;
   }
 }
@@ -92,7 +90,7 @@ export class LineSegmentTool implements Tool {
     const documentManager = event.documentManager;
     const doc = documentManager.document();
     const selection = documentManager.selection();
-    const layer = doc.getElement(selection.activeLayer(), Layer);
+    const layer = doc.getNode(selection.activeLayer(), Layer);
     if (!layer) {
       return false;
     }
@@ -106,11 +104,11 @@ export class LineSegmentTool implements Tool {
     // We set it as selected so that its properties already appear in
     // the Properties panel, giving feedback to the user that the first step
     // happens.
-    const lineSegment = doc.createElementInLayer(LineSegment, layer, {
+    const lineSegment = doc.createNodeInLayer(LineSegment, layer, {
       startPoint: startPointId,
       endPoint: startPointId,
     });
-    selection.setSelectedElements([lineSegment.id]);
+    selection.setSelectedNodes([lineSegment.id]);
 
     // Store data needed for subsequent steps and stage changes.
     this.firstStepData = {
@@ -138,14 +136,14 @@ export class LineSegmentTool implements Tool {
     const documentManager = this.firstStepData.documentManager;
     const doc = documentManager.document();
     const selection = documentManager.selection();
-    const layer = doc.getElement(selection.activeLayer(), Layer);
+    const layer = doc.getNode(selection.activeLayer(), Layer);
     if (!layer) {
       this.reset();
       return;
     }
 
     // Get line segment
-    const lineSegment = doc.getElement(
+    const lineSegment = doc.getNode(
       this.firstStepData.lineSegmentId,
       LineSegment,
     );
@@ -159,7 +157,7 @@ export class LineSegmentTool implements Tool {
     const tolerance = undefined; // Use default tolerance
     const filter = this.firstStepData.isEndPointPreexisting
       ? undefined
-      : (id: ElementId) => {
+      : (id: NodeId) => {
           return id !== lineSegment.endPoint;
         };
     hover(
@@ -175,14 +173,14 @@ export class LineSegmentTool implements Tool {
     if (hoveredPointId === undefined) {
       if (this.firstStepData.isEndPointPreexisting) {
         // Change from pre-existing endpoint to temporary new endpoint
-        const point = doc.createElementInLayer(Point, layer, {
+        const point = doc.createNodeInLayer(Point, layer, {
           position: position,
         });
         lineSegment.endPoint = point.id;
         this.firstStepData.isEndPointPreexisting = false;
       } else {
         // Update the position of the temporary new endpoint
-        const point = doc.getElement(lineSegment.endPoint, Point);
+        const point = doc.getNode(lineSegment.endPoint, Point);
         if (point) {
           point.position = position;
         }
@@ -195,7 +193,7 @@ export class LineSegmentTool implements Tool {
         // Update from temporary new endpoint to pre-existing endpoint
         const tmpPoint = lineSegment.endPoint;
         lineSegment.endPoint = hoveredPointId;
-        doc.removeElementInLayer(tmpPoint, layer);
+        doc.removeNodeInLayer(tmpPoint, layer);
         this.firstStepData.isEndPointPreexisting = true;
       }
     }

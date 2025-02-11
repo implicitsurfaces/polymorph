@@ -2,10 +2,10 @@ import { Vector2 } from "threejs-math";
 import { PropsWithChildren } from "react";
 
 import {
-  ElementId,
-  Element,
+  NodeId,
+  Node,
   Point,
-  EdgeElement,
+  EdgeNode,
   LineSegment,
   ArcFromStartTangent,
   CCurve,
@@ -33,7 +33,7 @@ class ControlPointProperty {
 }
 
 function getControlPointProperties(
-  edge: EdgeElement,
+  edge: EdgeNode,
 ): Array<ControlPointProperty> {
   if (edge instanceof LineSegment) {
     return [];
@@ -91,8 +91,8 @@ interface PropertiesPanelProps {
 export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
   const doc = documentManager.document();
   const selection = documentManager.selection();
-  const hoveredElementId = selection.hoveredElement();
-  const selectedElementIds = selection.selectedElements();
+  const hoveredNodeId = selection.hoveredNode();
+  const selectedNodeIds = selection.selectedNodes();
 
   function getContentForPoint(point: Point) {
     return (
@@ -110,8 +110,8 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
     );
   }
 
-  function getSkeletonItem(id: ElementId, title: string) {
-    const point = doc.getElement(id, Point);
+  function getSkeletonItem(id: NodeId, title: string) {
+    const point = doc.getNode(id, Point);
     if (!point) {
       return <></>;
     }
@@ -120,14 +120,14 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
         documentManager={documentManager}
         id={id}
         name={point.name}
-        isHovered={id === hoveredElementId}
-        isSelected={selectedElementIds.includes(id)}
+        isHovered={id === hoveredNodeId}
+        isSelected={selectedNodeIds.includes(id)}
         title={title}
       />
     );
   }
 
-  function getContentForEdge(edge: EdgeElement) {
+  function getContentForEdge(edge: EdgeNode) {
     const cpProps = getControlPointProperties(edge);
     const cpItems = cpProps.map((cp) => {
       return (
@@ -151,11 +151,11 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
     );
   }
 
-  function getContentForElement(element: Element) {
-    if (element instanceof Point) {
-      return getContentForPoint(element);
-    } else if (element instanceof EdgeElement) {
-      return getContentForEdge(element);
+  function getContentForNode(node: Node) {
+    if (node instanceof Point) {
+      return getContentForPoint(node);
+    } else if (node instanceof EdgeNode) {
+      return getContentForEdge(node);
     } else {
       return <></>;
     }
@@ -164,29 +164,29 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
   function getContent() {
     const doc = documentManager.document();
     const selection = documentManager.selection();
-    const selectedElements = doc.getElements(selection.selectedElements());
-    if (selectedElements.length === 0) {
+    const selectedNodes = doc.getNodes(selection.selectedNodes());
+    if (selectedNodes.length === 0) {
       return (
         <div className="panel-list-item">
           <p className="name single-line-text">Type: Empty selection</p>
         </div>
       );
-    } else if (selectedElements.length === 1) {
-      const element = selectedElements[0];
-      const type = Object.getPrototypeOf(element).constructor;
+    } else if (selectedNodes.length === 1) {
+      const node = selectedNodes[0];
+      const type = Object.getPrototypeOf(node).constructor;
       return (
         <>
           <div className="panel-list-item">
             <p className="name single-line-text">Type: {type.defaultName}</p>
           </div>
-          {getContentForElement(selectedElements[0])}
+          {getContentForNode(selectedNodes[0])}
         </>
       );
     } else {
       return (
         <div className="panel-list-item">
           <p className="name single-line-text">
-            Type: {selectedElements.length} selected elements
+            Type: {selectedNodes.length} selected nodes
           </p>
         </div>
       );

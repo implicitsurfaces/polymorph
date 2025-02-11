@@ -3,7 +3,6 @@ import { embedPoint, Plane } from "./geom-3d";
 import {
   candidateClosestPointsWithinEllipseArc,
   closestPointOnEllipse,
-  closestPointsOnEllipseArc,
 } from "./geom-utils/closestPointOnEllipse";
 import { Num, ONE, asNum } from "./num";
 import { hypot, max, min } from "./num-ops";

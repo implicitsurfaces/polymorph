@@ -117,21 +117,19 @@ export class LineSegment extends EdgeNode {
 //                               ArcFromStartTangent
 
 export interface ArcFromStartTangentOptions extends EdgeNodeOptions {
-  controlPoint?: Vector2;
+  controlPoint: NodeId;
 }
 
 export class ArcFromStartTangent extends EdgeNode {
   static readonly defaultName = "Arc";
-  controlPoint: Vector2;
+  controlPoint: NodeId;
 
   constructor(
     readonly id: NodeId,
     options: ArcFromStartTangentOptions,
   ) {
     super(id, options);
-    this.controlPoint = options.controlPoint
-      ? options.controlPoint.clone()
-      : new Vector2(0, 0);
+    this.controlPoint = options.controlPoint;
   }
 
   clone() {
@@ -143,21 +141,19 @@ export class ArcFromStartTangent extends EdgeNode {
 //                                  CCurve
 
 export interface CCurveOptions extends EdgeNodeOptions {
-  controlPoint?: Vector2;
+  controlPoint: NodeId;
 }
 
 export class CCurve extends EdgeNode {
   static readonly defaultName = "C-Curve";
-  controlPoint: Vector2;
+  controlPoint: NodeId;
 
   constructor(
     readonly id: NodeId,
     options: CCurveOptions,
   ) {
     super(id, options);
-    this.controlPoint = options.controlPoint
-      ? options.controlPoint.clone()
-      : new Vector2(0, 0);
+    this.controlPoint = options.controlPoint;
   }
 
   clone() {
@@ -169,26 +165,22 @@ export class CCurve extends EdgeNode {
 //                                  SCurve
 
 export interface SCurveOptions extends EdgeNodeOptions {
-  startControlPoint?: Vector2;
-  endControlPoint?: Vector2;
+  startControlPoint: NodeId;
+  endControlPoint: NodeId;
 }
 
 export class SCurve extends EdgeNode {
   static readonly defaultName = "S-Curve";
-  startControlPoint: Vector2;
-  endControlPoint: Vector2;
+  startControlPoint: NodeId;
+  endControlPoint: NodeId;
 
   constructor(
     readonly id: NodeId,
     options: SCurveOptions,
   ) {
     super(id, options);
-    this.startControlPoint = options.startControlPoint
-      ? options.startControlPoint.clone()
-      : new Vector2(0, 0);
-    this.endControlPoint = options.endControlPoint
-      ? options.endControlPoint.clone()
-      : new Vector2(0, 0);
+    this.startControlPoint = options.startControlPoint;
+    this.endControlPoint = options.endControlPoint;
   }
 
   clone() {
@@ -530,29 +522,41 @@ export function createTestDocument() {
     startPoint: p1.id,
     endPoint: p2.id,
   });
+  const cp1 = doc.createNodeInLayer(Point, layer, {
+    position: new Vector2(50, 0),
+  });
   doc.createNodeInLayer(ArcFromStartTangent, layer, {
     startPoint: p2.id,
     endPoint: p3.id,
-    controlPoint: new Vector2(50, 0),
+    controlPoint: cp1.id,
   });
   doc.createNodeInLayer(LineSegment, layer, {
     startPoint: p3.id,
     endPoint: p4.id,
   });
+  const cp2 = doc.createNodeInLayer(Point, layer, {
+    position: new Vector2(150, 50),
+  });
   doc.createNodeInLayer(CCurve, layer, {
     startPoint: p4.id,
     endPoint: p5.id,
-    controlPoint: new Vector2(150, 50),
+    controlPoint: cp2.id,
   });
   doc.createNodeInLayer(LineSegment, layer, {
     startPoint: p5.id,
     endPoint: p6.id,
   });
+  const cp3 = doc.createNodeInLayer(Point, layer, {
+    position: new Vector2(50, -150),
+  });
+  const cp4 = doc.createNodeInLayer(Point, layer, {
+    position: new Vector2(-80, -60),
+  });
   doc.createNodeInLayer(SCurve, layer, {
     startPoint: p6.id,
     endPoint: p7.id,
-    startControlPoint: new Vector2(50, -150),
-    endControlPoint: new Vector2(-80, -60),
+    startControlPoint: cp3.id,
+    endControlPoint: cp4.id,
   });
   doc.createNodeInLayer(LineSegment, layer, {
     startPoint: p7.id,

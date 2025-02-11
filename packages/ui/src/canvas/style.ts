@@ -10,7 +10,6 @@ export type FillStyle = string | CanvasGradient | CanvasPattern;
 export type StrokeStyle = string | CanvasGradient | CanvasPattern;
 
 export const pointRadius = 5;
-export const controlPointRadius = 4;
 export const edgeWidth = 2;
 
 const _nodeColor = "black";

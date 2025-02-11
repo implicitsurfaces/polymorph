@@ -2,14 +2,12 @@ import { Vector2 } from "threejs-math";
 import { Camera2 } from "./Camera2.ts";
 import {
   StrokeStyle,
-  controlPointRadius,
   edgeWidth,
   getNodeColor,
   getControlColor,
 } from "./style.ts";
 
-import { drawDisk } from "./drawPoints.ts";
-import { Selection, Selectable } from "../Selection.ts";
+import { Selection } from "../Selection.ts";
 import {
   Point,
   Document,
@@ -242,14 +240,8 @@ function getSCurveShapes(
   ];
 }
 
-export interface ControlPoint {
-  readonly name: string;
-  readonly position: Vector2;
-}
-
 export interface EdgeShapesAndControls {
   shapes: Array<CanvasShape>;
-  controlPoints: Array<ControlPoint>;
   tangents: Array<CanvasLineSegment>;
 }
 
@@ -259,7 +251,6 @@ export function getEdgeShapesAndControls(
 ): EdgeShapesAndControls {
   const res: EdgeShapesAndControls = {
     shapes: [],
-    controlPoints: [],
     tangents: [],
   };
 
@@ -274,50 +265,43 @@ export function getEdgeShapesAndControls(
   if (edge instanceof LineSegment) {
     res.shapes.push(getLineSegment(startPos, endPos));
   } else if (edge instanceof ArcFromStartTangent) {
-    const cpAbsPos = edge.controlPoint;
-    const tangent = cpAbsPos.clone().sub(startPos);
+    const cp = doc.getNode(edge.controlPoint, Point);
+    if (!cp) {
+      return res;
+    }
+    const tangent = cp.position.clone().sub(startPos);
     res.shapes.push(
       getGeneralizedArcFromStartTangent(startPos, endPos, tangent),
     );
-    res.controlPoints.push({
-      name: "controlPoint",
-      position: cpAbsPos,
-    });
-    res.tangents.push(getLineSegment(startPos, cpAbsPos));
+    res.tangents.push(getLineSegment(startPos, cp.position));
   } else if (edge instanceof CCurve) {
-    const cpAbsPos = edge.controlPoint;
-    const shapes_ = getCCurveShapes(startPos, endPos, cpAbsPos);
+    const cp = doc.getNode(edge.controlPoint, Point);
+    if (!cp) {
+      return res;
+    }
+    const shapes_ = getCCurveShapes(startPos, endPos, cp.position);
     for (const shape of shapes_) {
       res.shapes.push(shape);
     }
-    res.controlPoints.push({
-      name: "controlPoint",
-      position: cpAbsPos,
-    });
-    res.tangents.push(getLineSegment(startPos, cpAbsPos));
-    res.tangents.push(getLineSegment(endPos, cpAbsPos));
+    res.tangents.push(getLineSegment(startPos, cp.position));
+    res.tangents.push(getLineSegment(endPos, cp.position));
   } else if (edge instanceof SCurve) {
-    const startCpAbsPos = edge.startControlPoint;
-    const endCpAbsPos = edge.endControlPoint;
+    const startCp = doc.getNode(edge.startControlPoint, Point);
+    const endCp = doc.getNode(edge.endControlPoint, Point);
+    if (!startCp || !endCp) {
+      return res;
+    }
     const shapes_ = getSCurveShapes(
       startPos,
       endPos,
-      startCpAbsPos,
-      endCpAbsPos,
+      startCp.position,
+      endCp.position,
     );
     for (const shape of shapes_) {
       res.shapes.push(shape);
     }
-    res.controlPoints.push({
-      name: "startControlPoint",
-      position: startCpAbsPos,
-    });
-    res.controlPoints.push({
-      name: "endControlPoint",
-      position: endCpAbsPos,
-    });
-    res.tangents.push(getLineSegment(startPos, startCpAbsPos));
-    res.tangents.push(getLineSegment(endPos, endCpAbsPos));
+    res.tangents.push(getLineSegment(startPos, startCp.position));
+    res.tangents.push(getLineSegment(endPos, endCp.position));
   }
   return res;
 }
@@ -329,7 +313,6 @@ export function drawEdges(
   nodes: Array<NodeId>,
   selection: Selection,
 ) {
-  const cpRadius = controlPointRadius / camera.zoom;
   const edgeWidth_ = edgeWidth / camera.zoom;
   const edgeStyle = { lineWidth: edgeWidth_, strokeStyle: getNodeColor() };
   const tangentStyle = {
@@ -348,17 +331,6 @@ export function drawEdges(
       }
       for (const lineSegment of sc.tangents) {
         drawLineSegment(ctx, lineSegment, tangentStyle);
-      }
-      for (const cp of sc.controlPoints) {
-        const selectable: Selectable = {
-          type: "SubNode",
-          id: id,
-          subName: cp.name,
-        };
-        const isCpHovered = selection.isHovered(selectable);
-        const isCpSelected = selection.isSelected(selectable);
-        const cpColor = getControlColor(isCpHovered, isCpSelected);
-        drawDisk(ctx, cp.position, cpRadius, cpColor);
       }
     }
   }

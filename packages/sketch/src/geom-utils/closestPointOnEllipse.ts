@@ -87,10 +87,10 @@ export function closestPointOnEllipse(
   minorRadius: Num,
   point: Point,
 ) {
-  const px = point.x;
-  const py = point.y;
+  const px = point.x.abs();
+  const py = point.y.abs();
 
-  const startAngle = new Angle(applySign(point.x, T0), applySign(point.y, T0));
+  const startAngle = new Angle(T0, T0);
 
   let angle = startAngle;
 
@@ -118,15 +118,18 @@ export function closestPointOnEllipse(
     const r = hypot(rx, ry);
     const q = hypot(qx, qy);
 
-    const tx = qx.mul(r).div(q).add(ex).div(majorRadius).max(-1).min(1);
-    const ty = qy.mul(r).div(q).add(ey).div(minorRadius).max(-1).min(1);
+    const tx = qx.mul(r).div(q).add(ex).div(majorRadius).max(0).min(1);
+    const ty = qy.mul(r).div(q).add(ey).div(minorRadius).max(0).min(1);
 
     const t = hypot(tx, ty);
 
     angle = new Angle(tx.div(t), ty.div(t));
   }
 
-  return new Point(majorRadius.mul(angle.cos()), minorRadius.mul(angle.sin()));
+  return new Point(
+    applySign(point.x, majorRadius.mul(angle.cos())),
+    applySign(point.y, minorRadius.mul(angle.sin())),
+  );
 }
 
 export function candidateClosestPointsWithinEllipseArc(

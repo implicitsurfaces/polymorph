@@ -9,9 +9,16 @@ import { asNum } from "../num";
 //import { renderNodeAsDot } from "../utils/num-to-dot";
 //import fs from "node:fs";
 
+const SENTINELLE = 1e150;
+
 describe("solveQuadratic", () => {
   const solve = (a: number, b: number, c: number) => {
-    const [x1, x2] = solveQuadratic(asNum(a), asNum(b), asNum(c));
+    const [x1, x2] = solveQuadratic(
+      asNum(a),
+      asNum(b),
+      asNum(c),
+      asNum(SENTINELLE),
+    );
     //fs.writeFileSync("error.dot", renderNodeAsDot(treeEval(x1.n)));
     return new Set([naiveEval(x1.n, new Map()), naiveEval(x2.n, new Map())]);
   };
@@ -33,11 +40,11 @@ describe("solveQuadratic", () => {
   });
 
   test("no roots", () => {
-    expect(solve(1, 1, 1)).toEqual(new Set([NaN]));
+    expect(solve(1, 1, 1)).toEqual(new Set([SENTINELLE]));
   });
 
   test("no roots, b is zero", () => {
-    expect(solve(1, 0, 1)).toEqual(new Set([NaN]));
+    expect(solve(1, 0, 1)).toEqual(new Set([SENTINELLE]));
   });
 
   test("c is zero", () => {
@@ -102,6 +109,7 @@ describe("solveQuartic", () => {
       asNum(c),
       asNum(d),
       asNum(e),
+      asNum(SENTINELLE),
     );
     return new Set([
       round(naiveEval(x1.n, new Map())),
@@ -126,7 +134,7 @@ describe("solveQuartic", () => {
   });
 
   test("complex roots only", () => {
-    expect(solve(1, 0, 1, 0, 1)).toEqual(new Set([NaN]));
+    expect(solve(1, 0, 1, 0, 1)).toEqual(new Set([SENTINELLE]));
   });
 
   test("repeated roots", () => {
@@ -164,6 +172,7 @@ describe("solveQuartic with fidget", async () => {
       asNum(c),
       asNum(d),
       asNum(e),
+      asNum(SENTINELLE),
     );
     return new Set([
       round(await fidgetEval(x1.n)),
@@ -188,7 +197,7 @@ describe("solveQuartic with fidget", async () => {
   });
 
   test("complex roots only", async () => {
-    expect(await solve(1, 0, 1, 0, 1)).toEqual(new Set([NaN]));
+    expect(await solve(1, 0, 1, 0, 1)).toEqual(new Set([SENTINELLE]));
   });
 
   test("repeated roots", async () => {

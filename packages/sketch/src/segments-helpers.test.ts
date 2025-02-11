@@ -14,7 +14,6 @@ import {
 } from "./segments-helpers";
 import { Segment } from "./types";
 import { OpenPath } from "./profiles";
-import { naiveEval } from "./num-tree";
 
 const p = (x: number, y: number) => asVec(x, y).pointFromOrigin();
 
@@ -147,60 +146,46 @@ test("biarcS", async () => {
 });
 
 test("endpoint ellipse", async () => {
-    (
-      await expectASCIIshape(
-        t(
-          endpointsEllipticArc(
-            p(0.6, 0),
-            p(-0.6, 0),
-            asNum(0.8),
-            asNum(0.5),
-            angleFromDeg(0),
-            asNum(0),
-            asNum(1),
-          ),
-        ),
-      ),
-    )
-    .toMatchSnapshot();
+  const arc = t(
+    endpointsEllipticArc(
+      p(0.6, 0),
+      p(-0.6, 0),
+      asNum(0.8),
+      asNum(0.5),
+      angleFromDeg(0),
+      asNum(0),
+      asNum(1),
+    ),
+  );
+  (await expectASCIIshape(arc)).toMatchSnapshot();
 });
 
 test("endpoint ellipse with rotation", async () => {
-    (
-      await expectASCIIshape(
-        t(
-          endpointsEllipticArc(
-            p(0.6, 0),
-            p(-0.6, 0),
-            asNum(0.9),
-            asNum(0.6),
-            angleFromDeg(45),
-            asNum(0),
-            asNum(0),
-          ),
-        ),
-      ),
-    )
-    .toMatchSnapshot();
+  const arc = t(
+    endpointsEllipticArc(
+      p(0.6, 0),
+      p(-0.6, 0),
+      asNum(0.9),
+      asNum(0.6),
+      angleFromDeg(45),
+      asNum(0),
+      asNum(0),
+    ),
+  );
+  (await expectASCIIshape(arc)).toMatchSnapshot();
 });
 
-
-
 test("generic endpoint ellipse", async () => {
-    (
-      await expectASCIIshape(
-        t(
-          endpointsEllipticArc(
-            p(-0.6, -0.2),
-            p(0.6, 0.5),
-            asNum(0.9),
-            asNum(1.6),
-            angleFromDeg(15),
-            asNum(0),
-            asNum(1),
-          ),
-        ),
-      ),
-    )
-    .toMatchSnapshot();
+  const arc = t(
+    endpointsEllipticArc(
+      p(-0.6, -0.2),
+      p(0.6, 0.5),
+      asNum(0.9),
+      asNum(1.6),
+      angleFromDeg(15),
+      asNum(0),
+      asNum(1),
+    ),
+  );
+  (await expectASCIIshape(arc)).toMatchSnapshot();
 });

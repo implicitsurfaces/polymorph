@@ -14,7 +14,7 @@ import { CurrentTool, CurrentToolContext } from "./tools/CurrentTool.ts";
 
 import { Canvas } from "./Canvas.tsx";
 import { LayersPanel } from "./LayersPanel.tsx";
-import { SkeletonPanel } from "./SkeletonPanel.tsx";
+import { SkeletonPanel } from "./NodeListPanel.tsx";
 import { PropertiesPanel } from "./PropertiesPanel.tsx";
 
 import "./App.css";

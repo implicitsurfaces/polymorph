@@ -4,7 +4,7 @@ import { PropsWithChildren } from "react";
 import { NodeId, Node, Point, EdgeNode } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 import { Vector2Input } from "./Vector2Input.tsx";
-import { SkeletonListItem } from "./SkeletonListItem.tsx";
+import { NodeListItem } from "./NodeListItem.tsx";
 import { getControlPoints } from "./ControlPoint.ts";
 
 interface PropertyItemProps {
@@ -58,7 +58,7 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
       return <></>;
     }
     return (
-      <SkeletonListItem
+      <NodeListItem
         documentManager={documentManager}
         id={id}
         key={title}

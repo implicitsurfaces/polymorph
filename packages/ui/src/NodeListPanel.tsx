@@ -1,4 +1,4 @@
-import { NodeId, Node, Layer, SkeletonNode } from "./Document.ts";
+import { Node, Layer, SkeletonNode } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 import { NodeListItem } from "./NodeListItem.tsx";
 

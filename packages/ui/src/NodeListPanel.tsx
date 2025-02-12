@@ -1,4 +1,4 @@
-import { Node, Layer, SkeletonNode } from "./Document.ts";
+import { Node, Layer, SkeletonNode, MeasureNode } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 import { NodeListItem } from "./NodeListItem.tsx";
 
@@ -72,6 +72,23 @@ export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
     <NodeListPanel
       documentManager={documentManager}
       title="Skeleton"
+      filter={filter}
+    />
+  );
+}
+
+interface MeasuresPanelProps {
+  documentManager: DocumentManager;
+}
+
+export function MeasuresPanel({ documentManager }: MeasuresPanelProps) {
+  const filter = (node: Node) => {
+    return node instanceof MeasureNode;
+  };
+  return (
+    <NodeListPanel
+      documentManager={documentManager}
+      title="Measures"
       filter={filter}
     />
   );

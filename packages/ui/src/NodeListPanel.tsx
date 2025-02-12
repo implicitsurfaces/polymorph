@@ -1,12 +1,18 @@
-import { NodeId, Layer, SkeletonNode } from "./Document.ts";
+import { NodeId, Node, Layer, SkeletonNode } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
-import { SkeletonListItem } from "./SkeletonListItem.tsx";
+import { NodeListItem } from "./NodeListItem.tsx";
 
-interface SkeletonPanelProps {
+interface NodeListPanelProps {
   documentManager: DocumentManager;
+  title: string;
+  filter: (node: Node) => boolean;
 }
 
-export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
+export function NodeListPanel({
+  documentManager,
+  title,
+  filter,
+}: NodeListPanelProps) {
   const doc = documentManager.document();
   const selection = documentManager.selection();
   const activeLayerId = selection.activeLayer();
@@ -15,11 +21,11 @@ export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
 
   function getItem(id: NodeId) {
     const node = doc.getNode(id);
-    if (!(node instanceof SkeletonNode)) {
+    if (!node || !filter(node)) {
       return <></>;
     }
     return (
-      <SkeletonListItem
+      <NodeListItem
         key={id}
         documentManager={documentManager}
         id={id}
@@ -42,10 +48,27 @@ export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
 
   return (
     <div className="panel">
-      <h2 className="panel-title">Skeleton</h2>
+      <h2 className="panel-title">{title}</h2>
       <div className="panel-body">{items}</div>
     </div>
   );
 }
 
-export default SkeletonPanel;
+export default NodeListPanel;
+
+interface SkeletonPanelProps {
+  documentManager: DocumentManager;
+}
+
+export function SkeletonPanel({ documentManager }: SkeletonPanelProps) {
+  const filter = (node: Node) => {
+    return node instanceof SkeletonNode;
+  };
+  return (
+    <NodeListPanel
+      documentManager={documentManager}
+      title="Skeleton"
+      filter={filter}
+    />
+  );
+}

@@ -2,10 +2,7 @@ import { memo, useCallback, MouseEvent } from "react";
 import { NodeId } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 
-// TODO: use some sort of unique ID instead of layerIndex/pointIndex,
-// in order to support moving the point or layer in the hierarchy?
-
-interface SkeletonListItemProps {
+interface NodeListItemProps {
   documentManager: DocumentManager;
   id: NodeId;
   name: string;
@@ -14,14 +11,14 @@ interface SkeletonListItemProps {
   title?: string;
 }
 
-export const SkeletonListItem = memo(function SkeletonListItem({
+export const NodeListItem = memo(function NodeListItem({
   documentManager,
   id,
   name,
   isHovered,
   isSelected,
   title,
-}: SkeletonListItemProps) {
+}: NodeListItemProps) {
   const onMouseEnter = useCallback(() => {
     documentManager.selection().setHoveredNode(id);
   }, [documentManager, id]);
@@ -69,4 +66,4 @@ export const SkeletonListItem = memo(function SkeletonListItem({
   );
 });
 
-export default SkeletonListItem;
+export default NodeListItem;

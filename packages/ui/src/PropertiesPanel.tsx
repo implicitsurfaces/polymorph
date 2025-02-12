@@ -1,9 +1,17 @@
 import { Vector2 } from "threejs-math";
 import { PropsWithChildren } from "react";
 
-import { NodeId, Node, Point, EdgeNode } from "./Document.ts";
+import {
+  NodeId,
+  Node,
+  Point,
+  EdgeNode,
+  PointToPointDistance,
+  Number,
+} from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 import { Vector2Input } from "./Vector2Input.tsx";
+import { NumberInput } from "./NumberInput.tsx";
 import { NodeListItem } from "./NodeListItem.tsx";
 import { getControlPoints } from "./ControlPoint.ts";
 
@@ -52,7 +60,7 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
     );
   }
 
-  function getSkeletonItem(id: NodeId, title: string) {
+  function getNodeListItem(id: NodeId, title: string) {
     const point = doc.getNode(id, Point);
     if (!point) {
       return <></>;
@@ -73,13 +81,27 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
   function getContentForEdge(edge: EdgeNode) {
     const controlPoints = getControlPoints(doc, edge);
     const controlPointItems = controlPoints.map((cp) => {
-      return getSkeletonItem(cp.point.id, `${cp.prettyName}:`);
+      return getNodeListItem(cp.point.id, `${cp.prettyName}:`);
     });
     return (
       <>
-        {getSkeletonItem(edge.startPoint, "Start Point:")}
-        {getSkeletonItem(edge.endPoint, "End Point:")}
+        {getNodeListItem(edge.startPoint, "Start Point:")}
+        {getNodeListItem(edge.endPoint, "End Point:")}
         {controlPointItems}
+      </>
+    );
+  }
+
+  function getContentForPointToPointDistance(d: PointToPointDistance) {
+    const valueNode = doc.getNode(d.value, Number);
+    const value = valueNode ? valueNode.value : 0;
+    return (
+      <>
+        {getNodeListItem(d.startPoint, "Start Point:")}
+        {getNodeListItem(d.endPoint, "End Point:")}
+        <PropertyItem name="Distance">
+          <NumberInput label="" value={value} onChange={() => {}} />
+        </PropertyItem>
       </>
     );
   }
@@ -89,6 +111,8 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
       return getContentForPoint(node);
     } else if (node instanceof EdgeNode) {
       return getContentForEdge(node);
+    } else if (node instanceof PointToPointDistance) {
+      return getContentForPointToPointDistance(node);
     } else {
       return <></>;
     }

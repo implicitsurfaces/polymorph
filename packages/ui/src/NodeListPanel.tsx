@@ -19,11 +19,8 @@ export function NodeListPanel({
   const hoveredNodeId = selection.hoveredNode();
   const selectedNodeIds = selection.selectedNodes();
 
-  function getItem(id: NodeId) {
-    const node = doc.getNode(id);
-    if (!node || !filter(node)) {
-      return <></>;
-    }
+  function getItem(node: Node) {
+    const id = node.id;
     return (
       <NodeListItem
         key={id}
@@ -41,7 +38,14 @@ export function NodeListPanel({
     if (!activeLayer) {
       return <></>;
     }
-    return activeLayer.nodes.map((id: NodeId) => getItem(id));
+    const filteredNodes = [];
+    for (const id of activeLayer.nodes) {
+      const node = doc.getNode(id);
+      if (node && filter(node)) {
+        filteredNodes.push(node);
+      }
+    }
+    return filteredNodes.map((node) => getItem(node));
   }
 
   const items = getItems();

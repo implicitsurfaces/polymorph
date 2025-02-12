@@ -317,7 +317,6 @@ export class PointToPointDistance extends MeasureNode {
   }
 
   updateMeasure() {
-    console.log("update");
     if (this.isLocked) {
       return;
       // TODO: what to do if the measure is locked but the constraint
@@ -331,7 +330,6 @@ export class PointToPointDistance extends MeasureNode {
       return;
     }
     const value = p1.getPosition().distanceTo(p2.getPosition());
-    console.log(value);
     v.value = value;
   }
 }

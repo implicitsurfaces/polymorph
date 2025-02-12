@@ -111,8 +111,8 @@ export abstract class SkeletonNode extends Node {
 
 export interface PointOptions extends SkeletonNodeOptions {
   readonly position?: Vector2 | [number, number];
-  readonly x?: NodeId;
-  readonly y?: NodeId;
+  readonly x?: NodeId; // Number
+  readonly y?: NodeId; // Number
 }
 
 function getVec2Pair(position?: Vector2 | [number, number]): [number, number] {
@@ -127,8 +127,8 @@ function getVec2Pair(position?: Vector2 | [number, number]): [number, number] {
 
 export class Point extends SkeletonNode {
   static readonly defaultName = "Point";
-  x: NodeId;
-  y: NodeId;
+  x: NodeId; // Number
+  y: NodeId; // Number
 
   constructor(doc: Document, id: NodeId, options: PointOptions) {
     super(doc, id, options);
@@ -169,13 +169,13 @@ export class Point extends SkeletonNode {
 //                               EdgeNode
 
 export interface EdgeNodeOptions extends SkeletonNodeOptions {
-  readonly startPoint: NodeId;
-  readonly endPoint: NodeId;
+  readonly startPoint: NodeId; // Point
+  readonly endPoint: NodeId; // Point
 }
 
 export abstract class EdgeNode extends SkeletonNode {
-  startPoint: NodeId;
-  endPoint: NodeId;
+  startPoint: NodeId; // Point
+  endPoint: NodeId; // Point
 
   constructor(doc: Document, id: NodeId, options: EdgeNodeOptions) {
     super(doc, id, options);
@@ -206,12 +206,12 @@ export class LineSegment extends EdgeNode {
 //                               ArcFromStartTangent
 
 export interface ArcFromStartTangentOptions extends EdgeNodeOptions {
-  readonly controlPoint: NodeId;
+  readonly controlPoint: NodeId; // Point
 }
 
 export class ArcFromStartTangent extends EdgeNode {
   static readonly defaultName = "Arc";
-  controlPoint: NodeId;
+  controlPoint: NodeId; // Point
 
   constructor(doc: Document, id: NodeId, options: ArcFromStartTangentOptions) {
     super(doc, id, options);
@@ -227,12 +227,12 @@ export class ArcFromStartTangent extends EdgeNode {
 //                                  CCurve
 
 export interface CCurveOptions extends EdgeNodeOptions {
-  readonly controlPoint: NodeId;
+  readonly controlPoint: NodeId; // Point
 }
 
 export class CCurve extends EdgeNode {
   static readonly defaultName = "C-Curve";
-  controlPoint: NodeId;
+  controlPoint: NodeId; // Point
 
   constructor(doc: Document, id: NodeId, options: CCurveOptions) {
     super(doc, id, options);
@@ -248,14 +248,14 @@ export class CCurve extends EdgeNode {
 //                                  SCurve
 
 export interface SCurveOptions extends EdgeNodeOptions {
-  readonly startControlPoint: NodeId;
-  readonly endControlPoint: NodeId;
+  readonly startControlPoint: NodeId; // Point
+  readonly endControlPoint: NodeId; // Point
 }
 
 export class SCurve extends EdgeNode {
   static readonly defaultName = "S-Curve";
-  startControlPoint: NodeId;
-  endControlPoint: NodeId;
+  startControlPoint: NodeId; // Point
+  endControlPoint: NodeId; // Point
 
   constructor(doc: Document, id: NodeId, options: SCurveOptions) {
     super(doc, id, options);
@@ -265,6 +265,74 @@ export class SCurve extends EdgeNode {
 
   clone(newDoc: Document) {
     return new SCurve(newDoc, this.id, this);
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//                               MeasureNode
+
+export interface MeasureNodeOptions extends NodeOptions {
+  readonly isLocked?: boolean;
+}
+
+export abstract class MeasureNode extends Node {
+  isLocked: boolean;
+
+  constructor(doc: Document, id: NodeId, options: MeasureNodeOptions) {
+    super(doc, id, options);
+    this.isLocked = options.isLocked !== undefined ? options.isLocked : false;
+  }
+
+  abstract updateMeasure(): void;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//                            PointToPointDistance
+
+export interface PointToPointDistanceOptions extends MeasureNodeOptions {
+  readonly startPoint: NodeId; // Point
+  readonly endPoint: NodeId; // Point
+  readonly value?: NodeId; // Number
+}
+
+export class PointToPointDistance extends MeasureNode {
+  static readonly defaultName = "Point to Point Distance";
+  startPoint: NodeId; // Point
+  endPoint: NodeId; // Point
+  value: NodeId; // Number
+
+  constructor(doc: Document, id: NodeId, options: PointToPointDistanceOptions) {
+    super(doc, id, options);
+    this.startPoint = options.startPoint;
+    this.endPoint = options.endPoint;
+
+    this.value = Number.getOrCreate(doc, options.value, {
+      layer: options.layer,
+      value: 0,
+    });
+  }
+
+  clone(newDoc: Document) {
+    return new PointToPointDistance(newDoc, this.id, this);
+  }
+
+  updateMeasure() {
+    console.log("update");
+    if (this.isLocked) {
+      return;
+      // TODO: what to do if the measure is locked but the constraint
+      // solver could not satisfy it? (overconstrained system) Shouldn't
+      // we something show both the target value and the current value?
+    }
+    const p1 = this.doc.getNode(this.startPoint, Point);
+    const p2 = this.doc.getNode(this.endPoint, Point);
+    const v = this.doc.getNode(this.value, Number);
+    if (!p1 || !p2 || !v) {
+      return;
+    }
+    const value = p1.getPosition().distanceTo(p2.getPosition());
+    console.log(value);
+    v.value = value;
   }
 }
 
@@ -411,6 +479,13 @@ export class Document {
   }
 
   /**
+   * Returns all the nodes in the document.
+   */
+  nodes(): MapIterator<Node> {
+    return this._nodes.values();
+  }
+
+  /**
    * Creates and returns a new node of the given `spec` with the given `options`.
    *
    * Example:
@@ -448,6 +523,9 @@ export class Document {
     this._nodes.set(id, node);
     if (layer) {
       layer.nodes.push(node.id);
+    }
+    if (node instanceof MeasureNode) {
+      node.updateMeasure();
     }
     return node;
   }
@@ -578,6 +656,11 @@ export function createTestDocument() {
     position: new Vector2(-100, -100),
   });
   doc.createNode(LineSegment, {
+    layer: layer,
+    startPoint: p1.id,
+    endPoint: p2.id,
+  });
+  doc.createNode(PointToPointDistance, {
     layer: layer,
     startPoint: p1.id,
     endPoint: p2.id,

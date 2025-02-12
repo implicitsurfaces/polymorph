@@ -1,4 +1,9 @@
-import { Document, Layer, createTestDocument } from "./Document.ts";
+import {
+  Document,
+  Layer,
+  MeasureNode,
+  createTestDocument,
+} from "./Document.ts";
 
 import { Selection } from "./Selection.ts";
 
@@ -73,8 +78,18 @@ export class DocumentManager {
     }
   }
 
+  private _updateMeasures() {
+    const doc = this.document();
+    for (const node of doc.nodes()) {
+      if (node instanceof MeasureNode) {
+        node.updateMeasure();
+      }
+    }
+  }
+
   private _notify(): void {
     this._version += 1;
+    this._updateMeasures();
     this._ensureActiveLayer();
     this._onChange();
   }

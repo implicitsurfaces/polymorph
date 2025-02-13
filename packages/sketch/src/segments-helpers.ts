@@ -1,6 +1,7 @@
-import { Angle, Point, Vec2 } from "./geom";
+import { Angle, Point, QUARTER_TURN, Vec2 } from "./geom";
 import { NEG_ONE, Num, ONE } from "./num";
 import { ifTruthyElse } from "./num-ops";
+import { GenericEllipse } from "./profiles";
 import { BulgingSegment, EllipseArcSegment } from "./segments";
 
 function bulgeFromSandC(s: Num, c: Num) {
@@ -148,6 +149,26 @@ export function biarcS(p1: Point, p2: Point, control1: Point, control2: Point) {
     bulgingSegmentUsingStartTangent(p1, junction, theta1),
     bulgingSegmentUsingEndTangent(junction, p2, theta2),
   ];
+}
+
+export function conjugateDiametersEllipse(center: Point, a: Point, b: Point) {
+  const p = a.vecFrom(center);
+  const pPrime = p.rotate(QUARTER_TURN);
+
+  const d = center.add(pPrime).midPoint(b);
+
+  const direction = a.vecFrom(d).normalize();
+  const r = center.vecTo(d).norm();
+
+  const xAxisPoint = d.add(direction.scale(r));
+  const yAxisPoint = d.sub(direction.scale(r));
+
+  const majorRadius = b.vecTo(xAxisPoint).norm();
+  const minorRadius = b.vecTo(yAxisPoint).norm();
+
+  const xAxisAngle = center.vecTo(xAxisPoint).asAngle();
+
+  return new GenericEllipse(majorRadius, minorRadius, xAxisAngle, center);
 }
 
 export function endpointsEllipticArc(

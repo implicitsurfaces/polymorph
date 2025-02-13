@@ -6,6 +6,7 @@ import {
   ConeSurfaceNode,
   EasedWidthModulation,
   EllipseNode,
+  EllipticConeNode,
   LinearExtrusion2DNode,
   LinearWidthModulation,
   SphereNode,
@@ -135,5 +136,18 @@ export function makeCone(
   const node = surfaceOnly
     ? new ConeSurfaceNode(asDistance(radius), asDistance(height))
     : new ConeNode(asDistance(radius), asDistance(height));
+  return new SolidEditor(node);
+}
+
+export function makeEllipticCone(
+  majorRadius: DistanceLike,
+  minorRadius: DistanceLike,
+  height: DistanceLike,
+): SolidEditor {
+  const node = new EllipticConeNode(
+    asDistance(majorRadius),
+    asDistance(minorRadius),
+    asDistance(height),
+  );
   return new SolidEditor(node);
 }

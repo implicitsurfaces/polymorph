@@ -327,6 +327,31 @@ export function projectVec(vec: Vec3, plane: Plane): Vec2 {
   return new Vec2(vec.dot(plane.xAxis), vec.dot(plane.yAxis));
 }
 
+export function intersectLinePlane(
+  lineOrigin: Point3D,
+  lineVec: Vec3,
+  plane: Plane,
+): Point3D {
+  const originsVector = plane.origin.vecFrom(lineOrigin);
+
+  const incidenceAngle = lineVec.dot(plane.zAxis);
+  const t = plane.zAxis.dot(originsVector).div(incidenceAngle);
+
+  return lineOrigin.add(lineVec.scale(t));
+}
+
+export function distanceToLine(
+  lineOrigin: Point3D,
+  lineVec: UnitVec3,
+  point: Point3D,
+): Num {
+  const lineToOrigin = lineOrigin.vecFrom(point);
+  const parallelComponent = lineVec.scale(lineToOrigin.dot(lineVec));
+  const perpendicularComponent = lineToOrigin.sub(parallelComponent);
+
+  return perpendicularComponent.norm();
+}
+
 export const ORIGIN = new Point3D(ZERO, ZERO, ZERO);
 
 export const X_AXIS = new UnitVec3(ONE, ZERO, ZERO);

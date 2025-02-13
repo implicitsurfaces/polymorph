@@ -1,7 +1,21 @@
-import { Angle, Vec2 } from "./geom";
-import { Plane, Point3D, projectPoint, UnitVec3, Vec3 } from "./geom-3d";
+import { Angle, Vec2, ORIGIN as ORIGIN2D } from "./geom";
+import {
+  intersectLinePlane,
+  Plane,
+  Point3D,
+  projectPoint,
+  UnitVec3,
+  Vec3,
+  ORIGIN,
+  Y_AXIS,
+  embedPoint,
+  distanceToLine,
+  Z_AXIS,
+} from "./geom-3d";
+import { closestPointOnEllipse } from "./geom-utils/closestPointOnEllipse";
 import { Num, ONE, ZERO } from "./num";
 import { hypot } from "./num-ops";
+import { conjugateDiametersEllipse } from "./segments-helpers";
 import { DistField, SolidDistField } from "./types";
 
 export class Sphere implements SolidDistField {
@@ -123,5 +137,71 @@ export class ConeSurface implements SolidDistField {
     const hypotPosition = pInTriangle.sub(q.scale(hypotCoord));
 
     return hypotPosition.norm();
+  }
+}
+
+export class EllipticCone implements SolidDistField {
+  private readonly a: Point3D;
+  private readonly b: Point3D;
+  private readonly center: Point3D;
+
+  constructor(
+    public readonly majorRadius: Num,
+    public readonly minorRadius: Num,
+    public readonly height: Num,
+  ) {
+    this.a = new Point3D(this.majorRadius, ZERO, this.height);
+    this.b = new Point3D(ZERO, this.minorRadius, this.height);
+    this.center = new Point3D(ZERO, ZERO, this.height);
+  }
+
+  valueAt(point: Point3D): Num {
+    const projectionPlaneNormal = Z_AXIS; //point.vecFromOrigin().normalize();
+
+    const projectionPlane = new Plane(
+      point,
+      projectionPlaneNormal,
+      Y_AXIS.cross(projectionPlaneNormal),
+    );
+
+    // We project the ellipse on the plane defined by the point
+    const centerPrime = intersectLinePlane(
+      this.center,
+      this.center.vecFromOrigin(),
+      projectionPlane,
+    );
+    const aPrime = intersectLinePlane(
+      this.a,
+      this.a.vecFromOrigin(),
+      projectionPlane,
+    );
+    const bPrime = intersectLinePlane(
+      this.b,
+      this.b.vecFromOrigin(),
+      projectionPlane,
+    );
+
+    const projectedC = projectPoint(centerPrime, projectionPlane);
+    const projectedA = projectPoint(aPrime, projectionPlane);
+    const projectedB = projectPoint(bPrime, projectionPlane);
+
+    const projectedEllipse = conjugateDiametersEllipse(
+      projectedC,
+      projectedA,
+      projectedB,
+    );
+
+    const closestPoint = closestPointOnEllipse(
+      projectedEllipse.majorRadius,
+      projectedEllipse.minorRadius,
+      projectedEllipse.pointInEllipseCoordinates(ORIGIN2D), // the plane is defined such that its origin is the point
+    );
+
+    const embeddedPoint = embedPoint(closestPoint, projectionPlane);
+    return distanceToLine(
+      ORIGIN,
+      embeddedPoint.vecFromOrigin().normalize(),
+      point,
+    ).mul(projectedEllipse.occupancySign(ORIGIN2D));
   }
 }

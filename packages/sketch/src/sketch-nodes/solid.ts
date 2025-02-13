@@ -24,6 +24,16 @@ export class ConeSurfaceNode extends SolidNode {
   }
 }
 
+export class EllipticConeNode extends SolidNode {
+  constructor(
+    public readonly majorRadius: DistanceNode,
+    public readonly minorRadius: DistanceNode,
+    public readonly height: DistanceNode,
+  ) {
+    super();
+  }
+}
+
 export class ExtrusionNode extends SolidNode {
   constructor(
     public readonly profile: ProfileNode,

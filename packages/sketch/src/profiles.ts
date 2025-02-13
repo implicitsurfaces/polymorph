@@ -1,4 +1,4 @@
-import { Point } from "./geom";
+import { Angle, Point } from "./geom";
 import { embedPoint, Plane } from "./geom-3d";
 import { closestPointOnEllipse } from "./geom-utils/closestPointOnEllipse";
 import { Num, ONE, asNum } from "./num";
@@ -39,6 +39,38 @@ export class Ellipse {
       point,
     );
     return point.vecFrom(closestPoint).norm().mul(this.sign(point));
+  }
+}
+
+export class GenericEllipse extends Ellipse {
+  constructor(
+    public readonly majorRadius: Num,
+    public readonly minorRadius: Num,
+    public readonly xAxisAngle: Angle,
+    public readonly center: Point,
+  ) {
+    super(majorRadius, minorRadius);
+  }
+
+  occupancySign(point: Point): Num {
+    const p = this.pointInEllipseCoordinates(point);
+    const m = p.x.square().div(this.majorRadius.square());
+    const n = p.y.square().div(this.minorRadius.square());
+
+    return m.add(n).sub(ONE).sign();
+  }
+
+  pointInEllipseCoordinates(p: Point): Point {
+    return p
+      .vecFromOrigin()
+      .sub(this.center.vecFromOrigin())
+      .rotate(this.xAxisAngle.neg())
+      .pointFromOrigin();
+  }
+
+  distanceTo(point: Point): Num {
+    const p = this.pointInEllipseCoordinates(point);
+    return super.distanceTo(p);
   }
 }
 

@@ -99,6 +99,7 @@ import {
   ConeSurfaceNode,
   EllipseNode,
   EllipseArcNode,
+  EllipticConeNode,
 } from "./sketch-nodes";
 import { LineSegment } from "./segments";
 import {
@@ -146,7 +147,14 @@ import {
   linearWidthVariation,
   staticWidth,
 } from "./extrusions-2d";
-import { Cone, ConeSurface, Extrusion, SolidRotation, Sphere } from "./solids";
+import {
+  Cone,
+  ConeSurface,
+  EllipticCone,
+  Extrusion,
+  SolidRotation,
+  Sphere,
+} from "./solids";
 import {
   Plane,
   Point3D,
@@ -795,6 +803,14 @@ export const evalSolid = memoizeNodeEval(function (
   if (node instanceof ConeSurfaceNode) {
     return new ConeSurface(
       evalDistance(node.radius),
+      evalDistance(node.height),
+    );
+  }
+
+  if (node instanceof EllipticConeNode) {
+    return new EllipticCone(
+      evalDistance(node.majorRadius),
+      evalDistance(node.minorRadius),
       evalDistance(node.height),
     );
   }

@@ -3,10 +3,8 @@ use std::sync::Once;
 use fidget::render::{BitRenderMode, ImageRenderConfig, SdfPixelRenderMode, VoxelRenderConfig};
 use fidget::vm::VmShape;
 
-use gpu_interp::{GPUExpression, GPURenderConfig, Projection, Viewport};
-
 extern crate console_error_panic_hook;
-use log::*;
+//use log::*;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -47,7 +45,7 @@ impl Context {
 
             // Initialize a logger that routes `info!`, `debug!` etc. to the console.
             console_log::init_with_level(log::Level::Debug).unwrap();
-            info!("Hello from Rust!");
+            //info!("Hello from Rust!");
         });
         Self {
             inner: fidget::context::Context::new(),
@@ -230,13 +228,7 @@ impl Context {
     }
 
     #[wasm_bindgen(js_name = renderNode)]
-    pub async fn render_node(
-        &self,
-        node: &Node,
-        image_size: usize,
-        sdf_mode: bool,
-        use_gpu: bool,
-    ) -> Vec<u8> {
+    pub async fn render_node(&self, node: &Node, image_size: usize, sdf_mode: bool) -> Vec<u8> {
         let shape = VmShape::new(&self.inner, node.inner).unwrap();
 
         let cfg = ImageRenderConfig {
@@ -244,35 +236,15 @@ impl Context {
             ..ImageRenderConfig::default()
         };
 
-        if use_gpu {
-            let viewport = Viewport::new(image_size as u32, image_size as u32);
-            let proj = Projection::normalized_device_coords_for_viewport(viewport);
-            let config = GPURenderConfig::new(viewport, proj);
-            let expr = GPUExpression::new(&shape, [], config);
-            let dists = gpu_interp::evaluate(&expr, None, config).await.unwrap();
-
-            return if sdf_mode {
-                let inside = [255, 255, 255, 255];
-                let outside = [0, 0, 0, 255];
-                dists
-                    .into_iter()
-                    .flat_map(|d| if d < 0.0 { inside } else { outside })
-                    .collect()
-            } else {
-                dists
-                    .into_iter()
-                    .map(|d| if d < 0.0 { 1 } else { 0 })
-                    .collect()
-            };
-        }
-
         if sdf_mode {
             cfg.run::<_, SdfPixelRenderMode>(shape)
+                .unwrap()
                 .into_iter()
                 .flat_map(|[r, g, b]| [r, g, b, 255])
                 .collect()
         } else {
             cfg.run::<_, BitRenderMode>(shape)
+                .unwrap()
                 .into_iter()
                 .map(|b| if b { 1 } else { 0 })
                 .collect()
@@ -293,7 +265,7 @@ impl Context {
             ..VoxelRenderConfig::default()
         };
 
-        let v = cfg.run(shape);
+        let v = cfg.run(shape).unwrap();
         if heightmap {
             v.0.into_iter()
                 .flat_map(|v| {

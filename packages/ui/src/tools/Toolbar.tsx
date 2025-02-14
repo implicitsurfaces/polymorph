@@ -3,13 +3,19 @@ import { useContext } from "react";
 import { CurrentToolContext } from "./CurrentTool.ts";
 import { Tool } from "./Tool.ts";
 
+import { Action } from "../actions/Action.ts";
+
+import { DocumentManager } from "../DocumentManager.ts";
+
 import "./Toolbar.css";
 
 interface ToolbarProps {
   tools: Array<Tool>;
+  actions: Action[];
+  documentManager: DocumentManager;
 }
 
-export function Toolbar({ tools }: ToolbarProps) {
+export function Toolbar({ tools, actions, documentManager }: ToolbarProps) {
   const { currentTool, setCurrentTool } = useContext(CurrentToolContext);
 
   return (
@@ -25,6 +31,23 @@ export function Toolbar({ tools }: ToolbarProps) {
             key={name}
             onClick={() => {
               setCurrentTool(tool);
+            }}
+          />
+        );
+      })}
+      {actions.map((action) => {
+        const name = action.name;
+        const hint = `${name} (${action.shortcut.prettyStr})`;
+        return (
+          <img
+            src={action.icon}
+            alt={hint}
+            title={hint}
+            key={name}
+            onClick={() => {
+              if (action.onTrigger) {
+                action.onTrigger(documentManager);
+              }
             }}
           />
         );

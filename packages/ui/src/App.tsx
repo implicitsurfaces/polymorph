@@ -12,6 +12,8 @@ import { allTools } from "./tools/allTools.ts";
 import { Toolbar } from "./tools/Toolbar.tsx";
 import { CurrentTool, CurrentToolContext } from "./tools/CurrentTool.ts";
 
+import { allActions } from "./actions/allActions.ts";
+
 import { Canvas } from "./Canvas.tsx";
 import { LayersPanel } from "./LayersPanel.tsx";
 import { SkeletonPanel, MeasuresPanel } from "./NodeListPanel.tsx";
@@ -59,15 +61,24 @@ function App() {
   const [tools] = useState(allTools());
   const [currentTool, setCurrentTool] = useState<CurrentTool>(tools[0]);
 
+  // Actions
+  const [actions] = useState(allActions());
+
   // Application-wide shortcuts.
 
   const onKeyPress = useCallback(
     (event: KeyboardEvent) => {
+      for (const action of actions) {
+        if (action.onTrigger && action.shortcut.matches(event)) {
+          // Prevent browser doing its own thing (e.g., its own implementation
+          // of undo/redo, etc.)
+          event.preventDefault();
+          action.onTrigger(documentManager);
+          return;
+        }
+      }
       if (event.ctrlKey && (event.key === "z" || event.key === "Z")) {
-        // Prevent browser doing its own undoing of input fields,
-        // interfering with our undo/redo mechanism.
         event.preventDefault();
-
         if (event.shiftKey) {
           documentManager.redo();
         } else {
@@ -75,7 +86,7 @@ function App() {
         }
       }
     },
-    [documentManager],
+    [documentManager, actions],
   );
 
   useEffect(() => {
@@ -174,7 +185,11 @@ function App() {
           setCurrentTool,
         }}
       >
-        <Toolbar tools={tools} />
+        <Toolbar
+          tools={tools}
+          actions={actions}
+          documentManager={documentManager}
+        />
         <PanelGroup className="root-panel-group" direction="vertical">
           <Panel>
             <PanelGroup className="canvas-panel-group" direction="horizontal">

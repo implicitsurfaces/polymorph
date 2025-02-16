@@ -1,6 +1,7 @@
 import { Vector2 } from "threejs-math";
 
 import { Tool } from "./Tool";
+import { KeyboardShortcut } from "../actions/KeyboardShortcut";
 import icon from "../assets/tool-icons/line-segment.svg";
 
 import { Camera2 } from "../canvas/Camera2";
@@ -70,17 +71,20 @@ function getOrCreatePoint(
   }
 }
 
-export class LineSegmentTool implements Tool {
-  readonly name = "Line Segment";
-  readonly icon = icon;
+export class LineSegmentTool extends Tool {
+  constructor() {
+    super({
+      name: "Line Segment",
+      icon: icon,
+      shortcut: new KeyboardShortcut("L"),
+    });
+  }
 
   private firstStepData: FirstStepData | undefined;
 
   private reset() {
     this.firstStepData = undefined;
   }
-
-  constructor() {}
 
   private doFirstStep(event: CanvasPointerEvent) {
     if (this.firstStepData) {

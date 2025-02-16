@@ -1,19 +1,23 @@
 import { Vector2 } from "threejs-math";
 
 import { Tool } from "./Tool";
+import { KeyboardShortcut } from "../actions/KeyboardShortcut";
 import icon from "../assets/tool-icons/select.svg";
 
 import { hoverFromCanvas } from "../canvas/hover";
 import { Mover } from "../canvas/move";
 import { CanvasPointerEvent } from "../canvas/events";
 
-export class SelectTool implements Tool {
-  readonly name = "Select";
-  readonly icon = icon;
+export class SelectTool extends Tool {
+  constructor() {
+    super({
+      name: "Select",
+      icon: icon,
+      shortcut: new KeyboardShortcut("V"),
+    });
+  }
 
   private mover: Mover | undefined = undefined;
-
-  constructor() {}
 
   onCanvasHover(event: CanvasPointerEvent) {
     hoverFromCanvas(event);

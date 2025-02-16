@@ -8,11 +8,11 @@ import {
 
 import { DocumentManager } from "./DocumentManager.ts";
 
-import { allTools } from "./tools/allTools.ts";
+import { TriggerAction } from "./actions/Action.ts";
+import { Tool } from "./tools/Tool.ts";
 import { Toolbar } from "./tools/Toolbar.tsx";
 import { CurrentTool, CurrentToolContext } from "./tools/CurrentTool.ts";
-
-import { allActions } from "./actions/allActions.ts";
+import { allActions } from "./allActions.ts";
 
 import { Canvas } from "./Canvas.tsx";
 import { LayersPanel } from "./LayersPanel.tsx";
@@ -57,32 +57,31 @@ function App() {
 
   documentManager.onChange(onDocumentChange);
 
-  // Tools
-  const [tools] = useState(allTools());
-  const [currentTool, setCurrentTool] = useState<CurrentTool>(tools[0]);
-
-  // Actions
+  // Actions and Tools
   const [actions] = useState(allActions());
+  const [currentTool, setCurrentTool] = useState<CurrentTool>(() => {
+    for (const action of actions) {
+      if (action instanceof Tool) {
+        return action;
+      }
+    }
+  });
 
-  // Application-wide shortcuts.
-
+  // Application-wide shortcuts
   const onKeyPress = useCallback(
     (event: KeyboardEvent) => {
       for (const action of actions) {
-        if (action.onTrigger && action.shortcut.matches(event)) {
-          // Prevent browser doing its own thing (e.g., its own implementation
-          // of undo/redo, etc.)
-          event.preventDefault();
-          action.onTrigger(documentManager);
-          return;
-        }
-      }
-      if (event.ctrlKey && (event.key === "z" || event.key === "Z")) {
-        event.preventDefault();
-        if (event.shiftKey) {
-          documentManager.redo();
-        } else {
-          documentManager.undo();
+        if (action.shortcut && action.shortcut.matches(event)) {
+          if (action instanceof TriggerAction) {
+            // Prevent browser doing its own thing (e.g., its own implementation
+            // of undo/redo, etc.)
+            event.preventDefault();
+            action.onTrigger(documentManager);
+            return;
+          } else if (action instanceof Tool) {
+            setCurrentTool(action);
+            return;
+          }
         }
       }
     },
@@ -185,11 +184,7 @@ function App() {
           setCurrentTool,
         }}
       >
-        <Toolbar
-          tools={tools}
-          actions={actions}
-          documentManager={documentManager}
-        />
+        <Toolbar actions={actions} documentManager={documentManager} />
         <PanelGroup className="root-panel-group" direction="vertical">
           <Panel>
             <PanelGroup className="canvas-panel-group" direction="horizontal">

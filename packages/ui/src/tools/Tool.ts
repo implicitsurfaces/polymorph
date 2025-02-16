@@ -1,12 +1,17 @@
 import { Vector2 } from "threejs-math";
 import { CanvasPointerEvent } from "../canvas/events";
+import { Action, ActionProps } from "../actions/Action";
 
-export interface Tool {
-  readonly name: string;
-  readonly icon: string;
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface ToolProps extends ActionProps {}
 
-  readonly onCanvasHover?: (event: CanvasPointerEvent) => void;
-  readonly onCanvasClick?: (event: CanvasPointerEvent) => void;
+export class Tool extends Action {
+  constructor(props: ToolProps) {
+    super(props);
+  }
+
+  onCanvasHover?(event: CanvasPointerEvent): void;
+  onCanvasClick?(event: CanvasPointerEvent): void;
 
   // The `onCanvasDragStart` callback must return a boolean to indicate
   // whether there is actually some drag action possible for the given
@@ -19,7 +24,7 @@ export interface Tool {
   // Otherwise, the canvas will follow up by calling `onCanvasClick` on mouse
   // release.
   //
-  readonly onCanvasDragStart?: (event: CanvasPointerEvent) => boolean;
-  readonly onCanvasDragMove?: (delta: Vector2) => void;
-  readonly onCanvasDragEnd?: () => void;
+  onCanvasDragStart?(event: CanvasPointerEvent): boolean;
+  onCanvasDragMove?(delta: Vector2): void;
+  onCanvasDragEnd?(): void;
 }

@@ -1,16 +1,18 @@
-import { Action } from "./Action";
+import { TriggerAction } from "./Action";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import icon from "../assets/tool-icons/point-to-point-distance.svg";
 
 import { Point, Layer, PointToPointDistance } from "../Document";
 import { DocumentManager } from "../DocumentManager";
 
-export class AddDistanceAction implements Action {
-  readonly name = "Add Distance Measure";
-  readonly icon = icon;
-  readonly shortcut = new KeyboardShortcut("D");
-
-  constructor() {}
+export class AddDistanceAction extends TriggerAction {
+  constructor() {
+    super({
+      name: "Add Distance Measure",
+      icon: icon,
+      shortcut: new KeyboardShortcut("D"),
+    });
+  }
 
   onTrigger(documentManager: DocumentManager) {
     // Check that the selection is composed of exactly two points

@@ -1,10 +1,31 @@
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import { DocumentManager } from "../DocumentManager";
 
-export interface Action {
+export interface ActionProps {
   readonly name: string;
-  readonly icon: string;
-  readonly shortcut: KeyboardShortcut;
+  readonly icon?: string;
+  readonly shortcut?: KeyboardShortcut;
+}
+
+export abstract class Action {
+  readonly name: string;
+  readonly icon?: string;
+  readonly shortcut?: KeyboardShortcut;
+
+  constructor(props: ActionProps) {
+    this.name = props.name;
+    this.icon = props.icon;
+    this.shortcut = props.shortcut;
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface TriggerActionProps extends ActionProps {}
+
+export abstract class TriggerAction extends Action {
+  constructor(props: TriggerActionProps) {
+    super(props);
+  }
 
   /**
    * This function is called when the user triggers the action, either by
@@ -15,5 +36,5 @@ export interface Action {
    * indicating why the action could not be performed(example: "Please select
    * two points.").
    */
-  readonly onTrigger?: (documentManager: DocumentManager) => string | undefined;
+  abstract onTrigger(documentManager: DocumentManager): string | void;
 }

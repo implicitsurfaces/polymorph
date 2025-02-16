@@ -18,16 +18,11 @@ export function Toolbar({ actions, documentManager }: ToolbarProps) {
   const { currentTool, setCurrentTool } = useContext(CurrentToolContext);
 
   // Get which actions should appear in the toolbar. For now, we consider them
-  // to be those with an icon.
+  // to be those with an icon. In the future, this function could also sort
+  // them in a different order (e.g., `action.toolbarIndex`).
   //
   const actions_ = useMemo<Action[]>(() => {
-    const res: Action[] = [];
-    for (const action of actions) {
-      if (action.icon !== undefined) {
-        res.push(action);
-      }
-    }
-    return res;
+    return actions.filter((action) => action.icon !== undefined);
   }, [actions]);
 
   function onClick(action: Action) {

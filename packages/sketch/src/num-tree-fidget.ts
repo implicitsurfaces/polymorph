@@ -186,7 +186,6 @@ export async function fidgetRender(
   colorPlot = false,
   valuedVars: Map<string, number> = new Map(),
 ): Promise<Uint8Array> {
-  const useGPU = false;
   const context = await createContext();
 
   const genericPoint = vecFromCartesianCoords(NumX, NumY).pointFromOrigin();
@@ -196,7 +195,7 @@ export async function fidgetRender(
     valuedVars,
     new Map(),
   );
-  const render = context.renderNode(fidgetNode, imageSize, colorPlot, useGPU);
+  const render = context.renderNode(fidgetNode, imageSize, colorPlot);
   return render;
 }
 

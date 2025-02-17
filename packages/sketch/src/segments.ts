@@ -309,13 +309,17 @@ export class EllipseArcSegment implements Segment {
 
     const a = this.p1.vecTo(p);
     const b = this.p2.vecTo(p);
-    const segmentAngle = twoVectorsAngle(b, a);
+    const segmentAngle = twoVectorsAngle(a, b);
 
     const chord = this.p2.vecTo(this.p1);
-    const withinChord = b.cross(chord).greaterThan(ZERO);
+    const withinChord = b.cross(chord).mul(this.orientation).greaterThan(ZERO);
 
-    const outsideSolidAngle = new SolidAngle(ZERO).addAngle(segmentAngle);
-    const insideSolidAngle = new SolidAngle(ONE).sub(outsideSolidAngle);
+    const segmentSolidAngle = new SolidAngle(ZERO).addAngle(segmentAngle);
+
+    const outsideSolidAngle = segmentSolidAngle;
+    const insideSolidAngle = segmentSolidAngle.add(
+      new SolidAngle(this.orientation.neg()),
+    );
 
     const turns = ifTruthyElse(
       isInside.and(withinChord),

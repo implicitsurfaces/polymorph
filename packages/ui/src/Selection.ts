@@ -1,4 +1,4 @@
-import { NodeId } from "./Document.ts";
+import { NodeId, Node, Layer } from "./Document.ts";
 
 export interface SelectableBase {
   readonly type: string;
@@ -33,24 +33,31 @@ function isSameSelectable(
 export class Selection {
   private _onChange: () => void;
 
-  private _activeLayer: NodeId;
+  private _activeLayerId: NodeId;
   private _hovered: Selectable | undefined;
   private _selected: Array<Selectable>;
 
   constructor(onChange: () => void) {
     this._onChange = onChange;
-    this._activeLayer = "";
+    this._activeLayerId = "";
     this._hovered = undefined;
     this._selected = [];
   }
 
-  activeLayer(): NodeId {
-    return this._activeLayer;
+  activeLayerId(): NodeId {
+    return this._activeLayerId;
   }
 
-  setActiveLayer(id: NodeId) {
-    if (this._activeLayer !== id) {
-      this._activeLayer = id;
+  setActiveLayer(layer: Layer) {
+    if (this._activeLayerId !== layer.id) {
+      this._activeLayerId = layer.id;
+      this._onChange();
+    }
+  }
+
+  setActiveLayerId(id: NodeId) {
+    if (this._activeLayerId !== id) {
+      this._activeLayerId = id;
       this._onChange();
     }
   }
@@ -59,7 +66,7 @@ export class Selection {
     return this._hovered;
   }
 
-  hoveredNode(): NodeId | undefined {
+  hoveredNodeId(): NodeId | undefined {
     if (!this._hovered) {
       return undefined;
     }
@@ -76,8 +83,16 @@ export class Selection {
     }
   }
 
-  setHoveredNode(id: NodeId | undefined) {
-    if (id) {
+  setHoveredNode(node: Node | undefined) {
+    if (node) {
+      this.setHovered({ type: "Node", id: node.id });
+    } else {
+      this.setHovered(undefined);
+    }
+  }
+
+  setHoveredNodeId(id: NodeId | undefined) {
+    if (id !== undefined) {
       this.setHovered({ type: "Node", id: id });
     } else {
       this.setHovered(undefined);
@@ -88,8 +103,8 @@ export class Selection {
     return isSameSelectable(selectable, this._hovered);
   }
 
-  isHoveredNode(id: NodeId) {
-    return this.isHovered({ type: "Node", id: id });
+  isHoveredNode(node: Node) {
+    return this.isHovered({ type: "Node", id: node.id });
   }
 
   selected(): Array<Selectable> {
@@ -97,7 +112,7 @@ export class Selection {
     return [...this._selected];
   }
 
-  selectedNodes(): Array<NodeId> {
+  selectedNodeIds(): Array<NodeId> {
     const res: Array<NodeId> = [];
     for (const s of this._selected) {
       if (s.type === "Node") {
@@ -113,7 +128,14 @@ export class Selection {
     this._onChange();
   }
 
-  setSelectedNodes(ids: Array<NodeId>) {
+  setSelectedNodes(nodes: Array<Node>) {
+    this._selected = nodes.map((node) => {
+      return { type: "Node", id: node.id };
+    });
+    this._onChange();
+  }
+
+  setSelectedNodeIds(ids: Array<NodeId>) {
     this._selected = ids.map((id) => {
       return { type: "Node", id: id };
     });
@@ -127,8 +149,8 @@ export class Selection {
     return index !== -1;
   }
 
-  isSelectedNode(id: NodeId) {
-    return this.isSelected({ type: "Node", id: id });
+  isSelectedNode(node: Node) {
+    return this.isSelected({ type: "Node", id: node.id });
   }
 
   toggleSelected(selectable: Selectable) {
@@ -144,7 +166,11 @@ export class Selection {
     this.setSelected(selected);
   }
 
-  toggleSelectedNode(id: NodeId) {
+  toggleSelectedNode(node: Node) {
+    this.toggleSelected({ type: "Node", id: node.id });
+  }
+
+  toggleSelectedNodeId(id: NodeId) {
     this.toggleSelected({ type: "Node", id: id });
   }
 }

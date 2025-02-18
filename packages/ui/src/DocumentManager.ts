@@ -72,8 +72,8 @@ export class DocumentManager {
     const doc = this.document();
     const selection = this.selection();
     if (doc.layers.length > 0) {
-      if (!doc.getNode(selection.activeLayer(), Layer)) {
-        selection.setActiveLayer(doc.layers[0]);
+      if (!doc.getNode(selection.activeLayerId(), Layer)) {
+        selection.setActiveLayerId(doc.layers[0]);
       }
     }
   }

@@ -9,9 +9,6 @@ import {
 
 import { Selection } from "../Selection.ts";
 import {
-  Point,
-  Document,
-  NodeId,
   EdgeNode,
   LineSegment,
   ArcFromStartTangent,
@@ -246,7 +243,6 @@ export interface EdgeShapesAndControls {
 }
 
 export function getEdgeShapesAndControls(
-  doc: Document,
   edge: EdgeNode,
 ): EdgeShapesAndControls {
   const res: EdgeShapesAndControls = {
@@ -254,54 +250,35 @@ export function getEdgeShapesAndControls(
     tangents: [],
   };
 
-  const startPoint = doc.getNode(edge.startPoint, Point);
-  const endPoint = doc.getNode(edge.endPoint, Point);
-  if (!startPoint || !endPoint) {
-    return res;
-  }
-  const startPos = startPoint.getPosition();
-  const endPos = endPoint.getPosition();
+  const startPos = edge.startPoint.position;
+  const endPos = edge.endPoint.position;
 
   if (edge instanceof LineSegment) {
     res.shapes.push(getLineSegment(startPos, endPos));
   } else if (edge instanceof ArcFromStartTangent) {
-    const cp = doc.getNode(edge.controlPoint, Point);
-    if (!cp) {
-      return res;
-    }
-    const tangent = cp.getPosition().clone().sub(startPos);
+    const cpPos = edge.controlPoint.position;
+    const tangent = cpPos.clone().sub(startPos);
     res.shapes.push(
       getGeneralizedArcFromStartTangent(startPos, endPos, tangent),
     );
-    res.tangents.push(getLineSegment(startPos, cp.getPosition()));
+    res.tangents.push(getLineSegment(startPos, cpPos));
   } else if (edge instanceof CCurve) {
-    const cp = doc.getNode(edge.controlPoint, Point);
-    if (!cp) {
-      return res;
-    }
-    const shapes_ = getCCurveShapes(startPos, endPos, cp.getPosition());
+    const cpPos = edge.controlPoint.position;
+    const shapes_ = getCCurveShapes(startPos, endPos, cpPos);
     for (const shape of shapes_) {
       res.shapes.push(shape);
     }
-    res.tangents.push(getLineSegment(startPos, cp.getPosition()));
-    res.tangents.push(getLineSegment(endPos, cp.getPosition()));
+    res.tangents.push(getLineSegment(startPos, cpPos));
+    res.tangents.push(getLineSegment(endPos, cpPos));
   } else if (edge instanceof SCurve) {
-    const startCp = doc.getNode(edge.startControlPoint, Point);
-    const endCp = doc.getNode(edge.endControlPoint, Point);
-    if (!startCp || !endCp) {
-      return res;
-    }
-    const shapes_ = getSCurveShapes(
-      startPos,
-      endPos,
-      startCp.getPosition(),
-      endCp.getPosition(),
-    );
+    const startCpPos = edge.startControlPoint.position;
+    const endCpPos = edge.endControlPoint.position;
+    const shapes_ = getSCurveShapes(startPos, endPos, startCpPos, endCpPos);
     for (const shape of shapes_) {
       res.shapes.push(shape);
     }
-    res.tangents.push(getLineSegment(startPos, startCp.getPosition()));
-    res.tangents.push(getLineSegment(endPos, endCp.getPosition()));
+    res.tangents.push(getLineSegment(startPos, startCpPos));
+    res.tangents.push(getLineSegment(endPos, endCpPos));
   }
   return res;
 }
@@ -309,8 +286,7 @@ export function getEdgeShapesAndControls(
 export function drawEdges(
   ctx: CanvasRenderingContext2D,
   camera: Camera2,
-  document: Document,
-  nodes: Array<NodeId>,
+  edges: Array<EdgeNode>,
   selection: Selection,
 ) {
   const edgeWidth_ = edgeWidth / camera.zoom;
@@ -319,19 +295,16 @@ export function drawEdges(
     lineWidth: edgeWidth_,
     strokeStyle: getControlColor(),
   };
-  for (const id of nodes) {
-    const edge = document.getNode(id, EdgeNode);
-    if (edge) {
-      const isEdgeHovered = selection.isHoveredNode(id);
-      const isEdgeSelected = selection.isSelectedNode(id);
-      edgeStyle.strokeStyle = getNodeColor(isEdgeHovered, isEdgeSelected);
-      const sc = getEdgeShapesAndControls(document, edge);
-      for (const shape of sc.shapes) {
-        drawShape(ctx, shape, edgeStyle);
-      }
-      for (const lineSegment of sc.tangents) {
-        drawLineSegment(ctx, lineSegment, tangentStyle);
-      }
+  for (const edge of edges) {
+    const isEdgeHovered = selection.isHoveredNode(edge);
+    const isEdgeSelected = selection.isSelectedNode(edge);
+    edgeStyle.strokeStyle = getNodeColor(isEdgeHovered, isEdgeSelected);
+    const sc = getEdgeShapesAndControls(edge);
+    for (const shape of sc.shapes) {
+      drawShape(ctx, shape, edgeStyle);
+    }
+    for (const lineSegment of sc.tangents) {
+      drawLineSegment(ctx, lineSegment, tangentStyle);
     }
   }
 }

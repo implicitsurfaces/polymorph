@@ -1,7 +1,7 @@
 import { Vector2 } from "threejs-math";
 
 import { DocumentManager } from "../DocumentManager.ts";
-import { Document, NodeId, Point, EdgeNode, Layer } from "../Document.ts";
+import { Document, Point, EdgeNode, Layer, SkeletonNode } from "../Document.ts";
 import { ControlPoint, getControlPoints } from "../ControlPoint.ts";
 import { Selectable, Selection } from "../Selection.ts";
 
@@ -10,17 +10,14 @@ type OnMoveCallback = (delta: Vector2) => void;
 // Computes the set of all points that are either selected,
 // or that are the endpoint of a selected edge.
 //
-function computeMovedPoints(doc: Document, selection: Selection): Set<NodeId> {
-  const movedPoints = new Set<NodeId>();
-  for (const selectable of selection.selected()) {
-    if (selectable.type === "Node") {
-      const node = doc.getNode(selectable.id);
-      if (node instanceof Point) {
-        movedPoints.add(node.id);
-      } else if (node instanceof EdgeNode) {
-        movedPoints.add(node.startPoint);
-        movedPoints.add(node.endPoint);
-      }
+function computeMovedPoints(doc: Document, selection: Selection): Set<Point> {
+  const movedPoints = new Set<Point>();
+  for (const node of doc.getNodes(selection.selectedNodeIds(), SkeletonNode)) {
+    if (node instanceof Point) {
+      movedPoints.add(node);
+    } else if (node instanceof EdgeNode) {
+      movedPoints.add(node.startPoint);
+      movedPoints.add(node.endPoint);
     }
   }
   return movedPoints;
@@ -30,7 +27,7 @@ function computeMovedPoints(doc: Document, selection: Selection): Set<NodeId> {
 //
 function computeIncidentEdges(
   doc: Document,
-  points: Set<NodeId>,
+  points: Set<Point>,
 ): Set<EdgeNode> {
   const edges = new Set<EdgeNode>();
   for (const layerId of doc.layers) {
@@ -56,12 +53,12 @@ function computeIncidentEdges(
 //
 function computeMovedControlPoints(
   doc: Document,
-  movedPoints: Set<NodeId>,
+  movedPoints: Set<Point>,
 ): Set<ControlPoint> {
   const movedControlPoints = new Set<ControlPoint>();
   const incidentEdges = computeIncidentEdges(doc, movedPoints);
   for (const edge of incidentEdges) {
-    for (const cp of getControlPoints(doc, edge)) {
+    for (const cp of getControlPoints(edge)) {
       if (cp.anchor && movedPoints.has(cp.anchor)) {
         movedControlPoints.add(cp);
       }
@@ -73,9 +70,9 @@ function computeMovedControlPoints(
 // Returns the onMove callback for a Point node.
 //
 function onPointMove(point: Point): OnMoveCallback {
-  const position = point.getPosition();
+  const position = point.position;
   return (delta: Vector2) => {
-    point.setPosition(position.clone().add(delta));
+    point.position = position.clone().add(delta);
   };
 }
 
@@ -161,11 +158,8 @@ function start(data: MoveData, documentManager: DocumentManager): boolean {
   // Store their onMove() callbacks.
   //
   data.onMoves = [];
-  for (const id of movedPoints) {
-    const point = doc.getNode(id, Point);
-    if (point) {
-      data.onMoves.push(onPointMove(point));
-    }
+  for (const point of movedPoints) {
+    data.onMoves.push(onPointMove(point));
   }
   for (const cp of movedControlPoints) {
     data.onMoves.push(onControlPointMove(cp));

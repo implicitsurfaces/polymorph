@@ -18,7 +18,7 @@ export class PointTool extends Tool {
   onCanvasClick(event: CanvasPointerEvent) {
     const doc = event.documentManager.document();
     const selection = event.documentManager.selection();
-    const layer = doc.getNode(selection.activeLayer(), Layer);
+    const layer = doc.getNode(selection.activeLayerId(), Layer);
     if (!layer) {
       return;
     }
@@ -26,8 +26,8 @@ export class PointTool extends Tool {
       layer: layer,
       position: event.documentPosition,
     });
-    selection.setHoveredNode(point.id);
-    selection.setSelectedNodes([point.id]);
+    selection.setHoveredNode(point);
+    selection.setSelectedNodes([point]);
     event.documentManager.commitChanges();
   }
 }

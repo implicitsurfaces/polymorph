@@ -15,9 +15,9 @@ export function NodeListPanel({
 }: NodeListPanelProps) {
   const doc = documentManager.document();
   const selection = documentManager.selection();
-  const activeLayerId = selection.activeLayer();
-  const hoveredNodeId = selection.hoveredNode();
-  const selectedNodeIds = selection.selectedNodes();
+  const activeLayerId = selection.activeLayerId();
+  const hoveredNodeId = selection.hoveredNodeId();
+  const selectedNodeIds = selection.selectedNodeIds();
 
   function getItem(node: Node) {
     const id = node.id;

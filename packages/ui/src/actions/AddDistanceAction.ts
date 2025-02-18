@@ -18,17 +18,17 @@ export class AddDistanceAction extends TriggerAction {
     // Check that the selection is composed of exactly two points
     const doc = documentManager.document();
     const selection = documentManager.selection();
-    const layer = doc.getNode(selection.activeLayer(), Layer);
+    const layer = doc.getNode(selection.activeLayerId(), Layer);
     if (!layer) {
       return "No active layer.";
     }
-    const selectedNodes = selection.selectedNodes();
-    const points = doc.getNodes(selectedNodes, Point);
-    if (selectedNodes.length != 2 || points.length !== 2) {
+    const selectedNodeIds = selection.selectedNodeIds();
+    const points = doc.getNodes(selectedNodeIds, Point);
+    if (selectedNodeIds.length != 2 || points.length !== 2) {
       return "Please select two points.";
     }
-    const p1 = points[0].id;
-    const p2 = points[1].id;
+    const p1 = points[0];
+    const p2 = points[1];
 
     // Check that a measure between these two points does not already exist
     for (const node of doc.nodes()) {
@@ -48,6 +48,6 @@ export class AddDistanceAction extends TriggerAction {
       startPoint: p1,
       endPoint: p2,
     });
-    selection.setSelectedNodes([d.id]);
+    selection.setSelectedNodes([d]);
   }
 }

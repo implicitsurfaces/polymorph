@@ -3,12 +3,16 @@ import {
   Layer,
   createTestDocument,
   Number,
-  PointToPointDistance,
   MeasureNode,
 } from "./Document.ts";
 import { totalSolve } from "./constraintSolving/totalSolve.ts";
 
 import { Selection } from "./Selection.ts";
+import {
+  Constraint,
+  ParamValueMap,
+  getConstraint,
+} from "./constraintSolving/Constraint.ts";
 
 /**
  * Stores and manages the undo-redo history of the document.
@@ -84,37 +88,17 @@ export class DocumentManager {
   private _updateMeasures(): void {
     const doc = this.document();
 
-    type ParamId = string;
-    type ParamValueMap = { [key: ParamId]: number };
-
-    interface Constraint {
-      type: "distance";
-      params: ParamId[];
-      value: number;
-    }
-
+    // Get constraints and old param values
     const constraints: Constraint[] = [];
     const oldParamValues: ParamValueMap = {};
-
     for (const node of doc.nodes()) {
       if (node instanceof Number) {
         oldParamValues[node.id] = node.value;
       } else if (node instanceof MeasureNode) {
         if (node.isLocked) {
-          if (node instanceof PointToPointDistance) {
-            const startPoint = node.startPoint;
-            const endPoint = node.endPoint;
-            const params: string[] = [
-              startPoint.x.id,
-              startPoint.y.id,
-              endPoint.x.id,
-              endPoint.y.id,
-            ];
-            constraints.push({
-              type: "distance",
-              params: params,
-              value: node.number.value,
-            });
+          const constraint = getConstraint(node);
+          if (constraint) {
+            constraints.push(constraint);
           }
         } else {
           node.updateMeasure();
@@ -122,12 +106,13 @@ export class DocumentManager {
       }
     }
 
+    // Solve
     const newParamValues: ParamValueMap = totalSolve(
       constraints,
       oldParamValues,
     );
 
-    // set new param values
+    // Set new param values
     for (const node of doc.nodes()) {
       if (node instanceof Number) {
         const newValue = newParamValues[node.id];

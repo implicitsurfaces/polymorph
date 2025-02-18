@@ -1,10 +1,19 @@
 import { Vector2 } from "threejs-math";
-import { v4 as uuidv4 } from "uuid";
+import { generate as generateShortUuId } from "short-uuid";
 
 ///////////////////////////////////////////////////////////////////////////////
 //                             Base types
 
 export type NodeId = string;
+
+// Note: We want the IDs to start with underscore and then only contain
+// alphanumerics characters (no dashes) for use as is in the constraint
+// solver. The default `short-uuid.generate()` (prefixed with underscore)
+// satisfies this as Base58 encoding of UUID v4.
+//
+function generateNodeId(): NodeId {
+  return `_${generateShortUuId()}`;
+}
 
 export interface NodeOptions {
   readonly name?: string;
@@ -506,7 +515,7 @@ export class Document {
     type: NodeType<T, Options>,
     options: Options,
   ): T {
-    const id = uuidv4();
+    const id = generateNodeId();
     let layer: undefined | Layer = undefined;
     if (options.layer instanceof Layer) {
       layer = options.layer;

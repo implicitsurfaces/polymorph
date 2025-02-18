@@ -4,6 +4,7 @@ import {
   createTestDocument,
   Number,
   PointToPointDistance,
+  MeasureNode,
 } from "./Document.ts";
 import { totalSolve } from "./constraintSolving/totalSolve.ts";
 
@@ -96,22 +97,28 @@ export class DocumentManager {
     const oldParamValues: ParamValueMap = {};
 
     for (const node of doc.nodes()) {
-      if (node instanceof PointToPointDistance) {
-        const startPoint = node.startPoint;
-        const endPoint = node.endPoint;
-        const params: string[] = [
-          startPoint.x.id,
-          startPoint.y.id,
-          endPoint.x.id,
-          endPoint.y.id,
-        ];
-        constraints.push({
-          type: "distance",
-          params: params,
-          value: node.number.value,
-        });
-      } else if (node instanceof Number) {
+      if (node instanceof Number) {
         oldParamValues[node.id] = node.value;
+      } else if (node instanceof MeasureNode) {
+        if (node.isLocked) {
+          if (node instanceof PointToPointDistance) {
+            const startPoint = node.startPoint;
+            const endPoint = node.endPoint;
+            const params: string[] = [
+              startPoint.x.id,
+              startPoint.y.id,
+              endPoint.x.id,
+              endPoint.y.id,
+            ];
+            constraints.push({
+              type: "distance",
+              params: params,
+              value: node.number.value,
+            });
+          }
+        } else {
+          node.updateMeasure();
+        }
       }
     }
 

@@ -423,7 +423,9 @@ export abstract class MeasureNode extends Node {
 
   constructor(doc: Document, id: NodeId, options: MeasureNodeOptions) {
     super(doc, id, options);
-    this.isLocked = options.isLocked ?? false;
+    this.isLocked = options.isLocked ?? true;
+    // For now, we set the measure to be locked by default.
+    // TODO: should the default be unlocked?
   }
 
   abstract updateMeasure(): void;
@@ -483,12 +485,6 @@ export class PointToPointDistance extends MeasureNode {
   }
 
   updateMeasure() {
-    if (this.isLocked) {
-      return;
-      // TODO: what to do if the measure is locked but the constraint
-      // solver could not satisfy it? (overconstrained system) Shouldn't
-      // we something show both the target value and the current value?
-    }
     const startPosition = this.startPoint.position;
     const endPosition = this.endPoint.position;
     this.number.value = startPosition.distanceTo(endPosition);

@@ -83,86 +83,49 @@ export class DocumentManager {
   private _updateMeasures(): void {
     const doc = this.document();
 
-    const constraints: PointToPointDistance[] = [];
-    const currentParams: { [key: string]: number } = {};
+    type ParamId = string;
+    type ParamValueMap = { [key: ParamId]: number };
 
-    for (const node of doc.nodes()) {
-      if (node instanceof PointToPointDistance) {
-        constraints.push(node);
-      }
-
-      if (node instanceof Number) {
-        currentParams[node.id] = node.value;
-      }
-    }
-
-    // create a param map
-    const paramIdMapOGtoNew: { [key: string]: string } = {};
-    const paramIdMapNewToOG: { [key: string]: string } = {};
-    const currentParamsMapped: { [key: string]: number } = {};
-
-    for (const id in currentParams) {
-      const newId = `_${generateUUID(3)}`;
-      paramIdMapOGtoNew[id] = newId;
-      paramIdMapNewToOG[newId] = id;
-      currentParamsMapped[newId] = currentParams[id];
-    }
-
-    interface MappedConstraint {
+    interface Constraint {
       type: "distance";
-      ogParams: string[];
-      params: string[];
+      params: ParamId[];
       value: number;
     }
 
-    const constraintsMapped: MappedConstraint[] = [];
+    const constraints: Constraint[] = [];
+    const oldParamValues: ParamValueMap = {};
 
-    for (const constraint of constraints) {
-      const startPoint = constraint.startPoint;
-      const endPoint = constraint.endPoint;
-      const ogParams: string[] = [
-        startPoint.x.id,
-        startPoint.y.id,
-        endPoint.x.id,
-        endPoint.y.id,
-      ];
-
-      const paramsMapped = ogParams.map((id) => paramIdMapOGtoNew[id]);
-
-      constraintsMapped.push({
-        type: "distance",
-        ogParams: ogParams,
-        params: paramsMapped,
-        value: constraint.number.value,
-      });
+    for (const node of doc.nodes()) {
+      if (node instanceof PointToPointDistance) {
+        const startPoint = node.startPoint;
+        const endPoint = node.endPoint;
+        const params: string[] = [
+          startPoint.x.id,
+          startPoint.y.id,
+          endPoint.x.id,
+          endPoint.y.id,
+        ];
+        constraints.push({
+          type: "distance",
+          params: params,
+          value: node.number.value,
+        });
+      } else if (node instanceof Number) {
+        oldParamValues[node.id] = node.value;
+      }
     }
 
-    const newParamValues: { [key: string]: number } = totalSolve(
-      constraintsMapped,
-      currentParamsMapped,
+    const newParamValues: ParamValueMap = totalSolve(
+      constraints,
+      oldParamValues,
     );
 
     // set new param values
     for (const node of doc.nodes()) {
       if (node instanceof Number) {
-        const mappedId = paramIdMapOGtoNew[node.id];
-        const newValue = newParamValues[mappedId];
+        const newValue = newParamValues[node.id];
         node.value = newValue;
       }
-    }
-
-    function generateUUID(length: number): string {
-      const characters =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-      const charactersLength = characters.length;
-      let uuid = "";
-
-      for (let i = 0; i < length; i++) {
-        const randomIndex = Math.floor(Math.random() * charactersLength);
-        uuid += characters.charAt(randomIndex);
-      }
-
-      return uuid;
     }
   }
 

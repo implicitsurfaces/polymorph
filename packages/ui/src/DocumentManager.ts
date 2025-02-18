@@ -1,11 +1,18 @@
 import {
   Document,
   Layer,
-  MeasureNode,
   createTestDocument,
+  Number,
+  MeasureNode,
 } from "./Document.ts";
+import { totalSolve } from "./constraintSolving/totalSolve.ts";
 
 import { Selection } from "./Selection.ts";
+import {
+  Constraint,
+  ParamValueMap,
+  getConstraint,
+} from "./constraintSolving/Constraint.ts";
 
 /**
  * Stores and manages the undo-redo history of the document.
@@ -78,11 +85,38 @@ export class DocumentManager {
     }
   }
 
-  private _updateMeasures() {
+  private _updateMeasures(): void {
     const doc = this.document();
+
+    // Get constraints and old param values
+    const constraints: Constraint[] = [];
+    const oldParamValues: ParamValueMap = {};
     for (const node of doc.nodes()) {
-      if (node instanceof MeasureNode) {
-        node.updateMeasure();
+      if (node instanceof Number) {
+        oldParamValues[node.id] = node.value;
+      } else if (node instanceof MeasureNode) {
+        if (node.isLocked) {
+          const constraint = getConstraint(node);
+          if (constraint) {
+            constraints.push(constraint);
+          }
+        } else {
+          node.updateMeasure();
+        }
+      }
+    }
+
+    // Solve
+    const newParamValues: ParamValueMap = totalSolve(
+      constraints,
+      oldParamValues,
+    );
+
+    // Set new param values
+    for (const node of doc.nodes()) {
+      if (node instanceof Number) {
+        const newValue = newParamValues[node.id];
+        node.value = newValue;
       }
     }
   }

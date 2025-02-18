@@ -1,5 +1,6 @@
 import { createConstraintFn } from "./compile/createConstraintFn.js";
 import { dogLeg } from "./optimizers/dogLeg.js";
+import { levenbergMarquardt } from "./optimizers/levenbergMarquardt.js";
 
 export function totalSolve(constraints, currentParams) {
   // console.log({ constraints, currentParams });
@@ -31,7 +32,7 @@ export function totalSolve(constraints, currentParams) {
 
   const fn = createConstraintFn(eqs, variableNames);
 
-  const solution = dogLeg(fn, initialValues);
+  const solution = levenbergMarquardt(fn, initialValues);
 
   const finalValues = {};
 

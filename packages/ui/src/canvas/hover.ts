@@ -2,7 +2,7 @@ import { Vector2 } from "threejs-math";
 import { Camera2 } from "./Camera2.ts";
 import { Selectable } from "../Selection.ts";
 import { DocumentManager } from "../DocumentManager.ts";
-import { Document, NodeId, EdgeNode, Layer, Point } from "../Document.ts";
+import { Document, Node, NodeId, EdgeNode, Layer, Point } from "../Document.ts";
 import {
   getEdgeShapesAndControls,
   CanvasShape,
@@ -20,10 +20,10 @@ interface ClosestSelectable {
 
 type DistanceFunction<T> = (node: T, position: Vector2) => number;
 type MakeSelectableFunction<T> = (node: T, id: NodeId) => Selectable;
-type Filter = (id: NodeId) => boolean;
+type Filter = (node: Node) => boolean;
 
 function distToPoint(point: Point, position: Vector2): number {
-  return point.getPosition().distanceTo(position);
+  return point.position.distanceTo(position);
 }
 
 function selectPoint(point: Point): Selectable {
@@ -161,12 +161,12 @@ function findClosestSelectableInLayer(
 
   for (const id of layer.nodes) {
     const node = doc.getNode(id);
-    if (node && (!filter || filter(id))) {
+    if (node && (!filter || filter(node))) {
       if (node instanceof Point) {
         update(csPoint, node, distToPoint, selectPoint, id);
       } else if (node instanceof EdgeNode) {
         // TODO: cache the controls from the draw call?
-        const sc = getEdgeShapesAndControls(doc, node);
+        const sc = getEdgeShapesAndControls(node);
         update(csEdge, sc.shapes, distToShapes, selectEdge, id);
       }
     }

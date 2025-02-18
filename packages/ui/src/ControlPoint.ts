@@ -1,6 +1,4 @@
 import {
-  Document,
-  NodeId,
   Point,
   EdgeNode,
   LineSegment,
@@ -29,62 +27,47 @@ export interface ControlPoint {
   readonly name: string;
   readonly prettyName: string;
   readonly point: Point;
-  readonly anchor?: NodeId;
+  readonly anchor?: Point;
 }
 
-export function getControlPoints(
-  doc: Document,
-  edge: EdgeNode,
-): Array<ControlPoint> {
+export function getControlPoints(edge: EdgeNode): Array<ControlPoint> {
   const res: Array<ControlPoint> = [];
   if (edge instanceof LineSegment) {
     // No control points
   } else if (edge instanceof ArcFromStartTangent) {
-    const controlPoint = doc.getNode(edge.controlPoint, Point);
-    if (controlPoint) {
-      res.push({
-        edge: edge,
-        name: "controlPoint",
-        prettyName: "Control Point",
-        point: controlPoint,
-        anchor: edge.startPoint,
-      });
-    }
+    res.push({
+      edge: edge,
+      name: "controlPoint",
+      prettyName: "Control Point",
+      point: edge.controlPoint,
+      anchor: edge.startPoint,
+    });
   } else if (edge instanceof CCurve) {
-    const controlPoint = doc.getNode(edge.controlPoint, Point);
-    if (controlPoint) {
-      res.push({
-        edge: edge,
-        name: "controlPoint",
-        prettyName: "Control Point",
-        point: controlPoint,
-        anchor: edge.startPoint,
-        // Note: alternatively, for symmetry, we could either have both
-        // startPoint and endPoint be anchors (or none of them), but it
-        // isn't clear if this makes the user experience better or worse.
-      });
-    }
+    res.push({
+      edge: edge,
+      name: "controlPoint",
+      prettyName: "Control Point",
+      point: edge.controlPoint,
+      anchor: edge.startPoint,
+      // Note: alternatively, for symmetry, we could either have both
+      // startPoint and endPoint be anchors (or none of them), but it
+      // isn't clear if this makes the user experience better or worse.
+    });
   } else if (edge instanceof SCurve) {
-    const startControlPoint = doc.getNode(edge.startControlPoint, Point);
-    if (startControlPoint) {
-      res.push({
-        edge: edge,
-        name: "startControlPoint",
-        prettyName: "Start Control Point",
-        point: startControlPoint,
-        anchor: edge.startPoint,
-      });
-    }
-    const endControlPoint = doc.getNode(edge.endControlPoint, Point);
-    if (endControlPoint) {
-      res.push({
-        edge: edge,
-        name: "endControlPoint",
-        prettyName: "End Control Point",
-        point: endControlPoint,
-        anchor: edge.endPoint,
-      });
-    }
+    res.push({
+      edge: edge,
+      name: "startControlPoint",
+      prettyName: "Start Control Point",
+      point: edge.startControlPoint,
+      anchor: edge.startPoint,
+    });
+    res.push({
+      edge: edge,
+      name: "endControlPoint",
+      prettyName: "End Control Point",
+      point: edge.endControlPoint,
+      anchor: edge.endPoint,
+    });
   }
   return res;
 }

@@ -1,5 +1,5 @@
 import { Selection } from "../Selection.ts";
-import { Document, NodeId, Layer } from "../Document.ts";
+import { Document, Layer, EdgeNode, Point } from "../Document.ts";
 import { DocumentManager } from "../DocumentManager.ts";
 import { Camera2 } from "./Camera2.ts";
 import { FillStyle } from "./style.ts";
@@ -29,18 +29,18 @@ function initializeViewTransform(
 function drawDocument(
   ctx: CanvasRenderingContext2D,
   camera: Camera2,
-  document: Document,
+  doc: Document,
   selection: Selection,
 ) {
-  document.layers.forEach((id: NodeId) => {
-    const layer = document.getNode(id, Layer);
+  for (const id of doc.layers) {
+    const layer = doc.getNode(id, Layer);
     if (layer) {
       // Note: we use two passes since we want to draw all points on top of
       // edges, regardless of layer order.
-      drawEdges(ctx, camera, document, layer.nodes, selection);
-      drawPoints(ctx, camera, document, layer.nodes, selection);
+      drawEdges(ctx, camera, doc.getNodes(layer.nodes, EdgeNode), selection);
+      drawPoints(ctx, camera, doc.getNodes(layer.nodes, Point), selection);
     }
-  });
+  }
 }
 
 export function draw(
@@ -56,7 +56,7 @@ export function draw(
   drawBackground(ctx, canvas.width, canvas.height, "#e0e0e0");
   drawGrid(ctx, camera);
   initializeViewTransform(ctx, camera);
-  const document = documentManager.document();
+  const doc = documentManager.document();
   const selection = documentManager.selection();
-  drawDocument(ctx, camera, document, selection);
+  drawDocument(ctx, camera, doc, selection);
 }

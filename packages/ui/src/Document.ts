@@ -1,6 +1,13 @@
 import { Vector2 } from "threejs-math";
 import { generate as generateShortUuId } from "short-uuid";
 
+/**
+ * Reports a document error.
+ */
+export function logDocumentError(message: string) {
+  console.log(`Document Error: ${message}`);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 //                             Base types
 
@@ -17,29 +24,66 @@ function generateNodeId(): NodeId {
 
 export interface NodeOptions {
   readonly name?: string;
-  readonly layer?: Layer | NodeId;
+  readonly layer?: Layer;
 }
 
 export abstract class Node {
   readonly doc: Document;
   readonly id: NodeId;
-  readonly layer?: NodeId;
+
+  private _layerId: NodeId | undefined;
+
   name: string;
 
   constructor(doc: Document, id: NodeId, options: NodeOptions) {
     this.doc = doc;
     this.id = id;
     if (options.layer) {
-      if (options.layer instanceof Layer) {
-        this.layer = options.layer.id;
-      } else {
-        this.layer = options.layer;
-      }
+      this._layerId = options.layer.id;
     }
-    this.name = options.name !== undefined ? options.name : "Node";
+    this.name = options.name ?? "Node";
   }
 
   abstract clone(newDoc: Document): Node;
+
+  get layer(): Layer | undefined {
+    return this.doc.getNode(this._layerId, Layer);
+  }
+
+  /**
+   * This helper function should be used in cases where it is expected
+   * (e.g., method precondition) that an `id` corresponds to a given node
+   * type. If not, an error is issued and `undefined` is returned, so the
+   * caller has an opportunity to recover.
+   */
+  protected getExpectedNode<T extends Node>(
+    id: NodeId | undefined,
+    type: AbstractNodeType<T> | undefined,
+  ): T | undefined {
+    const node = this.doc.getNode(id, type);
+    if (!node) {
+      logDocumentError(
+        `The given ID (${id}) does not correspond to a node of the expected type.`,
+      );
+    }
+    return node;
+  }
+
+  /**
+   * This helper function should be used in cases where a class invariant
+   * enforces that an `id` must to be a given node type. If not, this
+   * function throws.
+   */
+  protected getNodeAs<T extends Node>(
+    id: NodeId | undefined,
+    type: AbstractNodeType<T> | undefined,
+  ): T {
+    const node = this.doc.getNode(id, type);
+    if (!node) {
+      throw `The given ID (${id}) does not correspond to a node of the expected type.`;
+    }
+    return node;
+  }
 }
 
 /**
@@ -66,6 +110,41 @@ type AbstractNodeType<T> = abstract new (
   options: never,
 ) => T;
 
+/**
+ * This helper function returns the given `node` as is if not undefined,
+ * otherwise it creates and returns a node of the given `type` and with the
+ * given `options`.
+ */
+function getOrCreate<T extends Node, Options extends NodeOptions>(
+  doc: Document,
+  node: T | undefined,
+  type: NodeType<T, Options>,
+  options: Options,
+): T {
+  if (node) {
+    // Note: if `node` is given, then it is trusted to be in the document
+    // and returned as is. This is important when cloning a whole document,
+    // as the node may not be cloned yet, but another node being
+    // cloned now may reference its ID.
+    return node;
+  } else {
+    return doc.createNode(type, options);
+  }
+}
+
+/**
+ * This helper function is the same as `getOrCreate()` except that it returns
+ * the node ID instead of the node itself.
+ */
+function getOrCreateId<T extends Node, Options extends NodeOptions>(
+  doc: Document,
+  node: T | undefined,
+  type: NodeType<T, Options>,
+  options: Options,
+): NodeId {
+  return getOrCreate(doc, node, type, options).id;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 //                               Number
 
@@ -84,22 +163,6 @@ export class Number extends Node {
 
   clone(newDoc: Document) {
     return new Number(newDoc, this.id, this);
-  }
-
-  static getOrCreate(
-    doc: Document,
-    id: NodeId | undefined,
-    options: NumberOptions,
-  ): NodeId {
-    if (id === undefined) {
-      return doc.createNode(Number, options).id;
-    } else {
-      // Note: if `id` is provided, then it is trusted to be in the document
-      // and returned as is. This is important when cloning a whole document,
-      // as the Number node may not be cloned yet, but another node being
-      // cloned now may reference its ID.
-      return id;
-    }
   }
 }
 
@@ -120,8 +183,8 @@ export abstract class SkeletonNode extends Node {
 
 export interface PointOptions extends SkeletonNodeOptions {
   readonly position?: Vector2 | [number, number];
-  readonly x?: NodeId; // Number
-  readonly y?: NodeId; // Number
+  readonly x?: Number;
+  readonly y?: Number;
 }
 
 function getVec2Pair(position?: Vector2 | [number, number]): [number, number] {
@@ -136,17 +199,17 @@ function getVec2Pair(position?: Vector2 | [number, number]): [number, number] {
 
 export class Point extends SkeletonNode {
   static readonly defaultName = "Point";
-  x: NodeId; // Number
-  y: NodeId; // Number
+  private _xId: NodeId;
+  private _yId: NodeId;
 
   constructor(doc: Document, id: NodeId, options: PointOptions) {
     super(doc, id, options);
     const defaultPos = getVec2Pair(options.position);
-    this.x = Number.getOrCreate(doc, options.x, {
+    this._xId = getOrCreateId(doc, options.x, Number, {
       layer: options.layer,
       value: defaultPos[0],
     });
-    this.y = Number.getOrCreate(doc, options.y, {
+    this._yId = getOrCreateId(doc, options.y, Number, {
       layer: options.layer,
       value: defaultPos[1],
     });
@@ -156,40 +219,79 @@ export class Point extends SkeletonNode {
     return new Point(newDoc, this.id, this);
   }
 
-  getPosition(): Vector2 {
-    const x = this.doc.getNode(this.x, Number);
-    const y = this.doc.getNode(this.y, Number);
-    return new Vector2(x ? x.value : 0, y ? y.value : 0);
+  get x(): Number {
+    return this.getNodeAs(this._xId, Number);
   }
 
-  setPosition(position: Vector2) {
-    const x = this.doc.getNode(this.x, Number);
-    const y = this.doc.getNode(this.y, Number);
-    if (x) {
-      x.value = position.x;
-    }
-    if (y) {
-      y.value = position.y;
-    }
+  set x(number: Number) {
+    this._xId = number.id;
   }
+
+  get y(): Number {
+    return this.getNodeAs(this._yId, Number);
+  }
+
+  set y(number: Number) {
+    this._yId = number.id;
+  }
+
+  get position(): Vector2 {
+    return new Vector2(this.x.value, this.y.value);
+  }
+
+  set position(position: Vector2) {
+    this.x.value = position.x;
+    this.y.value = position.y;
+  }
+
+  // Note: For now, we do not provide ID-based getters and setters in order to
+  // encourage the node-based interface and keep the interface smaller
+  // (less boilerplate for each Node subtype). However, if we do want
+  // ID-based getters/setters, they could look like the following:
+  //
+  // get xId(): NodeId {
+  //   return this._xId;
+  // }
+  //
+  // set xId(id: NodeId) {
+  //   if (this.getExpectedNode(id, Number)) {
+  //     this._xId = id;
+  //   }
+  // }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               EdgeNode
 
 export interface EdgeNodeOptions extends SkeletonNodeOptions {
-  readonly startPoint: NodeId; // Point
-  readonly endPoint: NodeId; // Point
+  readonly startPoint: Point;
+  readonly endPoint: Point;
 }
 
 export abstract class EdgeNode extends SkeletonNode {
-  startPoint: NodeId; // Point
-  endPoint: NodeId; // Point
+  private _startPointId: NodeId;
+  private _endPointId: NodeId;
 
   constructor(doc: Document, id: NodeId, options: EdgeNodeOptions) {
     super(doc, id, options);
-    this.startPoint = options.startPoint;
-    this.endPoint = options.endPoint;
+    this._startPointId = options.startPoint.id;
+    this._endPointId = options.endPoint.id;
+  }
+
+  get startPoint(): Point {
+    return this.getNodeAs(this._startPointId, Point);
+  }
+
+  set startPoint(point: Point) {
+    this._startPointId = point.id;
+  }
+
+  get endPoint(): Point {
+    return this.getNodeAs(this._endPointId, Point);
+  }
+
+  set endPoint(point: Point) {
+    this._endPointId = point.id;
   }
 }
 
@@ -215,20 +317,28 @@ export class LineSegment extends EdgeNode {
 //                               ArcFromStartTangent
 
 export interface ArcFromStartTangentOptions extends EdgeNodeOptions {
-  readonly controlPoint: NodeId; // Point
+  readonly controlPoint: Point;
 }
 
 export class ArcFromStartTangent extends EdgeNode {
   static readonly defaultName = "Arc";
-  controlPoint: NodeId; // Point
+  private _controlPointId: NodeId;
 
   constructor(doc: Document, id: NodeId, options: ArcFromStartTangentOptions) {
     super(doc, id, options);
-    this.controlPoint = options.controlPoint;
+    this._controlPointId = options.controlPoint.id;
   }
 
   clone(newDoc: Document) {
     return new ArcFromStartTangent(newDoc, this.id, this);
+  }
+
+  get controlPoint(): Point {
+    return this.getNodeAs(this._controlPointId, Point);
+  }
+
+  set controlPoint(point: Point) {
+    this._controlPointId = point.id;
   }
 }
 
@@ -236,20 +346,28 @@ export class ArcFromStartTangent extends EdgeNode {
 //                                  CCurve
 
 export interface CCurveOptions extends EdgeNodeOptions {
-  readonly controlPoint: NodeId; // Point
+  readonly controlPoint: Point;
 }
 
 export class CCurve extends EdgeNode {
   static readonly defaultName = "C-Curve";
-  controlPoint: NodeId; // Point
+  private _controlPointId: NodeId;
 
   constructor(doc: Document, id: NodeId, options: CCurveOptions) {
     super(doc, id, options);
-    this.controlPoint = options.controlPoint;
+    this._controlPointId = options.controlPoint.id;
   }
 
   clone(newDoc: Document) {
     return new CCurve(newDoc, this.id, this);
+  }
+
+  get controlPoint(): Point {
+    return this.getNodeAs(this._controlPointId, Point);
+  }
+
+  set controlPoint(point: Point) {
+    this._controlPointId = point.id;
   }
 }
 
@@ -257,23 +375,39 @@ export class CCurve extends EdgeNode {
 //                                  SCurve
 
 export interface SCurveOptions extends EdgeNodeOptions {
-  readonly startControlPoint: NodeId; // Point
-  readonly endControlPoint: NodeId; // Point
+  readonly startControlPoint: Point;
+  readonly endControlPoint: Point;
 }
 
 export class SCurve extends EdgeNode {
   static readonly defaultName = "S-Curve";
-  startControlPoint: NodeId; // Point
-  endControlPoint: NodeId; // Point
+  private _startControlPointId: NodeId;
+  private _endControlPointId: NodeId;
 
   constructor(doc: Document, id: NodeId, options: SCurveOptions) {
     super(doc, id, options);
-    this.startControlPoint = options.startControlPoint;
-    this.endControlPoint = options.endControlPoint;
+    this._startControlPointId = options.startControlPoint.id;
+    this._endControlPointId = options.endControlPoint.id;
   }
 
   clone(newDoc: Document) {
     return new SCurve(newDoc, this.id, this);
+  }
+
+  get startControlPoint(): Point {
+    return this.getNodeAs(this._startControlPointId, Point);
+  }
+
+  set startControlPoint(point: Point) {
+    this._startControlPointId = point.id;
+  }
+
+  get endControlPoint(): Point {
+    return this.getNodeAs(this._endControlPointId, Point);
+  }
+
+  set endControlPoint(point: Point) {
+    this._endControlPointId = point.id;
   }
 }
 
@@ -289,7 +423,7 @@ export abstract class MeasureNode extends Node {
 
   constructor(doc: Document, id: NodeId, options: MeasureNodeOptions) {
     super(doc, id, options);
-    this.isLocked = options.isLocked !== undefined ? options.isLocked : false;
+    this.isLocked = options.isLocked ?? false;
   }
 
   abstract updateMeasure(): void;
@@ -299,23 +433,22 @@ export abstract class MeasureNode extends Node {
 //                            PointToPointDistance
 
 export interface PointToPointDistanceOptions extends MeasureNodeOptions {
-  readonly startPoint: NodeId; // Point
-  readonly endPoint: NodeId; // Point
-  readonly value?: NodeId; // Number
+  readonly startPoint: Point;
+  readonly endPoint: Point;
+  readonly number?: Number;
 }
 
 export class PointToPointDistance extends MeasureNode {
   static readonly defaultName = "Point to Point Distance";
-  startPoint: NodeId; // Point
-  endPoint: NodeId; // Point
-  value: NodeId; // Number
+  private _startPointId: NodeId;
+  private _endPointId: NodeId;
+  private _number: NodeId;
 
   constructor(doc: Document, id: NodeId, options: PointToPointDistanceOptions) {
     super(doc, id, options);
-    this.startPoint = options.startPoint;
-    this.endPoint = options.endPoint;
-
-    this.value = Number.getOrCreate(doc, options.value, {
+    this._startPointId = options.startPoint.id;
+    this._endPointId = options.endPoint.id;
+    this._number = getOrCreateId(doc, options.number, Number, {
       layer: options.layer,
       value: 0,
     });
@@ -325,6 +458,30 @@ export class PointToPointDistance extends MeasureNode {
     return new PointToPointDistance(newDoc, this.id, this);
   }
 
+  get startPoint(): Point {
+    return this.getNodeAs(this._startPointId, Point);
+  }
+
+  set startPoint(point: Point) {
+    this._startPointId = point.id;
+  }
+
+  get endPoint(): Point {
+    return this.getNodeAs(this._endPointId, Point);
+  }
+
+  set endPoint(point: Point) {
+    this._endPointId = point.id;
+  }
+
+  get number(): Number {
+    return this.getNodeAs(this._number, Number);
+  }
+
+  set number(number: Number) {
+    this._number = number.id;
+  }
+
   updateMeasure() {
     if (this.isLocked) {
       return;
@@ -332,14 +489,9 @@ export class PointToPointDistance extends MeasureNode {
       // solver could not satisfy it? (overconstrained system) Shouldn't
       // we something show both the target value and the current value?
     }
-    const p1 = this.doc.getNode(this.startPoint, Point);
-    const p2 = this.doc.getNode(this.endPoint, Point);
-    const v = this.doc.getNode(this.value, Number);
-    if (!p1 || !p2 || !v) {
-      return;
-    }
-    const value = p1.getPosition().distanceTo(p2.getPosition());
-    v.value = value;
+    const startPosition = this.startPoint.position;
+    const endPosition = this.endPoint.position;
+    this.number.value = startPosition.distanceTo(endPosition);
   }
 }
 
@@ -369,9 +521,9 @@ export class Layer extends Node {
 
 function cloneNodeMap(source: Map<NodeId, Node>, newDoc: Document) {
   const dest = new Map<NodeId, Node>();
-  source.forEach((node, id) => {
+  for (const [id, node] of source) {
     dest.set(id, node.clone(newDoc));
-  });
+  }
   return dest;
 }
 
@@ -538,25 +690,22 @@ export class Document {
   }
 
   /**
-   * Removes the node that has the given `id` from this document.
+   * Removes the given `node` from this document.
    */
-  removeNode(id: NodeId) {
-    const node = this.getNode(id);
-    if (!node) {
+  removeNode(node: Node) {
+    if (node.doc != this) {
       return;
     }
-    if (node.layer !== undefined) {
+    const layer = node.layer;
+    if (layer) {
       // Remove from layer
-      const layer = this.getNode(node.layer, Layer);
-      if (layer) {
-        for (let i = layer.nodes.length - 1; i >= 0; i--) {
-          if (layer.nodes[i] === id) {
-            layer.nodes.splice(i, 1);
-          }
+      for (let i = layer.nodes.length - 1; i >= 0; i--) {
+        if (layer.nodes[i] === node.id) {
+          layer.nodes.splice(i, 1);
         }
       }
     }
-    this._nodes.delete(id);
+    this._nodes.delete(node.id);
   }
 
   /**
@@ -664,13 +813,13 @@ export function createTestDocument() {
   });
   doc.createNode(LineSegment, {
     layer: layer,
-    startPoint: p1.id,
-    endPoint: p2.id,
+    startPoint: p1,
+    endPoint: p2,
   });
   doc.createNode(PointToPointDistance, {
     layer: layer,
-    startPoint: p1.id,
-    endPoint: p2.id,
+    startPoint: p1,
+    endPoint: p2,
   });
   const cp1 = doc.createNode(Point, {
     layer: layer,
@@ -678,14 +827,14 @@ export function createTestDocument() {
   });
   doc.createNode(ArcFromStartTangent, {
     layer: layer,
-    startPoint: p2.id,
-    endPoint: p3.id,
-    controlPoint: cp1.id,
+    startPoint: p2,
+    endPoint: p3,
+    controlPoint: cp1,
   });
   doc.createNode(LineSegment, {
     layer: layer,
-    startPoint: p3.id,
-    endPoint: p4.id,
+    startPoint: p3,
+    endPoint: p4,
   });
   const cp2 = doc.createNode(Point, {
     layer: layer,
@@ -693,14 +842,14 @@ export function createTestDocument() {
   });
   doc.createNode(CCurve, {
     layer: layer,
-    startPoint: p4.id,
-    endPoint: p5.id,
-    controlPoint: cp2.id,
+    startPoint: p4,
+    endPoint: p5,
+    controlPoint: cp2,
   });
   doc.createNode(LineSegment, {
     layer: layer,
-    startPoint: p5.id,
-    endPoint: p6.id,
+    startPoint: p5,
+    endPoint: p6,
   });
   const cp3 = doc.createNode(Point, {
     layer: layer,
@@ -712,20 +861,20 @@ export function createTestDocument() {
   });
   doc.createNode(SCurve, {
     layer: layer,
-    startPoint: p6.id,
-    endPoint: p7.id,
-    startControlPoint: cp3.id,
-    endControlPoint: cp4.id,
+    startPoint: p6,
+    endPoint: p7,
+    startControlPoint: cp3,
+    endControlPoint: cp4,
   });
   doc.createNode(LineSegment, {
     layer: layer,
-    startPoint: p7.id,
-    endPoint: p1.id,
+    startPoint: p7,
+    endPoint: p1,
   });
   doc.createNode(LineSegment, {
     layer: layer,
-    startPoint: p2.id,
-    endPoint: p6.id,
+    startPoint: p2,
+    endPoint: p6,
   });
   return doc;
 }

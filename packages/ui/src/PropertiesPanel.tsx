@@ -1,14 +1,7 @@
 import { Vector2 } from "threejs-math";
 import { PropsWithChildren } from "react";
 
-import {
-  NodeId,
-  Node,
-  Point,
-  EdgeNode,
-  PointToPointDistance,
-  Number,
-} from "./Document.ts";
+import { Node, Point, EdgeNode, PointToPointDistance } from "./Document.ts";
 import { DocumentManager } from "./DocumentManager.ts";
 import { Vector2Input } from "./Vector2Input.tsx";
 import { NumberInput } from "./NumberInput.tsx";
@@ -41,18 +34,18 @@ interface PropertiesPanelProps {
 export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
   const doc = documentManager.document();
   const selection = documentManager.selection();
-  const hoveredNodeId = selection.hoveredNode();
-  const selectedNodeIds = selection.selectedNodes();
+  const hoveredNodeId = selection.hoveredNodeId();
+  const selectedNodeIds = selection.selectedNodeIds();
 
   function getContentForPoint(point: Point) {
     return (
       <PropertyItem name="Position">
         <Vector2Input
           getValue={() => {
-            return point.getPosition();
+            return point.position;
           }}
           setValue={(v: Vector2) => {
-            point.setPosition(v);
+            point.position = v;
             documentManager.commitChanges();
           }}
         />
@@ -60,28 +53,24 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
     );
   }
 
-  function getNodeListItem(id: NodeId, title: string) {
-    const point = doc.getNode(id, Point);
-    if (!point) {
-      return <></>;
-    }
+  function getNodeListItem(node: Node, title: string) {
     return (
       <NodeListItem
         documentManager={documentManager}
-        id={id}
+        id={node.id}
         key={title}
-        name={point.name}
-        isHovered={id === hoveredNodeId}
-        isSelected={selectedNodeIds.includes(id)}
+        name={node.name}
+        isHovered={node.id === hoveredNodeId}
+        isSelected={selectedNodeIds.includes(node.id)}
         title={title}
       />
     );
   }
 
   function getContentForEdge(edge: EdgeNode) {
-    const controlPoints = getControlPoints(doc, edge);
+    const controlPoints = getControlPoints(edge);
     const controlPointItems = controlPoints.map((cp) => {
-      return getNodeListItem(cp.point.id, `${cp.prettyName}:`);
+      return getNodeListItem(cp.point, `${cp.prettyName}:`);
     });
     return (
       <>
@@ -93,14 +82,12 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
   }
 
   function getContentForPointToPointDistance(d: PointToPointDistance) {
-    const valueNode = doc.getNode(d.value, Number);
-    const value = valueNode ? valueNode.value : 0;
     return (
       <>
         {getNodeListItem(d.startPoint, "Start Point:")}
         {getNodeListItem(d.endPoint, "End Point:")}
         <PropertyItem name="Distance">
-          <NumberInput label="" value={value} onChange={() => {}} />
+          <NumberInput label="" value={d.number.value} onChange={() => {}} />
         </PropertyItem>
       </>
     );
@@ -119,7 +106,7 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
   }
 
   function getContent() {
-    const selectedNodes = doc.getNodes(selection.selectedNodes());
+    const selectedNodes = doc.getNodes(selectedNodeIds);
     if (selectedNodes.length === 0) {
       return (
         <div className="panel-list-item">

@@ -3,7 +3,7 @@ import { Camera2 } from "./Camera2.ts";
 import { FillStyle, pointRadius, getNodeColor } from "./style.ts";
 
 import { Selection } from "../Selection.ts";
-import { Document, NodeId, Point } from "../Document.ts";
+import { Point } from "../Document.ts";
 
 export function drawDisk(
   ctx: CanvasRenderingContext2D,
@@ -23,23 +23,19 @@ export function drawPoint(
   point: Point,
   selection: Selection,
 ) {
-  const isHovered = selection.isHoveredNode(point.id);
-  const isSelected = selection.isSelectedNode(point.id);
+  const isHovered = selection.isHoveredNode(point);
+  const isSelected = selection.isSelectedNode(point);
   const fillStyle = getNodeColor(isHovered, isSelected);
-  drawDisk(ctx, point.getPosition(), pointRadius / camera.zoom, fillStyle);
+  drawDisk(ctx, point.position, pointRadius / camera.zoom, fillStyle);
 }
 
 export function drawPoints(
   ctx: CanvasRenderingContext2D,
   camera: Camera2,
-  document: Document,
-  nodes: Array<NodeId>,
+  points: Array<Point>,
   selection: Selection,
 ) {
-  for (const id of nodes) {
-    const point = document.getNode(id, Point);
-    if (point) {
-      drawPoint(ctx, camera, point, selection);
-    }
+  for (const point of points) {
+    drawPoint(ctx, camera, point, selection);
   }
 }

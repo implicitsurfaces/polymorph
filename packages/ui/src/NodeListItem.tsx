@@ -20,21 +20,21 @@ export const NodeListItem = memo(function NodeListItem({
   title,
 }: NodeListItemProps) {
   const onMouseEnter = useCallback(() => {
-    documentManager.selection().setHoveredNode(id);
+    documentManager.selection().setHoveredNodeId(id);
   }, [documentManager, id]);
 
   const onMouseLeave = useCallback(() => {
-    if (documentManager.selection().hoveredNode() === id) {
-      documentManager.selection().setHoveredNode(undefined);
+    if (documentManager.selection().hoveredNodeId() === id) {
+      documentManager.selection().setHoveredNodeId(undefined);
     }
   }, [documentManager, id]);
 
   const onSelectNode = useCallback(
     (event: MouseEvent<HTMLElement>) => {
       if (event.shiftKey) {
-        documentManager.selection().toggleSelectedNode(id);
+        documentManager.selection().toggleSelectedNodeId(id);
       } else {
-        documentManager.selection().setSelectedNodes([id]);
+        documentManager.selection().setSelectedNodeIds([id]);
       }
     },
     [documentManager, id],

@@ -1,5 +1,7 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
+
 import { createConstraintFn } from "./compile/createConstraintFn.js";
-import { dogLeg } from "./optimizers/dogLeg.js";
 import { levenbergMarquardt } from "./optimizers/levenbergMarquardt.js";
 
 export function totalSolve(constraints, currentParams) {
@@ -59,7 +61,6 @@ function angle(p0, p1, p2, p3, degrees) {
   const minus = (a, b) => [`(${a[0]}-${b[0]})`, `(${a[1]}-${b[1]})`];
   const dot = (a, b) => `((${a[0]}*${b[0]}) + (${a[1]}*${b[1]}))`;
   const norm = (a) => `sqrt( ${a[0]}^2 + ${a[1]}^2 )`;
-  const div = (a, b) => `(${a})/(${b})`;
 
   const l1p1x = `${p0}_x`;
   const l1p1y = `${p0}_y`;
@@ -75,7 +76,6 @@ function angle(p0, p1, p2, p3, degrees) {
 
   const l2p2x = `${p3}_x`;
   const l2p2y = `${p3}_y`;
-  const d = [l2p2x, l2p2y];
 
   const angleRads = (degrees / 180) * Math.PI + Math.PI / 2;
   const cosTheta = `${Math.cos(angleRads).toFixed(PRECISION)}`;
@@ -94,18 +94,19 @@ function angle(p0, p1, p2, p3, degrees) {
   return final;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function lpDist(p0, p1, p2, dist) {
-  let lp1x = `${p0}_x`;
-  let lp1y = `${p0}_y`;
+  const lp1x = `${p0}_x`;
+  const lp1y = `${p0}_y`;
 
-  let lp2x = `${p1}_x`;
-  let lp2y = `${p1}_y`;
+  const lp2x = `${p1}_x`;
+  const lp2y = `${p1}_y`;
 
-  let px = `${p2}_x`;
-  let py = `${p2}_y`;
+  const px = `${p2}_x`;
+  const py = `${p2}_y`;
 
-  let top = `sqrt( ((${lp2y} - ${lp1y})*${px} - (${lp2x} - ${lp1x})*${py} + ${lp2x} * ${lp1y} - ${lp2y} * ${lp1x})^2)`;
-  let bottom = `sqrt( (${lp2x} - ${lp1x})^2 + (${lp2y}-${lp1y})^2 )`;
+  const top = `sqrt( ((${lp2y} - ${lp1y})*${px} - (${lp2x} - ${lp1x})*${py} + ${lp2x} * ${lp1y} - ${lp2y} * ${lp1x})^2)`;
+  const bottom = `sqrt( (${lp2x} - ${lp1x})^2 + (${lp2y}-${lp1y})^2 )`;
 
   return `${top}/${bottom} - ${dist.toFixed(PRECISION)}`;
 }

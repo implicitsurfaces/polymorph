@@ -1,10 +1,9 @@
 import {
   Document,
   Layer,
-  MeasureNode,
   createTestDocument,
   Number,
-  Point,
+  PointToPointDistance,
 } from "./Document.ts";
 import { totalSolve } from "./constraintSolving/totalSolve.ts";
 
@@ -84,16 +83,11 @@ export class DocumentManager {
   private _updateMeasures(): void {
     const doc = this.document();
 
-    const constraints: MeasureNode[] = [];
+    const constraints: PointToPointDistance[] = [];
     const currentParams: { [key: string]: number } = {};
-    const points: { [key: string]: Point } = {};
 
     for (const node of doc.nodes()) {
-      if (node instanceof Point) {
-        points[node.id] = node;
-      }
-
-      if (node instanceof MeasureNode) {
+      if (node instanceof PointToPointDistance) {
         constraints.push(node);
       }
 
@@ -124,14 +118,13 @@ export class DocumentManager {
     const constraintsMapped: MappedConstraint[] = [];
 
     for (const constraint of constraints) {
-      const startPointId = constraint.startPoint;
-      const endPointId = constraint.endPoint;
-
+      const startPoint = constraint.startPoint;
+      const endPoint = constraint.endPoint;
       const ogParams: string[] = [
-        points[startPointId].x,
-        points[startPointId].y,
-        points[endPointId].x,
-        points[endPointId].y,
+        startPoint.x.id,
+        startPoint.y.id,
+        endPoint.x.id,
+        endPoint.y.id,
       ];
 
       const paramsMapped = ogParams.map((id) => paramIdMapOGtoNew[id]);
@@ -140,7 +133,7 @@ export class DocumentManager {
         type: "distance",
         ogParams: ogParams,
         params: paramsMapped,
-        value: currentParams[constraint.value],
+        value: constraint.number.value,
       });
     }
 

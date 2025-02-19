@@ -1,6 +1,18 @@
 import { Vector2 } from "threejs-math";
 import { Camera2 } from "./Camera2";
-import { StrokeStyle, edgeWidth, getNodeColor, getControlColor } from "./style";
+import {
+  Shape,
+  LineSegmentShape,
+  ArcShape,
+  GeneralizedArcShape,
+} from "./Shapes";
+import {
+  PathStyle,
+  edgeWidth,
+  getNodeColor,
+  getControlColor,
+  getNodeStyleIndex,
+} from "./style";
 
 import { Selection } from "../Selection";
 import {
@@ -11,103 +23,16 @@ import {
   SCurve,
 } from "../Document";
 
-export interface CanvasShapeBase {
-  type: string;
-}
-
-export interface CanvasArc extends CanvasShapeBase {
-  type: "Arc";
-  center: Vector2;
-  radius: number;
-  startAngle: number;
-  endAngle: number;
-  isCounterClockwise: boolean;
-}
-
-export interface CanvasLineSegment extends CanvasShapeBase {
-  type: "LineSegment";
-  startPoint: Vector2;
-  endPoint: Vector2;
-}
-
-export type CanvasGeneralizedArc = CanvasArc | CanvasLineSegment;
-export type CanvasShape = CanvasGeneralizedArc;
-
-interface EdgeStyle {
-  lineWidth: number;
-  strokeStyle: StrokeStyle;
-}
-
-function drawEdgeBegin(ctx: CanvasRenderingContext2D) {
-  ctx.beginPath();
-}
-
-function drawEdgeEnd(ctx: CanvasRenderingContext2D, edgeStyle: EdgeStyle) {
-  ctx.lineWidth = edgeStyle.lineWidth;
-  ctx.strokeStyle = edgeStyle.strokeStyle;
-  ctx.stroke();
-}
-
-function drawLineSegment(
-  ctx: CanvasRenderingContext2D,
-  lineSegment: CanvasLineSegment,
-  edgeStyle: EdgeStyle,
-) {
-  drawEdgeBegin(ctx);
-  ctx.moveTo(lineSegment.startPoint.x, lineSegment.startPoint.y);
-  ctx.lineTo(lineSegment.endPoint.x, lineSegment.endPoint.y);
-  drawEdgeEnd(ctx, edgeStyle);
-}
-
-function drawArc(
-  ctx: CanvasRenderingContext2D,
-  arc: CanvasArc,
-  edgeStyle: EdgeStyle,
-) {
-  drawEdgeBegin(ctx);
-  ctx.arc(
-    arc.center.x,
-    arc.center.y,
-    arc.radius,
-    arc.startAngle,
-    arc.endAngle,
-    arc.isCounterClockwise,
-  );
-  drawEdgeEnd(ctx, edgeStyle);
-}
-
-function drawShape(
-  ctx: CanvasRenderingContext2D,
-  shape: CanvasShape,
-  edgeStyle: EdgeStyle,
-) {
-  switch (shape.type) {
-    case "Arc":
-      drawArc(ctx, shape, edgeStyle);
-      break;
-    case "LineSegment":
-      drawLineSegment(ctx, shape, edgeStyle);
-      break;
-  }
-}
-
-function getLineSegment(
-  startPoint: Vector2,
-  endPoint: Vector2,
-): CanvasLineSegment {
-  return { type: "LineSegment", startPoint: startPoint, endPoint: endPoint };
-}
-
 function getGeneralizedArcFromStartTangent(
   startPoint: Vector2,
   endPoint: Vector2,
   tangent: Vector2,
-): CanvasGeneralizedArc {
+): GeneralizedArcShape {
   // Fallback to line segment in degenerate cases (collinear)
   const chord = endPoint.clone().sub(startPoint);
   const s_ = chord.cross(tangent);
   if (s_ === 0) {
-    return { type: "LineSegment", startPoint: startPoint, endPoint: endPoint };
+    return new LineSegmentShape(startPoint, endPoint);
   }
 
   // Compute center
@@ -120,21 +45,20 @@ function getGeneralizedArcFromStartTangent(
   const midPoint = startPoint.clone().add(endPoint).multiplyScalar(0.5);
   const center = midPoint.clone().sub(chordPerp.multiplyScalar(bb));
 
-  return {
-    type: "Arc",
+  return new ArcShape({
     center: center,
     radius: center.distanceTo(startPoint),
     startAngle: startPoint.clone().sub(center).angle(),
     endAngle: endPoint.clone().sub(center).angle(),
     isCounterClockwise: s_ > 0,
-  };
+  });
 }
 
 function getCCurveShapes(
   startPoint: Vector2,
   endPoint: Vector2,
   controlPoint: Vector2,
-): CanvasGeneralizedArc[] {
+): GeneralizedArcShape[] {
   const w0 = controlPoint.distanceTo(endPoint);
   const w1 = controlPoint.distanceTo(startPoint);
   const w2 = startPoint.distanceTo(endPoint);
@@ -200,7 +124,7 @@ function getSCurveShapes(
   endPoint: Vector2,
   startControlPoint: Vector2,
   endControlPoint: Vector2,
-): CanvasGeneralizedArc[] {
+): GeneralizedArcShape[] {
   const tangent1 = startControlPoint.clone().sub(startPoint);
   const tangent2 = endPoint.clone().sub(endControlPoint);
 
@@ -233,8 +157,8 @@ function getSCurveShapes(
 }
 
 export interface EdgeShapesAndControls {
-  shapes: CanvasShape[];
-  tangents: CanvasLineSegment[];
+  shapes: Shape[];
+  tangents: LineSegmentShape[];
 }
 
 export function getEdgeShapesAndControls(
@@ -249,22 +173,22 @@ export function getEdgeShapesAndControls(
   const endPos = edge.endPoint.position;
 
   if (edge instanceof LineSegment) {
-    res.shapes.push(getLineSegment(startPos, endPos));
+    res.shapes.push(new LineSegmentShape(startPos, endPos));
   } else if (edge instanceof ArcFromStartTangent) {
     const cpPos = edge.controlPoint.position;
     const tangent = cpPos.clone().sub(startPos);
     res.shapes.push(
       getGeneralizedArcFromStartTangent(startPos, endPos, tangent),
     );
-    res.tangents.push(getLineSegment(startPos, cpPos));
+    res.tangents.push(new LineSegmentShape(startPos, cpPos));
   } else if (edge instanceof CCurve) {
     const cpPos = edge.controlPoint.position;
     const shapes_ = getCCurveShapes(startPos, endPos, cpPos);
     for (const shape of shapes_) {
       res.shapes.push(shape);
     }
-    res.tangents.push(getLineSegment(startPos, cpPos));
-    res.tangents.push(getLineSegment(endPos, cpPos));
+    res.tangents.push(new LineSegmentShape(startPos, cpPos));
+    res.tangents.push(new LineSegmentShape(endPos, cpPos));
   } else if (edge instanceof SCurve) {
     const startCpPos = edge.startControlPoint.position;
     const endCpPos = edge.endControlPoint.position;
@@ -272,8 +196,8 @@ export function getEdgeShapesAndControls(
     for (const shape of shapes_) {
       res.shapes.push(shape);
     }
-    res.tangents.push(getLineSegment(startPos, startCpPos));
-    res.tangents.push(getLineSegment(endPos, endCpPos));
+    res.tangents.push(new LineSegmentShape(startPos, startCpPos));
+    res.tangents.push(new LineSegmentShape(endPos, endCpPos));
   }
   return res;
 }
@@ -284,22 +208,26 @@ export function drawEdges(
   edges: EdgeNode[],
   selection: Selection,
 ) {
-  const edgeWidth_ = edgeWidth / camera.zoom;
-  const edgeStyle = { lineWidth: edgeWidth_, strokeStyle: getNodeColor() };
-  const tangentStyle = {
-    lineWidth: edgeWidth_,
-    strokeStyle: getControlColor(),
-  };
+  const w = edgeWidth / camera.zoom;
+  const tangentStyle = new PathStyle({
+    lineWidth: w,
+    stroke: getControlColor(0),
+  });
+  const shapeStyles = [
+    new PathStyle({ lineWidth: w, stroke: getNodeColor(0) }),
+    new PathStyle({ lineWidth: w, stroke: getNodeColor(1) }),
+    new PathStyle({ lineWidth: w, stroke: getNodeColor(2) }),
+    new PathStyle({ lineWidth: w, stroke: getNodeColor(3) }),
+  ];
   for (const edge of edges) {
-    const isEdgeHovered = selection.isHoveredNode(edge);
-    const isEdgeSelected = selection.isSelectedNode(edge);
-    edgeStyle.strokeStyle = getNodeColor(isEdgeHovered, isEdgeSelected);
+    const styleIndex = getNodeStyleIndex(edge, selection);
+    const shapeStyle = shapeStyles[styleIndex];
     const sc = getEdgeShapesAndControls(edge);
     for (const shape of sc.shapes) {
-      drawShape(ctx, shape, edgeStyle);
+      shape.draw(ctx, shapeStyle);
     }
     for (const lineSegment of sc.tangents) {
-      drawLineSegment(ctx, lineSegment, tangentStyle);
+      lineSegment.draw(ctx, tangentStyle);
     }
   }
 }

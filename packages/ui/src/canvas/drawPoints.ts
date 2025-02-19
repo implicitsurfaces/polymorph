@@ -1,6 +1,11 @@
 import { Vector2 } from "threejs-math";
 import { Camera2 } from "./Camera2";
-import { FillStyle, pointRadius, getNodeColor } from "./style";
+import {
+  FillStyle,
+  pointRadius,
+  getNodeColor,
+  getNodeStyleIndex,
+} from "./style";
 
 import { Selection } from "../Selection";
 import { Point } from "../Document";
@@ -23,9 +28,8 @@ export function drawPoint(
   point: Point,
   selection: Selection,
 ) {
-  const isHovered = selection.isHoveredNode(point);
-  const isSelected = selection.isSelectedNode(point);
-  const fillStyle = getNodeColor(isHovered, isSelected);
+  const styleIndex = getNodeStyleIndex(point, selection);
+  const fillStyle = getNodeColor(styleIndex);
   drawDisk(ctx, point.position, pointRadius / camera.zoom, fillStyle);
 }
 

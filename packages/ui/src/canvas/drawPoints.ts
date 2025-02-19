@@ -1,9 +1,9 @@
 import { Vector2 } from "threejs-math";
-import { Camera2 } from "./Camera2.ts";
-import { FillStyle, pointRadius, getNodeColor } from "./style.ts";
+import { Camera2 } from "./Camera2";
+import { FillStyle, pointRadius, getNodeColor } from "./style";
 
-import { Selection } from "../Selection.ts";
-import { Point } from "../Document.ts";
+import { Selection } from "../Selection";
+import { Point } from "../Document";
 
 export function drawDisk(
   ctx: CanvasRenderingContext2D,

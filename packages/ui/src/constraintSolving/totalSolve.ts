@@ -1,8 +1,8 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 
-import { createConstraintFn } from "./compile/createConstraintFn.js";
-import { levenbergMarquardt } from "./optimizers/levenbergMarquardt.js";
+import { createConstraintFn } from "./compile/createConstraintFn";
+import { levenbergMarquardt } from "./optimizers/levenbergMarquardt";
 
 export function totalSolve(constraints, currentParams) {
   // console.log({ constraints, currentParams });

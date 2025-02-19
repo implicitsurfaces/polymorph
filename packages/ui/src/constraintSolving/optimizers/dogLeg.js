@@ -1,7 +1,7 @@
-import { lusolve } from "./lusolve.js";
-import { choleskySolve } from "./choleskySolve.js";
+import { lusolve } from "./lusolve";
+import { choleskySolve } from "./choleskySolve";
 
-import * as m from "./matrix.js";
+import * as m from "./matrix";
 
 export function dogLeg(
   getValDers,

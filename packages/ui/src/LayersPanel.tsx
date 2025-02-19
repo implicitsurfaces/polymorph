@@ -1,6 +1,6 @@
-import { Layer, NodeId } from "./Document.ts";
-import { DocumentManager } from "./DocumentManager.ts";
-import { LayerListItem } from "./LayerListItem.tsx";
+import { Layer, NodeId } from "./Document";
+import { DocumentManager } from "./DocumentManager";
+import { LayerListItem } from "./LayerListItem";
 
 interface LayersPanelProps {
   documentManager: DocumentManager;

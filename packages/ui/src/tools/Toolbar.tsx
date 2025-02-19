@@ -1,11 +1,11 @@
 import { useContext, useMemo } from "react";
 
-import { CurrentToolContext } from "./CurrentTool.ts";
-import { Tool } from "./Tool.ts";
+import { CurrentToolContext } from "./CurrentTool";
+import { Tool } from "./Tool";
 
-import { Action, TriggerAction } from "../actions/Action.ts";
+import { Action, TriggerAction } from "../actions/Action";
 
-import { DocumentManager } from "../DocumentManager.ts";
+import { DocumentManager } from "../DocumentManager";
 
 import "./Toolbar.css";
 

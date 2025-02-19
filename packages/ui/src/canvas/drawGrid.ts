@@ -1,6 +1,6 @@
 import { Vector2, Matrix3 } from "threejs-math";
-import { Camera2 } from "./Camera2.ts";
-import { StrokeStyle } from "./style.ts";
+import { Camera2 } from "./Camera2";
+import { StrokeStyle } from "./style";
 
 function moveTo(ctx: CanvasRenderingContext2D, p: Vector2) {
   ctx.moveTo(p.x, p.y);

@@ -1,20 +1,15 @@
 import { Vector2 } from "threejs-math";
-import { Camera2 } from "./Camera2.ts";
-import {
-  StrokeStyle,
-  edgeWidth,
-  getNodeColor,
-  getControlColor,
-} from "./style.ts";
+import { Camera2 } from "./Camera2";
+import { StrokeStyle, edgeWidth, getNodeColor, getControlColor } from "./style";
 
-import { Selection } from "../Selection.ts";
+import { Selection } from "../Selection";
 import {
   EdgeNode,
   LineSegment,
   ArcFromStartTangent,
   CCurve,
   SCurve,
-} from "../Document.ts";
+} from "../Document";
 
 export interface CanvasShapeBase {
   type: string;

@@ -1,4 +1,4 @@
-import * as m from "./matrix.js";
+import * as m from "./matrix";
 
 const DEFAULT_EPSILON = 1e-10;
 

@@ -1,11 +1,11 @@
-import { Selection } from "../Selection.ts";
-import { Document, Layer, EdgeNode, Point } from "../Document.ts";
-import { DocumentManager } from "../DocumentManager.ts";
-import { Camera2 } from "./Camera2.ts";
-import { FillStyle } from "./style.ts";
-import { drawEdges } from "./drawEdges.ts";
-import { drawPoints } from "./drawPoints.ts";
-import { drawGrid } from "./drawGrid.ts";
+import { Selection } from "../Selection";
+import { Document, Layer, EdgeNode, Point } from "../Document";
+import { DocumentManager } from "../DocumentManager";
+import { Camera2 } from "./Camera2";
+import { FillStyle } from "./style";
+import { drawEdges } from "./drawEdges";
+import { drawPoints } from "./drawPoints";
+import { drawGrid } from "./drawGrid";
 
 function drawBackground(
   ctx: CanvasRenderingContext2D,

@@ -1,17 +1,17 @@
 import { useState, useRef, useCallback, useEffect, useContext } from "react";
 import { Vector2 } from "threejs-math";
 
-import { Camera2 } from "./canvas/Camera2.ts";
-import { draw } from "./canvas/draw.ts";
-import { CanvasPointerEvent } from "./canvas/events.ts";
+import { Camera2 } from "./canvas/Camera2";
+import { draw } from "./canvas/draw";
+import { CanvasPointerEvent } from "./canvas/events";
 import {
   getMouseViewPosition,
   getMouseDocumentPosition,
-} from "./canvas/getMousePosition.ts";
+} from "./canvas/getMousePosition";
 
-import { DocumentManager } from "./DocumentManager.ts";
+import { DocumentManager } from "./DocumentManager";
 
-import { CurrentToolContext } from "./tools/CurrentTool.ts";
+import { CurrentToolContext } from "./tools/CurrentTool";
 
 import "./Canvas.css";
 

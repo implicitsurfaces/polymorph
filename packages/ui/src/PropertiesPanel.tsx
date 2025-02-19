@@ -1,12 +1,12 @@
 import { Vector2 } from "threejs-math";
 import { PropsWithChildren } from "react";
 
-import { Node, Point, EdgeNode, PointToPointDistance } from "./Document.ts";
-import { DocumentManager } from "./DocumentManager.ts";
-import { Vector2Input } from "./Vector2Input.tsx";
-import { NumberInput } from "./NumberInput.tsx";
-import { NodeListItem } from "./NodeListItem.tsx";
-import { getControlPoints } from "./ControlPoint.ts";
+import { Node, Point, EdgeNode, PointToPointDistance } from "./Document";
+import { DocumentManager } from "./DocumentManager";
+import { Vector2Input } from "./Vector2Input";
+import { NumberInput } from "./NumberInput";
+import { NodeListItem } from "./NodeListItem";
+import { getControlPoints } from "./ControlPoint";
 
 interface PropertyItemProps {
   name: string;

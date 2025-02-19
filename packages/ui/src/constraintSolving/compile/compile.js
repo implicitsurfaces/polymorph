@@ -18,9 +18,9 @@ import {
   log,
   power,
   abs,
-} from "./autodiff.js";
+} from "./autodiff";
 
-import { parse, tokenize } from "./parserCombinator.js";
+import { parse, tokenize } from "./parserCombinator";
 
 const compileHelperStackWithTape = (argList, rootNode) => {
   const tape = [];

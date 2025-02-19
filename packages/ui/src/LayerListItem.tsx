@@ -1,6 +1,6 @@
 import { memo, useCallback, MouseEvent } from "react";
-import { NodeId } from "./Document.ts";
-import { DocumentManager } from "./DocumentManager.ts";
+import { NodeId } from "./Document";
+import { DocumentManager } from "./DocumentManager";
 
 interface LayerListItemProps {
   documentManager: DocumentManager;

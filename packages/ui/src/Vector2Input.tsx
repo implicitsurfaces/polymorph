@@ -1,6 +1,6 @@
 import { Vector2 } from "threejs-math";
 import { useCallback } from "react";
-import { NumberInput } from "./NumberInput.tsx";
+import { NumberInput } from "./NumberInput";
 
 // Note: using a getter function for position (instead of a value)
 // makes it possible to memoize the onXChange and onYChange functions.

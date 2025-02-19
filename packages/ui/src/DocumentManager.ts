@@ -24,7 +24,7 @@ import {
 export class DocumentManager {
   private _version: number;
   private _onChange: () => void;
-  private _history: Array<Document>;
+  private _history: Document[];
   private _index: number;
   private _workingCopy: Document;
   private _selection: Selection;
@@ -43,7 +43,7 @@ export class DocumentManager {
    */
   constructor(
     onChange?: () => void,
-    history?: Array<Document>,
+    history?: Document[],
     index?: number,
     workingCopy?: Document,
   ) {

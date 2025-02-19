@@ -134,7 +134,7 @@ function getCCurveShapes(
   startPoint: Vector2,
   endPoint: Vector2,
   controlPoint: Vector2,
-): Array<CanvasGeneralizedArc> {
+): CanvasGeneralizedArc[] {
   const w0 = controlPoint.distanceTo(endPoint);
   const w1 = controlPoint.distanceTo(startPoint);
   const w2 = startPoint.distanceTo(endPoint);
@@ -200,7 +200,7 @@ function getSCurveShapes(
   endPoint: Vector2,
   startControlPoint: Vector2,
   endControlPoint: Vector2,
-): Array<CanvasGeneralizedArc> {
+): CanvasGeneralizedArc[] {
   const tangent1 = startControlPoint.clone().sub(startPoint);
   const tangent2 = endPoint.clone().sub(endControlPoint);
 
@@ -233,8 +233,8 @@ function getSCurveShapes(
 }
 
 export interface EdgeShapesAndControls {
-  shapes: Array<CanvasShape>;
-  tangents: Array<CanvasLineSegment>;
+  shapes: CanvasShape[];
+  tangents: CanvasLineSegment[];
 }
 
 export function getEdgeShapesAndControls(
@@ -281,7 +281,7 @@ export function getEdgeShapesAndControls(
 export function drawEdges(
   ctx: CanvasRenderingContext2D,
   camera: Camera2,
-  edges: Array<EdgeNode>,
+  edges: EdgeNode[],
   selection: Selection,
 ) {
   const edgeWidth_ = edgeWidth / camera.zoom;

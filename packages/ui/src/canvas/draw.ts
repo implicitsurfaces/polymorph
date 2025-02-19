@@ -1,11 +1,12 @@
 import { Selection } from "../Selection";
-import { Document, Layer, EdgeNode, Point } from "../Document";
+import { Document, Layer, EdgeNode, Point, MeasureNode } from "../Document";
 import { DocumentManager } from "../DocumentManager";
 import { Camera2 } from "./Camera2";
-import { FillStyle } from "./style";
+import { FillStyle, backgroundColor } from "./style";
 import { drawEdges } from "./drawEdges";
 import { drawPoints } from "./drawPoints";
 import { drawGrid } from "./drawGrid";
+import { drawMeasures } from "./drawMeasures";
 
 function drawBackground(
   ctx: CanvasRenderingContext2D,
@@ -39,6 +40,12 @@ function drawDocument(
       // edges, regardless of layer order.
       drawEdges(ctx, camera, doc.getNodes(layer.nodes, EdgeNode), selection);
       drawPoints(ctx, camera, doc.getNodes(layer.nodes, Point), selection);
+      drawMeasures(
+        ctx,
+        camera,
+        doc.getNodes(layer.nodes, MeasureNode),
+        selection,
+      );
     }
   }
 }
@@ -53,7 +60,7 @@ export function draw(
     return;
   }
   ctx.resetTransform();
-  drawBackground(ctx, canvas.width, canvas.height, "#e0e0e0");
+  drawBackground(ctx, canvas.width, canvas.height, backgroundColor);
   drawGrid(ctx, camera);
   initializeViewTransform(ctx, camera);
   const doc = documentManager.document();

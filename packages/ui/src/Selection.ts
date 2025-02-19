@@ -35,7 +35,7 @@ export class Selection {
 
   private _activeLayerId: NodeId;
   private _hovered: Selectable | undefined;
-  private _selected: Array<Selectable>;
+  private _selected: Selectable[];
 
   constructor(onChange: () => void) {
     this._onChange = onChange;
@@ -107,13 +107,13 @@ export class Selection {
     return this.isHovered({ type: "Node", id: node.id });
   }
 
-  selected(): Array<Selectable> {
+  selected(): Selectable[] {
     // XXX: Use Immutable.js instead?
     return [...this._selected];
   }
 
-  selectedNodeIds(): Array<NodeId> {
-    const res: Array<NodeId> = [];
+  selectedNodeIds(): NodeId[] {
+    const res: NodeId[] = [];
     for (const s of this._selected) {
       if (s.type === "Node") {
         res.push(s.id);
@@ -122,20 +122,20 @@ export class Selection {
     return res;
   }
 
-  setSelected(selectables: Array<Selectable>) {
+  setSelected(selectables: Selectable[]) {
     // XXX: Use Immutable.js instead?
     this._selected = [...selectables];
     this._onChange();
   }
 
-  setSelectedNodes(nodes: Array<Node>) {
+  setSelectedNodes(nodes: Node[]) {
     this._selected = nodes.map((node) => {
       return { type: "Node", id: node.id };
     });
     this._onChange();
   }
 
-  setSelectedNodeIds(ids: Array<NodeId>) {
+  setSelectedNodeIds(ids: NodeId[]) {
     this._selected = ids.map((id) => {
       return { type: "Node", id: id };
     });

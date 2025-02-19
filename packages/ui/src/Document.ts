@@ -495,12 +495,12 @@ export class PointToPointDistance extends MeasureNode {
 //                               Layer
 
 export interface LayerOptions extends NodeOptions {
-  readonly nodes?: Array<NodeId>;
+  readonly nodes?: NodeId[];
 }
 
 export class Layer extends Node {
   static readonly defaultName = "Layer";
-  nodes: Array<NodeId>;
+  nodes: NodeId[];
 
   constructor(doc: Document, id: NodeId, options: LayerOptions) {
     super(doc, id, options);
@@ -523,7 +523,7 @@ function cloneNodeMap(source: Map<NodeId, Node>, newDoc: Document) {
   return dest;
 }
 
-function sortAndRemoveDuplicates(array: Array<number>) {
+function sortAndRemoveDuplicates(array: number[]) {
   const copy = [...array];
   if (copy.length === 0) {
     return copy;
@@ -547,7 +547,7 @@ function sortAndRemoveDuplicates(array: Array<number>) {
 export class Document {
   private _nodes: Map<NodeId, Node>;
 
-  public layers: Array<NodeId>;
+  public layers: NodeId[];
 
   constructor(other?: Document) {
     if (other) {
@@ -619,11 +619,8 @@ export class Document {
   /**
    * Returns an array of nodes corresponding to the given array of `ids`.
    */
-  getNodes<T extends Node>(
-    ids: Array<NodeId>,
-    type?: AbstractNodeType<T>,
-  ): Array<T> {
-    const res: Array<T> = [];
+  getNodes<T extends Node>(ids: NodeId[], type?: AbstractNodeType<T>): T[] {
+    const res: T[] = [];
     for (const id of ids) {
       const node = this.getNode(id, type);
       if (node) {
@@ -708,7 +705,7 @@ export class Document {
    * Finds the smallest positive integer `n` such that the name `${prefix}${n}`
    * is not taken by any of the given nodes, and returns that name.
    */
-  findAvailableName(prefix: string, nodes: Array<NodeId>) {
+  findAvailableName(prefix: string, nodes: NodeId[]) {
     // Collect all positive integers from existing node names
     // that are of the form `${prefix}${number}`. Note that we need
     // the regex and not just rely on parseInt, since the latter

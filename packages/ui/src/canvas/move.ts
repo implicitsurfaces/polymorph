@@ -101,7 +101,7 @@ function isMovable(doc: Document, selectable: Selectable | undefined): boolean {
 class MoveData {
   constructor(
     public isMoving: boolean = false,
-    public onMoves: Array<OnMoveCallback> = [],
+    public onMoves: OnMoveCallback[] = [],
   ) {}
 
   clear() {

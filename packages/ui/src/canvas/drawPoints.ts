@@ -32,7 +32,7 @@ export function drawPoint(
 export function drawPoints(
   ctx: CanvasRenderingContext2D,
   camera: Camera2,
-  points: Array<Point>,
+  points: Point[],
   selection: Selection,
 ) {
   for (const point of points) {

@@ -117,14 +117,14 @@ function distToShape(shape: CanvasShape, position: Vector2): number {
   }
 }
 
-function distToShapes(shapes: Array<CanvasShape>, position: Vector2): number {
+function distToShapes(shapes: CanvasShape[], position: Vector2): number {
   return shapes.reduce(
     (dist, shape) => Math.min(dist, distToShape(shape, position)),
     Infinity,
   );
 }
 
-function selectEdge(_shapes: Array<CanvasShape>, id: NodeId): Selectable {
+function selectEdge(_shapes: CanvasShape[], id: NodeId): Selectable {
   return { type: "Node", id: id };
 }
 

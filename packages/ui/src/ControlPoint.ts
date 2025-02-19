@@ -30,8 +30,8 @@ export interface ControlPoint {
   readonly anchor?: Point;
 }
 
-export function getControlPoints(edge: EdgeNode): Array<ControlPoint> {
-  const res: Array<ControlPoint> = [];
+export function getControlPoints(edge: EdgeNode): ControlPoint[] {
+  const res: ControlPoint[] = [];
   if (edge instanceof LineSegment) {
     // No control points
   } else if (edge instanceof ArcFromStartTangent) {

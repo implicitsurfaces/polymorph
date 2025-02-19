@@ -3,12 +3,8 @@ import { Camera2 } from "./Camera2";
 import { Selectable } from "../Selection";
 import { DocumentManager } from "../DocumentManager";
 import { Document, Node, NodeId, EdgeNode, Layer, Point } from "../Document";
-import {
-  getEdgeShapesAndControls,
-  CanvasShape,
-  CanvasArc,
-  CanvasLineSegment,
-} from "./drawEdges";
+import { getEdgeShapesAndControls } from "./drawEdges";
+import { Shape, LineSegmentShape, ArcShape } from "./Shapes";
 import { edgeWidth, pointRadius } from "./style";
 
 import { CanvasPointerEvent } from "../canvas/events";
@@ -30,9 +26,9 @@ function selectPoint(point: Point): Selectable {
   return { type: "Node", id: point.id };
 }
 
-function distToLineSegment(seg: CanvasLineSegment, position: Vector2): number {
-  const a = seg.startPoint;
-  const b = seg.endPoint;
+function distToLineSegment(seg: LineSegmentShape, position: Vector2): number {
+  const a = seg.startPosition;
+  const b = seg.endPosition;
   const segDir = b.clone().sub(a);
   const l = segDir.length();
   if (l > 0) {
@@ -56,7 +52,7 @@ function distToLineSegment(seg: CanvasLineSegment, position: Vector2): number {
   }
 }
 
-function getArcPoint(arc: CanvasArc, angle: number): Vector2 {
+function getArcPoint(arc: ArcShape, angle: number): Vector2 {
   const c = Math.cos(angle);
   const s = Math.sin(angle);
   return new Vector2(c * arc.radius, s * arc.radius).add(arc.center);
@@ -76,7 +72,7 @@ function getArcPoint(arc: CanvasArc, angle: number): Vector2 {
 // If the former does belong to the arc, then it directly gives the shortest
 // distance. Otherwise, the distance is the min between the two arc end points.
 
-function distToArc(arc: CanvasArc, position: Vector2): number {
+function distToArc(arc: ArcShape, position: Vector2): number {
   const dir = position.clone().sub(arc.center);
   let startAngle = arc.startAngle; // in [0, 2pi)
   let endAngle = arc.endAngle; // in [0, 2pi)
@@ -108,23 +104,24 @@ function distToArc(arc: CanvasArc, position: Vector2): number {
   }
 }
 
-function distToShape(shape: CanvasShape, position: Vector2): number {
-  switch (shape.type) {
-    case "Arc":
-      return distToArc(shape, position);
-    case "LineSegment":
-      return distToLineSegment(shape, position);
+function distToShape(shape: Shape, position: Vector2): number {
+  if (shape instanceof LineSegmentShape) {
+    return distToLineSegment(shape, position);
   }
+  if (shape instanceof ArcShape) {
+    return distToArc(shape, position);
+  }
+  return Infinity;
 }
 
-function distToShapes(shapes: CanvasShape[], position: Vector2): number {
+function distToShapes(shapes: Shape[], position: Vector2): number {
   return shapes.reduce(
     (dist, shape) => Math.min(dist, distToShape(shape, position)),
     Infinity,
   );
 }
 
-function selectEdge(_shapes: CanvasShape[], id: NodeId): Selectable {
+function selectEdge(_shapes: Shape[], id: NodeId): Selectable {
   return { type: "Node", id: id };
 }
 

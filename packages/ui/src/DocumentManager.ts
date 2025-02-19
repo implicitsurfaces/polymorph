@@ -4,15 +4,15 @@ import {
   createTestDocument,
   Number,
   MeasureNode,
-} from "./Document.ts";
-import { totalSolve } from "./constraintSolving/totalSolve.ts";
+} from "./Document";
+import { totalSolve } from "./constraintSolving/totalSolve";
 
-import { Selection } from "./Selection.ts";
+import { Selection } from "./Selection";
 import {
   Constraint,
   ParamValueMap,
   getConstraint,
-} from "./constraintSolving/Constraint.ts";
+} from "./constraintSolving/Constraint";
 
 /**
  * Stores and manages the undo-redo history of the document.

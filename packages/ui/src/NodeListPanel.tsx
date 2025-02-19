@@ -1,6 +1,6 @@
-import { Node, Layer, SkeletonNode, MeasureNode } from "./Document.ts";
-import { DocumentManager } from "./DocumentManager.ts";
-import { NodeListItem } from "./NodeListItem.tsx";
+import { Node, Layer, SkeletonNode, MeasureNode } from "./Document";
+import { DocumentManager } from "./DocumentManager";
+import { NodeListItem } from "./NodeListItem";
 
 interface NodeListPanelProps {
   documentManager: DocumentManager;

@@ -1,4 +1,4 @@
-import { compile } from "./compile.js";
+import { compile } from "./compile";
 
 export function createConstraintFn(eqs, params) {
   const constraintEquations = eqs;

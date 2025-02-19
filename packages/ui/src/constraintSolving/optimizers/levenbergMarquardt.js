@@ -1,5 +1,5 @@
-import { lusolve } from "./lusolve.js";
-import * as m from "./matrix.js";
+import { lusolve } from "./lusolve";
+import * as m from "./matrix";
 
 const EPSILON = 1e-8;
 

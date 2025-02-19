@@ -1,15 +1,15 @@
 import { Vector2 } from "threejs-math";
-import { Camera2 } from "./Camera2.ts";
-import { Selectable } from "../Selection.ts";
-import { DocumentManager } from "../DocumentManager.ts";
-import { Document, Node, NodeId, EdgeNode, Layer, Point } from "../Document.ts";
+import { Camera2 } from "./Camera2";
+import { Selectable } from "../Selection";
+import { DocumentManager } from "../DocumentManager";
+import { Document, Node, NodeId, EdgeNode, Layer, Point } from "../Document";
 import {
   getEdgeShapesAndControls,
   CanvasShape,
   CanvasArc,
   CanvasLineSegment,
-} from "./drawEdges.ts";
-import { edgeWidth, pointRadius } from "./style.ts";
+} from "./drawEdges";
+import { edgeWidth, pointRadius } from "./style";
 
 import { CanvasPointerEvent } from "../canvas/events";
 

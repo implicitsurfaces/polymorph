@@ -6,18 +6,18 @@ import {
   PointerHitAreaMargins,
 } from "react-resizable-panels";
 
-import { DocumentManager } from "./DocumentManager.ts";
+import { DocumentManager } from "./DocumentManager";
 
-import { TriggerAction } from "./actions/Action.ts";
-import { Tool } from "./tools/Tool.ts";
-import { Toolbar } from "./tools/Toolbar.tsx";
-import { CurrentTool, CurrentToolContext } from "./tools/CurrentTool.ts";
-import { allActions } from "./allActions.ts";
+import { TriggerAction } from "./actions/Action";
+import { Tool } from "./tools/Tool";
+import { Toolbar } from "./tools/Toolbar";
+import { CurrentTool, CurrentToolContext } from "./tools/CurrentTool";
+import { allActions } from "./allActions";
 
-import { Canvas } from "./Canvas.tsx";
-import { LayersPanel } from "./LayersPanel.tsx";
-import { SkeletonPanel, MeasuresPanel } from "./NodeListPanel.tsx";
-import { PropertiesPanel } from "./PropertiesPanel.tsx";
+import { Canvas } from "./Canvas";
+import { LayersPanel } from "./LayersPanel";
+import { SkeletonPanel, MeasuresPanel } from "./NodeListPanel";
+import { PropertiesPanel } from "./PropertiesPanel";
 
 import "./App.css";
 import "./Panel.css";

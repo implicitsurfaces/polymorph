@@ -30,11 +30,14 @@ export class PathStyle {
   }
 }
 
+export const backgroundColor = "#e0e0e0";
+
 export const pointRadius = 5;
 export const edgeWidth = 2;
 
 const _nodeColor = "black";
 const _controlColor = "#ff6f34";
+const _measureColor = "#c100ad";
 const _selectedColor = "#4063d5";
 const _hoveredColor = "#96a4d3";
 
@@ -82,4 +85,15 @@ const _controlColors = [
 
 export function getControlColor(styleIndex: number): string {
   return _controlColors[styleIndex];
+}
+
+const _measureColors = [
+  _measureColor,
+  _hoveredColor,
+  _selectedColor,
+  _selectedColor,
+];
+
+export function getMeasureColor(styleIndex: number): string {
+  return _measureColors[styleIndex];
 }

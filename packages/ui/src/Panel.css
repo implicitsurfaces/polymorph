@@ -44,14 +44,15 @@
   flex-grow: 1;
   overflow-x: hidden;
   overflow-y: auto;
+  margin: 4px; /* prevent scrollbars from touching/interfering with panel resize handles */
 }
 
 /* Scrollbar styling */
 
 .panel::-webkit-scrollbar,
 .panel-body::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 .panel::-webkit-scrollbar-track,
@@ -62,6 +63,7 @@
 .panel::-webkit-scrollbar-thumb,
 .panel-body::-webkit-scrollbar-thumb {
   background: #555;
+  border-radius: 4px;
 }
 
 .panel::-webkit-scrollbar-thumb:hover,

@@ -33,8 +33,8 @@ export function Vector2Input({ getValue, setValue }: Vector2InputProps) {
 
   return (
     <>
-      <NumberInput label="X" value={position.x} onChange={onXChange} />
-      <NumberInput label="Y" value={position.y} onChange={onYChange} />
+      <NumberInput label="x" value={position.x} onChange={onXChange} />
+      <NumberInput label="y" value={position.y} onChange={onYChange} />
     </>
   );
 }

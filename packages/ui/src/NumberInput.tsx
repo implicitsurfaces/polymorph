@@ -35,36 +35,44 @@ export const NumberInput = memo(function NumberInput({
     [onChange],
   );
 
+  const optionalLabel = label && (
+    <label
+      data-scope="number-input"
+      data-part="label"
+      dir="ltr"
+      id={`${_idBase}::label`}
+      htmlFor={`${_idBase}::input`}
+    >
+      {label}
+    </label>
+  );
+
+  const input = (
+    <input
+      data-scope="number-input"
+      data-part="input"
+      dir="ltr"
+      id={`${_idBase}::input`}
+      role="spinbutton"
+      pattern="[0-9]*(.[0-9]+)?"
+      inputMode="decimal"
+      autoComplete="off"
+      autoCorrect="off"
+      spellCheck="false"
+      type="text"
+      aria-roledescription="numberfield"
+      aria-valuemin={-9007199254740991}
+      aria-valuemax={9007199254740991}
+      aria-valuenow={value}
+      value={value}
+      onChange={_onChange}
+    />
+  );
+
   return (
     <div id={_idBase} data-scope="number-input" data-part="root" dir="ltr">
-      <label
-        data-scope="number-input"
-        data-part="label"
-        dir="ltr"
-        id={`${_idBase}::label`}
-        htmlFor={`${_idBase}::input`}
-      >
-        {label}
-      </label>
-      <input
-        data-scope="number-input"
-        data-part="input"
-        dir="ltr"
-        id={`${_idBase}::input`}
-        role="spinbutton"
-        pattern="[0-9]*(.[0-9]+)?"
-        inputMode="decimal"
-        autoComplete="off"
-        autoCorrect="off"
-        spellCheck="false"
-        type="text"
-        aria-roledescription="numberfield"
-        aria-valuemin={-9007199254740991}
-        aria-valuemax={9007199254740991}
-        aria-valuenow={value}
-        value={value}
-        onChange={_onChange}
-      />
+      {optionalLabel}
+      {input}
     </div>
   );
 });

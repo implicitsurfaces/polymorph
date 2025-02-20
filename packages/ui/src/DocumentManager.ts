@@ -100,8 +100,6 @@ export class DocumentManager {
           if (constraint) {
             constraints.push(constraint);
           }
-        } else {
-          node.updateMeasure();
         }
       }
     }
@@ -112,18 +110,34 @@ export class DocumentManager {
       oldParamValues,
     );
 
-    // Set new param values
+    // Set new param values.
+    //
+    // Keep in mind that this may change not only point positions, but also
+    // measure values, since all of these are Number nodes.
+    //
     for (const node of doc.nodes()) {
       if (node instanceof Number) {
         const newValue = newParamValues[node.id];
         node.value = newValue;
       }
     }
+
+    // Update all unlocked measures.
+    //
+    // We need to do this last to take into account new positions
+    // after solving the constraints.
+    //
+    for (const node of doc.nodes()) {
+      if (node instanceof MeasureNode) {
+        if (!node.isLocked) {
+          node.updateMeasure();
+        }
+      }
+    }
   }
 
   private _notify(): void {
     this._version += 1;
-    this._updateMeasures();
     this._ensureActiveLayer();
     this._onChange();
   }
@@ -195,6 +209,7 @@ export class DocumentManager {
    * Typically, this should be called on mouse move of a mouse drag action.
    */
   stageChanges(): void {
+    this._updateMeasures();
     this._notify();
   }
 
@@ -209,6 +224,8 @@ export class DocumentManager {
    */
   // TODO: commit message to show in History Panel?
   commitChanges(): void {
+    this._updateMeasures();
+
     // Wipe out any pre-existing redoable data
     this._history.splice(this.index() + 1);
 

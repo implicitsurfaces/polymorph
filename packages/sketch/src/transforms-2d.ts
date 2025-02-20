@@ -62,3 +62,62 @@ export const rotationAroundPointTransform = (
     .followedBy(rotationTransform(angle))
     .followedBy(translationTransform(p));
 };
+
+function alignDirectionRotationMatrix(
+  fromDirection: UnitVec3,
+  toDirection: UnitVec3,
+) {
+  const axis = fromDirection.cross(toDirection);
+  const cosAngle = fromDirection.dot(toDirection);
+
+  // TODO: handle the case when the directions are colinear
+
+  const k = ONE.sub(cosAngle).div(ONE.sub(cosAngle.square()));
+
+  return new Matrix3x3(
+    k.mul(axis.x.square()).add(cosAngle),
+    k.mul(axis.x).mul(axis.y).sub(axis.z),
+    k.mul(axis.x).mul(axis.z).add(axis.y),
+    k.mul(axis.x).mul(axis.y).add(axis.z),
+    k.mul(axis.y.square()).add(cosAngle),
+    k.mul(axis.y).mul(axis.z).sub(axis.x),
+    k.mul(axis.x).mul(axis.z).sub(axis.y),
+    k.mul(axis.y).mul(axis.z).add(axis.x),
+    k.mul(axis.z.square()).add(cosAngle),
+  );
+}
+
+function translationMatrix3D(v: Vec3) {
+  return new Matrix3x3(ONE, ZERO, ZERO, ZERO, ONE, ZERO, v.x, v.y, v.z);
+}
+
+function liftTo3DMatrix(plane: Plane) {
+  return new Matrix3x3(
+    plane.xAxis.x,
+    plane.yAxis.x,
+    plane.origin.x,
+    plane.xAxis.y,
+    plane.yAxis.y,
+    plane.origin.y,
+    plane.xAxis.z,
+    plane.yAxis.z,
+    plane.origin.z,
+  );
+}
+
+export function centerProjectionTransform(
+  originPlane: Plane,
+  targetPlane: Plane,
+  projectionCenter: Point3D,
+): Transform {
+  const embed = liftTo3DMatrix(originPlane);
+  const planeRotation = alignDirectionRotationMatrix(
+    originPlane.zAxis,
+    targetPlane.zAxis,
+  );
+  const centerTranslation = translationMatrix3D(
+    projectionCenter.vecFromOrigin().neg(),
+  );
+
+  return new Transform(embed.mul(planeRotation).mul(centerTranslation));
+}

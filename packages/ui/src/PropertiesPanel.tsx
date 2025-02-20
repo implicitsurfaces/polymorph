@@ -1,12 +1,19 @@
 import { Vector2 } from "threejs-math";
 import { PropsWithChildren } from "react";
 
-import { Node, Point, EdgeNode, PointToPointDistance } from "./Document";
+import {
+  Node,
+  Point,
+  EdgeNode,
+  PointToPointDistance,
+  MeasureNode,
+} from "./Document";
 import { DocumentManager } from "./DocumentManager";
 import { Vector2Input } from "./Vector2Input";
 import { NumberInput } from "./NumberInput";
 import { NodeListItem } from "./NodeListItem";
 import { getControlPoints } from "./ControlPoint";
+import { LockIcon } from "./LockIcon";
 
 interface PropertyItemProps {
   name: string;
@@ -81,13 +88,23 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
     );
   }
 
+  function onLockClick(measure: MeasureNode) {
+    return () => {
+      measure.isLocked = !measure.isLocked;
+      documentManager.commitChanges();
+    };
+  }
+
   function getContentForPointToPointDistance(d: PointToPointDistance) {
     return (
       <>
         {getNodeListItem(d.startPoint, "Start Point:")}
         {getNodeListItem(d.endPoint, "End Point:")}
         <PropertyItem name="Distance">
-          <NumberInput label="" value={d.number.value} onChange={() => {}} />
+          <div className="input-group">
+            <NumberInput label="" value={d.number.value} onChange={() => {}} />
+            <LockIcon isLocked={d.isLocked} onClick={onLockClick(d)} />
+          </div>
         </PropertyItem>
       </>
     );

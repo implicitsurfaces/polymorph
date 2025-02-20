@@ -156,7 +156,7 @@ def remove_namespaced_attributes(
         remove_namespaced_attributes(child)
 
 
-def split_svg_group(input_file: Path, group_name: str, output_dir: Path):
+def split_svg_group(input_file: Path, group_name: str, output_dir: Path, width: float, height: float):
     """
     Splits elements from a specified group in an SVG file into separate SVG files.
 
@@ -202,7 +202,7 @@ def split_svg_group(input_file: Path, group_name: str, output_dir: Path):
         # toolbar, which we do not want in the separate icon file.
         #
         new_root = ET.Element(
-            "svg", {"viewBox": "0 0 32 32", "width": "32px", "height": "32px"}
+            "svg", {"viewBox": f"0 0 {width} {height}", "width": f"{width}px", "height": f"{height}px"}
         )
 
         for element in icon:
@@ -255,7 +255,8 @@ def split_svg_group(input_file: Path, group_name: str, output_dir: Path):
 def main():
     script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
     assets_dir = script_dir.parent / "src" / "assets"
-    split_svg_group(script_dir / "tool-icons.svg", "Tools", assets_dir / "tool-icons")
+    split_svg_group(script_dir / "tool-icons.svg", "Tools", assets_dir / "tool-icons", 32, 32)
+    split_svg_group(script_dir / "input-icons.svg", "Icons", assets_dir / "input-icons", 18, 20)
 
 
 if __name__ == "__main__":

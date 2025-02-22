@@ -492,6 +492,166 @@ export class PointToPointDistance extends MeasureNode {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+//                            LineToPointDistance
+
+export interface LineToPointDistanceOptions extends MeasureNodeOptions {
+  readonly line: LineSegment;
+  readonly point: Point;
+  readonly number?: Number;
+}
+
+export class LineToPointDistance extends MeasureNode {
+  static readonly defaultName = "Line to Point Distance";
+  private _lineId: NodeId;
+  private _pointId: NodeId;
+  private _number: NodeId;
+
+  constructor(doc: Document, id: NodeId, options: LineToPointDistanceOptions) {
+    super(doc, id, options);
+    this._lineId = options.line.id;
+    this._pointId = options.point.id;
+    this._number = getOrCreateId(doc, options.number, Number, {
+      layer: options.layer,
+      value: 0,
+    });
+  }
+
+  clone(newDoc: Document) {
+    return new LineToPointDistance(newDoc, this.id, this);
+  }
+
+  get line(): LineSegment {
+    return this.getNodeAs(this._lineId, LineSegment);
+  }
+
+  set line(line: LineSegment) {
+    this._lineId = line.id;
+  }
+
+  get point(): Point {
+    return this.getNodeAs(this._pointId, Point);
+  }
+
+  set point(point: Point) {
+    this._pointId = point.id;
+  }
+
+  get number(): Number {
+    return this.getNodeAs(this._number, Number);
+  }
+
+  set number(number: Number) {
+    this._number = number.id;
+  }
+
+  updateMeasure() {
+    const p1x = this.line.startPoint.position.x;
+    const p1y = this.line.startPoint.position.y;
+    const p2x = this.line.endPoint.position.x;
+    const p2y = this.line.endPoint.position.y;
+    const px = this.point.position.x;
+    const py = this.point.position.y;
+
+    // Calculate distance from point to infinite line
+    // using formula |ax + by + c| / sqrt(a^2 + b^2)
+    // where ax + by + c = 0 is line equation
+    const a = p2y - p1y;
+    const b = p1x - p2x;
+    const c = p2x * p1y - p1x * p2y;
+
+    const distance = Math.abs(a * px + b * py + c) / Math.sqrt(a * a + b * b);
+
+    this.number.value = distance;
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//                            LineToPointDistance
+
+export interface AngleOptions extends MeasureNodeOptions {
+  readonly line0: LineSegment;
+  readonly line1: LineSegment;
+  readonly number?: Number;
+}
+
+export class Angle extends MeasureNode {
+  static readonly defaultName = "Line to Line Angle";
+  private _line0Id: NodeId;
+  private _line1Id: NodeId;
+  private _number: NodeId;
+
+  constructor(doc: Document, id: NodeId, options: AngleOptions) {
+    super(doc, id, options);
+    this._line0Id = options.line0.id;
+    this._line1Id = options.line1.id;
+    this._number = getOrCreateId(doc, options.number, Number, {
+      layer: options.layer,
+      value: 90,
+    });
+  }
+
+  clone(newDoc: Document) {
+    return new Angle(newDoc, this.id, this);
+  }
+
+  get line0(): LineSegment {
+    return this.getNodeAs(this._line0Id, LineSegment);
+  }
+
+  set line0(line: LineSegment) {
+    this._line0Id = line.id;
+  }
+
+  get line1(): LineSegment {
+    return this.getNodeAs(this._line1Id, LineSegment);
+  }
+
+  set line1(line: LineSegment) {
+    this._line0Id = line.id;
+  }
+
+  get number(): Number {
+    return this.getNodeAs(this._number, Number);
+  }
+
+  set number(number: Number) {
+    this._number = number.id;
+  }
+
+  updateMeasure() {
+    const p1x = this.line0.startPoint.position.x;
+    const p1y = this.line0.startPoint.position.y;
+    const p2x = this.line0.endPoint.position.x;
+    const p2y = this.line0.endPoint.position.y;
+    const p3x = this.line1.startPoint.position.x;
+    const p3y = this.line1.startPoint.position.y;
+    const p4x = this.line1.endPoint.position.x;
+    const p4y = this.line1.endPoint.position.y;
+
+    // Calculate vectors for both lines
+    const v1x = p2x - p1x;
+    const v1y = p2y - p1y;
+    const v2x = p4x - p3x;
+    const v2y = p4y - p3y;
+
+    // Calculate angle between vectors using dot product
+    const dot = v1x * v2x + v1y * v2y;
+    const mag1 = Math.sqrt(v1x * v1x + v1y * v1y);
+    const mag2 = Math.sqrt(v2x * v2x + v2y * v2y);
+
+    let angle = Math.acos(dot / (mag1 * mag2));
+
+    // Convert to degrees
+    angle = (angle * 180) / Math.PI;
+
+    // Normalize to 0-180 range
+    angle = angle > 180 ? angle - 180 : angle;
+
+    this.number.value = angle;
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
 //                               Layer
 
 export interface LayerOptions extends NodeOptions {
@@ -804,7 +964,7 @@ export function createTestDocument() {
     layer: layer,
     position: new Vector2(-100, -100),
   });
-  doc.createNode(LineSegment, {
+  const l1 = doc.createNode(LineSegment, {
     layer: layer,
     startPoint: p1,
     endPoint: p2,
@@ -817,6 +977,11 @@ export function createTestDocument() {
   const cp1 = doc.createNode(Point, {
     layer: layer,
     position: new Vector2(50, 0),
+  });
+  doc.createNode(LineToPointDistance, {
+    layer: layer,
+    line: l1,
+    point: cp1,
   });
   doc.createNode(ArcFromStartTangent, {
     layer: layer,
@@ -859,7 +1024,7 @@ export function createTestDocument() {
     startControlPoint: cp3,
     endControlPoint: cp4,
   });
-  doc.createNode(LineSegment, {
+  const l2 = doc.createNode(LineSegment, {
     layer: layer,
     startPoint: p7,
     endPoint: p1,
@@ -868,6 +1033,11 @@ export function createTestDocument() {
     layer: layer,
     startPoint: p2,
     endPoint: p6,
+  });
+  doc.createNode(Angle, {
+    layer: layer,
+    line0: l2,
+    line1: l1,
   });
   return doc;
 }

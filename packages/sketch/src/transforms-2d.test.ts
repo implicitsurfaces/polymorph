@@ -73,3 +73,12 @@ test("scale", () => {
   const p2 = transform.apply(p(0.5, 1));
   expect(evalPoint(p2)).toEqual(c([1, 3]));
 });
+
+test("scale and translate", () => {
+  const transform = scalingTransform(asNum(0.5), asNum(0.6)).followedBy(
+    translationTransform(v(1, 1)),
+  );
+
+  const p2 = transform.apply(p(2, 3));
+  expect(evalPoint(p2)).toEqual(c([2, 2.8]));
+});

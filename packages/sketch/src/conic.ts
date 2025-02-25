@@ -1,9 +1,15 @@
-import { Point } from "./geom";
-import { Matrix3x3, RowVec3 } from "./geom-utils/matrices";
+import { Angle, angleFromDeg, Point, QUARTER_TURN, Vec2 } from "./geom";
+import { closestPointOnEllipse } from "./geom-utils/closestPointOnEllipse";
+import { Matrix2x2, Matrix3x3, RowVec3 } from "./geom-utils/matrices";
 import { solveQuartic } from "./geom-utils/solve-polynomial";
 import { asNum, NEG_ONE, Num, ONE, TWO, ZERO } from "./num";
 import { min } from "./num-ops";
-import { scalingTransform, Transform } from "./transforms-2d";
+import {
+  rotationTransform,
+  scalingTransform,
+  Transform,
+  translationTransform,
+} from "./transforms-2d";
 
 const Q_MAT = new Matrix3x3(
   ONE,
@@ -19,12 +25,61 @@ const Q_MAT = new Matrix3x3(
 
 export class Conic {
   private readonly _matrix: Matrix3x3;
+  private readonly _subMatrix: Matrix2x2;
+
+  private pointTransformCache: Transform | null = null;
 
   constructor(public readonly transformation: Transform) {
     this._matrix = transformation.matrix
       .transpose()
       .mul(Q_MAT)
       .mul(transformation.matrix);
+
+    this._subMatrix = new Matrix2x2(
+      this._matrix.x11,
+      this._matrix.x12,
+      this._matrix.x21,
+      this._matrix.x22,
+    );
+  }
+
+  get pointTransform() {
+    if (this.pointTransformCache) {
+      return this.pointTransformCache;
+    }
+
+    this.pointTransformCache = translationTransform(
+      this.center.vecFromOrigin().neg(),
+    ).followedBy(rotationTransform(this.tilt.neg()));
+
+    return this.pointTransformCache;
+  }
+
+  get center(): Point {
+    const a = this._matrix.x11;
+    const b = this._matrix.x12.mul(2);
+    const c = this._matrix.x22;
+    const d = this._matrix.x13.mul(2);
+    const e = this._matrix.x23.mul(2);
+
+    const denom = a.mul(c).mul(4).sub(b.square());
+
+    const x = b.mul(e).sub(c.mul(d).mul(TWO)).div(denom);
+    const y = b.mul(d).sub(a.mul(e).mul(TWO)).div(denom);
+
+    return new Point(x, y);
+  }
+
+  get radiuses(): [Num, Num] {
+    const [r1, r2] = this._subMatrix.eigenvalues();
+    return [ONE.div(r1.sqrt()), ONE.div(r2.sqrt())];
+  }
+
+  get tilt(): Angle {
+    const eigenvalues = this._subMatrix.eigenvalues();
+    const direction = this._subMatrix.eigenvector(eigenvalues[0]);
+
+    return new Vec2(direction.x1, direction.x2).asAngle();
   }
 
   private candidatePoints(point: Point): Point[] {
@@ -155,10 +210,14 @@ export class Conic {
   }
 
   distanceTo(point: Point): Num {
-    const distances = this.candidatePoints(point).map((candidate) =>
-      candidate.vecTo(point).norm(),
-    );
-    return min(...(distances as [Num])).mul(this.sign(point));
+    const newPoint = this.pointTransform.apply(point);
+    const [r1, r2] = this.radiuses;
+
+    const distance = closestPointOnEllipse(r1, r2, newPoint)
+      .vecFrom(newPoint)
+      .norm();
+
+    return this.sign(point).mul(distance);
   }
 }
 
@@ -168,4 +227,18 @@ export function circleConic(radius: Num): Conic {
 
 export function ellipseConic(majorRadius: Num, minorRadius: Num): Conic {
   return new Conic(scalingTransform(majorRadius, minorRadius).reverse());
+}
+
+export function genericConic(
+  majorRadius: Num,
+  minorRadius: Num,
+  rotationAngle: Angle,
+  center: Point,
+) {
+  return new Conic(
+    scalingTransform(majorRadius, minorRadius)
+      .reverse()
+      .compose(rotationTransform(rotationAngle.neg()))
+      .compose(translationTransform(center.vecFromOrigin().neg())),
+  );
 }

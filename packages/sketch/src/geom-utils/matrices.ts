@@ -1,4 +1,147 @@
-import { Num, ONE, ZERO } from "../num";
+import { Num, ONE, TWO, ZERO } from "../num";
+import { ifTruthyElse } from "../num-ops";
+
+export class ColVec2 {
+  constructor(
+    public readonly x1: Num,
+    public readonly x2: Num,
+  ) {}
+
+  transpose(): RowVec2 {
+    return new RowVec2(this.x1, this.x2);
+  }
+}
+
+export class RowVec2 {
+  constructor(
+    public readonly x1: Num,
+    public readonly x2: Num,
+  ) {}
+
+  transpose(): ColVec2 {
+    return new ColVec2(this.x1, this.x2);
+  }
+
+  dot(other: ColVec2): Num {
+    return this.x1.mul(other.x1).add(this.x2.mul(other.x2));
+  }
+
+  product(matrix: Matrix2x2): RowVec2 {
+    return new RowVec2(
+      this.x1.mul(matrix.x11).add(this.x2.mul(matrix.x21)),
+      this.x1.mul(matrix.x12).add(this.x2.mul(matrix.x22)),
+    );
+  }
+}
+
+function det22(a: Num, b: Num, c: Num, d: Num): Num {
+  return a.mul(d).sub(b.mul(c));
+}
+
+export class Matrix2x2 {
+  constructor(
+    public readonly x11: Num,
+    public readonly x12: Num,
+    public readonly x21: Num,
+    public readonly x22: Num,
+  ) {}
+
+  transpose(): Matrix2x2 {
+    return new Matrix2x2(this.x11, this.x21, this.x12, this.x22);
+  }
+
+  mul(other: Matrix2x2): Matrix2x2 {
+    return new Matrix2x2(
+      this.x11.mul(other.x11).add(this.x12.mul(other.x21)),
+      this.x11.mul(other.x12).add(this.x12.mul(other.x22)),
+      this.x21.mul(other.x11).add(this.x22.mul(other.x21)),
+      this.x21.mul(other.x12).add(this.x22.mul(other.x22)),
+    );
+  }
+
+  add(other: Matrix2x2): Matrix2x2 {
+    return new Matrix2x2(
+      this.x11.add(other.x11),
+      this.x12.add(other.x12),
+      this.x21.add(other.x21),
+      this.x22.add(other.x22),
+    );
+  }
+
+  sub(other: Matrix2x2): Matrix2x2 {
+    return new Matrix2x2(
+      this.x11.sub(other.x11),
+      this.x12.sub(other.x12),
+      this.x21.sub(other.x21),
+      this.x22.sub(other.x22),
+    );
+  }
+
+  scale(scalar: Num): Matrix2x2 {
+    return new Matrix2x2(
+      this.x11.mul(scalar),
+      this.x12.mul(scalar),
+      this.x21.mul(scalar),
+      this.x22.mul(scalar),
+    );
+  }
+
+  product(colVec: ColVec2): ColVec2 {
+    return new ColVec2(
+      this.x11.mul(colVec.x1).add(this.x12.mul(colVec.x2)),
+      this.x21.mul(colVec.x1).add(this.x22.mul(colVec.x2)),
+    );
+  }
+
+  det(): Num {
+    return det22(this.x11, this.x12, this.x21, this.x22);
+  }
+
+  trace(): Num {
+    return this.x11.add(this.x22);
+  }
+
+  inverse(): Matrix2x2 {
+    const det = this.det();
+    return new Matrix2x2(
+      this.x22.div(det),
+      this.x12.div(det).neg(),
+      this.x21.div(det).neg(),
+      this.x11.div(det),
+    );
+  }
+
+  eigenvalues(): [Num, Num] {
+    const trace = this.trace();
+    const mean = trace.div(TWO);
+    const product = this.det();
+
+    const discriminant = mean.square().sub(product).sqrt();
+
+    return [mean.sub(discriminant), mean.add(discriminant)];
+  }
+
+  eigenvector(lambda: Num): ColVec2 {
+    const x = ifTruthyElse(this.x12, this.x12, lambda.sub(this.x22));
+    const y = ifTruthyElse(this.x12, lambda.sub(this.x11), this.x21);
+
+    const isNonDiagonalMatrix = this.x12.or(this.x21);
+    const aCase = this.x11.equals(lambda);
+
+    const diagValueX = ifTruthyElse(aCase, ONE, ZERO);
+    const diagValueY = ifTruthyElse(aCase, ZERO, ONE);
+
+    return new ColVec2(
+      ifTruthyElse(isNonDiagonalMatrix, x, diagValueX),
+      ifTruthyElse(isNonDiagonalMatrix, y, diagValueY),
+    );
+  }
+
+  eigenvectors(): [ColVec2, ColVec2] {
+    const [lambda1, lambda2] = this.eigenvalues();
+    return [this.eigenvector(lambda1), this.eigenvector(lambda2)];
+  }
+}
 
 export class RowVec3 {
   constructor(
@@ -46,10 +189,6 @@ export class ColVec3 {
   transpose(): RowVec3 {
     return new RowVec3(this.x1, this.x2, this.x3);
   }
-}
-
-function det22(a: Num, b: Num, c: Num, d: Num): Num {
-  return a.mul(d).sub(b.mul(c));
 }
 
 export class Matrix3x3 {
@@ -186,6 +325,10 @@ export class Matrix3x3 {
       .add(det22(this.x12, this.x13, this.x22, this.x23).mul(this.x31));
   }
 
+  trace(): Num {
+    return this.x11.add(this.x22).add(this.x33);
+  }
+
   inverse(): Matrix3x3 {
     const det = this.det();
     return new Matrix3x3(
@@ -201,6 +344,8 @@ export class Matrix3x3 {
     );
   }
 }
+
+export const IDENTITY_MATRIX_2x2 = new Matrix2x2(ONE, ZERO, ZERO, ONE);
 
 export const IDENTITY_MATRIX_3x3 = new Matrix3x3(
   ONE,

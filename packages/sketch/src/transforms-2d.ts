@@ -52,6 +52,19 @@ export const scalingTransform = (xFactor: Num, yFactor: Num): Transform =>
     new Matrix3x3(xFactor, ZERO, ZERO, ZERO, yFactor, ZERO, ZERO, ZERO, ONE),
   );
 
+export const rawTransform = (
+  x11: Num,
+  x12: Num,
+  x13: Num,
+  x21: Num,
+  x22: Num,
+  x23: Num,
+  x31: Num,
+  x32: Num,
+  x33: Num,
+): Transform =>
+  new Transform(new Matrix3x3(x11, x12, x13, x21, x22, x23, x31, x32, x33));
+
 export const rotationAroundPointTransform = (
   angle: Angle,
   point: Point,

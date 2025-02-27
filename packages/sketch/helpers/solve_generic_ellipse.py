@@ -9,7 +9,6 @@ from sympy import (
     Float,
     Integer,
     Mul,
-    Poly,
     Pow,
     Symbol,
     expand,
@@ -25,18 +24,12 @@ x, y, l = symbols("x y l")
 x0, y0 = symbols("x0 y0")
 
 NUM_MAP = {
-    16.0: "_16",
-    -16.0: "_16neg",
-    32.0: "_32",
-    -32.0: "_32neg",
     1.0: "ONE",
     -1.0: "NEG_ONE",
     2.0: "TWO",
     -2.0: "_2neg",
     4.0: "_4",
-    -4: "_4neg",
-    8.0: "_8",
-    -8.0: "_8neg",
+    -4.0: "_4neg",
 }
 
 
@@ -70,7 +63,7 @@ def convert(expr) -> str:
         if exp == 4:
             return f"{convert(base)}.square().square()"
         elif exp == -1:
-            return f"num(1).div({convert(base)})"
+            return f"ONE.div({convert(base)})"
         else:
             raise ValueError(f"Unsupported power operation: {exp}")
     else:
@@ -78,8 +71,9 @@ def convert(expr) -> str:
 
 
 def print_coeffs_as_num(expr, variable):
-    poly = Poly(expr.simplify(), l)
-    coeffs = poly.coeffs()
+    poly = expr.simplify().as_poly(l)
+    coeffs = poly.all_coeffs()
+    coeffs.reverse()
 
     print(f"const l4 = {convert(coeffs[4])};\n")
     print(f"const l3 = {convert(coeffs[3])};\n")

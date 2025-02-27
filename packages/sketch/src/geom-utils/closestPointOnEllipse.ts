@@ -132,6 +132,42 @@ export function closestPointOnEllipse(
   );
 }
 
+export function ellipseQuarticFactors(
+  majorRadius: Num,
+  minorRadius: Num,
+  point: Point,
+): [Num, Num, Num, Num, Num] {
+  const l = minorRadius.square().sub(majorRadius.square());
+  const ax = majorRadius.mul(point.x).div(l);
+  const by = minorRadius.mul(point.y).div(l);
+
+  const a2x2 = ax.square();
+  const b2y2 = by.square();
+
+  return [ONE, ax.mul(TWO), a2x2.add(b2y2).sub(ONE), ax.mul(-2), a2x2.neg()];
+}
+
+export function hyperbolaQuarticFactors(
+  majorRadius: Num,
+  minorRadius: Num,
+  point: Point,
+): [Num, Num, Num, Num, Num] {
+  const l = majorRadius.square().sub(minorRadius.square());
+  const ax = majorRadius.mul(point.x).div(l);
+  const by = minorRadius.mul(point.y).div(l);
+
+  const a2x2 = ax.square();
+  const b2y2 = by.square();
+
+  return [
+    ONE,
+    ax.mul(-2),
+    a2x2.mul(TWO).add(b2y2).sub(ONE),
+    ax.mul(TWO),
+    a2x2.neg(),
+  ];
+}
+
 export function candidateClosestPointsWithinEllipseArc(
   majorRadius: Num,
   minorRadius: Num,

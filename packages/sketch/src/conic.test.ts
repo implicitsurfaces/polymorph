@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import { circleConic, ellipseConic, genericConic } from "./conic";
+import { circleConic, ellipseConic, genericEllipseConic } from "./conic";
 import { expectASCIIDistance } from "./test-utils";
 import { asNum } from "./num";
 import { angleFromDeg, Point, Vec2 } from "./geom";
@@ -30,7 +30,7 @@ test("check points on ellipse", async () => {
 });
 */
 test("extracting the radiuses", () => {
-  const e = genericConic(
+  const e = genericEllipseConic(
     asNum(0.2),
     asNum(4),
     angleFromDeg(0),
@@ -42,7 +42,7 @@ test("extracting the radiuses", () => {
 
 test("extracting the translation", async () => {
   const center = [2, 1];
-  const e = genericConic(
+  const e = genericEllipseConic(
     asNum(0.5),
     asNum(0.6),
     angleFromDeg(0),
@@ -59,7 +59,7 @@ function positiveOrientation(angle: number) {
 test("extracting the tilt", async () => {
   const center = [0, 0];
   const angle = 55;
-  const e = genericConic(
+  const e = genericEllipseConic(
     asNum(3),
     asNum(0.5),
     angleFromDeg(angle),

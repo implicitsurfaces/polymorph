@@ -1,10 +1,15 @@
-import { Angle, angleFromDeg, Point, QUARTER_TURN, Vec2 } from "./geom";
-import { closestPointOnEllipse } from "./geom-utils/closestPointOnEllipse";
+import { Angle, Point, Vec2 } from "./geom";
+import {
+  closestPointOnEllipse,
+  ellipseQuarticFactors,
+  hyperbolaQuarticFactors,
+} from "./geom-utils/closestPointOnEllipse";
 import { Matrix2x2, Matrix3x3, RowVec3 } from "./geom-utils/matrices";
 import { solveQuartic } from "./geom-utils/solve-polynomial";
 import { asNum, NEG_ONE, Num, ONE, TWO, ZERO } from "./num";
-import { min } from "./num-ops";
+import { ifTruthyElse, min } from "./num-ops";
 import {
+  rawTransform,
   rotationTransform,
   scalingTransform,
   Transform,
@@ -70,9 +75,13 @@ export class Conic {
     return new Point(x, y);
   }
 
+  get isEllipse(): Num {
+    return this._subMatrix.det().greaterThan(ZERO);
+  }
+
   get radiuses(): [Num, Num] {
     const [r1, r2] = this._subMatrix.eigenvalues();
-    return [ONE.div(r1.sqrt()), ONE.div(r2.sqrt())];
+    return [ONE.div(r1.abs().sqrt()), ONE.div(r2.abs().sqrt())];
   }
 
   get tilt(): Angle {
@@ -97,14 +106,14 @@ export class Conic {
     const _4 = asNum(4);
     const _4neg = asNum(-4);
 
-    const l4 = f
+    const l0 = f
       .add(a.mul(x0.square()))
       .add(c.mul(y0.square()))
       .add(TWO.mul(d).mul(x0))
       .add(TWO.mul(e).mul(y0))
       .add(TWO.mul(b).mul(x0).mul(y0));
 
-    const l3 = _2neg
+    const l1 = _2neg
       .mul(d.square())
       .add(_2neg.mul(e.square()))
       .add(_2neg.mul(b.square()).mul(x0.square()))
@@ -143,7 +152,7 @@ export class Conic {
       .add(_2neg.mul(b).mul(c).mul(e).mul(x0))
       .add(_2neg.mul(a).mul(b).mul(c).mul(x0).mul(y0));
 
-    const l1 = _2neg
+    const l3 = _2neg
       .mul(a.square())
       .mul(e.square())
       .add(_2neg.mul(c.square()).mul(d.square()))
@@ -156,7 +165,7 @@ export class Conic {
       .add(_4.mul(a).mul(b).mul(d).mul(e))
       .add(_4.mul(b).mul(c).mul(d).mul(e));
 
-    const l0 = f
+    const l4 = f
       .mul(b.square().square())
       .add(a.mul(b.square()).mul(e.square()))
       .add(c.mul(b.square()).mul(d.square()))
@@ -209,7 +218,7 @@ export class Conic {
     return v.sign();
   }
 
-  distanceTo(point: Point): Num {
+  distanceToEllipse(point: Point): Num {
     const newPoint = this.pointTransform.apply(point);
     const [r1, r2] = this.radiuses;
 
@@ -219,17 +228,85 @@ export class Conic {
 
     return this.sign(point).mul(distance);
   }
+
+  distanceToGeneric(point: Point): Num {
+    const candidates = this.candidatePoints(point);
+
+    const distances = candidates.map((candidate) =>
+      candidate.vecFrom(point).norm(),
+    );
+
+    return min(...(distances as [Num])).mul(this.sign(point));
+  }
+
+  distanceToRegular(point: Point): Num {
+    const newPoint = this.pointTransform.apply(point);
+
+    const [r1, r2] = this.radiuses;
+
+    const ellipseFactors = ellipseQuarticFactors(r1, r2, newPoint);
+    const hyperbolaFactors = hyperbolaQuarticFactors(r1, r2, newPoint);
+
+    const isEllipse = this.isEllipse;
+
+    const factors = ellipseFactors.map((factor, i) =>
+      ifTruthyElse(isEllipse, factor, hyperbolaFactors[i]),
+    );
+
+    const params = solveQuartic(...(factors as [Num, Num, Num, Num, Num]));
+
+    const points = params.flatMap((param) => {
+      const sinParam = ONE.sub(param.square()).sqrt();
+
+      const x = param.mul(r1);
+      const y = sinParam.mul(r2);
+
+      return [new Point(x, y), new Point(x, y.neg())];
+    });
+
+    const distances = points.map((candidate) =>
+      candidate.vecFrom(newPoint).norm(),
+    );
+
+    const minDistance = min(...(distances as [Num]));
+    return this.sign(point).mul(minDistance);
+  }
+
+  distanceTo(point: Point): Num {
+    return this.distanceToGeneric(point);
+  }
 }
+
+const hyperbolaProjection = (minorRadius: Num) =>
+  rawTransform(
+    ONE,
+    ZERO,
+    ZERO,
+    ZERO,
+    ZERO,
+    ONE.div(minorRadius),
+    ZERO,
+    minorRadius,
+    ZERO,
+  );
 
 export function circleConic(radius: Num): Conic {
   return new Conic(scalingTransform(radius, radius).reverse());
+}
+
+export function hyperbolaConic(majorRadius: Num, minorRadius: Num): Conic {
+  return new Conic(
+    scalingTransform(majorRadius, minorRadius)
+      .reverse()
+      .compose(hyperbolaProjection(minorRadius).reverse()),
+  );
 }
 
 export function ellipseConic(majorRadius: Num, minorRadius: Num): Conic {
   return new Conic(scalingTransform(majorRadius, minorRadius).reverse());
 }
 
-export function genericConic(
+export function genericEllipseConic(
   majorRadius: Num,
   minorRadius: Num,
   rotationAngle: Angle,

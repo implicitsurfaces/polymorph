@@ -11,7 +11,7 @@ import {
   NEG_ONE_NODE,
 } from "./num-tree";
 import { compressNum } from "./num-dag-tools/compress-num";
-import { renderNodeAsDot } from "./utils/num-to-dot";
+import { renderNodeAsDot } from "./eval-num/dot-eval";
 import { simplify } from "./num-dag-tools/simplify-num";
 
 export function asNum(n: number | Num): Num {

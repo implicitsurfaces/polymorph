@@ -1,12 +1,13 @@
 import { vecFromCartesianCoords } from "./geom";
 import { vec3FromCartesianCoords } from "./geom-3d";
 import { NumX, NumY, NumZ } from "./num";
-import { allVariables, naiveEval } from "./num-tree";
+import { allVariables } from "./num-tree";
+import { naiveEval } from "./eval-num/js-eval";
 import {
   fidgetRender,
   fidgetRenderNode3D,
   fidgetStringify,
-} from "./num-tree-fidget";
+} from "./eval-num/fidget-eval";
 import { gradientDescentOpt } from "./opt";
 import {
   AngleNode,
@@ -164,8 +165,6 @@ export function exportAsFidget(node: SolidNode | ProfileNode) {
     NumY,
     NumZ,
   ).pointFromOrigin();
-
-  console.log("exporting");
 
   const distNode =
     node instanceof SolidNode

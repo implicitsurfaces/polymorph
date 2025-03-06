@@ -8,7 +8,7 @@ import {
   RowVec3,
 } from "../geom-utils/matrices";
 import { Num } from "../num";
-import { simpleEval } from "../num-tree";
+import { simpleEval } from "../eval-num/js-eval";
 
 type BasicTypes =
   | Num

@@ -1,7 +1,7 @@
 import { describe, test, expect } from "vitest";
 
-import { naiveEval } from "../num-tree";
-import { fidgetEval } from "../num-tree-fidget";
+import { naiveEval } from "../eval-num/js-eval";
+import { fidgetEval } from "../eval-num/fidget-eval";
 import { solveCubic, solveQuadratic, solveQuartic } from "./solve-polynomial";
 import { asNum } from "../num";
 

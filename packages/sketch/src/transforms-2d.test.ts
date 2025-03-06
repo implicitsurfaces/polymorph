@@ -6,7 +6,7 @@ import {
 } from "./transforms-2d";
 import { angleFromDeg, Point, Vec2 } from "./geom";
 import { asNum } from "./num";
-import { simpleEval } from "./num-tree";
+import { simpleEval } from "./eval-num/js-eval";
 
 const evalPoint = (point: Point) => {
   return [simpleEval(point.x.n), simpleEval(point.y.n)];

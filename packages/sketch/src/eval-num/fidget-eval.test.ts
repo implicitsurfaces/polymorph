@@ -1,13 +1,13 @@
 import { describe, test, expect } from "vitest";
 
-import { fidgetEval } from "./num-tree-fidget";
-import { asNum, Num } from "./num";
-import { Box, Circle, ClosedPath, OpenPath } from "./profiles";
-import { asVec, vecFromCartesianCoords } from "./geom";
-import { expectFidgetRender } from "./test-utils";
-import { Dilatation, Translation } from "./sdf-operations";
-import { BulgingSegment, LineSegment } from "./segments";
-import { Segment } from "./types";
+import { fidgetEval } from "./fidget-eval";
+import { asNum, Num } from "../num";
+import { Box, Circle, ClosedPath, OpenPath } from "../profiles";
+import { asVec, vecFromCartesianCoords } from "../geom";
+import { expectFidgetRender } from "../test-utils";
+import { Dilatation, Translation } from "../sdf-operations";
+import { BulgingSegment, LineSegment } from "../segments";
+import { Segment } from "../types";
 
 const t = (s: Segment) => new Dilatation(asNum(0.2), new OpenPath([s]));
 

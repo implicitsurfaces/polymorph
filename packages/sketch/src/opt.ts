@@ -1,6 +1,7 @@
 import { Num } from "./num";
 import { fullDerivative } from "./num-diff";
-import { naiveEval, NumNode } from "./num-tree";
+import { NumNode } from "./num-tree";
+import { naiveEval } from "./eval-num/js-eval";
 
 export class Gradient {
   private totalDerivative: NumNode;

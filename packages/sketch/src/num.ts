@@ -10,7 +10,9 @@ import {
   TWO_NODE,
   NEG_ONE_NODE,
 } from "./num-tree";
+import { compressNum } from "./num-dag-tools/compress-num";
 import { renderNodeAsDot } from "./utils/num-to-dot";
+import { simplify } from "./num-dag-tools/simplify-num";
 
 export function asNum(n: number | Num): Num {
   if (n instanceof Num) {
@@ -148,6 +150,13 @@ export class Num {
   }
   greaterThanOrEqual(other: Num | number) {
     return asNum(other).lessThanOrEqual(this);
+  }
+
+  compress(): Num {
+    return new Num(compressNum(this.n));
+  }
+  simplify(): Num {
+    return new Num(simplify(this.n));
   }
 
   asDot(): string {

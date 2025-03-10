@@ -1,6 +1,5 @@
 import {
   BinaryOp,
-  BinaryOperation,
   LiteralNum,
   NEG_ONE_NODE,
   NumNode,
@@ -11,6 +10,7 @@ import {
   Derivative,
   ZERO_NODE,
 } from "./num-tree";
+import { BinaryOperation } from "./types";
 
 function nodeAnd(lhs: NumNode, rhs: NumNode): NumNode {
   return new BinaryOp("AND", lhs, rhs);

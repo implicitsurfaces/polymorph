@@ -1,6 +1,6 @@
 import { Context, Node as FidgetNode } from "fidget";
 
-import { BinaryOperation, UnaryOperation } from "../../num-tree";
+import { BinaryOperation, UnaryOperation } from "../../types";
 import { NumEvalKernel } from "../../types";
 
 export class FidgetEvalKernel implements NumEvalKernel<FidgetNode> {

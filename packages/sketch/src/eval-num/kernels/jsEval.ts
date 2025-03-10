@@ -1,4 +1,4 @@
-import type { BinaryOperation, UnaryOperation } from "../../num-tree";
+import type { BinaryOperation, UnaryOperation } from "../../types";
 import { NumEvalKernel } from "../../types";
 
 export class JSEvalKernel implements NumEvalKernel<number> {

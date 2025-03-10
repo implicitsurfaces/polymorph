@@ -1,37 +1,5 @@
 import { visitFromLeaves } from "./dag-tools/dag-traversal";
-//import { renderNodeAsDot } from "./utils/num-to-dot";
-//import fs from "node:fs";
-
-export type UnaryOperation =
-  | "SQRT"
-  | "COS"
-  | "ACOS"
-  | "ASIN"
-  | "TAN"
-  | "ATAN"
-  | "LOG"
-  | "EXP"
-  | "ABS"
-  | "NEG"
-  | "SIN"
-  | "SIGN"
-  | "NOT"
-  | "TANH"
-  | "LOG1P";
-
-export type BinaryOperation =
-  | "ADD"
-  | "SUB"
-  | "MUL"
-  | "DIV"
-  | "MOD"
-  | "ATAN2"
-  | "MIN"
-  | "MAX"
-  | "COMPARE"
-  | "AND"
-  | "OR";
-
+import { UnaryOperation, BinaryOperation } from "./types";
 export class NumNode {
   readonly operation: string = "NONE";
 }

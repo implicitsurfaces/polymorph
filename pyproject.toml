@@ -72,7 +72,7 @@ select = [
     "I",   # isort
 ]
 
-exclude = ["typings/imgui/__init__.pyi"]
+exclude = ["typings/imgui/__init__.pyi", "packages/sketch/helpers/*"]
 
 [tool.pyright]
 venvPath = "."

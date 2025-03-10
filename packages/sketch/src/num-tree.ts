@@ -19,6 +19,16 @@ export class UnaryOp extends NumNode {
   }
 }
 
+export class DebugNode extends UnaryOp {
+  constructor(
+    readonly original: NumNode,
+    readonly debug: string,
+  ) {
+    super("DEBUG", original);
+    this.debug = debug;
+  }
+}
+
 export class BinaryOp extends NumNode {
   constructor(
     readonly operation: BinaryOperation,

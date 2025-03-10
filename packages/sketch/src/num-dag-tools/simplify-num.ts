@@ -7,6 +7,7 @@ import {
   Derivative,
   ZERO_NODE as ZERO,
   ONE_NODE as ONE,
+  DebugNode,
 } from "../num-tree"; // Assuming the types are defined in a separate file
 import { UnaryOperation, BinaryOperation } from "../types";
 import { memoizeNodeEval } from "../utils/cache";
@@ -82,6 +83,8 @@ function simplifyUnaryOp(node: UnaryOp): NumNode {
 
   // If we couldn't simplify further, return a new unary op with the simplified operand
   if (simplifiedOperand !== node.original) {
+    if (node instanceof DebugNode)
+      return new DebugNode(simplifiedOperand, node.debug);
     return new UnaryOp(node.operation, simplifiedOperand);
   }
 

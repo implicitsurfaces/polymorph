@@ -63,6 +63,9 @@ export class JSEvalKernel implements NumEvalKernel<number> {
     if (operation === "LOG1P") {
       return Math.log1p(operand);
     }
+    if (operation === "DEBUG") {
+      return operand;
+    }
     throw new Error(`Unknown unary operation: ${operation}`);
   }
 

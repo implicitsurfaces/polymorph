@@ -1,4 +1,4 @@
-import type {  NumNode } from "../../num-tree";
+import type { DebugNode, NumNode } from "../../num-tree";
 import type { BinaryOperation, UnaryOperation } from "../../types";
 import { NumEvalKernel } from "../../types";
 
@@ -6,33 +6,80 @@ export class DotEvalKernel implements NumEvalKernel<number> {
   private body: string[] = [];
   private currentId = 1;
 
+  private formatter: Intl.NumberFormat;
+  private sciFormatter: Intl.NumberFormat;
+
   constructor(
-    public readonly variablesValues: Map<string, number> = new Map(),
-  ) {}
+    public readonly warnPrecision = 6,
+    public readonly showPrecision = 4,
+  ) {
+    this.formatter = new Intl.NumberFormat("en-US", {
+      maximumFractionDigits: showPrecision,
+    });
+    this.sciFormatter = new Intl.NumberFormat("en-US", {
+      maximumFractionDigits: showPrecision,
+      notation: "scientific",
+    });
+  }
 
   private newId() {
     return this.currentId++;
+  }
+
+  private formatDotOptions(options: Record<string, string>) {
+    if (Object.keys(options).length === 0) return "";
+    const str = Object.entries(options)
+      .map(([key, value]) => {
+        return `${key}="${value}"`;
+      })
+      .join(" ");
+
+    return `[${str}]`;
   }
 
   private addNode(
     id: number,
     label: string,
     status: "info" | "warn" | "error" = "info",
+    additionalOptions: Record<string, string> = {},
   ) {
-    const color =
-      status === "warn" ? "yellow" : status === "error" ? "red" : "lightblue";
-    this.body.push(`    node${id} [label="${label}" fillcolor=${color}];`);
+    const options: Record<string, string> = { label, ...additionalOptions };
+    if (status !== "info")
+      options.fillcolor = { warn: "yellow", error: "red" }[status];
+
+    this.body.push(`    node${id} ${this.formatDotOptions(options)};`);
   }
 
-  private addEdge(from: number, to: number) {
-    this.body.push(`    node${from} -> node${to};`);
+  private addEdge(
+    from: number,
+    to: number,
+    status: "info" | "warn" | "error" = "info",
+    additionalOptions: Record<string, string> = {},
+  ) {
+    const options: Record<string, string> = { ...additionalOptions };
+    if (status !== "info")
+      options.color = { warn: "orange", error: "red" }[status];
+
+    this.body.push(
+      `    node${from} -> node${to} ${this.formatDotOptions(options)};`,
+    );
+  }
+
+  private formatNumber(value: number) {
+    if (Number.isNaN(value)) return "NaN";
+    if (
+      Math.abs(value) > 10 ** this.showPrecision ||
+      (Math.abs(value) < 0.1 ** this.showPrecision && value !== 0)
+    )
+      return this.sciFormatter.format(value);
+    return this.formatter.format(value);
   }
 
   private formatLabel(operation: string, value: number) {
     let label = operation.toLowerCase();
 
     if (value || value === 0 || Number.isNaN(value)) {
-      label += ` (${Number.isNaN(value) ? "NaN" : value?.toFixed(4)})`;
+      label += ` (${this.formatNumber(value)})`;
     }
 
     return label;
@@ -41,7 +88,7 @@ export class DotEvalKernel implements NumEvalKernel<number> {
   private getStatus(value: number) {
     return Number.isNaN(value)
       ? "error"
-      : value !== 0 && Math.abs(value) < 1e-6
+      : value !== 0 && Math.abs(value) < 10 ** -this.warnPrecision
         ? "warn"
         : "info";
   }
@@ -52,7 +99,7 @@ export class DotEvalKernel implements NumEvalKernel<number> {
 
   literal(value: number) {
     const id = this.newId();
-    const label = value.toFixed(5);
+    const label = this.formatNumber(value);
     this.addNode(id, label);
     return id;
   }
@@ -70,9 +117,23 @@ export class DotEvalKernel implements NumEvalKernel<number> {
     node: NumNode & { evalsTo: number },
   ) {
     const id = this.newId();
-    const label = this.formatLabel(operation, node.evalsTo);
-    this.addNode(id, label, this.getStatus(node.evalsTo));
-    this.addEdge(id, operand);
+
+    const status = this.getStatus(node.evalsTo);
+
+    if (operation === "DEBUG") {
+      const str = (node as DebugNode & { evalsTo: number }).debug;
+      const label = this.formatLabel(str, node.evalsTo);
+      console.log(str, node.evalsTo);
+      this.addNode(id, label, status, {
+        shape: "box",
+        fillcolor: "lightgreen",
+      });
+    } else {
+      const label = this.formatLabel(operation, node.evalsTo);
+      this.addNode(id, label, status);
+    }
+
+    this.addEdge(id, operand, status);
     return id;
   }
 
@@ -83,10 +144,11 @@ export class DotEvalKernel implements NumEvalKernel<number> {
     node: NumNode & { evalsTo: number },
   ) {
     const id = this.newId();
+    const status = this.getStatus(node.evalsTo);
     const label = this.formatLabel(operation, node.evalsTo);
-    this.addNode(id, label, this.getStatus(node.evalsTo));
-    this.addEdge(id, left);
-    this.addEdge(id, right);
+    this.addNode(id, label, status);
+    this.addEdge(id, left, status);
+    this.addEdge(id, right, status);
     return id;
   }
 

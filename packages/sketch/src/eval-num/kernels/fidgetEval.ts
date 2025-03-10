@@ -92,6 +92,11 @@ export class FidgetEvalKernel implements NumEvalKernel<FidgetNode> {
         this.context.add(operand, this.context.constant(1)),
       );
     }
+
+    if (operation === "DEBUG") {
+      return operand;
+    }
+
     throw new Error(`Unknown unary operation: ${operation}`);
   }
 

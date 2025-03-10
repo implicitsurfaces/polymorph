@@ -1,6 +1,7 @@
 import {
   BinaryOp,
   childrenOfNumNode,
+  DebugNode,
   Derivative,
   LiteralNum,
   NumNode,
@@ -30,6 +31,9 @@ function buildNode(originalNode: NumNode, children: NumNode[]): NumNode {
   } else if (originalNode instanceof Variable) {
     return new Variable(originalNode.name);
   } else if (originalNode instanceof UnaryOp) {
+    if (originalNode instanceof DebugNode) {
+      return new DebugNode(children[0], originalNode.debug);
+    }
     return new UnaryOp(originalNode.operation, children[0]);
   } else if (originalNode instanceof BinaryOp) {
     return new BinaryOp(originalNode.operation, children[0], children[1]);

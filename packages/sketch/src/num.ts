@@ -9,6 +9,7 @@ import {
   ONE_NODE,
   TWO_NODE,
   NEG_ONE_NODE,
+  DebugNode,
 } from "./num-tree";
 import { compressNum } from "./num-dag-tools/compress-num";
 import { renderNodeAsDot } from "./eval-num/dot-eval";
@@ -150,6 +151,10 @@ export class Num {
   }
   greaterThanOrEqual(other: Num | number) {
     return asNum(other).lessThanOrEqual(this);
+  }
+
+  debug(info: string) {
+    return new Num(new DebugNode(this.n, info));
   }
 
   compress(): Num {

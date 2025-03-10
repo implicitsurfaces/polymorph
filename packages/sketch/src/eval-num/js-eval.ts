@@ -8,9 +8,9 @@ import {
   UnaryOp,
   BinaryOp,
   childrenOfNumNode,
-  BinaryOperation,
-  UnaryOperation,
+  DebugNode,
 } from "../num-tree";
+import { BinaryOperation, UnaryOperation } from "../types";
 import { NumEvalKernel } from "../types";
 import { genericEval } from "./genericEval";
 
@@ -83,10 +83,18 @@ export function treeEval<T = number>(
     } else if (node instanceof UnaryOp) {
       const operand = evaledNodes.get(node.original)!;
       evaled = kernel.unaryOp(node.operation, operand, node);
+
       extended = Object.assign(
         new UnaryOp(node.operation, outNodes.get(node.original)!),
         { evalsTo: kernel.value(evaled) },
       );
+
+      if (node instanceof DebugNode) {
+        extended = Object.assign(
+          new DebugNode(outNodes.get(node.original)!, node.debug),
+          { evalsTo: kernel.value(evaled) },
+        );
+      }
     } else if (node instanceof BinaryOp) {
       const left = evaledNodes.get(node.left)!;
       const right = evaledNodes.get(node.right)!;

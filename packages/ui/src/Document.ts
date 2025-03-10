@@ -169,12 +169,18 @@ export class Number extends Node {
 ///////////////////////////////////////////////////////////////////////////////
 //                               SkeletonNode
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface SkeletonNodeOptions extends NodeOptions {}
+export type SkeletonRole = "shape" | "construction";
+
+export interface SkeletonNodeOptions extends NodeOptions {
+  readonly role?: SkeletonRole;
+}
 
 export abstract class SkeletonNode extends Node {
+  role: SkeletonRole;
+
   constructor(doc: Document, id: NodeId, options: SkeletonNodeOptions) {
     super(doc, id, options);
+    this.role = options.role ?? "shape";
   }
 }
 
@@ -816,6 +822,7 @@ export function createTestDocument() {
   });
   const cp1 = doc.createNode(Point, {
     layer: layer,
+    role: "construction",
     position: new Vector2(50, 0),
   });
   doc.createNode(ArcFromStartTangent, {
@@ -831,6 +838,7 @@ export function createTestDocument() {
   });
   const cp2 = doc.createNode(Point, {
     layer: layer,
+    role: "construction",
     position: new Vector2(150, 50),
   });
   doc.createNode(CCurve, {
@@ -846,10 +854,12 @@ export function createTestDocument() {
   });
   const cp3 = doc.createNode(Point, {
     layer: layer,
+    role: "construction",
     position: new Vector2(50, -150),
   });
   const cp4 = doc.createNode(Point, {
     layer: layer,
+    role: "construction",
     position: new Vector2(-80, -60),
   });
   doc.createNode(SCurve, {

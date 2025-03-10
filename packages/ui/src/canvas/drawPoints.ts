@@ -3,7 +3,7 @@ import { Camera2 } from "./Camera2";
 import {
   FillStyle,
   pointRadius,
-  getNodeColor,
+  getSkeletonColor,
   getNodeStyleIndex,
 } from "./style";
 
@@ -29,7 +29,7 @@ export function drawPoint(
   selection: Selection,
 ) {
   const styleIndex = getNodeStyleIndex(point, selection);
-  const fillStyle = getNodeColor(styleIndex);
+  const fillStyle = getSkeletonColor(point, styleIndex);
   drawDisk(ctx, point.position, pointRadius / camera.zoom, fillStyle);
 }
 

@@ -1,4 +1,5 @@
-import type { BinaryOperation, NumNode, UnaryOperation } from "../../num-tree";
+import type {  NumNode } from "../../num-tree";
+import type { BinaryOperation, UnaryOperation } from "../../types";
 import { NumEvalKernel } from "../../types";
 
 export class DotEvalKernel implements NumEvalKernel<number> {

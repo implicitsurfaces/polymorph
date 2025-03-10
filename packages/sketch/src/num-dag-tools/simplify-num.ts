@@ -4,12 +4,11 @@ import {
   BinaryOp,
   LiteralNum,
   Variable,
-  UnaryOperation,
-  BinaryOperation,
   Derivative,
   ZERO_NODE as ZERO,
   ONE_NODE as ONE,
 } from "../num-tree"; // Assuming the types are defined in a separate file
+import { UnaryOperation, BinaryOperation } from "../types";
 import { memoizeNodeEval } from "../utils/cache";
 
 /**

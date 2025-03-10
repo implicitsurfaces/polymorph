@@ -1,5 +1,5 @@
 import { Selection } from "../Selection";
-import { Node } from "../Document";
+import { Node, SkeletonNode } from "../Document";
 
 // A StrokeStyle or FillStyle is:
 // - A string parsed as CSS <color> value.
@@ -35,8 +35,8 @@ export const backgroundColor = "#e0e0e0";
 export const pointRadius = 5;
 export const edgeWidth = 2;
 
-const _nodeColor = "black";
-const _controlColor = "#ff6f34";
+const _shapeColor = "black";
+const _constructionColor = "#ff6f34";
 const _measureColor = "#c100ad";
 const _selectedColor = "#4063d5";
 const _hoveredColor = "#96a4d3";
@@ -70,21 +70,38 @@ export function getNodeStyleIndex(node: Node, selection: Selection): number {
   return getStyleIndex(isHovered, isSelected);
 }
 
-const _nodeColors = [_nodeColor, _hoveredColor, _selectedColor, _selectedColor];
-
-export function getNodeColor(styleIndex: number): string {
-  return _nodeColors[styleIndex];
-}
-
-const _controlColors = [
-  _controlColor,
+const _shapeColors = [
+  _shapeColor,
   _hoveredColor,
   _selectedColor,
   _selectedColor,
 ];
 
-export function getControlColor(styleIndex: number): string {
-  return _controlColors[styleIndex];
+export function getShapeColor(styleIndex: number): string {
+  return _shapeColors[styleIndex];
+}
+
+const _constructionColors = [
+  _constructionColor,
+  _hoveredColor,
+  _selectedColor,
+  _selectedColor,
+];
+
+export function getConstructionColor(styleIndex: number): string {
+  return _constructionColors[styleIndex];
+}
+
+export function getSkeletonColor(
+  node: SkeletonNode,
+  styleIndex: number,
+): string {
+  switch (node.role) {
+    case "shape":
+      return getShapeColor(styleIndex);
+    case "construction":
+      return getConstructionColor(styleIndex);
+  }
 }
 
 const _measureColors = [

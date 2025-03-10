@@ -54,7 +54,7 @@ export class Num {
     return this.max(0).sqrt();
   }
   cbrt() {
-    return this.abs().log().div(3).exp().mul(this.sign());
+    return unaryOpNum("CBRT", this);
   }
   neg() {
     return unaryOpNum("NEG", this);

@@ -46,7 +46,7 @@ function simplifyUnaryOp(node: UnaryOp): NumNode {
   const simplifiedOperand = simplify(node.original);
 
   // If operand is a literal, we can evaluate the operation
-  if (simplifiedOperand instanceof LiteralNum) {
+  if (simplifiedOperand instanceof LiteralNum && node.operation !== "DEBUG") {
     return evaluateUnaryOp(node.operation, simplifiedOperand.value);
   }
 
@@ -265,6 +265,9 @@ function evaluateUnaryOp(operation: UnaryOperation, value: number): LiteralNum {
   switch (operation) {
     case "SQRT":
       result = Math.sqrt(value);
+      break;
+    case "CBRT":
+      result = Math.cbrt(value);
       break;
     case "COS":
       result = Math.cos(value);

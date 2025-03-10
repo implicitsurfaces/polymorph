@@ -40,6 +40,14 @@ export class FidgetEvalKernel implements NumEvalKernel<FidgetNode> {
     if (operation === "SQRT") {
       return this.context.sqrt(operand);
     }
+    if (operation === "CBRT") {
+      const log = this.context.ln(this.context.abs(operand));
+      const sign = this.context.compare(operand, this.context.constant(0));
+      const v = this.context.exp(
+        this.context.div(log, this.context.constant(3)),
+      );
+      return this.context.mul(v, sign);
+    }
     if (operation === "COS") {
       return this.context.cos(operand);
     }
@@ -115,7 +123,7 @@ export class FidgetEvalKernel implements NumEvalKernel<FidgetNode> {
       return this.context.mul(left, right);
     }
     if (operation === "DIV") {
-      const r = this.context.add(right, this.context.constant(1e-30));
+      const r = this.context.add(right, this.context.constant(1e-50));
       return this.context.div(left, r);
     }
     if (operation === "MOD") {

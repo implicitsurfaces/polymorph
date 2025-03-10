@@ -21,6 +21,9 @@ export class JSEvalKernel implements NumEvalKernel<number> {
     if (operation === "SQRT") {
       return Math.sqrt(operand);
     }
+    if (operation === "CBRT") {
+      return Math.cbrt(operand);
+    }
     if (operation === "COS") {
       return Math.cos(operand);
     }
@@ -66,7 +69,7 @@ export class JSEvalKernel implements NumEvalKernel<number> {
     if (operation === "DEBUG") {
       return operand;
     }
-    throw new Error(`Unknown unary operation: ${operation}`);
+   throw new Error(`Unknown unary operation: ${operation}`);
   }
 
   binaryOp(operation: BinaryOperation, left: number, right: number) {

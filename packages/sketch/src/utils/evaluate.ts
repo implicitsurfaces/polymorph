@@ -61,7 +61,9 @@ function evaluate(num: BasicTypes | Num[] | Angle[]): number | number[] {
   } else if (num instanceof ColVec3 || num instanceof RowVec3) {
     return [simpleEval(num.x1.n), simpleEval(num.x2.n), simpleEval(num.x3.n)];
   }
-  throw new Error(`Unknown type ${num.constructor.name}`);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  throw new Error(`Unknown type ${(num as any).constructor.name}`);
 }
 
 export { evaluate };

@@ -166,7 +166,6 @@ import {
   RotatedPlaneNode,
   TranslatedPlaneNode,
 } from "./sketch-nodes/plane";
-import { circleConic, ellipseConic } from "./conic";
 
 export function evalRealValue(value: RealValueNode): Num {
   if (value instanceof RealValueVariable) {
@@ -634,7 +633,7 @@ export const evalProfile = memoizeNodeEval(function (
 
   if (node instanceof CircleNode) {
     const radius = evalDistance(node.radius);
-    return circleConic(radius);
+    return new Circle(radius);
   }
 
   if (node instanceof BoxNode) {
@@ -646,7 +645,7 @@ export const evalProfile = memoizeNodeEval(function (
   if (node instanceof EllipseNode) {
     const majorRadius = evalDistance(node.majorRadius);
     const minorRadius = evalDistance(node.minorRadius);
-    return ellipseConic(majorRadius, minorRadius);
+    return new Ellipse(majorRadius, minorRadius);
   }
 
   if (node instanceof SolidSliceNode) {

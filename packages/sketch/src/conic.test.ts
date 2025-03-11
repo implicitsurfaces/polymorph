@@ -2,7 +2,7 @@ import { test, expect } from "vitest";
 import { circleConic, ellipseConic, genericEllipseConic } from "./conic";
 import { expectASCIIDistance } from "./test-utils";
 import { asNum } from "./num";
-import { angleFromDeg, Point, Vec2 } from "./geom";
+import { angleFromDeg, Point } from "./geom";
 import { evaluate } from "./utils/evaluate";
 
 test("circle as a conic", async () => {

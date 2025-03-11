@@ -7,7 +7,6 @@ import { drawEdges } from "./drawEdges";
 import { drawPoints } from "./drawPoints";
 import { drawGrid } from "./drawGrid";
 import { drawMeasures } from "./drawMeasures";
-import drawAPI from "../sketch/api";
 
 function drawBackground(
   ctx: CanvasRenderingContext2D,
@@ -28,29 +27,12 @@ function initializeViewTransform(
   ctx.setTransform(e[0], e[1], e[3], e[4], e[6], e[7]);
 }
 
-const cacheImage: {
-  current: null | Uint8ClampedArray;
-} = { current: null };
-
-// For now, drawAPI only supports square image renders
-const renderSize = 200;
-
-drawAPI.render(renderSize).then((res: Uint8ClampedArray) => {
-  cacheImage.current = res;
-});
-
 function drawDocument(
   ctx: CanvasRenderingContext2D,
   camera: Camera2,
   doc: Document,
   selection: Selection,
 ) {
-  if (cacheImage.current) {
-    const dx = 0;
-    const dy = 0;
-    const data = new ImageData(cacheImage.current, renderSize, renderSize);
-    ctx.putImageData(data, dx, dy);
-  }
   for (const id of doc.layers) {
     const layer = doc.getNode(id, Layer);
     if (layer) {

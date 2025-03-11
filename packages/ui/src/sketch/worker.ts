@@ -2,7 +2,11 @@ import { expose } from "comlink";
 import { initLib } from "fidget";
 import { drawCircle } from "draw-api";
 
-const api = {
+export interface SketchApi {
+  render: (definition: number) => Promise<Uint8ClampedArray>;
+}
+
+const api: SketchApi = {
   render: async (definition: number): Promise<Uint8ClampedArray> => {
     await initLib();
     const value = drawCircle(0.5);

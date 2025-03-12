@@ -17,6 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build fidget
         run: |
+          cargo install wasm-pack
           cd packages/fidget
           npm install
           npm run build

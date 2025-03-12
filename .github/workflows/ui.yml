@@ -15,7 +15,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies
+      - name: Build fidget
+        run: |
+          cd packages/fidget
+          npm install
+          npm run build
+      - name: Build sketch
+        run: |
+          cd packages/sketch
+          npm install
+          npm run build
+      - name: Build draw-api
+        run: |
+          cd packages/draw-api
+          npm install
+          npm run build
+      - name: Install
         run: |
           cd packages/ui
           npm install

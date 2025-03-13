@@ -14,7 +14,8 @@
     "typecheck": "tsc -b",
     "check": "(eslint --max-warnings 0 .; l=$?; tsc -b && exit $l)",
     "preview": "vite preview",
-    "format": "prettier --write \"src/*.{jsx,js,tsx,ts}\""
+    "format": "prettier --write \"src/*.{jsx,js,tsx,ts}\"",
+    "postinstall": "cd ../.. && patch-package"
   },
   "dependencies": {
     "react": "^18.3.1",

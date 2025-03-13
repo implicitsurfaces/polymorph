@@ -13,7 +13,7 @@ default = ["console_error_panic_hook"]
 [dependencies]
 wasm-bindgen = "0.2.84"
 wasm-bindgen-futures = "0.4"
-#getrandom = { version = "0.3", features = ["wasm_js"] }
+getrandom = { version = "0.3", features = ["wasm_js"] }
 fidget = {git = "https://github.com/mkeeter/fidget", tag="v0.3.5"}
 log = "0.4.22"
 

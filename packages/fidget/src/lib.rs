@@ -275,7 +275,7 @@ impl Context {
                 .collect()
         } else {
             v.1.into_iter()
-                .flat_map(|[r, g, b]| [r, g, b, 255])
+                .flat_map(|[r, g, b]| [r as u8, g as u8, b as u8, 255])
                 .collect()
         }
     }

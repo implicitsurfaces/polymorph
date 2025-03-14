@@ -1,5 +1,6 @@
 ---
-name: CI
+# This workflow automatically checks for `ruff`, `ruff-format` and `pyright` errors 
+name: python
 
 "on":
   push:

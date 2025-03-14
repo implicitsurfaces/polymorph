@@ -1,4 +1,5 @@
 ---
+# This workflow automatically checks for errors in `packages/ui`
 name: ui
 
 "on":

@@ -14,33 +14,52 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
+      
+      # Note: we cannot do a `git clone --recursive` because the
+      # `crates/gpu_interp/vendor/fidget` git submodule requires access
+      # rights that this CI script does not have.
+      #
       - uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
+
+      # This is a workaround for the build step failing due to cargo
+      # complaining that it cannot find `crates/gpu_interp/vendor/fidget`. We
+      # change the root `Cargo.toml` file by excluding `crates/gpu_interp`.
+      #
+      - name: Ignore crates/gpu_interp
+        run: |
+          sed -i '/^\s*exclude\s*=\s*\[.*\]/s/\[\([^]]*\)\]/\[\1, "crates\/gpu_interp"\]/' Cargo.toml
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+
       - name: Build fidget
         run: |
-          cargo install wasm-pack
           cd packages/fidget
           npm install
           npm run build
+
       - name: Build sketch
         run: |
           cd packages/sketch
           npm install
           npm run build
+
       - name: Build draw-api
         run: |
           cd packages/draw-api
           npm install
           npm run build
+
       - name: Install
         run: |
           cd packages/ui
           npm install
+
       - name: Lint
         run: |
           cd packages/ui
           npm run lint
+
       - name: Typecheck
         run: |
           cd packages/ui

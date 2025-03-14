@@ -44,15 +44,15 @@ jobs:
           cd packages/sketch
           npm run lint
 
-      - name: Typecheck
-        run: |
-          cd packages/sketch
-          npm run typecheck
-
       - name: Build fidget
         run: |
           cd packages/fidget
           npm run build
+
+      - name: Typecheck
+        run: |
+          cd packages/sketch
+          npm run typecheck
 
       - name: Build
         run: |

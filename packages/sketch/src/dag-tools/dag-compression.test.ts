@@ -46,10 +46,12 @@ describe("DAG Compression", () => {
 
   test("should handle null/undefined input", () => {
     expect(() =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       compress(null as any, getChildren, getValue, buildNode),
     ).toThrow("Node cannot be null or undefined");
 
     expect(() =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       compress(undefined as any, getChildren, getValue, buildNode),
     ).toThrow("Node cannot be null or undefined");
   });

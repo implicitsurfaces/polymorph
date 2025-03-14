@@ -1,5 +1,6 @@
 ---
-name: CI
+# This workflow automatically checks for `ruff`, `ruff-format` and `pyright` errors 
+name: python
 
 "on":
   push:
@@ -10,7 +11,7 @@ name: CI
       - main
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
     strategy:
       matrix:

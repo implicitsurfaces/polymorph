@@ -1,0 +1,25 @@
+---
+# This workflow automatically checks for errors in `packages/fidget`
+name: fidget
+
+"on":
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        run: |
+          cd packages/fidget
+          npm install
+      - name: Build
+        run: |
+          cd packages/fidget
+          npm run build

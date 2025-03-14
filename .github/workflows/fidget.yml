@@ -29,12 +29,12 @@ jobs:
         run: |
           sed -i '/^\s*exclude\s*=\s*\[.*\]/s/\[\([^]]*\)\]/\[\1, "crates\/gpu_interp"\]/' Cargo.toml
 
-      - name: Install
+      - name: Install wasm-pack
+        run: |
+          cargo install wasm-pack
+
+      - name: Build fidget
         run: |
           cd packages/fidget
           npm install
-
-      - name: Build
-        run: |
-          cd packages/fidget
           npm run build

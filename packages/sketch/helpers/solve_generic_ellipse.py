@@ -11,13 +11,16 @@ from sympy import (
     Mul,
     Pow,
     Symbol,
+    cos,
     expand,
     fraction,
     simplify,
+    sin,
     solve,
     symbols,
 )
 from sympy.abc import A, B, C, D, E, F
+from sympy.core.numbers import Half
 
 # Define our variables
 x, y, l = symbols("x y l")
@@ -42,6 +45,8 @@ def convert(expr) -> str:
         return f"asNum({v})"
     elif isinstance(expr, Symbol):
         return f"{str(expr).lower()}"
+    elif isinstance(expr, Half):
+        return "asNum(0.5)"
     elif isinstance(expr, Add):
         parts = [convert(arg) for arg in expr.args]
         result = parts[0]
@@ -54,6 +59,12 @@ def convert(expr) -> str:
         for part in parts[1:]:
             result = f"{result}.mul({part})"
         return result
+    elif isinstance(expr, cos):
+        result = convert(expr.args[0])
+        return f"{result}.cos()"
+    elif isinstance(expr, sin):
+        result = convert(expr.args[0])
+        return f"{result}.sin()"
     elif isinstance(expr, Pow):
         base, exp = expr.args
         if exp == 2:

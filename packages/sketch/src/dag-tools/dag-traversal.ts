@@ -21,7 +21,9 @@ export function stackTraversal<Node>(
 
     if (entry.postProcess) {
       // This node is on the stack for post-order processing
-      postCallBack?.(entry.node);
+      if (postCallBack) {
+        postCallBack(entry.node);
+      }
       continue;
     }
 
@@ -29,7 +31,9 @@ export function stackTraversal<Node>(
     visitedNodes.add(entry.node);
 
     // Pre-order processing
-    preCallBack?.(entry.node);
+    if (preCallBack) {
+      preCallBack(entry.node);
+    }
 
     // If post-order callback exists, push node back for later processing
     if (postCallBack) {

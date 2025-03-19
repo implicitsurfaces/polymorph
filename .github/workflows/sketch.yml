@@ -31,31 +31,25 @@ jobs:
 
       - name: Install wasm-pack
         uses: jetli/wasm-pack-action@v0.4.0
-        
-      - name: Install dependencies
+       
+      - name: Build fidget
         run: |
           cd packages/fidget
           npm install
-          cd ../sketch
+          npm run build
+ 
+      - name: Build sketch
+        run: |
+          cd packages/sketch
           npm install
+          npm run build
 
       - name: Lint
         run: |
           cd packages/sketch
           npm run lint
 
-      - name: Build fidget
-        run: |
-          cd packages/fidget
-          npm run build
-
       - name: Typecheck
         run: |
           cd packages/sketch
           npm run typecheck
-
-      - name: Build
-        run: |
-          cd packages/sketch
-          npm run build
-

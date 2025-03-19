@@ -7,10 +7,13 @@
   "types": "dist/main.d.ts",
   "scripts": {
     "test": "vitest",
-    "watch": "watchexec -w . -w ../sketch/dist -w ../fidget/dist vite build",
     "dev": "vite",
+    "watch": "watchexec -w . -w ../sketch/dist -w ../fidget/dist vite build",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint --max-warnings 0 .",
+    "typecheck": "tsc -b",
+    "check": "(eslint --max-warnings 0 .; l=$?; tsc -b && exit $l)"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

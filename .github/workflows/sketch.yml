@@ -41,7 +41,7 @@ jobs:
       - name: Build sketch
         run: |
           cd packages/sketch
-          npm run install
+          npm install
           npm run build
 
       - name: Lint

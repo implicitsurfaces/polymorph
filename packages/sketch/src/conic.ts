@@ -5,7 +5,7 @@ import {
   hyperbolaQuarticFactors,
 } from "./geom-utils/closestPointOnEllipse";
 import { Matrix2x2, Matrix3x3, RowVec3 } from "./geom-utils/matrices";
-import { solveQuartic } from "./geom-utils/solve-polynomial";
+import { solveQuartic } from "./geom-utils/solve-quartic";
 import { asNum, NEG_ONE, Num, ONE, TWO, ZERO } from "./num";
 import { ifTruthyElse, min } from "./num-ops";
 import {
@@ -73,6 +73,10 @@ export class Conic {
     const y = b.mul(d).sub(a.mul(e).mul(TWO)).div(denom);
 
     return new Point(x, y);
+  }
+
+  get isCircle(): Num {
+    return this._subMatrix.det().equals(ONE);
   }
 
   get isEllipse(): Num {
@@ -167,45 +171,55 @@ export class Conic {
 
     const l4 = f
       .mul(b.square().square())
-      .add(a.mul(b.square()).mul(e.square()))
-      .add(c.mul(b.square()).mul(d.square()))
+      .add(
+        a
+          .mul(e.square())
+          .add(c.mul(d.square()))
+          .sub(a.mul(c).mul(f).mul(TWO))
+          .sub(d.mul(e).mul(b).mul(TWO))
+          .mul(b.square()),
+      )
       .add(f.mul(a.square()).mul(c.square()))
-      .add(NEG_ONE.mul(a).mul(c.square()).mul(d.square()))
-      .add(NEG_ONE.mul(c).mul(a.square()).mul(e.square()))
-      .add(_2neg.mul(d).mul(e).mul(b.square().mul(b)))
-      .add(_2neg.mul(a).mul(c).mul(f).mul(b.square()))
+      .sub(a.mul(c.square()).mul(d.square()))
+      .sub(c.mul(a.square()).mul(e.square()))
       .add(TWO.mul(a).mul(b).mul(c).mul(d).mul(e));
 
     const lamba = solveQuartic(l4, l3, l2, l1, l0);
 
+    const aPlusC = a.add(c);
+    const acMinusBSquared = a.mul(c).sub(b.square());
+    const qx = b.mul(e).sub(c.mul(d)).div(acMinusBSquared);
+    const rx0 = x0.sub(qx);
+    const rx1 = c.mul(x0).sub(d).sub(b.mul(y0)).sub(qx.mul(aPlusC));
+
+    const qy = b.mul(d).sub(a.mul(e));
+    const ry0 = y0.sub(qy);
+    const ry1 = a.mul(y0).sub(e).sub(b.mul(x0)).sub(qy.mul(aPlusC));
+    const ldet = a.sub(c).square().add(b.mul(b).mul(4)).sqrt();
+    const d0 = aPlusC.add(ldet).div(2).div(acMinusBSquared).neg();
+    const d1 = aPlusC.sub(ldet).div(2).div(acMinusBSquared).neg();
+
     return lamba.map((l) => {
-      const x = ONE.div(
-        ONE.add(a.mul(l))
-          .add(c.mul(l))
-          .add(NEG_ONE.mul(b.square()).mul(l.square()))
-          .add(a.mul(c).mul(l.square())),
-      ).mul(
-        x0
-          .add(NEG_ONE.mul(d).mul(l))
-          .add(b.mul(e).mul(l.square()))
-          .add(c.mul(l).mul(x0))
-          .add(NEG_ONE.mul(b).mul(l).mul(y0))
-          .add(NEG_ONE.mul(c).mul(d).mul(l.square())),
+      const ld0 = l.sub(d0);
+      const ld1 = l.sub(d1);
+      const denom = ld0.mul(ld1).mul(acMinusBSquared);
+
+      const invalidSolution = ld0
+        .abs()
+        .lessThan(1e-15)
+        .or(ld1.abs().lessThan(1e-15));
+
+      const x = ifTruthyElse(
+        invalidSolution,
+        asNum(1e100),
+        qx.add(rx0.add(l.mul(rx1)).div(denom)),
+      );
+      const y = ifTruthyElse(
+        invalidSolution,
+        1e100,
+        qy.add(ry0.add(l.mul(ry1)).div(denom)),
       );
 
-      const y = ONE.div(
-        ONE.add(a.mul(l))
-          .add(c.mul(l))
-          .add(NEG_ONE.mul(b.square()).mul(l.square()))
-          .add(a.mul(c).mul(l.square())),
-      ).mul(
-        y0
-          .add(NEG_ONE.mul(e).mul(l))
-          .add(a.mul(l).mul(y0))
-          .add(b.mul(d).mul(l.square()))
-          .add(NEG_ONE.mul(a).mul(e).mul(l.square()))
-          .add(NEG_ONE.mul(b).mul(l).mul(x0)),
-      );
       return new Point(x, y);
     });
   }

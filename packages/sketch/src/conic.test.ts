@@ -1,12 +1,17 @@
 import { test, expect } from "vitest";
 import { circleConic, ellipseConic, genericEllipseConic } from "./conic";
 import { expectASCIIDistance } from "./test-utils";
-import { asNum } from "./num";
 import { angleFromDeg, Point } from "./geom";
+import { asNum } from "./num";
 import { evaluate } from "./utils/evaluate";
 
 test("circle as a conic", async () => {
   const circle = circleConic(asNum(0.6));
+  (await expectASCIIDistance(circle)).toMatchSnapshot();
+});
+
+test("zoomed in ellipse as a conic", async () => {
+  const circle = ellipseConic(asNum(60), asNum(60));
   (await expectASCIIDistance(circle)).toMatchSnapshot();
 });
 
@@ -15,20 +20,6 @@ test("ellipse as a conic", async () => {
   (await expectASCIIDistance(circle)).toMatchSnapshot();
 });
 
-/*
-test("check points on ellipse", async () => {
-  const e = ellipseConic(asNum(0.6), asNum(0.6));
-  const candidates = e.candidatePoints(new Point(asNum(0.7), asNum(0.7)));
-
-  console.log(candidates.map((p) => [simpleEval(p.x.n), simpleEval(p.y.n)]));
-
-  const evalP = (p: Point) => [simpleEval(p.x.n), simpleEval(p.y.n)];
-  console.log(candidates.map(evalP));
-  console.log(evalMatrix(e._matrix));
-
-  throw new Error("stop");
-});
-*/
 test("extracting the radiuses", () => {
   const e = genericEllipseConic(
     asNum(0.2),

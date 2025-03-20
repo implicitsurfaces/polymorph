@@ -2,23 +2,23 @@ import { describe, test, expect } from "vitest";
 
 import { naiveEval } from "../eval-num/js-eval";
 import { fidgetEval } from "../eval-num/fidget-eval";
-import { solveCubic, solveQuadratic, solveQuartic } from "./solve-polynomial";
+import { solveCubic, solveQuadratic } from "./solve-polynomial";
+import { solveQuartic } from "./solve-quartic";
 import { asNum } from "../num";
-
-//import { treeEval } from "../num-tree";
-//import { renderNodeAsDot } from "../utils/num-to-dot";
-//import fs from "node:fs";
+import { logDebug } from "../debug-utils";
 
 const SENTINELLE = 1e150;
 
 describe("solveQuadratic", () => {
-  const solve = (a: number, b: number, c: number) => {
+  const solve = (a: number, b: number, c: number, debug = false) => {
     const [x1, x2] = solveQuadratic(
       asNum(a),
       asNum(b),
       asNum(c),
       asNum(SENTINELLE),
     );
+    if (debug) logDebug(x1, new Map());
+
     //fs.writeFileSync("error.dot", renderNodeAsDot(treeEval(x1.n)));
     return new Set([naiveEval(x1.n, new Map()), naiveEval(x2.n, new Map())]);
   };
@@ -102,7 +102,14 @@ describe("solveCubic", () => {
 });
 
 describe("solveQuartic", () => {
-  const solve = (a: number, b: number, c: number, d: number, e: number) => {
+  const solve = (
+    a: number,
+    b: number,
+    c: number,
+    d: number,
+    e: number,
+    debug = false,
+  ) => {
     const [x1, x2, x3, x4] = solveQuartic(
       asNum(a),
       asNum(b),
@@ -111,6 +118,9 @@ describe("solveQuartic", () => {
       asNum(e),
       asNum(SENTINELLE),
     );
+
+    if (debug) logDebug(x1, new Map());
+
     return new Set([
       round(naiveEval(x1.n, new Map())),
       round(naiveEval(x2.n, new Map())),

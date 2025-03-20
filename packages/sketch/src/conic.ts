@@ -5,6 +5,7 @@ import {
   hyperbolaQuarticFactors,
 } from "./geom-utils/closestPointOnEllipse";
 import { Matrix2x2, Matrix3x3, RowVec3 } from "./geom-utils/matrices";
+import { randInit } from "./geom-utils/pseudo-random";
 import { solveQuartic } from "./geom-utils/solve-quartic";
 import { asNum, NEG_ONE, Num, ONE, TWO, ZERO } from "./num";
 import { ifTruthyElse, min } from "./num-ops";
@@ -332,4 +333,21 @@ export function genericEllipseConic(
       .compose(rotationTransform(rotationAngle.neg()))
       .compose(translationTransform(center.vecFromOrigin().neg())),
   );
+}
+
+export function randomConic(seed: Num | number) {
+  const rand = randInit(asNum(seed));
+  const trans = rawTransform(
+    rand(),
+    rand(),
+    rand(),
+    rand(),
+    rand(),
+    rand(),
+    rand(),
+    rand(),
+    rand(),
+  );
+
+  return new Conic(trans);
 }

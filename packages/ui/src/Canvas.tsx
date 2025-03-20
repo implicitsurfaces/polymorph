@@ -3,6 +3,7 @@ import { Vector2 } from "threejs-math";
 
 import { Camera2 } from "./canvas/Camera2";
 import { draw } from "./canvas/draw";
+import { drawSdfTest } from "./canvas/drawSdfTest";
 import { CanvasPointerEvent } from "./canvas/events";
 import {
   getMouseViewPosition,
@@ -29,8 +30,21 @@ interface PointerState {
   isDragAccepted: boolean;
 }
 
+export interface CanvasSettingsOptions {
+  sdfTest?: boolean;
+}
+
+export class CanvasSettings {
+  readonly sdfTest: boolean;
+
+  constructor(options?: CanvasSettingsOptions) {
+    this.sdfTest = options?.sdfTest ?? false;
+  }
+}
+
 interface CanvasProps {
   documentManager: DocumentManager;
+  settings: CanvasSettings;
 }
 
 type IPointerEvent = PointerEvent | React.PointerEvent;
@@ -51,7 +65,7 @@ function makeCanvasPointerEvent(
   };
 }
 
-export function Canvas({ documentManager }: CanvasProps) {
+export function Canvas({ documentManager, settings }: CanvasProps) {
   const [camera, setCamera] = useState<Camera2>(new Camera2());
   const [pointerState, setPointerState] = useState<PointerState | null>(null);
   const { currentTool } = useContext(CurrentToolContext);
@@ -322,9 +336,13 @@ export function Canvas({ documentManager }: CanvasProps) {
   useEffect(() => {
     const canvas = ref.current;
     if (canvas && canvas.width > 0 && canvas.height > 0) {
-      draw(canvas, camera, documentManager);
+      if (settings.sdfTest) {
+        drawSdfTest(canvas);
+      } else {
+        draw(canvas, camera, documentManager);
+      }
     }
-  }, [camera, documentManager, version]);
+  }, [camera, documentManager, settings, version]);
 
   // Update the camera (and therefore the canvas width/height attributes)
   // based on its computed device pixel size.

@@ -44,6 +44,18 @@ export class Num {
   mul(other: Num | number) {
     return binaryOpNum("MUL", this, asNum(other));
   }
+  powi(power: number) {
+    if (!Number.isInteger(power) || power <= 0) {
+      throw new Error(`power must be a positive integer, ${power} recieved`);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    let result: Num = this;
+    for (let i = 1; i < power; i++) {
+      result = result.mul(this);
+    }
+    return result;
+  }
+
   div(other: Num | number) {
     return binaryOpNum("DIV", this, asNum(other));
   }

@@ -6,13 +6,15 @@ import { DistField, Segment, SolidDistField } from "./types";
 import { fidgetRender } from "./eval-num/fidget-eval";
 import { embedPoint, Point3D, XZ_PLANE } from "./geom-3d";
 
-export function ex(num: Num) {
+export function ex(num: Num | (() => Num)) {
+  if (typeof num === "function") {
+    return expect(() => simpleEval(num().n));
+  }
   return expect(simpleEval(num.n));
 }
 export function exNaN(num: Num) {
   return expect(naiveEval(num.n, new Map()));
 }
-
 export function exVar(num: Num, vars: Record<string, number>) {
   return expect(naiveEval(num.n, new Map(Object.entries(vars))));
 }

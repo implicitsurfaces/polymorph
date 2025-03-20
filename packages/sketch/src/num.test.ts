@@ -31,6 +31,16 @@ test("num multiplication", () => {
   ex(asNum(0.3).mul(asNum(0.1))).toBeCloseTo(0.03);
 });
 
+test("num powi", () => {
+  ex(asNum(1).powi(2)).toBeCloseTo(1);
+  ex(asNum(3).powi(2)).toBeCloseTo(9);
+  ex(asNum(2).powi(3)).toBeCloseTo(8);
+  ex(asNum(0.3).powi(2)).toBeCloseTo(0.09);
+  ex(() => asNum(1).powi(0.2)).toThrow();
+  ex(() => asNum(1).powi(0)).toThrow();
+  ex(() => asNum(1).powi(-2)).toThrow();
+});
+
 test("num division", () => {
   ex(asNum(1).div(asNum(2))).toBeCloseTo(0.5);
   ex(asNum(1).div(asNum(1))).toBeCloseTo(1);

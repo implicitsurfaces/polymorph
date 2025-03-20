@@ -1778,7 +1778,6 @@ dependencies = [
  "console_error_panic_hook",
  "console_log",
  "fidget 0.3.5",
- "getrandom 0.3.1",
  "log",
  "wasm-bindgen",
  "wasm-bindgen-futures",

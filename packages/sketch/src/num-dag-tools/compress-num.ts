@@ -20,7 +20,7 @@ function getValue(node: NumNode): string {
   } else if (node instanceof BinaryOp) {
     return `BOP:${node.operation}`;
   } else if (node instanceof Derivative) {
-    return `DER`;
+    return `DER:${node.variable.name}`;
   }
   return "UNKNOWN";
 }

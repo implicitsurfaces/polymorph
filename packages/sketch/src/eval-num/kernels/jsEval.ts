@@ -20,97 +20,115 @@ export class JSEvalKernel implements NumEvalKernel<number> {
     return this.variablesValues.get(name)!;
   }
   unaryOp(operation: UnaryOperation, operand: number, node: NumNode) {
-    if (operation === "SQRT") {
-      return Math.sqrt(operand);
-    }
-    if (operation === "CBRT") {
-      return Math.cbrt(operand);
-    }
-    if (operation === "COS") {
-      return Math.cos(operand);
-    }
-    if (operation === "ACOS") {
-      return Math.acos(operand);
-    }
-    if (operation === "ASIN") {
-      return Math.asin(operand);
-    }
-    if (operation === "TAN") {
-      return Math.tan(operand);
-    }
-    if (operation === "ATAN") {
-      return Math.atan(operand);
-    }
-    if (operation === "LOG") {
-      return Math.log(operand);
-    }
-    if (operation === "EXP") {
-      return Math.exp(operand);
-    }
-    if (operation === "ABS") {
-      return Math.abs(operand);
-    }
-    if (operation === "NEG") {
-      return -operand;
-    }
-    if (operation === "SIN") {
-      return Math.sin(operand);
-    }
-    if (operation === "SIGN") {
-      return Math.sign(operand);
-    }
-    if (operation === "NOT") {
-      return operand ? 0 : 1;
-    }
-    if (operation === "TANH") {
-      return Math.tanh(operand);
-    }
-    if (operation === "LOG1P") {
-      return Math.log1p(operand);
-    }
     if (operation === "DEBUG") {
       if (this.logDebug) {
         console.log((node as DebugNode).debug, this.value(operand));
       }
       return operand;
     }
-    throw new Error(`Unknown unary operation: ${operation}`);
+    return evaluateUnaryOp(operation, operand);
   }
 
   binaryOp(operation: BinaryOperation, left: number, right: number) {
-    if (operation === "ADD") {
-      return left + right;
-    }
-    if (operation === "SUB") {
-      return left - right;
-    }
-    if (operation === "MUL") {
-      return left * right;
-    }
-    if (operation === "DIV") {
-      return right ? left / right : 1e50;
-    }
-    if (operation === "MOD") {
-      return left % right;
-    }
-    if (operation === "ATAN2") {
-      return Math.atan2(left, right);
-    }
-    if (operation === "MIN") {
-      return Math.min(left, right);
-    }
-    if (operation === "MAX") {
-      return Math.max(left, right);
-    }
-    if (operation === "COMPARE") {
-      return Math.sign(left - right);
-    }
-    if (operation === "AND") {
-      return left === 0 ? left : right;
-    }
-    if (operation === "OR") {
-      return left === 0 ? right : left;
-    }
-    throw new Error(`Unknown binary operation: ${operation}`);
+    return evaluateBinaryOp(operation, left, right);
   }
+}
+
+export function evaluateUnaryOp(
+  operation: UnaryOperation,
+  operand: number,
+): number {
+  if (operation === "SQRT") {
+    return Math.sqrt(operand);
+  }
+  if (operation === "CBRT") {
+    return Math.cbrt(operand);
+  }
+  if (operation === "COS") {
+    return Math.cos(operand);
+  }
+  if (operation === "ACOS") {
+    return Math.acos(operand);
+  }
+  if (operation === "ASIN") {
+    return Math.asin(operand);
+  }
+  if (operation === "TAN") {
+    return Math.tan(operand);
+  }
+  if (operation === "ATAN") {
+    return Math.atan(operand);
+  }
+  if (operation === "LOG") {
+    return Math.log(operand);
+  }
+  if (operation === "EXP") {
+    return Math.exp(operand);
+  }
+  if (operation === "ABS") {
+    return Math.abs(operand);
+  }
+  if (operation === "NEG") {
+    return -operand;
+  }
+  if (operation === "SIN") {
+    return Math.sin(operand);
+  }
+  if (operation === "SIGN") {
+    return Math.sign(operand);
+  }
+  if (operation === "NOT") {
+    return operand ? 0 : 1;
+  }
+  if (operation === "TANH") {
+    return Math.tanh(operand);
+  }
+  if (operation === "LOG1P") {
+    return Math.log1p(operand);
+  }
+  if (operation === "DEBUG") {
+    return operand;
+  }
+  throw new Error(`Unknown unary operation: ${operation}`);
+}
+
+export function evaluateBinaryOp(
+  operation: BinaryOperation,
+  left: number,
+  right: number,
+): number {
+  if (operation === "ADD") {
+    return left + right;
+  }
+  if (operation === "SUB") {
+    return left - right;
+  }
+  if (operation === "MUL") {
+    return left * right;
+  }
+  if (operation === "DIV") {
+    return right ? left / right : 1e50;
+  }
+  if (operation === "MOD") {
+    return left % right;
+  }
+  if (operation === "ATAN2") {
+    return Math.atan2(left, right);
+  }
+  if (operation === "MIN") {
+    return Math.min(left, right);
+  }
+  if (operation === "MAX") {
+    return Math.max(left, right);
+  }
+  if (operation === "COMPARE") {
+    return Math.sign(left - right);
+  }
+  if (operation === "AND") {
+    return left === 0 ? left : right;
+  }
+  if (operation === "OR") {
+    return left === 0 ? right : left;
+  }
+  throw new Error(`Unknown binary operation: ${operation}`);
 }

@@ -26,6 +26,22 @@ test("a simple polynomial", () => {
   exVar(df, { x: 0, d_x: 1 }).toBeCloseTo(1);
 });
 
+test("roots", () => {
+  const x = variable("x");
+  const f = x.sqrt();
+  const f2 = x.cbrt();
+
+  const df = diff(f);
+  const df2 = diff(f2);
+
+  const values = [0.2, 8, 9, 27, 33];
+
+  values.forEach((v) => {
+    exVar(df, { x: v, d_x: 1 }).toBeCloseTo(1 / (2 * Math.sqrt(v)));
+    exVar(df2, { x: v, d_x: 1 }).toBeCloseTo(1 / (3 * Math.cbrt(v ** 2)));
+  });
+});
+
 test("trig functions", () => {
   const x = variable("x");
   const sin = x.sin();

@@ -1,9 +1,11 @@
+import type { DebugNode, NumNode } from "../../num-tree";
 import type { BinaryOperation, UnaryOperation } from "../../types";
 import { NumEvalKernel } from "../../types";
 
 export class JSEvalKernel implements NumEvalKernel<number> {
   constructor(
     public readonly variablesValues: Map<string, number> = new Map(),
+    public logDebug = false,
   ) {}
   value(value: number) {
     return value;
@@ -17,7 +19,7 @@ export class JSEvalKernel implements NumEvalKernel<number> {
     }
     return this.variablesValues.get(name)!;
   }
-  unaryOp(operation: UnaryOperation, operand: number) {
+  unaryOp(operation: UnaryOperation, operand: number, node: NumNode) {
     if (operation === "SQRT") {
       return Math.sqrt(operand);
     }
@@ -67,9 +69,12 @@ export class JSEvalKernel implements NumEvalKernel<number> {
       return Math.log1p(operand);
     }
     if (operation === "DEBUG") {
+      if (this.logDebug) {
+        console.log((node as DebugNode).debug, this.value(operand));
+      }
       return operand;
     }
-   throw new Error(`Unknown unary operation: ${operation}`);
+    throw new Error(`Unknown unary operation: ${operation}`);
   }
 
   binaryOp(operation: BinaryOperation, left: number, right: number) {

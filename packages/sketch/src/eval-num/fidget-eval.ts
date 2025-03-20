@@ -91,10 +91,26 @@ export function nodeToString(
     throw new Error(`Unknown variable: ${node.name}`);
   } else if (node instanceof UnaryOp) {
     const operand = nodeToString(node.original, opList, cache);
+    if (node.operation === "DEBUG") return operand;
 
     if (node.operation === "SIGN") {
       const zero = nodeToString(ZERO.n, opList, cache);
       return out(`compare ${operand} ${zero}`);
+    }
+
+    if (node.operation === "CBRT") {
+      const eps = nodeToString(new LiteralNum(3e-16), opList, cache);
+      const zero = nodeToString(ZERO.n, opList, cache);
+      const three = nodeToString(new LiteralNum(3), opList, cache);
+      const sign = out(`compare ${operand} ${zero}`);
+
+      const abs = out(`abs ${operand}`);
+      const m = out(`add ${abs} ${eps}`);
+      const ln = out(`ln ${m}`);
+      const lnDiv3 = out(`div ${ln} ${three}`);
+      const exp = out(`exp ${lnDiv3}`);
+
+      return out(`mul ${exp} ${sign}`);
     }
 
     return out(`${mapOperationName(node.operation)} ${operand}`);

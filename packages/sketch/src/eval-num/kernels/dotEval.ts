@@ -40,12 +40,14 @@ export class DotEvalKernel implements NumEvalKernel<number> {
   private addNode(
     id: number,
     label: string,
-    status: "info" | "warn" | "error" = "info",
+    status: "default" | "info" | "warn" | "error" = "default",
     additionalOptions: Record<string, string> = {},
   ) {
     const options: Record<string, string> = { label, ...additionalOptions };
-    if (status !== "info")
-      options.fillcolor = { warn: "yellow", error: "red" }[status];
+    if (status !== "default")
+      options.fillcolor = { info: "grey", warn: "yellow", error: "red" }[
+        status
+      ];
 
     this.body.push(`    node${id} ${this.formatDotOptions(options)};`);
   }
@@ -53,12 +55,12 @@ export class DotEvalKernel implements NumEvalKernel<number> {
   private addEdge(
     from: number,
     to: number,
-    status: "info" | "warn" | "error" = "info",
+    status: "default" | "info" | "warn" | "error" = "default",
     additionalOptions: Record<string, string> = {},
   ) {
     const options: Record<string, string> = { ...additionalOptions };
-    if (status !== "info")
-      options.color = { warn: "orange", error: "red" }[status];
+    if (status !== "default")
+      options.color = { info: "grey", warn: "orange", error: "red" }[status];
 
     this.body.push(
       `    node${from} -> node${to} ${this.formatDotOptions(options)};`,
@@ -90,7 +92,10 @@ export class DotEvalKernel implements NumEvalKernel<number> {
       ? "error"
       : value !== 0 && Math.abs(value) < 10 ** -this.warnPrecision
         ? "warn"
-        : "info";
+        : Math.abs(value) !== 0 &&
+            (Math.abs(value) < 1e-4 || Math.abs(value) > 1e4)
+          ? "info"
+          : "default";
   }
 
   value(value: number) {
@@ -123,7 +128,6 @@ export class DotEvalKernel implements NumEvalKernel<number> {
     if (operation === "DEBUG") {
       const str = (node as DebugNode & { evalsTo: number }).debug;
       const label = this.formatLabel(str, node.evalsTo);
-      console.log(str, node.evalsTo);
       this.addNode(id, label, status, {
         shape: "box",
         fillcolor: "lightgreen",

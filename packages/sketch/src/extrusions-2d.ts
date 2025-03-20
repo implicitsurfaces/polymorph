@@ -1,6 +1,6 @@
 import { Angle, Point } from "./geom";
 import { Num, ONE, ZERO } from "./num";
-import { clamp, hypot, ifTruthyElse, lessThan } from "./num-ops";
+import { clamp, hypot, ifTruthyElse } from "./num-ops";
 import { DistField } from "./types";
 
 function distToWidth(width: Num, x: Num): Num {
@@ -92,7 +92,7 @@ export class OrientedLine {
 
     const positiveDist = hypot(xDist.max(0), p.y);
     const negativeDist = hypot(xDist, p.y);
-    return ifTruthyElse(lessThan(p.y, 0), negativeDist, positiveDist);
+    return ifTruthyElse(p.y.lessThan(0), negativeDist, positiveDist);
   }
 }
 
@@ -100,7 +100,7 @@ function orientedEndCap(p: Point, length: Num): Num {
   const xDist = p.x.abs().sub(length.div(2));
   const positiveDist = hypot(xDist.max(0), p.y);
   const negativeDist = hypot(xDist, p.y);
-  return ifTruthyElse(lessThan(p.y, 0), negativeDist, positiveDist);
+  return ifTruthyElse(p.y.lessThan(0), negativeDist, positiveDist);
 }
 
 export class ArcExtrusion2D implements DistField {
@@ -117,10 +117,9 @@ export class ArcExtrusion2D implements DistField {
     const rotationCenter = new Point(this.radius.neg(), ZERO);
     const pointAngle = p.vecFrom(rotationCenter).asAngle();
 
-    const withinAngle = lessThan(
-      pointAngle.asSortValue(),
-      this.angle.asSortValue(),
-    );
+    const withinAngle = pointAngle
+      .asSortValue()
+      .lessThan(this.angle.asSortValue());
 
     const unconstrainedParam = pointAngle.asUnitArcLength().div(this.arcLength);
     const param = clamp(unconstrainedParam, ZERO, ONE);

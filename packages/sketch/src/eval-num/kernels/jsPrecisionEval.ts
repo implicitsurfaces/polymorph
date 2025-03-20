@@ -2,12 +2,14 @@ import { Decimal } from "decimal.js";
 
 import type { BinaryOperation, UnaryOperation } from "../../types";
 import { NumEvalKernel } from "../../types";
+import { DebugNode, NumNode } from "../../num-tree";
 
 Decimal.set({ precision: 40 });
 
 export class JSPrecisionEvalKernel implements NumEvalKernel<Decimal> {
   constructor(
     public readonly variablesValues: Map<string, number> = new Map(),
+    public logDebug = false,
   ) {}
 
   value(value: Decimal) {
@@ -22,7 +24,7 @@ export class JSPrecisionEvalKernel implements NumEvalKernel<Decimal> {
     }
     return new Decimal(this.variablesValues.get(name)!);
   }
-  unaryOp(operation: UnaryOperation, operand: Decimal): Decimal {
+  unaryOp(operation: UnaryOperation, operand: Decimal, node: NumNode): Decimal {
     if (operation === "SQRT") {
       return Decimal.sqrt(operand);
     }
@@ -72,6 +74,9 @@ export class JSPrecisionEvalKernel implements NumEvalKernel<Decimal> {
       return Decimal.ln(operand.add(1));
     }
     if (operation === "DEBUG") {
+      if (this.logDebug) {
+        console.log((node as DebugNode).debug, this.value(operand));
+      }
       return operand;
     }
     throw new Error(`Unknown unary operation: ${operation}`);

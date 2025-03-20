@@ -1,7 +1,7 @@
 import { Angle, angleFromCos, Point, Vec2 } from "../geom";
 import { asNum, NEG_ONE, Num, ONE, TWO, ZERO } from "../num";
 import { hypot, ifTruthyElse, max, min } from "../num-ops";
-import { solveQuartic } from "./solve-polynomial";
+import { solveQuarticFerrari as solveQuartic } from "./solve-polynomial";
 
 function pow3(x: Num) {
   return x.mul(x).mul(x);

@@ -28,8 +28,8 @@ class NaNReportingKernel extends JSEvalKernel {
     throw new Error(message);
   }
 
-  unaryOp(operation: UnaryOperation, operand: number) {
-    const result = super.unaryOp(operation, operand);
+  unaryOp(operation: UnaryOperation, operand: number, node: NumNode) {
+    const result = super.unaryOp(operation, operand, node);
     if (Number.isNaN(result)) {
       this.reportNaN(`NaN in unary op: ${operation}(${operand})`);
     }

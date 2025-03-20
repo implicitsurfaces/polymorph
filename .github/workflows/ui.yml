@@ -14,7 +14,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      
+
       # Note: we cannot do a `git clone --recursive` because the
       # `crates/gpu_interp/vendor/fidget` git submodule requires access
       # rights that this CI script does not have.

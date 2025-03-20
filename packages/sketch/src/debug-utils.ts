@@ -24,13 +24,15 @@ export function logDebug(
 
 export function writeTreeAsDot(
   num: Num,
-  variables: Map<string, number>,
+  variables: Map<string, number> | Record<string, number>,
   enhancedPrecision = false,
   path = "tree.dot",
 ) {
+  const vars =
+    variables instanceof Map ? variables : new Map(Object.entries(variables));
   const kernel = enhancedPrecision
-    ? new JSPrecisionEvalKernel(variables, true)
-    : new JSEvalKernel(variables, true);
+    ? new JSPrecisionEvalKernel(vars, true)
+    : new JSEvalKernel(vars, true);
 
   const evaled = treeEval<number | Decimal>(num.n, kernel);
   writeFileSync(path, renderNodeAsDot(evaled));

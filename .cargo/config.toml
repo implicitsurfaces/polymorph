@@ -1,0 +1,9 @@
+# We need to select a getrandom backend otherwise compilation targetting wasm fails.
+#
+# See:
+# - Fidget's PR updating its getrandom dependency: https://github.com/mkeeter/fidget/pull/270
+# - Fidget v0.3.5 release notes: https://github.com/mkeeter/fidget/releases/tag/v0.3.5
+# - getrandom doc about this: https://docs.rs/getrandom/latest/getrandom/#webassembly-support
+#
+[target.wasm32-unknown-unknown]
+rustflags = ["--cfg", "getrandom_backend=\"wasm_js\""]

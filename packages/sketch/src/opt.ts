@@ -1,6 +1,7 @@
 import { Num } from "./num";
 import { fullDerivative } from "./num-diff";
-import { naiveEval, NumNode } from "./num-tree";
+import { NumNode } from "./num-tree";
+import { naiveEval } from "./eval-num/js-eval";
 
 export class Gradient {
   private totalDerivative: NumNode;
@@ -8,7 +9,7 @@ export class Gradient {
     this.totalDerivative = fullDerivative(num.n);
   }
 
-  at(x: Map<string, number>) {
+  at(x: Map<string, number>): Map<string, number> {
     const variables = Array.from(x.keys());
     const val = new Map(x);
     variables.forEach((variable) => {
@@ -59,8 +60,8 @@ export function gradientDescentOpt(
     const newX = new Map();
 
     for (const [key, value] of x.entries()) {
-      const v =
-        (velocity.get(key) ?? 0) * momentum - learningRate * grad.get(key);
+      const derivative: number = grad.get(key)!;
+      const v = (velocity.get(key) ?? 0) * momentum - learningRate * derivative;
       newX.set(key, value + v);
       velocity.set(key, v);
     }

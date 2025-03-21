@@ -1,18 +1,20 @@
 import { expect } from "vitest";
-import { simpleEval, dedupeEval, naiveEval } from "./num-tree";
-import { Point, asVec } from "./geom";
-import { Num, ONE, ZERO } from "./num";
+import { dedupeEval, simpleEval, naiveEval } from "./eval-num/js-eval";
+import { Point } from "./geom";
+import { Num, NumX, NumY, ONE, ZERO } from "./num";
 import { DistField, Segment, SolidDistField } from "./types";
-import { fidgetRender } from "./num-tree-fidget";
+import { fidgetRender } from "./eval-num/fidget-eval";
 import { embedPoint, Point3D, XZ_PLANE } from "./geom-3d";
 
-export function ex(num: Num) {
+export function ex(num: Num | (() => Num)) {
+  if (typeof num === "function") {
+    return expect(() => simpleEval(num().n));
+  }
   return expect(simpleEval(num.n));
 }
 export function exNaN(num: Num) {
   return expect(naiveEval(num.n, new Map()));
 }
-
 export function exVar(num: Num, vars: Record<string, number>) {
   return expect(naiveEval(num.n, new Map(Object.entries(vars))));
 }
@@ -78,15 +80,17 @@ function gradientToASCII(imageData: GradientImageData, max = 1): string {
 const GRID_SIZE = 50;
 const scalingFactor = GRID_SIZE / 2;
 const GRID = Array.from({ length: GRID_SIZE }, (_, i) =>
-  Array.from({ length: GRID_SIZE * 2 }, (_, j) =>
-    asVec(
-      (j / 2 - GRID_SIZE / 2) / scalingFactor,
-      (GRID_SIZE / 2 - i) / scalingFactor,
-    ).pointFromOrigin(),
+  Array.from(
+    { length: GRID_SIZE * 2 },
+    (_, j) =>
+      new Map([
+        ["x", (j / 2 - GRID_SIZE / 2) / scalingFactor],
+        ["y", (GRID_SIZE / 2 - i) / scalingFactor],
+      ]),
   ),
 );
 
-async function callOnGrid<T>(fn: (point: Point) => Promise<T>) {
+async function callOnGrid<T>(fn: (point: Map<string, number>) => Promise<T>) {
   const results = [];
   for (const row of GRID) {
     const rowResults = await Promise.all(row.map(fn));
@@ -96,33 +100,36 @@ async function callOnGrid<T>(fn: (point: Point) => Promise<T>) {
 }
 
 export async function expectASCIIshape(distField: DistField) {
+  const d = distField.distanceTo(PointVar).compress().simplify();
   const imageData = await callOnGrid(async (point): Promise<boolean> => {
-    const dist = await dedupeEval(distField.distanceTo(point).n);
+    const dist = await dedupeEval(d.n, point);
     return dist < 0;
   });
   return expect(booleansToASCII(imageData));
 }
 
 export async function expectASCIISolidAngle(segment: Segment) {
-  const imageData = await callOnGrid((point) =>
-    dedupeEval(segment.solidAngle(point).turns.n),
-  );
+  const turns = segment.solidAngle(PointVar).turns.compress().simplify();
+  const imageData = await callOnGrid((point) => dedupeEval(turns.n, point));
 
   return expect(gradientToASCII(imageData));
 }
 
+const PointVar = new Point(NumX, NumY);
+
 export async function expectASCIIDistance(distField: DistField) {
-  const imageData = await callOnGrid((point) =>
-    dedupeEval(distField.distanceTo(point).n),
-  );
+  const dist = distField.distanceTo(PointVar).compress().simplify();
+  const imageData = await callOnGrid((point) => dedupeEval(dist.n, point));
   return expect(gradientToASCII(imageData, 0.5));
 }
 
 export async function expectASCIIHeightMap(distField: SolidDistField) {
   const plane = XZ_PLANE.translateTo(new Point3D(ZERO, ONE.neg(), ZERO));
-  const imageData = await callOnGrid((point) =>
-    dedupeEval(distField.valueAt(embedPoint(point, plane)).n),
-  );
+  const dist = distField
+    .valueAt(embedPoint(PointVar, plane))
+    .simplify()
+    .compress();
+  const imageData = await callOnGrid((point) => dedupeEval(dist.n, point));
   return expect(gradientToASCII(imageData, 0.5));
 }
 

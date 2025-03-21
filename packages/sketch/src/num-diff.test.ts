@@ -26,6 +26,22 @@ test("a simple polynomial", () => {
   exVar(df, { x: 0, d_x: 1 }).toBeCloseTo(1);
 });
 
+test("roots", () => {
+  const x = variable("x");
+  const f = x.sqrt();
+  const f2 = x.cbrt();
+
+  const df = diff(f);
+  const df2 = diff(f2);
+
+  const values = [0.2, 8, 9, 27, 33];
+
+  values.forEach((v) => {
+    exVar(df, { x: v, d_x: 1 }).toBeCloseTo(1 / (2 * Math.sqrt(v)));
+    exVar(df2, { x: v, d_x: 1 }).toBeCloseTo(1 / (3 * Math.cbrt(v ** 2)));
+  });
+});
+
 test("trig functions", () => {
   const x = variable("x");
   const sin = x.sin();
@@ -63,12 +79,17 @@ test("exp and log", () => {
   const dfExp = diff(exp);
   const dfLog = diff(log);
 
-  const values = [0, 0.2, 0.4, 0.8, 0.99];
+  const values = [0.2, 0.4, 0.8, 0.99];
 
   values.forEach((v) => {
     exVar(dfExp, { x: v, d_x: 1 }).toBeCloseTo(Math.exp(v));
     exVar(dfLog, { x: v, d_x: 1 }).toBeCloseTo(1 / v);
   });
+
+  exVar(dfExp, { x: 0, d_x: 1 }).toBeCloseTo(1);
+  // This should be inifinity, but we are doing some fishy stuff to avoid
+  // NaNs
+  exVar(dfLog, { x: 0, d_x: 1 }).toBeCloseTo(1e50);
 });
 
 test("abs", () => {
@@ -116,11 +137,14 @@ test("log1p", () => {
 
   const dfLog1p = diff(log1p);
 
-  const values = [-1, -0.2, 0, 0.2, 1];
+  const values = [-0.2, 0, 0.2, 1];
 
   values.forEach((v) => {
     exVar(dfLog1p, { x: v, d_x: 1 }).toBeCloseTo(1 / (1 + v));
   });
+
+  // This should be inifinity, but we are doing some fishy stuff to avoid NaNs
+  exVar(dfLog1p, { x: -1, d_x: 1 }).toBeCloseTo(1e50);
 });
 
 test("and", () => {

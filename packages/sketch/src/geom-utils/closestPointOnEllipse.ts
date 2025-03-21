@@ -1,7 +1,7 @@
 import { Angle, angleFromCos, Point, Vec2 } from "../geom";
 import { asNum, NEG_ONE, Num, ONE, TWO, ZERO } from "../num";
 import { hypot, ifTruthyElse, max, min } from "../num-ops";
-import { solveQuartic } from "./solve-polynomial";
+import { solveQuarticFerrari as solveQuartic } from "./solve-polynomial";
 
 function pow3(x: Num) {
   return x.mul(x).mul(x);
@@ -130,6 +130,42 @@ export function closestPointOnEllipse(
     applySign(point.x, majorRadius.mul(angle.cos())),
     applySign(point.y, minorRadius.mul(angle.sin())),
   );
+}
+
+export function ellipseQuarticFactors(
+  majorRadius: Num,
+  minorRadius: Num,
+  point: Point,
+): [Num, Num, Num, Num, Num] {
+  const l = minorRadius.square().sub(majorRadius.square());
+  const ax = majorRadius.mul(point.x).div(l);
+  const by = minorRadius.mul(point.y).div(l);
+
+  const a2x2 = ax.square();
+  const b2y2 = by.square();
+
+  return [ONE, ax.mul(TWO), a2x2.add(b2y2).sub(ONE), ax.mul(-2), a2x2.neg()];
+}
+
+export function hyperbolaQuarticFactors(
+  majorRadius: Num,
+  minorRadius: Num,
+  point: Point,
+): [Num, Num, Num, Num, Num] {
+  const l = majorRadius.square().sub(minorRadius.square());
+  const ax = majorRadius.mul(point.x).div(l);
+  const by = minorRadius.mul(point.y).div(l);
+
+  const a2x2 = ax.square();
+  const b2y2 = by.square();
+
+  return [
+    ONE,
+    ax.mul(-2),
+    a2x2.mul(TWO).add(b2y2).sub(ONE),
+    ax.mul(TWO),
+    a2x2.neg(),
+  ];
 }
 
 export function candidateClosestPointsWithinEllipseArc(

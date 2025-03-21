@@ -1,4 +1,4 @@
-import type { BinaryOperation, UnaryOperation } from "./num-tree";
+import type { BinaryOperation, UnaryOperation } from "./types";
 import {
   NumNode,
   LiteralNum,
@@ -9,8 +9,11 @@ import {
   ONE_NODE,
   TWO_NODE,
   NEG_ONE_NODE,
+  DebugNode,
 } from "./num-tree";
-import { renderNodeAsDot } from "./utils/num-to-dot";
+import { compressNum } from "./num-dag-tools/compress-num";
+import { renderNodeAsDot } from "./eval-num/dot-eval";
+import { simplify } from "./num-dag-tools/simplify-num";
 
 export function asNum(n: number | Num): Num {
   if (n instanceof Num) {
@@ -41,6 +44,18 @@ export class Num {
   mul(other: Num | number) {
     return binaryOpNum("MUL", this, asNum(other));
   }
+  powi(power: number) {
+    if (!Number.isInteger(power) || power <= 0) {
+      throw new Error(`power must be a positive integer, ${power} recieved`);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    let result: Num = this;
+    for (let i = 1; i < power; i++) {
+      result = result.mul(this);
+    }
+    return result;
+  }
+
   div(other: Num | number) {
     return binaryOpNum("DIV", this, asNum(other));
   }
@@ -51,7 +66,7 @@ export class Num {
     return this.max(0).sqrt();
   }
   cbrt() {
-    return this.abs().log().div(3).exp().mul(this.sign());
+    return unaryOpNum("CBRT", this);
   }
   neg() {
     return unaryOpNum("NEG", this);
@@ -148,6 +163,17 @@ export class Num {
   }
   greaterThanOrEqual(other: Num | number) {
     return asNum(other).lessThanOrEqual(this);
+  }
+
+  debug(info: string) {
+    return new Num(new DebugNode(this.n, info));
+  }
+
+  compress(): Num {
+    return new Num(compressNum(this.n));
+  }
+  simplify(): Num {
+    return new Num(simplify(this.n));
   }
 
   asDot(): string {

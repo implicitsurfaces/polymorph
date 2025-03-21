@@ -1,37 +1,5 @@
-import { memoizeNodeEval } from "./utils/cache";
-//import { renderNodeAsDot } from "./utils/num-to-dot";
-//import fs from "node:fs";
-
-export type UnaryOperation =
-  | "SQRT"
-  | "COS"
-  | "ACOS"
-  | "ASIN"
-  | "TAN"
-  | "ATAN"
-  | "LOG"
-  | "EXP"
-  | "ABS"
-  | "NEG"
-  | "SIN"
-  | "SIGN"
-  | "NOT"
-  | "TANH"
-  | "LOG1P";
-
-export type BinaryOperation =
-  | "ADD"
-  | "SUB"
-  | "MUL"
-  | "DIV"
-  | "MOD"
-  | "ATAN2"
-  | "MIN"
-  | "MAX"
-  | "COMPARE"
-  | "AND"
-  | "OR";
-
+import { visitFromLeaves } from "./dag-tools/dag-traversal";
+import { UnaryOperation, BinaryOperation } from "./types";
 export class NumNode {
   readonly operation: string = "NONE";
 }
@@ -48,6 +16,16 @@ export class UnaryOp extends NumNode {
     readonly original: NumNode,
   ) {
     super();
+  }
+}
+
+export class DebugNode extends UnaryOp {
+  constructor(
+    readonly original: NumNode,
+    readonly debug: string,
+  ) {
+    super("DEBUG", original);
+    this.debug = debug;
   }
 }
 
@@ -75,161 +53,71 @@ export class Variable extends NumNode {
   }
 }
 
-const simpleUnaryOp = (operation: UnaryOperation, operand: number) => {
-  if (operation === "SQRT") {
-    return Math.sqrt(operand);
-  }
-  if (operation === "COS") {
-    return Math.cos(operand);
-  }
-  if (operation === "ACOS") {
-    return Math.acos(operand);
-  }
-  if (operation === "ASIN") {
-    return Math.asin(operand);
-  }
-  if (operation === "TAN") {
-    return Math.tan(operand);
-  }
-  if (operation === "ATAN") {
-    return Math.atan(operand);
-  }
-  if (operation === "LOG") {
-    return Math.log(operand);
-  }
-  if (operation === "EXP") {
-    return Math.exp(operand);
-  }
-  if (operation === "ABS") {
-    return Math.abs(operand);
-  }
-  if (operation === "NEG") {
-    return -operand;
-  }
-  if (operation === "SIN") {
-    return Math.sin(operand);
-  }
-  if (operation === "SIGN") {
-    return Math.sign(operand);
-  }
-  if (operation === "NOT") {
-    return operand ? 0 : 1;
-  }
-  if (operation === "TANH") {
-    return Math.tanh(operand);
-  }
-  if (operation === "LOG1P") {
-    return Math.log1p(operand);
-  }
-  throw new Error(`Unknown unary operation: ${operation}`);
-};
-
-const simpleBinaryOp = (
-  operation: BinaryOperation,
-  left: number,
-  right: number,
-) => {
-  if (operation === "ADD") {
-    return left + right;
-  }
-  if (operation === "SUB") {
-    return left - right;
-  }
-  if (operation === "MUL") {
-    return left * right;
-  }
-  if (operation === "DIV") {
-    return right ? left / right : 1e50;
-  }
-  if (operation === "MOD") {
-    return left % right;
-  }
-  if (operation === "ATAN2") {
-    return Math.atan2(left, right);
-  }
-  if (operation === "MIN") {
-    return Math.min(left, right);
-  }
-  if (operation === "MAX") {
-    return Math.max(left, right);
-  }
-  if (operation === "COMPARE") {
-    return Math.sign(left - right);
-  }
-  if (operation === "AND") {
-    return left === 0 ? left : right;
-  }
-  if (operation === "OR") {
-    return left === 0 ? right : left;
-  }
-  throw new Error(`Unknown binary operation: ${operation}`);
-};
-
 export const ZERO_NODE = new LiteralNum(0);
 export const ONE_NODE = new LiteralNum(1);
 export const TWO_NODE = new LiteralNum(2);
 export const NEG_ONE_NODE = new LiteralNum(-1);
 
-export const naiveEval = (
-  node: NumNode,
-  variables: Map<string, number>,
-): number => {
+const cloneNode = (node: NumNode): NumNode => {
   if (node instanceof LiteralNum) {
-    return node.value;
+    return new LiteralNum(node.value);
   } else if (node instanceof Variable) {
-    const value = variables.get(node.name);
-    if (value === undefined) {
-      throw new Error(`Variable not found: ${node.name}`);
-    }
-    return value;
+    return new Variable(node.name);
   } else if (node instanceof Derivative) {
-    const derivativeName = `d_${node.variable.name}`;
-    const value = variables.get(derivativeName);
-    if (value === undefined) {
-      throw new Error(`Variable not found: ${derivativeName}`);
-    }
-    return value;
+    return new Derivative(node.variable);
   } else if (node instanceof UnaryOp) {
-    const operand = naiveEval(node.original, variables);
-    return simpleUnaryOp(node.operation, operand);
+    return new UnaryOp(node.operation, cloneNode(node.original));
   } else if (node instanceof BinaryOp) {
-    const left = naiveEval(node.left, variables);
-    const right = naiveEval(node.right, variables);
-
-    return simpleBinaryOp(node.operation, left, right);
+    return new BinaryOp(
+      node.operation,
+      cloneNode(node.left),
+      cloneNode(node.right),
+    );
   }
 
-  throw new Error(
-    `Unknown node type: ${node?.operation} ${node.constructor.name}`,
-  );
+  throw new Error(`Unknown node type: ${node?.operation}`);
 };
 
 export const replaceVariable = (
   node: NumNode,
   variables: Map<string, number | NumNode>,
 ): NumNode => {
-  if (node instanceof Variable) {
-    const value = variables.get(node.name);
-    if (value === undefined) {
-      return node;
+  const modifiedNodes = new Map<NumNode, NumNode>();
+
+  visitFromLeaves(node, childrenOfNumNode, (node) => {
+    let outNode;
+
+    if (node instanceof Variable) {
+      const value = variables.get(node.name);
+      if (value === undefined) {
+        outNode = node;
+      } else if (value instanceof NumNode) {
+        outNode = value;
+      } else {
+        outNode = new LiteralNum(value);
+      }
+    } else if (node instanceof UnaryOp) {
+      const newOriginal = modifiedNodes.get(node.original)!;
+      outNode =
+        newOriginal === node.original
+          ? node
+          : new UnaryOp(node.operation, newOriginal);
+    } else if (node instanceof BinaryOp) {
+      const newLeft = modifiedNodes.get(node.left)!;
+      const newRight = modifiedNodes.get(node.right)!;
+
+      outNode =
+        newLeft === node.left && newRight === node.right
+          ? node
+          : new BinaryOp(node.operation, newLeft, newRight);
+    } else {
+      outNode = cloneNode(node);
     }
-    if (value instanceof NumNode) {
-      return value;
-    }
-    return new LiteralNum(value);
-  } else if (node instanceof UnaryOp) {
-    return new UnaryOp(
-      node.operation,
-      replaceVariable(node.original, variables),
-    );
-  } else if (node instanceof BinaryOp) {
-    return new BinaryOp(
-      node.operation,
-      replaceVariable(node.left, variables),
-      replaceVariable(node.right, variables),
-    );
-  }
-  return node;
+
+    modifiedNodes.set(node, outNode);
+  });
+
+  return modifiedNodes.get(node)!;
 };
 
 export const partialDerivative = (node: NumNode, variable: string): NumNode => {
@@ -249,84 +137,28 @@ export const partialDerivative = (node: NumNode, variable: string): NumNode => {
   return node;
 };
 
-const reportNaN = (node: NumNode) => {
-  //fs.writeFileSync("error.dot", renderNodeAsDot(treeEval(node)));
-  throw new Error(`NaN in binary op: ${node.operation}`);
-};
-
-const simpleEval = memoizeNodeEval(function (node: NumNode): number {
-  if (node instanceof LiteralNum) {
-    return node.value;
-  } else if (node instanceof UnaryOp) {
-    const operand = simpleEval(node.original);
-    if (Number.isNaN(operand)) {
-      reportNaN(node.original);
-    }
-    return simpleUnaryOp(node.operation, operand);
+export function childrenOfNumNode(node: NumNode): NumNode[] {
+  if (node instanceof UnaryOp) {
+    return [node.original];
   } else if (node instanceof BinaryOp) {
-    const left = simpleEval(node.left);
-    if (Number.isNaN(left)) {
-      reportNaN(node.left);
-    }
-    const right = simpleEval(node.right);
-    if (Number.isNaN(left)) {
-      reportNaN(node.right);
-    }
-
-    return simpleBinaryOp(node.operation, left, right);
+    return [node.left, node.right];
+  } else if (node instanceof Derivative) {
+    return [node.variable];
   }
-
-  throw new Error(`Unknown node type: ${node?.operation}`);
-});
-
-export const treeEval = (node: NumNode): NumNode & { value: number } => {
-  if (node instanceof LiteralNum) {
-    return Object.assign(node, { value: node.value });
-  } else if (node instanceof UnaryOp) {
-    const operand = treeEval(node.original);
-    const value = simpleUnaryOp(node.operation, operand.value);
-    return Object.assign(node, {
-      operand,
-      value,
-    });
-  } else if (node instanceof BinaryOp) {
-    const left = treeEval(node.left);
-    const right = treeEval(node.right);
-
-    const value = simpleBinaryOp(node.operation, left.value, right.value);
-    return Object.assign(node, {
-      left,
-      right,
-      value,
-    });
-  }
-
-  throw new Error(`Unknown node type: ${node?.operation}`);
-};
-
-export async function dedupeEval(node: NumNode): Promise<number> {
-  /* this is actually way slower than simpleEval */
-  /*
-  const deduped = await dedupeTree(node);
-  return simpleEval(deduped);
-
-  to be kept for now
-  */
-
-  return Promise.resolve(simpleEval(node));
+  return [];
 }
 
-const allVariables = memoizeNodeEval(function (node: NumNode): Set<string> {
-  if (node instanceof Variable) {
-    return new Set([node.name]);
-  } else if (node instanceof UnaryOp) {
-    return allVariables(node.original);
-  } else if (node instanceof BinaryOp) {
-    const left = allVariables(node.left);
-    const right = allVariables(node.right);
-    return new Set([...left, ...right]);
-  }
-  return new Set();
-});
+const allVariables = function (node: NumNode): Set<string> {
+  const variables = new Set<string>();
 
-export { simpleEval, allVariables };
+  visitFromLeaves(node, childrenOfNumNode, (node) => {
+    if (node instanceof Variable) {
+      console.log("found variable", node.name);
+      variables.add(node.name);
+    }
+  });
+
+  return variables;
+};
+
+export { allVariables };

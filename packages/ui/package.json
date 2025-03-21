@@ -14,15 +14,22 @@
     "typecheck": "tsc -b",
     "check": "(eslint --max-warnings 0 .; l=$?; tsc -b && exit $l)",
     "preview": "vite preview",
-    "format": "prettier --write \"src/*.{jsx,js,tsx,ts}\""
+    "format": "prettier --write \"src/*.{jsx,js,tsx,ts}\"",
+    "postinstall": "cd ../.. && patch-package"
   },
   "dependencies": {
+    "comlink": "^4.4.2",
+    "fidget": "*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-resizable-panels": "^2.1.7",
     "short-uuid": "^5.2.0",
     "threejs-math": "^0.147.0",
     "uuid": "^11.0.3"
+  },
+  "peerDependencies": {
+    "draw-api": "*",
+    "sketch": "*"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

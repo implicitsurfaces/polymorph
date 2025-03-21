@@ -9,8 +9,8 @@ import {
 import {
   PathStyle,
   edgeWidth,
-  getNodeColor,
-  getControlColor,
+  getShapeColor,
+  getConstructionColor,
   getNodeStyleIndex,
 } from "./style";
 
@@ -211,13 +211,13 @@ export function drawEdges(
   const w = edgeWidth / camera.zoom;
   const tangentStyle = new PathStyle({
     lineWidth: w,
-    stroke: getControlColor(0),
+    stroke: getConstructionColor(0),
   });
   const shapeStyles = [
-    new PathStyle({ lineWidth: w, stroke: getNodeColor(0) }),
-    new PathStyle({ lineWidth: w, stroke: getNodeColor(1) }),
-    new PathStyle({ lineWidth: w, stroke: getNodeColor(2) }),
-    new PathStyle({ lineWidth: w, stroke: getNodeColor(3) }),
+    new PathStyle({ lineWidth: w, stroke: getShapeColor(0) }),
+    new PathStyle({ lineWidth: w, stroke: getShapeColor(1) }),
+    new PathStyle({ lineWidth: w, stroke: getShapeColor(2) }),
+    new PathStyle({ lineWidth: w, stroke: getShapeColor(3) }),
   ];
   for (const edge of edges) {
     const styleIndex = getNodeStyleIndex(edge, selection);

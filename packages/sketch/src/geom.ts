@@ -1,8 +1,8 @@
 import { Num, ONE, asNum } from "./num";
-import { atan2, hypot, ifTruthyElse, lessThan } from "./num-ops";
+import { atan2, hypot, ifTruthyElse } from "./num-ops";
 
 function nonZeroSign(n: Num): Num {
-  return ifTruthyElse(lessThan(n, 0), asNum(-1), asNum(1));
+  return ifTruthyElse(n.lessThan(0), asNum(-1), asNum(1));
 }
 
 const _2PI = asNum(Math.PI * 2);
@@ -77,7 +77,7 @@ export class Angle {
   }
 
   asSortValue(): Num {
-    const isQ3Q4 = lessThan(this._sin, 0);
+    const isQ3Q4 = this._sin.lessThan(0);
     return ifTruthyElse(isQ3Q4, this._cos.add(3), asNum(1).sub(this._cos)).div(
       2,
     );

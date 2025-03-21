@@ -14,7 +14,7 @@ import { Toolbar } from "./tools/Toolbar";
 import { CurrentTool, CurrentToolContext } from "./tools/CurrentTool";
 import { allActions } from "./allActions";
 
-import { Canvas } from "./Canvas";
+import { Canvas, CanvasSettings } from "./Canvas";
 import { LayersPanel } from "./LayersPanel";
 import { SkeletonPanel, MeasuresPanel } from "./NodeListPanel";
 import { PropertiesPanel } from "./PropertiesPanel";
@@ -131,6 +131,12 @@ function App() {
     };
   }, [elementObserver]);
 
+  // Canvas settings
+  const [leftCanvasSettings] = useState(() => new CanvasSettings());
+  const [rightCanvasSettings] = useState(
+    () => new CanvasSettings({ sdfTest: true }),
+  );
+
   // Do not create any Panel components until we know the size of the app via
   // the ResizeObserver, so that we can provide an appropriate defaultSize to
   // the panels, which must be done on first creation of the Panel.
@@ -189,11 +195,17 @@ function App() {
           <Panel>
             <PanelGroup className="canvas-panel-group" direction="horizontal">
               <Panel defaultSize={50} minSize={10}>
-                <Canvas documentManager={documentManager} />
+                <Canvas
+                  documentManager={documentManager}
+                  settings={leftCanvasSettings}
+                />
               </Panel>
               <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
               <Panel minSize={10}>
-                <Canvas documentManager={documentManager} />
+                <Canvas
+                  documentManager={documentManager}
+                  settings={rightCanvasSettings}
+                />
               </Panel>
             </PanelGroup>
           </Panel>

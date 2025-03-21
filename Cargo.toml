@@ -19,4 +19,5 @@ opt-level = 2
 opt-level = "s" # Optimize for small code size.
 
 [workspace.dependencies]
+getrandom = { version = "0.3", features = ["wasm_js"] }
 fidget = { path = "crates/gpu_interp/vendor/fidget/fidget", features = ["rhai"]}

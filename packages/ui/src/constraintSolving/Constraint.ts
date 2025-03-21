@@ -1,10 +1,15 @@
-import { MeasureNode, PointToPointDistance } from "../Document";
+import {
+  MeasureNode,
+  PointToPointDistance,
+  LineToPointDistance,
+  Angle,
+} from "../Document";
 
 export type ParamId = string;
 export type ParamValueMap = { [key: ParamId]: number };
 
 export interface Constraint {
-  type: "distance";
+  type: "pointToPointDistance" | "lineToPointDistance" | "angle";
   params: ParamId[];
   value: number;
 }
@@ -25,7 +30,41 @@ export function getConstraint(node: MeasureNode): Constraint | undefined {
       endPoint.y.id,
     ];
     return {
-      type: "distance",
+      type: "pointToPointDistance",
+      params: params,
+      value: node.number.value,
+    };
+  } else if (node instanceof LineToPointDistance) {
+    const line = node.line;
+    const point = node.point;
+    const params: string[] = [
+      line.startPoint.x.id,
+      line.startPoint.y.id,
+      line.endPoint.x.id,
+      line.endPoint.y.id,
+      point.x.id,
+      point.y.id,
+    ];
+    return {
+      type: "lineToPointDistance",
+      params: params,
+      value: node.number.value,
+    };
+  } else if (node instanceof Angle) {
+    const line0 = node.line0;
+    const line1 = node.line1;
+    const params: string[] = [
+      line0.startPoint.x.id,
+      line0.startPoint.y.id,
+      line0.endPoint.x.id,
+      line0.endPoint.y.id,
+      line1.startPoint.x.id,
+      line1.startPoint.y.id,
+      line1.endPoint.x.id,
+      line1.endPoint.y.id,
+    ];
+    return {
+      type: "angle",
       params: params,
       value: node.number.value,
     };

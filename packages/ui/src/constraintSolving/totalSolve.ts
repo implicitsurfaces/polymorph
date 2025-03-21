@@ -16,8 +16,10 @@ export function totalSolve(constraints, currentParams) {
       eqs.push(angle(...constraint.params, 90));
     } else if (constraint.type === "parallel") {
       eqs.push(angle(...constraint.params, 0));
-    } else if (constraint.type === "distance") {
+    } else if (constraint.type === "pointToPointDistance") {
       eqs.push(ppDist(...constraint.params, constraint.value));
+    } else if (constraint.type === "lineToPointDistance") {
+      eqs.push(lpDist(...constraint.params, constraint.value));
     } else {
       console.log("missing", constraint);
     }
@@ -57,25 +59,24 @@ function ppDist(p0x, p0y, p1x, p1y, dist) {
   )} - ((${p1x}-${p0x})^2+(${p1y}-${p0y})^2)`;
 }
 
-function angle(p0, p1, p2, p3, degrees) {
+function angle(
+  l1p1x,
+  l1p1y,
+  l1p2x,
+  l1p2y,
+  l2p1x,
+  l2p1y,
+  l2p2x,
+  l2p2y,
+  degrees,
+) {
   const minus = (a, b) => [`(${a[0]}-${b[0]})`, `(${a[1]}-${b[1]})`];
   const dot = (a, b) => `((${a[0]}*${b[0]}) + (${a[1]}*${b[1]}))`;
   const norm = (a) => `sqrt( ${a[0]}^2 + ${a[1]}^2 )`;
 
-  const l1p1x = `${p0}_x`;
-  const l1p1y = `${p0}_y`;
   const a = [l1p1x, l1p1y];
-
-  const l1p2x = `${p1}_x`;
-  const l1p2y = `${p1}_y`;
   const b = [l1p2x, l1p2y];
-
-  const l2p1x = `${p2}_x`;
-  const l2p1y = `${p2}_y`;
   const c = [l2p1x, l2p1y];
-
-  const l2p2x = `${p3}_x`;
-  const l2p2y = `${p3}_y`;
 
   const angleRads = (degrees / 180) * Math.PI + Math.PI / 2;
   const cosTheta = `${Math.cos(angleRads).toFixed(PRECISION)}`;
@@ -95,16 +96,7 @@ function angle(p0, p1, p2, p3, degrees) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function lpDist(p0, p1, p2, dist) {
-  const lp1x = `${p0}_x`;
-  const lp1y = `${p0}_y`;
-
-  const lp2x = `${p1}_x`;
-  const lp2y = `${p1}_y`;
-
-  const px = `${p2}_x`;
-  const py = `${p2}_y`;
-
+function lpDist(lp1x, lp1y, lp2x, lp2y, px, py, dist) {
   const top = `sqrt( ((${lp2y} - ${lp1y})*${px} - (${lp2x} - ${lp1x})*${py} + ${lp2x} * ${lp1y} - ${lp2y} * ${lp1x})^2)`;
   const bottom = `sqrt( (${lp2x} - ${lp1x})^2 + (${lp2y}-${lp1y})^2 )`;
 

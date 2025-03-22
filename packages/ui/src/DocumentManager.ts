@@ -14,6 +14,19 @@ import {
   getConstraint,
 } from "./constraintSolving/Constraint";
 
+type eventTypeString =
+  | "MOVE"
+  | "END_MOVE"
+  | "START_LINE"
+  | "PLACE_LINE"
+  | "END_LINE"
+  | "CREATE_LAYER"
+  | "DELETE_LAYER"
+  | "SET_POINT"
+  | "ADD_CONSTRAINT"
+  | "PLACE_POINT"
+  | "CHANGED_LOCK";
+
 /**
  * Stores and manages the undo-redo history of the document.
  *
@@ -201,6 +214,57 @@ export class DocumentManager {
     this.goToIndex(this.index() + 1);
   }
 
+  dispatchEvent(eventType: eventTypeString, data: any = {}): void {
+    console.log("EVENT_TYPE:", eventType);
+
+    switch (eventType) {
+      case "MOVE":
+        // solve constraints
+        this.stageChanges();
+        this._updateMeasures();
+        break;
+      case "END_MOVE":
+        // solve constraints
+        this.commitChanges();
+        this._updateMeasures();
+        break;
+      case "START_LINE":
+        this.stageChanges();
+        break;
+      case "PLACE_LINE":
+        this.stageChanges();
+        break;
+      case "END_LINE":
+        this.commitChanges();
+        break;
+      case "CREATE_LAYER":
+        this.commitChanges();
+        break;
+      case "DELETE_LAYER":
+        this.commitChanges();
+        break;
+      case "SET_POINT":
+        // set constraint program values
+        this.commitChanges();
+        this._updateMeasures();
+        break;
+      case "ADD_CONSTRAINT":
+        // analyze constraint system
+        this.commitChanges();
+        this._updateMeasures();
+        break;
+      case "PLACE_POINT":
+        this.commitChanges();
+        break;
+      case "CHANGED_LOCK":
+        this.commitChanges();
+        break;
+      default:
+        console.log("Unknown event:", eventType);
+        break;
+    }
+  }
+
   /**
    * Notifies that the current document has changed (and therefore that any views
    * on the document must be updated), but that these changes do not yet
@@ -209,7 +273,6 @@ export class DocumentManager {
    * Typically, this should be called on mouse move of a mouse drag action.
    */
   stageChanges(): void {
-    this._updateMeasures();
     this._notify();
   }
 
@@ -224,8 +287,6 @@ export class DocumentManager {
    */
   // TODO: commit message to show in History Panel?
   commitChanges(): void {
-    this._updateMeasures();
-
     // Wipe out any pre-existing redoable data
     this._history.splice(this.index() + 1);
 

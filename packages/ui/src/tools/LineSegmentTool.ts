@@ -122,7 +122,8 @@ export class LineSegmentTool extends Tool {
     // and we always consider the start point to be preexisting, even
     // if it was created during the first step. Indeed, the start point
     // must never be deleted in the HoverBetweenSteps.
-    documentManager.stageChanges();
+    // documentManager.stageChanges();
+    documentManager.dispatchEvent("START_LINE");
     return true;
   }
 
@@ -195,7 +196,8 @@ export class LineSegmentTool extends Tool {
       }
     }
 
-    documentManager.stageChanges();
+    // documentManager.stageChanges();
+    documentManager.dispatchEvent("PLACE_LINE");
   }
 
   // Get or create the end point, create the line segment, and set it as
@@ -204,7 +206,7 @@ export class LineSegmentTool extends Tool {
     if (!this.firstStepData) {
       return;
     }
-    this.firstStepData.documentManager.commitChanges();
+    this.firstStepData.documentManager.dispatchEvent("END_LINE");
     this.reset();
   }
 

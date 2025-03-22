@@ -177,12 +177,12 @@ function move(
   for (const onMove of data.onMoves) {
     onMove(delta);
   }
-  documentManager.stageChanges();
+  documentManager.dispatchEvent("MOVE");
 }
 
 function end(data: MoveData, documentManager: DocumentManager) {
   data.clear();
-  documentManager.commitChanges();
+  documentManager.dispatchEvent("END_MOVE");
 }
 
 export class Mover {

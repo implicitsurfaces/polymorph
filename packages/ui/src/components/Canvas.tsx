@@ -337,7 +337,7 @@ export function Canvas({ documentManager, settings }: CanvasProps) {
     const canvas = ref.current;
     if (canvas && canvas.width > 0 && canvas.height > 0) {
       if (settings.sdfTest) {
-        drawSdfTest(canvas);
+        drawSdfTest(canvas, documentManager);
       } else {
         draw(canvas, camera, documentManager);
       }

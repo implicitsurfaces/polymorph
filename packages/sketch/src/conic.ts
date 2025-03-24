@@ -29,7 +29,7 @@ const Q_MAT = new Matrix3x3(
   NEG_ONE,
 );
 
-export class Conic {
+export class ConicProfile {
   private readonly _matrix: Matrix3x3;
   private readonly _subMatrix: Matrix2x2;
 
@@ -305,20 +305,23 @@ const hyperbolaProjection = (minorRadius: Num) =>
     ZERO,
   );
 
-export function circleConic(radius: Num): Conic {
-  return new Conic(scalingTransform(radius, radius).reverse());
+export function circleConic(radius: Num): ConicProfile {
+  return new ConicProfile(scalingTransform(radius, radius).reverse());
 }
 
-export function hyperbolaConic(majorRadius: Num, minorRadius: Num): Conic {
-  return new Conic(
+export function hyperbolaConic(
+  majorRadius: Num,
+  minorRadius: Num,
+): ConicProfile {
+  return new ConicProfile(
     scalingTransform(majorRadius, minorRadius)
       .reverse()
       .compose(hyperbolaProjection(minorRadius).reverse()),
   );
 }
 
-export function ellipseConic(majorRadius: Num, minorRadius: Num): Conic {
-  return new Conic(scalingTransform(majorRadius, minorRadius).reverse());
+export function ellipseConic(majorRadius: Num, minorRadius: Num): ConicProfile {
+  return new ConicProfile(scalingTransform(majorRadius, minorRadius).reverse());
 }
 
 export function genericEllipseConic(
@@ -327,7 +330,7 @@ export function genericEllipseConic(
   rotationAngle: Angle,
   center: Point,
 ) {
-  return new Conic(
+  return new ConicProfile(
     scalingTransform(majorRadius, minorRadius)
       .reverse()
       .compose(rotationTransform(rotationAngle.neg()))
@@ -349,5 +352,5 @@ export function randomConic(seed: Num | number) {
     rand(),
   );
 
-  return new Conic(trans);
+  return new ConicProfile(trans);
 }

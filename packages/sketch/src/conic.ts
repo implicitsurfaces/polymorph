@@ -98,10 +98,10 @@ export class ConicProfile {
 
   private candidatePoints(point: Point): Point[] {
     const a = this._matrix.x11;
-    const b = this._matrix.x12.mul(4);
+    const b = this._matrix.x12;
     const c = this._matrix.x22;
-    const d = this._matrix.x13.mul(4);
-    const e = this._matrix.x23.mul(4);
+    const d = this._matrix.x13;
+    const e = this._matrix.x23;
     const f = this._matrix.x33;
 
     const x0 = point.x;
@@ -189,37 +189,35 @@ export class ConicProfile {
 
     const aPlusC = a.add(c);
     const acMinusBSquared = a.mul(c).sub(b.square());
-    const qx = b.mul(e).sub(c.mul(d)).div(acMinusBSquared);
-    const rx0 = x0.sub(qx);
-    const rx1 = c.mul(x0).sub(d).sub(b.mul(y0)).sub(qx.mul(aPlusC));
 
-    const qy = b.mul(d).sub(a.mul(e));
-    const ry0 = y0.sub(qy);
-    const ry1 = a.mul(y0).sub(e).sub(b.mul(x0)).sub(qy.mul(aPlusC));
     const ldet = a.sub(c).square().add(b.mul(b).mul(4)).sqrt();
     const d0 = aPlusC.add(ldet).div(2).div(acMinusBSquared).neg();
     const d1 = aPlusC.sub(ldet).div(2).div(acMinusBSquared).neg();
 
+    const rx0b = c.mul(x0).sub(d.add(b.mul(y0)));
+    const rx1b = b.mul(e).sub(c.mul(d));
+
+    const ry0b = a.mul(y0).sub(e.add(b.mul(x0)));
+    const ry1b = b.mul(d).sub(a.mul(e));
+
     return lamba.map((l) => {
+
       const ld0 = l.sub(d0);
       const ld1 = l.sub(d1);
       const denom = ld0.mul(ld1).mul(acMinusBSquared);
+
+      const validX = x0.add(l.mul(rx0b.add(l.mul(rx1b)))).div(denom);
+      const validY = y0.add(l.mul(ry0b.add(l.mul(ry1b)))).div(denom);
 
       const invalidSolution = ld0
         .abs()
         .lessThan(1e-15)
         .or(ld1.abs().lessThan(1e-15));
 
-      const x = ifTruthyElse(
-        invalidSolution,
-        asNum(1e100),
-        qx.add(rx0.add(l.mul(rx1)).div(denom)),
+      const x = ifTruthyElse(invalidSolution, asNum(1e100), validX).debug(
+        `x${i}`,
       );
-      const y = ifTruthyElse(
-        invalidSolution,
-        1e100,
-        qy.add(ry0.add(l.mul(ry1)).div(denom)),
-      );
+      const y = ifTruthyElse(invalidSolution, 1e100, validY).debug(`y${i}`);
 
       return new Point(x, y);
     });
@@ -321,7 +319,9 @@ export function hyperbolaConic(
 }
 
 export function ellipseConic(majorRadius: Num, minorRadius: Num): ConicProfile {
-  return new ConicProfile(scalingTransform(majorRadius, minorRadius).reverse());
+  return new ConicProfile(
+    scalingTransform(majorRadius.inv(), minorRadius.inv()),
+  );
 }
 
 export function genericEllipseConic(

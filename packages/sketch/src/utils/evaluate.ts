@@ -9,6 +9,7 @@ import {
 } from "../geom-utils/matrices";
 import { Num } from "../num";
 import { simpleEval } from "../eval-num/js-eval";
+import { NumNode } from "../num-tree";
 
 type BasicTypes =
   | Num
@@ -22,44 +23,45 @@ type BasicTypes =
   | ColVec3
   | RowVec3;
 
-function evaluate(num: Num | Angle): number;
+function evaluate(num: Num | Angle, logDebug?: boolean): number;
 function evaluate(
   num: Exclude<BasicTypes, Num | Angle> | Num[] | Angle[],
+  logDebug?: boolean,
 ): number[];
-function evaluate(num: BasicTypes | Num[] | Angle[]): number | number[] {
+function evaluate(
+  num: BasicTypes | Num[] | Angle[],
+  logDebug = false,
+): number | number[] {
+  const ev = (n: NumNode) => simpleEval(n, new Map(), logDebug);
+
   if (Array.isArray(num)) {
     return num.map((n) => evaluate(n));
   } else if (num instanceof Num) {
-    return simpleEval(num.n);
+    return ev(num.n);
   } else if (num instanceof Point) {
-    return [simpleEval(num.x.n), simpleEval(num.y.n)];
+    return [ev(num.x.n), ev(num.y.n)];
   } else if (num instanceof Vec2) {
-    return [simpleEval(num.x.n), simpleEval(num.y.n)];
+    return [ev(num.x.n), ev(num.y.n)];
   } else if (num instanceof Angle) {
-    return simpleEval(num.asDeg().n);
+    return ev(num.asDeg().n);
   } else if (num instanceof Matrix2x2) {
-    return [
-      simpleEval(num.x11.n),
-      simpleEval(num.x12.n),
-      simpleEval(num.x21.n),
-      simpleEval(num.x22.n),
-    ];
+    return [ev(num.x11.n), ev(num.x12.n), ev(num.x21.n), ev(num.x22.n)];
   } else if (num instanceof Matrix3x3) {
     return [
-      simpleEval(num.x11.n),
-      simpleEval(num.x12.n),
-      simpleEval(num.x13.n),
-      simpleEval(num.x21.n),
-      simpleEval(num.x22.n),
-      simpleEval(num.x23.n),
-      simpleEval(num.x31.n),
-      simpleEval(num.x32.n),
-      simpleEval(num.x33.n),
+      ev(num.x11.n),
+      ev(num.x12.n),
+      ev(num.x13.n),
+      ev(num.x21.n),
+      ev(num.x22.n),
+      ev(num.x23.n),
+      ev(num.x31.n),
+      ev(num.x32.n),
+      ev(num.x33.n),
     ];
   } else if (num instanceof ColVec2 || num instanceof RowVec2) {
-    return [simpleEval(num.x1.n), simpleEval(num.x2.n)];
+    return [ev(num.x1.n), ev(num.x2.n)];
   } else if (num instanceof ColVec3 || num instanceof RowVec3) {
-    return [simpleEval(num.x1.n), simpleEval(num.x2.n), simpleEval(num.x3.n)];
+    return [ev(num.x1.n), ev(num.x2.n), ev(num.x3.n)];
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

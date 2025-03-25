@@ -29,7 +29,13 @@ export class JSEvalKernel implements NumEvalKernel<number> {
     return evaluateUnaryOp(operation, operand);
   }
 
-  binaryOp(operation: BinaryOperation, left: number, right: number) {
+  binaryOp(
+    operation: BinaryOperation,
+    left: number,
+    right: number,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _node: NumNode,
+  ) {
     return evaluateBinaryOp(operation, left, right);
   }
 }

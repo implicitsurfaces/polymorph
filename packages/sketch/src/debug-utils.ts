@@ -23,7 +23,7 @@ export function logDebug(
 }
 
 export function writeTreeAsDot(
-  num: Num,
+  num: Num | NumNode,
   variables: Map<string, number> | Record<string, number>,
   enhancedPrecision = false,
   path = "tree.dot",
@@ -34,7 +34,10 @@ export function writeTreeAsDot(
     ? new JSPrecisionEvalKernel(vars, true)
     : new JSEvalKernel(vars, true);
 
-  const evaled = treeEval<number | Decimal>(num.n, kernel);
+  const evaled = treeEval<number | Decimal>(
+    num instanceof Num ? num.n : num,
+    kernel,
+  );
   writeFileSync(path, renderNodeAsDot(evaled));
 }
 

@@ -349,3 +349,36 @@ export class SolidAngle {
 export function solidAngleFromAngle(angle: Angle): SolidAngle {
   return new SolidAngle(0).addAngle(angle);
 }
+
+export function ifTruthyElseForAngles(
+  condition: Num,
+  ifTrue: Angle,
+  ifFalse: Angle,
+) {
+  return new Angle(
+    ifTruthyElse(condition, ifTrue.cos(), ifFalse.cos()),
+    ifTruthyElse(condition, ifTrue.sin(), ifFalse.sin()),
+  );
+}
+
+export function ifTruthyElseForPoints(
+  condition: Num,
+  ifTrue: Point,
+  ifFalse: Point,
+) {
+  return new Point(
+    ifTruthyElse(condition, ifTrue.x, ifFalse.x),
+    ifTruthyElse(condition, ifTrue.y, ifFalse.y),
+  );
+}
+
+export function ifTruthyElseForVec2s(
+  condition: Num,
+  ifTrue: Vec2,
+  ifFalse: Vec2,
+) {
+  return new Vec2(
+    ifTruthyElse(condition, ifTrue.x, ifFalse.x),
+    ifTruthyElse(condition, ifTrue.y, ifFalse.y),
+  );
+}

@@ -13,6 +13,7 @@ import {
 import { BinaryOperation, UnaryOperation } from "../types";
 import { NumEvalKernel } from "../types";
 import { genericEval } from "./genericEval";
+import { writeTreeAsDot } from "../debug-utils";
 
 export const naiveEval = (
   node: NumNode,
@@ -23,23 +24,29 @@ export const naiveEval = (
 };
 
 class NaNReportingKernel extends JSEvalKernel {
-  private reportNaN(message: string) {
-    //fs.writeFileSync("error.dot", renderNodeAsDot(treeEval(node)));
+  private reportNaN(message: string, node?: NumNode) {
+    writeTreeAsDot(node, this.variablesValues, false, "tree.dot");
+
     throw new Error(message);
   }
 
   unaryOp(operation: UnaryOperation, operand: number, node: NumNode) {
     const result = super.unaryOp(operation, operand, node);
     if (Number.isNaN(result)) {
-      this.reportNaN(`NaN in unary op: ${operation}(${operand})`);
+      this.reportNaN(`NaN in unary op: ${operation}(${operand})`, node);
     }
     return result;
   }
 
-  binaryOp(operation: BinaryOperation, lhs: number, rhs: number) {
-    const result = super.binaryOp(operation, lhs, rhs);
+  binaryOp(
+    operation: BinaryOperation,
+    lhs: number,
+    rhs: number,
+    node: NumNode,
+  ) {
+    const result = super.binaryOp(operation, lhs, rhs, node);
     if (Number.isNaN(result)) {
-      this.reportNaN(`NaN in binary op: ${lhs} ${operation} ${rhs}`);
+      this.reportNaN(`NaN in binary op: ${lhs} ${operation} ${rhs}`, node);
     }
     return result;
   }
@@ -48,8 +55,9 @@ class NaNReportingKernel extends JSEvalKernel {
 export const simpleEval = function (
   node: NumNode,
   variables: Map<string, number> = new Map(),
+  logDebug = false,
 ): number {
-  const kernel = new NaNReportingKernel(variables);
+  const kernel = new NaNReportingKernel(variables, logDebug);
   return genericEval(node, kernel);
 };
 

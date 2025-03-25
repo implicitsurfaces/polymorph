@@ -10,6 +10,7 @@ import { writeFileSync } from "node:fs";
 import { renderNodeAsDot } from "./eval-num/dot-eval";
 import { DistField } from "./types";
 import { Point } from "./geom";
+import { NumNode } from "./num-tree";
 
 export function logDebug(
   num: Num,

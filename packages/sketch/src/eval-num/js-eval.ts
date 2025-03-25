@@ -13,7 +13,7 @@ import {
 import { BinaryOperation, UnaryOperation } from "../types";
 import { NumEvalKernel } from "../types";
 import { genericEval } from "./genericEval";
-import { writeTreeAsDot } from "../debug-utils";
+//import { writeTreeAsDot } from "../debug-utils";
 
 export const naiveEval = (
   node: NumNode,
@@ -24,8 +24,9 @@ export const naiveEval = (
 };
 
 class NaNReportingKernel extends JSEvalKernel {
-  private reportNaN(message: string, node?: NumNode) {
-    writeTreeAsDot(node, this.variablesValues, false, "tree.dot");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private reportNaN(message: string, _node?: NumNode) {
+    //writeTreeAsDot(_node, this.variablesValues, false, "tree.dot");
 
     throw new Error(message);
   }

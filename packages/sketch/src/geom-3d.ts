@@ -122,6 +122,14 @@ export class Vec3 {
   pointFromOrigin(): Point3D {
     return new Point3D(this._x, this._y, this._z);
   }
+
+  debug(info: string): Vec3 {
+    return new Vec3(
+      this._x.debug(`${info}.x`),
+      this._y.debug(`${info}.y`),
+      this._z.debug(`${info}.z`),
+    );
+  }
 }
 
 export class UnitVec3 extends Vec3 {
@@ -176,6 +184,14 @@ export class UnitVec3 extends Vec3 {
     return this.scale(cos)
       .add(axis.cross(this).scale(angle.sin()))
       .add(axis.scale(ONE.sub(cos).mul(this.dot(axis))));
+  }
+
+  debug(info: string): UnitVec3 {
+    return new UnitVec3(
+      this._x.debug(`${info}.x`),
+      this._y.debug(`${info}.y`),
+      this._z.debug(`${info}.z`),
+    );
   }
 }
 
@@ -243,6 +259,14 @@ export class Point3D {
 
   get z(): Num {
     return this._z;
+  }
+
+  debug(info: string): Point3D {
+    return new Point3D(
+      this._x.debug(`${info}.x`),
+      this._y.debug(`${info}.y`),
+      this._z.debug(`${info}.z`),
+    );
   }
 }
 

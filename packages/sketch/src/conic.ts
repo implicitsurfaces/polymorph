@@ -1,4 +1,4 @@
-import { Angle, Point, Vec2 } from "./geom";
+import { Angle, ifTruthyElseForPoints, Point, Vec2 } from "./geom";
 import {
   closestPointOnEllipse,
   ellipseQuarticFactors,
@@ -47,6 +47,10 @@ export class ConicProfile {
       this._matrix.x21,
       this._matrix.x22,
     );
+  }
+
+  transform(transform: Transform): ConicProfile {
+    return new ConicProfile(this.transformation.precededBy(transform));
   }
 
   get pointTransform() {
@@ -201,7 +205,6 @@ export class ConicProfile {
     const ry1b = b.mul(d).sub(a.mul(e));
 
     return lamba.map((l) => {
-
       const ld0 = l.sub(d0);
       const ld1 = l.sub(d1);
       const denom = ld0.mul(ld1).mul(acMinusBSquared);
@@ -214,21 +217,39 @@ export class ConicProfile {
         .lessThan(1e-15)
         .or(ld1.abs().lessThan(1e-15));
 
-      const x = ifTruthyElse(invalidSolution, asNum(1e100), validX).debug(
-        `x${i}`,
-      );
-      const y = ifTruthyElse(invalidSolution, 1e100, validY).debug(`y${i}`);
+      const x = ifTruthyElse(invalidSolution, asNum(1e100), validX);
+      const y = ifTruthyElse(invalidSolution, 1e100, validY);
 
       return new Point(x, y);
     });
   }
 
-  private sign(point: Point): Num {
+  occupancySign(point: Point): Num {
     const r = new RowVec3(point.x, point.y, ONE);
     const c = r.transpose();
 
     const v = r.product(this._matrix).dot(c);
     return v.sign();
+  }
+
+  closestPoint(point: Point): Point {
+    const candidates = this.candidatePoints(point);
+
+    let closest = candidates[0];
+    let minDistance = closest.vecFrom(point).norm();
+
+    for (let i = 1; i < candidates.length; i++) {
+      const distance = candidates[i].vecFrom(point).norm();
+
+      closest = ifTruthyElseForPoints(
+        distance.lessThan(minDistance),
+        candidates[i],
+        closest,
+      );
+      minDistance = min(minDistance, distance);
+    }
+
+    return closest;
   }
 
   distanceToEllipse(point: Point): Num {
@@ -239,7 +260,7 @@ export class ConicProfile {
       .vecFrom(newPoint)
       .norm();
 
-    return this.sign(point).mul(distance);
+    return this.occupancySign(point).mul(distance);
   }
 
   distanceToGeneric(point: Point): Num {
@@ -249,7 +270,9 @@ export class ConicProfile {
       candidate.vecFrom(point).norm(),
     );
 
-    return min(...(distances as [Num])).mul(this.sign(point));
+    const minDistance = min(...(distances as [Num]));
+
+    return minDistance.mul(this.occupancySign(point));
   }
 
   distanceToRegular(point: Point): Num {
@@ -282,7 +305,7 @@ export class ConicProfile {
     );
 
     const minDistance = min(...(distances as [Num]));
-    return this.sign(point).mul(minDistance);
+    return this.occupancySign(point).mul(minDistance);
   }
 
   distanceTo(point: Point): Num {

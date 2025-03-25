@@ -1,7 +1,18 @@
-import { Angle, Vec2 } from "./geom";
-import { Plane, Point3D, projectPoint, UnitVec3, Vec3 } from "./geom-3d";
+import { ConicProfile } from "./conic";
+import { Angle, Vec2, ORIGIN as ORIGIN_2D } from "./geom";
+import {
+  embedPoint,
+  Plane,
+  Point3D,
+  projectPoint,
+  UnitVec3,
+  Vec3,
+  X_AXIS,
+  Z_AXIS,
+} from "./geom-3d";
 import { Num, ONE, ZERO } from "./num";
-import { hypot } from "./num-ops";
+import { hypot, ifTruthyElse } from "./num-ops";
+import { alignDirectionRotationMatrix, Transform } from "./transforms-2d";
 import { DistField, SolidDistField } from "./types";
 
 export class Sphere implements SolidDistField {
@@ -123,5 +134,53 @@ export class ConeSurface implements SolidDistField {
     const hypotPosition = pInTriangle.sub(q.scale(hypotCoord));
 
     return hypotPosition.norm();
+  }
+}
+
+function distanceToARay(point: Point3D, rayDirection: UnitVec3): Num {
+  const v = point.vecFromOrigin();
+  const projection = v.dot(rayDirection);
+  const perpendicular = v.sub(rayDirection.scale(projection));
+
+  return perpendicular.norm();
+}
+
+export class ConicFrustum implements SolidDistField {
+  constructor(
+    public readonly conic: ConicProfile,
+    public readonly height: Num,
+  ) {}
+
+  planarSlice(point: Point3D): ConicProfile {
+    const v = point.vecFromOrigin();
+    const magnitude = ifTruthyElse(v.norm(), v.norm(), ONE);
+    const normal = v.div(magnitude);
+    const rotationMatrix = alignDirectionRotationMatrix(normal, Z_AXIS);
+    const rotationAndScale = rotationMatrix.scale(magnitude.inv());
+
+    return this.conic.transform(new Transform(rotationAndScale));
+  }
+
+  valueAt(point: Point3D): Num {
+    const plane = new Plane(
+      point,
+      point.vecFromOrigin().normalize(),
+      X_AXIS.cross(Z_AXIS),
+    );
+    const slice = this.planarSlice(point);
+
+    const closestPoint = slice.closestPoint(ORIGIN_2D).debug("closestPoint");
+    const occupancySign = slice.occupancySign(ORIGIN_2D).debug("occupancySign");
+
+    const rayPoint = embedPoint(closestPoint, plane).debug("rayPoint");
+
+    const pointIsNotOrigin = point.vecFromOrigin().norm();
+    return ifTruthyElse(
+      pointIsNotOrigin,
+      distanceToARay(point, rayPoint.vecFromOrigin().normalize()).mul(
+        occupancySign,
+      ),
+      ZERO,
+    );
   }
 }

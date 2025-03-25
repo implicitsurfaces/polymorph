@@ -76,7 +76,7 @@ export const rotationAroundPointTransform = (
     .followedBy(translationTransform(p));
 };
 
-function alignDirectionRotationMatrix(
+export function alignDirectionRotationMatrix(
   fromDirection: UnitVec3,
   toDirection: UnitVec3,
 ) {

@@ -688,31 +688,63 @@ export class LineSegment extends EdgeNode {
 ///////////////////////////////////////////////////////////////////////////////
 //                               ArcFromStartTangent
 
-/*
+export interface ArcFromStartTangentData extends EdgeNodeData {
+  readonly controlPointId: NodeId;
+}
+
 export interface ArcFromStartTangentOptions extends EdgeNodeOptions {
   readonly controlPoint: Point;
 }
 
 export class ArcFromStartTangent extends EdgeNode {
   static readonly defaultName = "Arc";
-  private _controlPointId: NodeId;
 
-  constructor(doc: Document, id: NodeId, options: ArcFromStartTangentOptions) {
-    super(doc, id, options);
-    this._controlPointId = options.controlPoint.id;
+  private _data: ArcFromStartTangentData;
+
+  get data(): ArcFromStartTangentData {
+    return this._data;
+  }
+
+  constructor(doc: Document, id: NodeId, data: ArcFromStartTangentData) {
+    super(doc, id);
+    this._data = data;
+  }
+
+  static dataFromOptions(
+    doc: Document,
+    options: ArcFromStartTangentOptions,
+  ): ArcFromStartTangentData {
+    return {
+      ...EdgeNode.dataFromOptions(doc, options),
+      controlPointId: options.controlPoint.id,
+    };
+  }
+
+  static dataFromAny(d: AnyNodeData): ArcFromStartTangentData {
+    return {
+      ...EdgeNode.dataFromAny(d),
+      controlPointId: toNodeId(d, "controlPointId"),
+    };
   }
 
   get controlPoint(): Point {
-    return this.getNodeAs(this._controlPointId, Point);
+    return this.getNodeAs(this.data.controlPointId, Point);
   }
 
   set controlPoint(point: Point) {
-    this._controlPointId = point.id;
+    this._data = {
+      ...this.data,
+      controlPointId: point.id,
+    };
   }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 //                                  CCurve
+
+export interface CCurveData extends EdgeNodeData {
+  readonly controlPointId: NodeId;
+}
 
 export interface CCurveOptions extends EdgeNodeOptions {
   readonly controlPoint: Point;
@@ -720,24 +752,50 @@ export interface CCurveOptions extends EdgeNodeOptions {
 
 export class CCurve extends EdgeNode {
   static readonly defaultName = "C-Curve";
-  private _controlPointId: NodeId;
+  private _data: CCurveData;
 
-  constructor(doc: Document, id: NodeId, options: CCurveOptions) {
-    super(doc, id, options);
-    this._controlPointId = options.controlPoint.id;
+  get data(): CCurveData {
+    return this._data;
+  }
+
+  constructor(doc: Document, id: NodeId, data: CCurveData) {
+    super(doc, id);
+    this._data = data;
+  }
+
+  static dataFromOptions(doc: Document, options: CCurveOptions): CCurveData {
+    return {
+      ...EdgeNode.dataFromOptions(doc, options),
+      controlPointId: options.controlPoint.id,
+    };
+  }
+
+  static dataFromAny(d: AnyNodeData): CCurveData {
+    return {
+      ...EdgeNode.dataFromAny(d),
+      controlPointId: toNodeId(d, "controlPointId"),
+    };
   }
 
   get controlPoint(): Point {
-    return this.getNodeAs(this._controlPointId, Point);
+    return this.getNodeAs(this.data.controlPointId, Point);
   }
 
   set controlPoint(point: Point) {
-    this._controlPointId = point.id;
+    this._data = {
+      ...this.data,
+      controlPointId: point.id,
+    };
   }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 //                                  SCurve
+
+export interface SCurveData extends EdgeNodeData {
+  readonly startControlPointId: NodeId;
+  readonly endControlPointId: NodeId;
+}
 
 export interface SCurveOptions extends EdgeNodeOptions {
   readonly startControlPoint: Point;
@@ -746,35 +804,60 @@ export interface SCurveOptions extends EdgeNodeOptions {
 
 export class SCurve extends EdgeNode {
   static readonly defaultName = "S-Curve";
-  private _startControlPointId: NodeId;
-  private _endControlPointId: NodeId;
+  private _data: SCurveData;
 
-  constructor(doc: Document, id: NodeId, options: SCurveOptions) {
-    super(doc, id, options);
-    this._startControlPointId = options.startControlPoint.id;
-    this._endControlPointId = options.endControlPoint.id;
+  get data(): SCurveData {
+    return this._data;
+  }
+
+  constructor(doc: Document, id: NodeId, data: SCurveData) {
+    super(doc, id);
+    this._data = data;
+  }
+
+  static dataFromOptions(doc: Document, options: SCurveOptions): SCurveData {
+    return {
+      ...EdgeNode.dataFromOptions(doc, options),
+      startControlPointId: options.startControlPoint.id,
+      endControlPointId: options.endControlPoint.id,
+    };
+  }
+
+  static dataFromAny(d: AnyNodeData): SCurveData {
+    return {
+      ...EdgeNode.dataFromAny(d),
+      startControlPointId: toNodeId(d, "startControlPointId"),
+      endControlPointId: toNodeId(d, "endControlPointId"),
+    };
   }
 
   get startControlPoint(): Point {
-    return this.getNodeAs(this._startControlPointId, Point);
+    return this.getNodeAs(this.data.startControlPointId, Point);
   }
 
   set startControlPoint(point: Point) {
-    this._startControlPointId = point.id;
+    this._data = {
+      ...this.data,
+      startControlPointId: point.id,
+    };
   }
 
   get endControlPoint(): Point {
-    return this.getNodeAs(this._endControlPointId, Point);
+    return this.getNodeAs(this.data.startControlPointId, Point);
   }
 
   set endControlPoint(point: Point) {
-    this._endControlPointId = point.id;
+    this._data = {
+      ...this.data,
+      startControlPointId: point.id,
+    };
   }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               MeasureNode
 
+/*
 export interface MeasureNodeOptions extends NodeOptions {
   readonly isLocked?: boolean;
 }

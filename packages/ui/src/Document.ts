@@ -1829,7 +1829,7 @@ export function createTestDocument() {
     startPoint: p7,
     endPoint: p1,
   });
-  const l3 = doc.createNode(LineSegment, {
+  /*const l3 =*/ doc.createNode(LineSegment, {
     layer: layer,
     startPoint: p2,
     endPoint: p6,

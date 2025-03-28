@@ -1584,10 +1584,9 @@ export class Document {
     if (layer) {
       layer.addNode(node);
     }
-    // XXX Uncomment
-    // if (node instanceof MeasureNode) {
-    //   node.updateMeasure();
-    // }
+    if (node instanceof MeasureNode) {
+      node.updateMeasure();
+    }
     return node;
   }
 

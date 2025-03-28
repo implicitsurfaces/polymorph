@@ -141,6 +141,16 @@ export abstract class Node {
    */
   abstract get data(): NodeData;
 
+  /**
+   * Mutates the internal raw data stored in the `Node` to be the given
+   * `data`.
+   *
+   * This assumes that the given `data` is indeed of the proper derived data
+   * class, and therefore should be used with care. It it intended for use in
+   * setters of abstract Node subclasses that would otherwise not be allowed
+   * to mutate the internal data.
+   */
+  // TODO: better type-safe way to do this?
   protected abstract setData(data: NodeData): void;
 
   /**

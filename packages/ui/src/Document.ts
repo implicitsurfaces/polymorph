@@ -1242,7 +1242,7 @@ export interface AngleData extends MeasureNodeData {
 
 export interface AngleOptions extends MeasureNodeOptions {
   readonly line0: LineSegment;
-  readonly line1: Point;
+  readonly line1: LineSegment;
   readonly number?: Number;
 }
 
@@ -1499,10 +1499,7 @@ export class Document {
     const rawDoc = JSON.parse(json);
     const doc = new Document();
     doc.layers = rawDoc.layers;
-    console.log("Layers set to: ", doc.layers);
     for (const rawNode of rawDoc.nodes) {
-      console.log("Processing node:");
-      console.log(rawNode);
       const id = rawNode.id;
       const typename = rawNode.type;
       if (!(typename in NODE_REGISTRY)) {
@@ -1512,8 +1509,6 @@ export class Document {
       }
       const type = NODE_REGISTRY[typename];
       const node: Node = new type(doc, id, type.dataFromAny(rawNode.data));
-      console.log("Resulting node:");
-      console.log(node);
       doc._nodes.set(id, node);
     }
     return doc;
@@ -1728,7 +1723,6 @@ export class Document {
 ///////////////////////////////////////////////////////////////////////////////
 //                            Test Document
 
-/*
 export function createTestDocument_v0() {
   const doc = new Document();
   const layer = doc.createNode(Layer, { name: "Layer 1" });
@@ -1840,11 +1834,8 @@ export function createTestDocument_v0() {
     line0: l2,
     line1: l1,
   });
-
-  console.log(doc);
   return doc;
 }
-*/
 
 export function createTestDocument() {
   const doc = new Document();
@@ -1979,11 +1970,7 @@ export function createTestDocument() {
     point: cp3,
   });
 
-  console.log(doc);
-  console.log(doc.toJSON());
-
+  // Test JSON round-trip
   const json = doc.toJSON();
-
-  const doc2 = Document.fromJSON(json);
-  return doc2;
+  return Document.fromJSON(json);
 }

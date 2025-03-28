@@ -279,7 +279,7 @@ type NodeConstructor<T, Data> = new (
 /**
  * The static variables and methods that any concrete node type must implement.
  */
-type NodeStatics<Options, Data> = {
+type NodeStatics<Data, Options> = {
   /**
    * The unique name of the node type that can be used as key.
    *
@@ -317,8 +317,8 @@ type AnyNodeType = NodeConstructor<Node, any> & NodeStatics<NodeData, any>;
 /**
  * Stores meta-information about a concrete node type.
  */
-type NodeType<T, Options, Data> = NodeConstructor<T, Data> &
-  NodeStatics<Options, Data>;
+type NodeType<T, Data, Options> = NodeConstructor<T, Data> &
+  NodeStatics<Data, Options>;
 
 const NODE_REGISTRY: Record<string, AnyNodeType> = {};
 
@@ -348,12 +348,12 @@ type AbstractNodeType<T> = abstract new (
  */
 function getOrCreate<
   T extends Node,
-  Options extends NodeOptions,
   Data extends NodeData,
+  Options extends NodeOptions,
 >(
   doc: Document,
   node: T | undefined,
-  type: NodeType<T, Options, Data>,
+  type: NodeType<T, Data, Options>,
   options: Options,
 ): T {
   if (node) {
@@ -373,12 +373,12 @@ function getOrCreate<
  */
 function getOrCreateId<
   T extends Node,
-  Options extends NodeOptions,
   Data extends NodeData,
+  Options extends NodeOptions,
 >(
   doc: Document,
   node: T | undefined,
-  type: NodeType<T, Options, Data>,
+  type: NodeType<T, Data, Options>,
   options: Options,
 ): NodeId {
   return getOrCreate(doc, node, type, options).id;
@@ -430,6 +430,38 @@ function asBoolean(data: AnyNodeData, property: string): boolean {
   } else {
     throw Error(
       `Missing boolean property "${property}" in the given data (=${data}).`,
+    );
+  }
+}
+
+/**
+ * This helper function checks that the given `property` exists in the
+ * given `data` and that it is of type string array.
+ *
+ * If it does, then this function returns the array as `NodeId[]`.
+ *
+ * Otherwise, this function throws.
+ */
+function asNodeIdArray(data: AnyNodeData, property: string): NodeId[] {
+  if (property in data) {
+    const a = data[property];
+    if (Array.isArray(a)) {
+      for (const id of a) {
+        if (typeof id != "string") {
+          throw Error(
+            `Found non-ID value in property "${property}" in the given data (=${data}).`,
+          );
+        }
+      }
+      return a;
+    } else {
+      throw Error(
+        `Property "${property}" is not of type array of IDs in the given data (=${data}).`,
+      );
+    }
+  } else {
+    throw Error(
+      `Missing array of IDs property "${property}" in the given data (=${data}).`,
     );
   }
 }
@@ -672,8 +704,8 @@ export abstract class EdgeNode extends SkeletonNode {
   static dataFromAny(d: AnyNodeData): EdgeNodeData {
     return {
       ...SkeletonNode.dataFromAny(d),
-      startPointId: asNodeId(d, "startPoint"),
-      endPointId: asNodeId(d, "endPoint"),
+      startPointId: asNodeId(d, "startPointId"),
+      endPointId: asNodeId(d, "endPointId"),
     };
   }
 
@@ -743,6 +775,8 @@ export class LineSegment extends EdgeNode {
   }
 }
 
+registerNode(LineSegment);
+
 ///////////////////////////////////////////////////////////////////////////////
 //                               ArcFromStartTangent
 
@@ -801,6 +835,8 @@ export class ArcFromStartTangent extends EdgeNode {
   }
 }
 
+registerNode(ArcFromStartTangent);
+
 ///////////////////////////////////////////////////////////////////////////////
 //                                  CCurve
 
@@ -855,6 +891,8 @@ export class CCurve extends EdgeNode {
     };
   }
 }
+
+registerNode(CCurve);
 
 ///////////////////////////////////////////////////////////////////////////////
 //                                  SCurve
@@ -925,6 +963,8 @@ export class SCurve extends EdgeNode {
     };
   }
 }
+
+registerNode(SCurve);
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               MeasureNode
@@ -1029,8 +1069,8 @@ export class PointToPointDistance extends MeasureNode {
   static dataFromAny(d: AnyNodeData): PointToPointDistanceData {
     return {
       ...MeasureNode.dataFromAny(d),
-      startPointId: asNodeId(d, "startControlPointId"),
-      endPointId: asNodeId(d, "endControlPointId"),
+      startPointId: asNodeId(d, "startPointId"),
+      endPointId: asNodeId(d, "endPointId"),
       numberId: asNodeId(d, "numberId"),
     };
   }
@@ -1074,6 +1114,8 @@ export class PointToPointDistance extends MeasureNode {
     this.number.value = startPosition.distanceTo(endPosition);
   }
 }
+
+registerNode(PointToPointDistance);
 
 ///////////////////////////////////////////////////////////////////////////////
 //                            LineToPointDistance
@@ -1186,6 +1228,8 @@ export class LineToPointDistance extends MeasureNode {
     this.number.value = distance;
   }
 }
+
+registerNode(LineToPointDistance);
 
 ///////////////////////////////////////////////////////////////////////////////
 //                            Angle
@@ -1308,6 +1352,8 @@ export class Angle extends MeasureNode {
   }
 }
 
+registerNode(Angle);
+
 ///////////////////////////////////////////////////////////////////////////////
 //                               Layer
 
@@ -1345,17 +1391,9 @@ export class Layer extends Node {
   }
 
   static dataFromAny(d: AnyNodeData): LayerData {
-    const nodeIds: NodeId[] = [];
-    if (Array.isArray(d.nodes)) {
-      for (const node of d.nodes) {
-        if (node instanceof Node) {
-          nodeIds.push(node.id);
-        }
-      }
-    }
     return {
       ...Node.dataFromAny(d),
-      nodeIds: nodeIds,
+      nodeIds: asNodeIdArray(d, "nodeIds"),
     };
   }
 
@@ -1383,6 +1421,8 @@ export class Layer extends Node {
     };
   }
 }
+
+registerNode(Layer);
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               Util
@@ -1459,10 +1499,21 @@ export class Document {
     const rawDoc = JSON.parse(json);
     const doc = new Document();
     doc.layers = rawDoc.layers;
+    console.log("Layers set to: ", doc.layers);
     for (const rawNode of rawDoc.nodes) {
+      console.log("Processing node:");
+      console.log(rawNode);
       const id = rawNode.id;
-      const type = NODE_REGISTRY[rawNode.type];
+      const typename = rawNode.type;
+      if (!(typename in NODE_REGISTRY)) {
+        throw Error(
+          `Cannot parse Document from JSON: unknown node type ${typename}.`,
+        );
+      }
+      const type = NODE_REGISTRY[typename];
       const node: Node = new type(doc, id, type.dataFromAny(rawNode.data));
+      console.log("Resulting node:");
+      console.log(node);
       doc._nodes.set(id, node);
     }
     return doc;
@@ -1563,9 +1614,9 @@ export class Document {
    */
   createNode<
     T extends Node,
-    Options extends NodeOptions,
     Data extends NodeData,
-  >(type: NodeType<T, Options, Data>, options: Options): T {
+    Options extends NodeOptions,
+  >(type: NodeType<T, Data, Options>, options: Options): T {
     const id = generateNodeId();
     let layer: undefined | Layer = undefined;
     if (options.layer instanceof Layer) {

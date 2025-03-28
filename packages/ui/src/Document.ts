@@ -915,13 +915,13 @@ export class SCurve extends EdgeNode {
   }
 
   get endControlPoint(): Point {
-    return this.getNodeAs(this.data.startControlPointId, Point);
+    return this.getNodeAs(this.data.endControlPointId, Point);
   }
 
   set endControlPoint(point: Point) {
     this._data = {
       ...this.data,
-      startControlPointId: point.id,
+      endControlPointId: point.id,
     };
   }
 }

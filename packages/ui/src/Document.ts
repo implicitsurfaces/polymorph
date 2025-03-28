@@ -378,6 +378,26 @@ function getOrCreateId<
   return getOrCreate(doc, node, type, options).id;
 }
 
+/**
+ * This helper function converts the given unknown variable to a `NodeId` if possible, and otherwise throws.
+ */
+function toNodeId(data: AnyNodeData, property: string): NodeId {
+  if (property in data) {
+    const id = data[property];
+    if (typeof id === "string") {
+      return id;
+    } else {
+      throw Error(
+        `ID property "${property}" is not of type string in the given data (=${data}).`,
+      );
+    }
+  } else {
+    throw Error(
+      `Missing ID property "${property}" in the given data (=${data}).`,
+    );
+  }
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 //                               Number
 
@@ -401,10 +421,6 @@ export class Number extends Node {
   constructor(doc: Document, id: NodeId, data: NumberData) {
     super(doc, id);
     this._data = data;
-  }
-
-  clone(newDoc: Document) {
-    return new Number(newDoc, this.id, this._data);
   }
 
   static dataFromOptions(doc: Document, options: NumberOptions): NumberData {
@@ -535,8 +551,8 @@ export class Point extends SkeletonNode {
   static dataFromAny(d: AnyNodeData): PointData {
     return {
       ...SkeletonNode.dataFromAny(d),
-      xId: typeof d.xId === "string" ? d.xId : "", // XXX: throw instead of ""?
-      yId: typeof d.yId === "string" ? d.yId : "",
+      xId: toNodeId(d, "xId"),
+      yId: toNodeId(d, "yId"),
     };
   }
 
@@ -605,10 +621,11 @@ export abstract class EdgeNode extends SkeletonNode {
     };
   }
 
-  static dataFromAny(d: AnyNodeData): SkeletonNodeData {
+  static dataFromAny(d: AnyNodeData): EdgeNodeData {
     return {
-      ...Node.dataFromAny(d),
-      role: isSkeletonRole(d.role) ? d.role : "shape",
+      ...SkeletonNode.dataFromAny(d),
+      startPointId: toNodeId(d, "startPoint"),
+      endPointId: toNodeId(d, "endPoint"),
     };
   }
 
@@ -617,7 +634,7 @@ export abstract class EdgeNode extends SkeletonNode {
   }
 
   // set startPoint(point: Point) {
-  //   // XXX: How to do this?
+  //   // TODO
   // }
 
   get endPoint(): Point {
@@ -625,13 +642,15 @@ export abstract class EdgeNode extends SkeletonNode {
   }
 
   // set endPoint(point: Point) {
-  //   // XXX: How to do this?
+  //   // TODO
   // }
 }
 
-/*
 ///////////////////////////////////////////////////////////////////////////////
 //                               LineSegment
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface LineSegmentData extends EdgeNodeData {}
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface LineSegmentOptions extends EdgeNodeOptions {}
@@ -639,18 +658,37 @@ export interface LineSegmentOptions extends EdgeNodeOptions {}
 export class LineSegment extends EdgeNode {
   static readonly defaultName = "Line Segment";
 
-  constructor(doc: Document, id: NodeId, options: LineSegmentOptions) {
-    super(doc, id, options);
+  private _data: LineSegmentData;
+
+  get data(): LineSegmentData {
+    return this._data;
   }
 
-  clone(newDoc: Document) {
-    return new LineSegment(newDoc, this.id, this);
+  constructor(doc: Document, id: NodeId, data: LineSegmentData) {
+    super(doc, id);
+    this._data = data;
+  }
+
+  static dataFromOptions(
+    doc: Document,
+    options: LineSegmentOptions,
+  ): LineSegmentData {
+    return {
+      ...EdgeNode.dataFromOptions(doc, options),
+    };
+  }
+
+  static dataFromAny(d: AnyNodeData): LineSegmentData {
+    return {
+      ...EdgeNode.dataFromAny(d),
+    };
   }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               ArcFromStartTangent
 
+/*
 export interface ArcFromStartTangentOptions extends EdgeNodeOptions {
   readonly controlPoint: Point;
 }
@@ -662,10 +700,6 @@ export class ArcFromStartTangent extends EdgeNode {
   constructor(doc: Document, id: NodeId, options: ArcFromStartTangentOptions) {
     super(doc, id, options);
     this._controlPointId = options.controlPoint.id;
-  }
-
-  clone(newDoc: Document) {
-    return new ArcFromStartTangent(newDoc, this.id, this);
   }
 
   get controlPoint(): Point {
@@ -691,10 +725,6 @@ export class CCurve extends EdgeNode {
   constructor(doc: Document, id: NodeId, options: CCurveOptions) {
     super(doc, id, options);
     this._controlPointId = options.controlPoint.id;
-  }
-
-  clone(newDoc: Document) {
-    return new CCurve(newDoc, this.id, this);
   }
 
   get controlPoint(): Point {
@@ -723,10 +753,6 @@ export class SCurve extends EdgeNode {
     super(doc, id, options);
     this._startControlPointId = options.startControlPoint.id;
     this._endControlPointId = options.endControlPoint.id;
-  }
-
-  clone(newDoc: Document) {
-    return new SCurve(newDoc, this.id, this);
   }
 
   get startControlPoint(): Point {
@@ -791,10 +817,6 @@ export class PointToPointDistance extends MeasureNode {
     });
   }
 
-  clone(newDoc: Document) {
-    return new PointToPointDistance(newDoc, this.id, this);
-  }
-
   get startPoint(): Point {
     return this.getNodeAs(this._startPointId, Point);
   }
@@ -849,10 +871,6 @@ export class LineToPointDistance extends MeasureNode {
       layer: options.layer,
       value: 0,
     });
-  }
-
-  clone(newDoc: Document) {
-    return new LineToPointDistance(newDoc, this.id, this);
   }
 
   get line(): LineSegment {
@@ -923,10 +941,6 @@ export class Angle extends MeasureNode {
       layer: options.layer,
       value: 90,
     });
-  }
-
-  clone(newDoc: Document) {
-    return new Angle(newDoc, this.id, this);
   }
 
   get line0(): LineSegment {
@@ -1006,19 +1020,6 @@ export class Layer extends Node {
   get data(): LayerData {
     return this._data;
   }
-
-  /*
-    nodes: NodeId[];
-  
-    constructor(doc: Document, id: NodeId, options: LayerOptions) {
-      super(doc, id, options);
-      this.nodes = options.nodes ? [...options.nodes] : [];
-    }
-  
-    clone(newDoc: Document) {
-      return new Layer(newDoc, this.id, this);
-    }
-    */
 
   constructor(doc: Document, id: NodeId, data: LayerData) {
     super(doc, id);

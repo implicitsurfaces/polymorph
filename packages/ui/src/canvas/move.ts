@@ -35,13 +35,12 @@ function computeIncidentEdges(
     if (!layer) {
       continue;
     }
-    for (const nodeId of layer.nodes) {
-      const edge = doc.getNode(nodeId, EdgeNode);
-      if (!edge) {
-        continue;
-      }
-      if (points.has(edge.startPoint) || points.has(edge.endPoint)) {
-        edges.add(edge);
+    for (const node of layer.nodes) {
+      if (node instanceof EdgeNode) {
+        const edge = node;
+        if (points.has(edge.startPoint) || points.has(edge.endPoint)) {
+          edges.add(edge);
+        }
       }
     }
   }

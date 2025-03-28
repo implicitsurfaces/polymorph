@@ -90,6 +90,13 @@ export class Angle {
   asVec(): UnitVec2 {
     return new UnitVec2(this._cos, this._sin);
   }
+
+  debug(info: string): Angle {
+    return new Angle(
+      this._cos.debug(`${info}.cos`),
+      this._sin.debug(`${info}.sin`),
+    );
+  }
 }
 
 export function angleRromRad(rad: Num | number): Angle {
@@ -218,6 +225,10 @@ export class Vec2 {
   pointFromOrigin(): Point {
     return new Point(this._x, this._y);
   }
+
+  debug(info: string): Vec2 {
+    return new Vec2(this._x.debug(`${info}.x`), this._y.debug(`${info}.y`));
+  }
 }
 
 export class UnitVec2 extends Vec2 {
@@ -254,6 +265,10 @@ export class UnitVec2 extends Vec2 {
       angle.cos().mul(this._x).sub(angle.sin().mul(this._y)),
       angle.sin().mul(this._x).add(angle.cos().mul(this._y)),
     );
+  }
+
+  debug(info: string): UnitVec2 {
+    return new UnitVec2(this._x.debug(`${info}.x`), this._y.debug(`${info}.y`));
   }
 }
 
@@ -296,6 +311,10 @@ export class Point {
 
   get y(): Num {
     return this._y;
+  }
+
+  debug(info: string): Point {
+    return new Point(this._x.debug(`${info}.x`), this._y.debug(`${info}.y`));
   }
 }
 
@@ -348,4 +367,37 @@ export class SolidAngle {
 
 export function solidAngleFromAngle(angle: Angle): SolidAngle {
   return new SolidAngle(0).addAngle(angle);
+}
+
+export function ifTruthyElseForAngles(
+  condition: Num,
+  ifTrue: Angle,
+  ifFalse: Angle,
+) {
+  return new Angle(
+    ifTruthyElse(condition, ifTrue.cos(), ifFalse.cos()),
+    ifTruthyElse(condition, ifTrue.sin(), ifFalse.sin()),
+  );
+}
+
+export function ifTruthyElseForPoints(
+  condition: Num,
+  ifTrue: Point,
+  ifFalse: Point,
+) {
+  return new Point(
+    ifTruthyElse(condition, ifTrue.x, ifFalse.x),
+    ifTruthyElse(condition, ifTrue.y, ifFalse.y),
+  );
+}
+
+export function ifTruthyElseForVec2s(
+  condition: Num,
+  ifTrue: Vec2,
+  ifFalse: Vec2,
+) {
+  return new Vec2(
+    ifTruthyElse(condition, ifTrue.x, ifFalse.x),
+    ifTruthyElse(condition, ifTrue.y, ifFalse.y),
+  );
 }

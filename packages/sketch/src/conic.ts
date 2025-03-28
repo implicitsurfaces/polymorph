@@ -1,4 +1,4 @@
-import { Angle, Point, Vec2 } from "./geom";
+import { Angle, ifTruthyElseForPoints, Point, Vec2 } from "./geom";
 import {
   closestPointOnEllipse,
   ellipseQuarticFactors,
@@ -29,7 +29,7 @@ const Q_MAT = new Matrix3x3(
   NEG_ONE,
 );
 
-export class Conic {
+export class ConicProfile {
   private readonly _matrix: Matrix3x3;
   private readonly _subMatrix: Matrix2x2;
 
@@ -47,6 +47,10 @@ export class Conic {
       this._matrix.x21,
       this._matrix.x22,
     );
+  }
+
+  transform(transform: Transform): ConicProfile {
+    return new ConicProfile(this.transformation.precededBy(transform));
   }
 
   get pointTransform() {
@@ -98,10 +102,10 @@ export class Conic {
 
   private candidatePoints(point: Point): Point[] {
     const a = this._matrix.x11;
-    const b = this._matrix.x12.mul(4);
+    const b = this._matrix.x12;
     const c = this._matrix.x22;
-    const d = this._matrix.x13.mul(4);
-    const e = this._matrix.x23.mul(4);
+    const d = this._matrix.x13;
+    const e = this._matrix.x23;
     const f = this._matrix.x33;
 
     const x0 = point.x;
@@ -189,48 +193,63 @@ export class Conic {
 
     const aPlusC = a.add(c);
     const acMinusBSquared = a.mul(c).sub(b.square());
-    const qx = b.mul(e).sub(c.mul(d)).div(acMinusBSquared);
-    const rx0 = x0.sub(qx);
-    const rx1 = c.mul(x0).sub(d).sub(b.mul(y0)).sub(qx.mul(aPlusC));
 
-    const qy = b.mul(d).sub(a.mul(e));
-    const ry0 = y0.sub(qy);
-    const ry1 = a.mul(y0).sub(e).sub(b.mul(x0)).sub(qy.mul(aPlusC));
     const ldet = a.sub(c).square().add(b.mul(b).mul(4)).sqrt();
     const d0 = aPlusC.add(ldet).div(2).div(acMinusBSquared).neg();
     const d1 = aPlusC.sub(ldet).div(2).div(acMinusBSquared).neg();
+
+    const rx0b = c.mul(x0).sub(d.add(b.mul(y0)));
+    const rx1b = b.mul(e).sub(c.mul(d));
+
+    const ry0b = a.mul(y0).sub(e.add(b.mul(x0)));
+    const ry1b = b.mul(d).sub(a.mul(e));
 
     return lamba.map((l) => {
       const ld0 = l.sub(d0);
       const ld1 = l.sub(d1);
       const denom = ld0.mul(ld1).mul(acMinusBSquared);
 
+      const validX = x0.add(l.mul(rx0b.add(l.mul(rx1b)))).div(denom);
+      const validY = y0.add(l.mul(ry0b.add(l.mul(ry1b)))).div(denom);
+
       const invalidSolution = ld0
         .abs()
         .lessThan(1e-15)
         .or(ld1.abs().lessThan(1e-15));
 
-      const x = ifTruthyElse(
-        invalidSolution,
-        asNum(1e100),
-        qx.add(rx0.add(l.mul(rx1)).div(denom)),
-      );
-      const y = ifTruthyElse(
-        invalidSolution,
-        1e100,
-        qy.add(ry0.add(l.mul(ry1)).div(denom)),
-      );
+      const x = ifTruthyElse(invalidSolution, asNum(1e100), validX);
+      const y = ifTruthyElse(invalidSolution, 1e100, validY);
 
       return new Point(x, y);
     });
   }
 
-  private sign(point: Point): Num {
+  occupancySign(point: Point): Num {
     const r = new RowVec3(point.x, point.y, ONE);
     const c = r.transpose();
 
     const v = r.product(this._matrix).dot(c);
     return v.sign();
+  }
+
+  closestPoint(point: Point): Point {
+    const candidates = this.candidatePoints(point);
+
+    let closest = candidates[0];
+    let minDistance = closest.vecFrom(point).norm();
+
+    for (let i = 1; i < candidates.length; i++) {
+      const distance = candidates[i].vecFrom(point).norm();
+
+      closest = ifTruthyElseForPoints(
+        distance.lessThan(minDistance),
+        candidates[i],
+        closest,
+      );
+      minDistance = min(minDistance, distance);
+    }
+
+    return closest;
   }
 
   distanceToEllipse(point: Point): Num {
@@ -241,7 +260,7 @@ export class Conic {
       .vecFrom(newPoint)
       .norm();
 
-    return this.sign(point).mul(distance);
+    return this.occupancySign(point).mul(distance);
   }
 
   distanceToGeneric(point: Point): Num {
@@ -251,7 +270,9 @@ export class Conic {
       candidate.vecFrom(point).norm(),
     );
 
-    return min(...(distances as [Num])).mul(this.sign(point));
+    const minDistance = min(...(distances as [Num]));
+
+    return minDistance.mul(this.occupancySign(point));
   }
 
   distanceToRegular(point: Point): Num {
@@ -284,7 +305,7 @@ export class Conic {
     );
 
     const minDistance = min(...(distances as [Num]));
-    return this.sign(point).mul(minDistance);
+    return this.occupancySign(point).mul(minDistance);
   }
 
   distanceTo(point: Point): Num {
@@ -305,20 +326,25 @@ const hyperbolaProjection = (minorRadius: Num) =>
     ZERO,
   );
 
-export function circleConic(radius: Num): Conic {
-  return new Conic(scalingTransform(radius, radius).reverse());
+export function circleConic(radius: Num): ConicProfile {
+  return new ConicProfile(scalingTransform(radius, radius).reverse());
 }
 
-export function hyperbolaConic(majorRadius: Num, minorRadius: Num): Conic {
-  return new Conic(
+export function hyperbolaConic(
+  majorRadius: Num,
+  minorRadius: Num,
+): ConicProfile {
+  return new ConicProfile(
     scalingTransform(majorRadius, minorRadius)
       .reverse()
       .compose(hyperbolaProjection(minorRadius).reverse()),
   );
 }
 
-export function ellipseConic(majorRadius: Num, minorRadius: Num): Conic {
-  return new Conic(scalingTransform(majorRadius, minorRadius).reverse());
+export function ellipseConic(majorRadius: Num, minorRadius: Num): ConicProfile {
+  return new ConicProfile(
+    scalingTransform(majorRadius.inv(), minorRadius.inv()),
+  );
 }
 
 export function genericEllipseConic(
@@ -327,7 +353,7 @@ export function genericEllipseConic(
   rotationAngle: Angle,
   center: Point,
 ) {
-  return new Conic(
+  return new ConicProfile(
     scalingTransform(majorRadius, minorRadius)
       .reverse()
       .compose(rotationTransform(rotationAngle.neg()))
@@ -349,5 +375,5 @@ export function randomConic(seed: Num | number) {
     rand(),
   );
 
-  return new Conic(trans);
+  return new ConicProfile(trans);
 }

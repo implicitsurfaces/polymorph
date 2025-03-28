@@ -38,12 +38,22 @@ function drawDocument(
     if (layer) {
       // Note: we use two passes since we want to draw all points on top of
       // edges, regardless of layer order.
-      drawEdges(ctx, camera, doc.getNodes(layer.nodes, EdgeNode), selection);
-      drawPoints(ctx, camera, doc.getNodes(layer.nodes, Point), selection);
+      drawEdges(
+        ctx,
+        camera,
+        doc.getNodes(layer.data.nodeIds, EdgeNode),
+        selection,
+      );
+      drawPoints(
+        ctx,
+        camera,
+        doc.getNodes(layer.data.nodeIds, Point),
+        selection,
+      );
       drawMeasures(
         ctx,
         camera,
-        doc.getNodes(layer.nodes, MeasureNode),
+        doc.getNodes(layer.data.nodeIds, MeasureNode),
         selection,
       );
     }

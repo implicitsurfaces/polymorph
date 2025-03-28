@@ -21,11 +21,11 @@ export function solveQuadratic(
   const sc0 = c0.div(c2);
 
   const discriminant = expandedZero(
-    sc1.square().sub(sc0.mul(4)).debug("discriminant"),
+    sc1.square().sub(sc0.mul(4)),
     EPS_M.mul(c1.square()),
-  ).debug("discriminant 2");
+  );
 
-  const noSolution = discriminant.lessThan(ZERO).and(c2).debug("noSolution");
+  const noSolution = discriminant.lessThan(ZERO).and(c2);
 
   const bNeg = sc1.neg();
   const discSqrt = discriminant.safeSqrt();

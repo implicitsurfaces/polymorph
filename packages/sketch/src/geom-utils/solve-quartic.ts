@@ -234,7 +234,7 @@ export function solveQuartic(
     b,
     c,
     d,
-    1, // This means that we are not using newton iterations. I keep the code around
+    1, // This means that we are not using only one newton iterations.
   );
   const solutions = doubleQuadraticSolutions(
     alpha1,

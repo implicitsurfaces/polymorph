@@ -39,9 +39,8 @@ export function NodeListPanel({
       return <></>;
     }
     const filteredNodes = [];
-    for (const id of activeLayer.nodes) {
-      const node = doc.getNode(id);
-      if (node && filter(node)) {
+    for (const node of activeLayer.nodes) {
+      if (filter(node)) {
         filteredNodes.push(node);
       }
     }

@@ -1446,7 +1446,9 @@ export class Document {
   toJSON(): string {
     return JSON.stringify({
       layers: this.layers,
-      nodes: Array.from(this._nodes.values()),
+      nodes: Array.from(this._nodes.values()).map((node) => {
+        return { type: node.type, id: node.id, data: node.data };
+      }),
     });
   }
 
@@ -1460,7 +1462,7 @@ export class Document {
     for (const rawNode of rawDoc.nodes) {
       const id = rawNode.id;
       const type = NODE_REGISTRY[rawNode.type];
-      const node: Node = new type(doc, id, type.dataFromAny(rawNode));
+      const node: Node = new type(doc, id, type.dataFromAny(rawNode.data));
       doc._nodes.set(id, node);
     }
     return doc;
@@ -1927,5 +1929,10 @@ export function createTestDocument() {
   });
 
   console.log(doc);
-  return doc;
+  console.log(doc.toJSON());
+
+  const json = doc.toJSON();
+
+  const doc2 = Document.fromJSON(json);
+  return doc2;
 }

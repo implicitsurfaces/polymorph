@@ -118,8 +118,12 @@ export abstract class Node {
     readonly id: NodeId,
   ) {}
 
-  clone(newDoc: Document) {
-    return this.constructor(newDoc, this.id, this.data);
+  clone(newDoc: Document): Node {
+    return new (this.constructor as NodeConstructor<Node, NodeData>)(
+      newDoc,
+      this.id,
+      this.data,
+    );
   }
 
   /**
@@ -136,6 +140,8 @@ export abstract class Node {
    * `Node` subclass to store its data with its more specific type.
    */
   abstract get data(): NodeData;
+
+  protected abstract setData(data: NodeData): void;
 
   /**
    * Converts convenient (and possibly optional) parameters into immutable
@@ -448,6 +454,10 @@ export class Number extends Node {
     return this._data;
   }
 
+  setData(data: NumberData) {
+    this._data = data;
+  }
+
   constructor(doc: Document, id: NodeId, data: NumberData) {
     super(doc, id);
     this._data = data;
@@ -521,6 +531,10 @@ export abstract class SkeletonNode extends Node {
       role: isSkeletonRole(d.role) ? d.role : "shape",
     };
   }
+
+  get role(): SkeletonRole {
+    return this.data.role;
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -554,6 +568,10 @@ export class Point extends SkeletonNode {
 
   get data(): PointData {
     return this._data;
+  }
+
+  setData(data: PointData) {
+    this._data = data;
   }
 
   constructor(doc: Document, id: NodeId, data: PointData) {
@@ -663,17 +681,23 @@ export abstract class EdgeNode extends SkeletonNode {
     return this.getNodeAs(this.data.startPointId, Point);
   }
 
-  // set startPoint(point: Point) {
-  //   // TODO
-  // }
+  set startPoint(point: Point) {
+    this.setData({
+      ...this.data,
+      startPointId: point.id,
+    });
+  }
 
   get endPoint(): Point {
     return this.getNodeAs(this.data.endPointId, Point);
   }
 
-  // set endPoint(point: Point) {
-  //   // TODO
-  // }
+  set endPoint(point: Point) {
+    this.setData({
+      ...this.data,
+      endPointId: point.id,
+    });
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -692,6 +716,10 @@ export class LineSegment extends EdgeNode {
 
   get data(): LineSegmentData {
     return this._data;
+  }
+
+  setData(data: LineSegmentData) {
+    this._data = data;
   }
 
   constructor(doc: Document, id: NodeId, data: LineSegmentData) {
@@ -733,6 +761,10 @@ export class ArcFromStartTangent extends EdgeNode {
 
   get data(): ArcFromStartTangentData {
     return this._data;
+  }
+
+  setData(data: ArcFromStartTangentData) {
+    this._data = data;
   }
 
   constructor(doc: Document, id: NodeId, data: ArcFromStartTangentData) {
@@ -789,6 +821,10 @@ export class CCurve extends EdgeNode {
     return this._data;
   }
 
+  setData(data: CCurveData) {
+    this._data = data;
+  }
+
   constructor(doc: Document, id: NodeId, data: CCurveData) {
     super(doc, id);
     this._data = data;
@@ -840,6 +876,10 @@ export class SCurve extends EdgeNode {
 
   get data(): SCurveData {
     return this._data;
+  }
+
+  setData(data: SCurveData) {
+    this._data = data;
   }
 
   constructor(doc: Document, id: NodeId, data: SCurveData) {
@@ -929,9 +969,12 @@ export abstract class MeasureNode extends Node {
     return this.data.isLocked;
   }
 
-  // set isLocked(locked: boolean) {
-  //   // TODO
-  // }
+  set isLocked(locked: boolean) {
+    this.setData({
+      ...this.data,
+      isLocked: locked,
+    });
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -956,6 +999,10 @@ export class PointToPointDistance extends MeasureNode {
 
   get data(): PointToPointDistanceData {
     return this._data;
+  }
+
+  setData(data: PointToPointDistanceData) {
+    this._data = data;
   }
 
   constructor(doc: Document, id: NodeId, data: PointToPointDistanceData) {
@@ -1050,6 +1097,10 @@ export class LineToPointDistance extends MeasureNode {
 
   get data(): LineToPointDistanceData {
     return this._data;
+  }
+
+  setData(data: LineToPointDistanceData) {
+    this._data = data;
   }
 
   constructor(doc: Document, id: NodeId, data: LineToPointDistanceData) {
@@ -1158,6 +1209,10 @@ export class Angle extends MeasureNode {
 
   get data(): AngleData {
     return this._data;
+  }
+
+  setData(data: AngleData) {
+    this._data = data;
   }
 
   constructor(doc: Document, id: NodeId, data: AngleData) {
@@ -1271,6 +1326,10 @@ export class Layer extends Node {
 
   get data(): LayerData {
     return this._data;
+  }
+
+  setData(data: LayerData) {
+    this._data = data;
   }
 
   constructor(doc: Document, id: NodeId, data: LayerData) {
@@ -1460,7 +1519,10 @@ export class Document {
   /**
    * Returns an array of nodes corresponding to the given array of `ids`.
    */
-  getNodes<T extends Node>(ids: NodeId[], type?: AbstractNodeType<T>): T[] {
+  getNodes<T extends Node>(
+    ids: readonly NodeId[],
+    type?: AbstractNodeType<T>,
+  ): T[] {
     const res: T[] = [];
     for (const id of ids) {
       const node = this.getNode(id, type);

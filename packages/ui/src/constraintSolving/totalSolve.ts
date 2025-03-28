@@ -95,7 +95,6 @@ function angle(
   return final;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function lpDist(lp1x, lp1y, lp2x, lp2y, px, py, dist) {
   const top = `sqrt( ((${lp2y} - ${lp1y})*${px} - (${lp2x} - ${lp1x})*${py} + ${lp2x} * ${lp1y} - ${lp2y} * ${lp1x})^2)`;
   const bottom = `sqrt( (${lp2x} - ${lp1x})^2 + (${lp2y}-${lp1y})^2 )`;

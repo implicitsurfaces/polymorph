@@ -11,6 +11,9 @@ export function logDocumentError(message: string) {
 ///////////////////////////////////////////////////////////////////////////////
 //                             Base types
 
+/**
+ * Stores a unique ID of a given `Node` in a given `Document`.
+ */
 export type NodeId = string;
 
 // Note: We want the IDs to start with underscore and then only contain
@@ -22,39 +25,222 @@ function generateNodeId(): NodeId {
   return `_${generateShortUuId()}`;
 }
 
+/**
+ * Type of any `NodeData` property's value. This is essentially the same as a
+ * parsed JSON value.
+ */
+export type AnyNodeDataValue =
+  | string
+  | number
+  | boolean
+  | null // [1]
+  | readonly AnyNodeDataValue[]
+  | AnyNodeData;
+
+// [1] Unfortunately, we need to use `null` and not `undefined` for
+// compatiblity with parsed JSON.
+//
+// This makes optional chaining uglier, for example `id = node?.id ?? null`
+// instead of just `id = node?.id`, but it seems like a necessary evil.
+
+/**
+ * Type of any `NodeData`. This is essentially the same as a parsed JSON
+ * object.
+ */
+export type AnyNodeData = { readonly [property: string]: AnyNodeDataValue };
+
+// Note: we want node data to be immutable, and therefore arrays SHOULD be
+// typed as `readonly T[]`:
+//
+// ```
+// export interface CustomNodeData extends NodeData {
+//   readonly nodeIds: readonly NodeId[];
+// }
+// ```
+//
+// This is why we need `readonly` in the `AnyNodeData` and `AnyNodeDataValue`
+// type definitions, otherwise the snippet above would produce an error, because
+// `readonly T[]` cannot be assigned to type `T[]`.
+//
+// Unfortunately, the following currently does not produce an error, but you
+// SHOULD NOT do it:
+//
+// ```
+// export interface CustomNodeData extends NodeData {
+//   readonly nodeIds: NodeId[];
+// }
+// ```
+//
+// If the future we find a way to make the above an error, we will.
+//
+// The reason it does not currently produce an error is that `T[]` can be
+// assigned to type `readonly T[]`, and therefore the type `{ foo: T
+// [] }` does extend `{ foo: readonly T[]; }`.
+
+/**
+ * Data shared by all `Node` subclasses.
+ *
+ * This class extends `AnyNodeData` to enforce that any of its subclasses is
+ * JSON-like. For example, the following is an error:
+ *
+ * ```
+ * export interface CustomNodeData extends NodeData {
+ *   readonly otherNode: Node;
+ * }
+ * ```
+ *
+ * Error message:
+ *
+ * ```
+ * Property 'otherNode' of type 'Node' is not assignable to 'string' index
+ * type 'AnyNodeDataValue'.
+ * ```
+ */
+export interface NodeData extends AnyNodeData {
+  readonly name: string;
+  readonly layerId: NodeId | null;
+}
+
+/**
+ * Options shared by all `Node` subclasses.
+ */
 export interface NodeOptions {
   readonly name?: string;
   readonly layer?: Layer;
 }
 
+/**
+ * Abstract base class for all node types in a `Document`.
+ */
 export abstract class Node {
-  readonly doc: Document;
-  readonly id: NodeId;
+  constructor(
+    readonly doc: Document,
+    readonly id: NodeId,
+  ) {}
 
-  private _layerId: NodeId | undefined;
-
-  name: string;
-
-  constructor(doc: Document, id: NodeId, options: NodeOptions) {
-    this.doc = doc;
-    this.id = id;
-    if (options.layer) {
-      this._layerId = options.layer.id;
-    }
-    this.name = options.name ?? "Node";
+  clone(newDoc: Document): Node {
+    return new (this.constructor as NodeConstructor<Node, NodeData>)(
+      newDoc,
+      this.id,
+      this.data,
+    );
   }
 
-  abstract clone(newDoc: Document): Node;
+  /**
+   * Returns the raw data stored in the `Node`.
+   *
+   * Note that this data is usually not very convenient to work with, as it
+   * often contains `NodeId` properties rather than actual `Node` objects.
+   *
+   * For this reason, it is often more convenient to use instead the other
+   * getters, for example `node.layer` returns a `Layer` which is typically
+   * more useful that `node.data.layerId`.
+   *
+   * This method is abstract because it is the responsibility of each concrete
+   * `Node` subclass to store its data with its more specific type.
+   */
+  abstract get data(): NodeData;
 
+  /**
+   * Mutates the internal raw data stored in the `Node` to be the given
+   * `data`.
+   *
+   * This assumes that the given `data` is indeed of the proper derived data
+   * class, and therefore should be used with care. It it intended for use in
+   * setters of abstract Node subclasses that would otherwise not be allowed
+   * to mutate the internal data.
+   */
+  // TODO: better type-safe way to do this?
+  protected abstract setData(data: NodeData): void;
+
+  /**
+   * Converts convenient (and possibly optional) parameters into immutable
+   * type-checked node data, in the context of the given document.
+   *
+   * Warning: in some subclasses, this function may mutate the given
+   * document!
+   *
+   * For example, `Point.dataFromOptions(doc, { position: [x, y] })`
+   * automatically creates two `Number` nodes in the document to store the
+   * coordinates of point's position.
+   */
+  static dataFromOptions(_doc: Document, options: NodeOptions): NodeData {
+    return {
+      name: options.name ?? "Node",
+      layerId: options.layer?.id ?? null,
+    };
+  }
+
+  /**
+   * Converts generic node data (for example, obtained by parsing a JSON
+   * string) into immutable type-checked node data.
+   */
+  static dataFromAny(d: AnyNodeData): NodeData {
+    return {
+      name: typeof d.name === "string" ? d.name : "Node",
+      layerId: typeof d.layerId === "string" ? d.layerId : null,
+    };
+  }
+
+  /**
+   * Returns a JSON representation of this `Node`, which includes its type,
+   * ID, and raw data.
+   */
+  toJSON(): string {
+    return JSON.stringify({
+      type: this.type,
+      id: this.id,
+      data: this.data,
+    });
+
+    // Note 1: `doc` is intentionally omitted as it is essentially only a
+    // convenient "back pointer", which means that:
+    //
+    // 1. it is not necessary for deserialization, and
+    //
+    // 2. it would lead to an infinite recursion in stringify.
+    //
+    // Note 2: For now, `layerID` is not omitted, although it could be as it
+    // can also be seen as a back pointer. However, a practical way to store
+    // a tree in a concurrent multi-user system is actually a flat unordered
+    // list of nodes where each node stores its parent and fractional index,
+    // rather than having each node store its children as a list. The tree
+    // can then be reconstructed locally for UI presentation and
+    // manipulation.
+  }
+
+  /**
+   * Returns the name of this node's type.
+   *
+   * Example: `"Point"`.
+   *
+   * This is equivalent to `this.constructor.name`.
+   */
+  get type(): string {
+    return this.constructor.name;
+  }
+
+  /**
+   * Returns the user-visible name of this specific node instance.
+   *
+   * Example: `"Point 42"`.
+   */
+  get name(): string {
+    return this.data.name;
+  }
+
+  /**
+   * Returns which layer this node belongs to, if any.
+   */
   get layer(): Layer | undefined {
-    return this.doc.getNode(this._layerId, Layer);
+    return this.doc.getNode(this.data.layerId, Layer);
   }
 
   /**
    * This helper function should be used in cases where it is expected
-   * (e.g., method precondition) that an `id` corresponds to a given node
-   * type. If not, an error is issued and `undefined` is returned, so the
-   * caller has an opportunity to recover.
+   * (e.g., method precondition) that the given `id` corresponds to a node of
+   * the given `type`. If not, an error is issued and `undefined` is
+   * returned, so the caller has an opportunity to recover.
    */
   protected getExpectedNode<T extends Node>(
     id: NodeId | undefined,
@@ -71,8 +257,8 @@ export abstract class Node {
 
   /**
    * This helper function should be used in cases where a class invariant
-   * enforces that an `id` must to be a given node type. If not, this
-   * function throws.
+   * enforces that the given `id` corresponds to a node of the given `type`.
+   * If not, this function throws.
    */
   protected getNodeAs<T extends Node>(
     id: NodeId | undefined,
@@ -87,17 +273,72 @@ export abstract class Node {
 }
 
 /**
- * Represents any constructible Node type.
- *
- * This is used for typing factory functions like `Document.createNode()`.
+ * The signature of the constructor that any concrete node type must have.
  */
-type NodeType<T, Options> = (new (
+//type AnyNodeConstructor = new (doc: Document, id: NodeId, data: any) => Node;
+
+/**
+ * The signature of the constructor that any concrete node type must have.
+ */
+type NodeConstructor<T, Data> = new (
   doc: Document,
   id: NodeId,
-  options: Options,
-) => T) & {
+  data: Data,
+) => T;
+
+/**
+ * The static variables and methods that any concrete node type must implement.
+ */
+type NodeStatics<Data, Options> = {
+  /**
+   * The unique name of the node type that can be used as key.
+   *
+   * This is automatically generated by JavaScript, for example, for the
+   * `Point` class, this is `Point.constructor.name`.
+   **/
+  name: string;
+
+  /**
+   * The default user-visible name that is given to instances of this node
+   * type.
+   *
+   * For example, if defaultName is "Point", then by default instances of this
+   * node type will be named "Point 1", "Point 2", etc.
+   **/
   defaultName: string;
+
+  /**
+   * Creates type-checked data from generic data.
+   **/
+  dataFromAny(d: AnyNodeData): Data;
+
+  /**
+   * Creates type-checked data from options.
+   */
+  dataFromOptions(doc: Document, options: Options): Data;
 };
+
+/**
+ * Stores meta-information about any concrete node type.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyNodeType = NodeConstructor<Node, any> & NodeStatics<NodeData, any>;
+
+/**
+ * Stores meta-information about a concrete node type.
+ */
+type NodeType<T, Data, Options> = NodeConstructor<T, Data> &
+  NodeStatics<Data, Options>;
+
+const NODE_REGISTRY: Record<string, AnyNodeType> = {};
+
+/**
+ * Adds a given node type to the registry. This is needed to be able to deserialize
+ * JSON data whose type is only known from its type name.
+ */
+function registerNode(nodeType: AnyNodeType) {
+  NODE_REGISTRY[nodeType.name] = nodeType;
+}
 
 /**
  * Represents any Node type, not necessarily constructible.
@@ -107,7 +348,7 @@ type NodeType<T, Options> = (new (
 type AbstractNodeType<T> = abstract new (
   doc: Document,
   id: NodeId,
-  options: never,
+  data: never,
 ) => T;
 
 /**
@@ -115,10 +356,14 @@ type AbstractNodeType<T> = abstract new (
  * otherwise it creates and returns a node of the given `type` and with the
  * given `options`.
  */
-function getOrCreate<T extends Node, Options extends NodeOptions>(
+function getOrCreate<
+  T extends Node,
+  Data extends NodeData,
+  Options extends NodeOptions,
+>(
   doc: Document,
   node: T | undefined,
-  type: NodeType<T, Options>,
+  type: NodeType<T, Data, Options>,
   options: Options,
 ): T {
   if (node) {
@@ -136,17 +381,107 @@ function getOrCreate<T extends Node, Options extends NodeOptions>(
  * This helper function is the same as `getOrCreate()` except that it returns
  * the node ID instead of the node itself.
  */
-function getOrCreateId<T extends Node, Options extends NodeOptions>(
+function getOrCreateId<
+  T extends Node,
+  Data extends NodeData,
+  Options extends NodeOptions,
+>(
   doc: Document,
   node: T | undefined,
-  type: NodeType<T, Options>,
+  type: NodeType<T, Data, Options>,
   options: Options,
 ): NodeId {
   return getOrCreate(doc, node, type, options).id;
 }
 
+/**
+ * This helper function checks that the given `property` exists in the
+ * given `data` and that it is of type string.
+ *
+ * If it does, then this function returns the string as a `NodeId`.
+ *
+ * Otherwise, this function throws.
+ */
+function asNodeId(data: AnyNodeData, property: string): NodeId {
+  if (property in data) {
+    const id = data[property];
+    if (typeof id === "string") {
+      return id;
+    } else {
+      throw Error(
+        `ID property "${property}" is not of type string in the given data (=${data}).`,
+      );
+    }
+  } else {
+    throw Error(
+      `Missing ID property "${property}" in the given data (=${data}).`,
+    );
+  }
+}
+
+/**
+ * This helper function checks that the given `property` exists in the
+ * given `data` and that it is of type boolean.
+ *
+ * If it does, then this function returns the boolean property value.
+ *
+ * Otherwise, this function throws.
+ */
+function asBoolean(data: AnyNodeData, property: string): boolean {
+  if (property in data) {
+    const b = data[property];
+    if (typeof b === "boolean") {
+      return b;
+    } else {
+      throw Error(
+        `Property "${property}" is not of type boolean in the given data (=${data}).`,
+      );
+    }
+  } else {
+    throw Error(
+      `Missing boolean property "${property}" in the given data (=${data}).`,
+    );
+  }
+}
+
+/**
+ * This helper function checks that the given `property` exists in the
+ * given `data` and that it is of type string array.
+ *
+ * If it does, then this function returns the array as `NodeId[]`.
+ *
+ * Otherwise, this function throws.
+ */
+function asNodeIdArray(data: AnyNodeData, property: string): NodeId[] {
+  if (property in data) {
+    const a = data[property];
+    if (Array.isArray(a)) {
+      for (const id of a) {
+        if (typeof id != "string") {
+          throw Error(
+            `Found non-ID value in property "${property}" in the given data (=${data}).`,
+          );
+        }
+      }
+      return a;
+    } else {
+      throw Error(
+        `Property "${property}" is not of type array of IDs in the given data (=${data}).`,
+      );
+    }
+  } else {
+    throw Error(
+      `Missing array of IDs property "${property}" in the given data (=${data}).`,
+    );
+  }
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 //                               Number
+
+export interface NumberData extends NodeData {
+  readonly value: number;
+}
 
 export interface NumberOptions extends NodeOptions {
   readonly value?: number;
@@ -154,38 +489,103 @@ export interface NumberOptions extends NodeOptions {
 
 export class Number extends Node {
   static readonly defaultName = "Number";
-  value: number;
 
-  constructor(doc: Document, id: NodeId, options: NumberOptions) {
-    super(doc, id, options);
-    this.value = options.value ? options.value : 0;
+  private _data: NumberData;
+
+  get data(): NumberData {
+    return this._data;
   }
 
-  clone(newDoc: Document) {
-    return new Number(newDoc, this.id, this);
+  setData(data: NumberData) {
+    this._data = data;
+  }
+
+  constructor(doc: Document, id: NodeId, data: NumberData) {
+    super(doc, id);
+    this._data = data;
+  }
+
+  static dataFromOptions(doc: Document, options: NumberOptions): NumberData {
+    return {
+      ...Node.dataFromOptions(doc, options),
+      value: options.value ?? 0,
+    };
+  }
+
+  static dataFromAny(d: AnyNodeData): NumberData {
+    return {
+      ...Node.dataFromAny(d),
+      value: typeof d.value === "number" ? d.value : 0,
+    };
+  }
+
+  get value(): number {
+    return this.data.value;
+  }
+
+  set value(newValue: number) {
+    this._data = {
+      ...this.data,
+      value: newValue,
+    };
   }
 }
+
+registerNode(Number);
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               SkeletonNode
 
 export type SkeletonRole = "shape" | "construction";
 
+function isSkeletonRole(v: unknown): v is SkeletonRole {
+  return v === "shape" || v === "construction";
+}
+
+export interface SkeletonNodeData extends NodeData {
+  readonly role: SkeletonRole;
+}
+
 export interface SkeletonNodeOptions extends NodeOptions {
   readonly role?: SkeletonRole;
 }
 
 export abstract class SkeletonNode extends Node {
-  role: SkeletonRole;
+  abstract get data(): SkeletonNodeData;
 
-  constructor(doc: Document, id: NodeId, options: SkeletonNodeOptions) {
-    super(doc, id, options);
-    this.role = options.role ?? "shape";
+  constructor(doc: Document, id: NodeId) {
+    super(doc, id);
+  }
+
+  static dataFromOptions(
+    doc: Document,
+    options: SkeletonNodeOptions,
+  ): SkeletonNodeData {
+    return {
+      ...Node.dataFromOptions(doc, options),
+      role: options.role ?? "shape",
+    };
+  }
+
+  static dataFromAny(d: AnyNodeData): SkeletonNodeData {
+    return {
+      ...Node.dataFromAny(d),
+      role: isSkeletonRole(d.role) ? d.role : "shape",
+    };
+  }
+
+  get role(): SkeletonRole {
+    return this.data.role;
   }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               Point
+
+export interface PointData extends SkeletonNodeData {
+  readonly xId: NodeId;
+  readonly yId: NodeId;
+}
 
 export interface PointOptions extends SkeletonNodeOptions {
   readonly position?: Vector2 | [number, number];
@@ -205,40 +605,67 @@ function getVec2Pair(position?: Vector2 | [number, number]): [number, number] {
 
 export class Point extends SkeletonNode {
   static readonly defaultName = "Point";
-  private _xId: NodeId;
-  private _yId: NodeId;
 
-  constructor(doc: Document, id: NodeId, options: PointOptions) {
-    super(doc, id, options);
+  private _data: PointData;
+
+  get data(): PointData {
+    return this._data;
+  }
+
+  setData(data: PointData) {
+    this._data = data;
+  }
+
+  constructor(doc: Document, id: NodeId, data: PointData) {
+    super(doc, id);
+    this._data = data;
+  }
+
+  static dataFromOptions(doc: Document, options: PointOptions): PointData {
     const defaultPos = getVec2Pair(options.position);
-    this._xId = getOrCreateId(doc, options.x, Number, {
+    const xId = getOrCreateId(doc, options.x, Number, {
       layer: options.layer,
       value: defaultPos[0],
     });
-    this._yId = getOrCreateId(doc, options.y, Number, {
+    const yId = getOrCreateId(doc, options.y, Number, {
       layer: options.layer,
       value: defaultPos[1],
     });
+    return {
+      ...SkeletonNode.dataFromOptions(doc, options),
+      xId: xId,
+      yId: yId,
+    };
   }
 
-  clone(newDoc: Document) {
-    return new Point(newDoc, this.id, this);
+  static dataFromAny(d: AnyNodeData): PointData {
+    return {
+      ...SkeletonNode.dataFromAny(d),
+      xId: asNodeId(d, "xId"),
+      yId: asNodeId(d, "yId"),
+    };
   }
 
   get x(): Number {
-    return this.getNodeAs(this._xId, Number);
+    return this.getNodeAs(this.data.xId, Number);
   }
 
   set x(number: Number) {
-    this._xId = number.id;
+    this._data = {
+      ...this.data,
+      xId: number.id,
+    };
   }
 
   get y(): Number {
-    return this.getNodeAs(this._yId, Number);
+    return this.getNodeAs(this.data.yId, Number);
   }
 
   set y(number: Number) {
-    this._yId = number.id;
+    this._data = {
+      ...this.data,
+      yId: number.id,
+    };
   }
 
   get position(): Vector2 {
@@ -249,25 +676,17 @@ export class Point extends SkeletonNode {
     this.x.value = position.x;
     this.y.value = position.y;
   }
-
-  // Note: For now, we do not provide ID-based getters and setters in order to
-  // encourage the node-based interface and keep the interface smaller
-  // (less boilerplate for each Node subtype). However, if we do want
-  // ID-based getters/setters, they could look like the following:
-  //
-  // get xId(): NodeId {
-  //   return this._xId;
-  // }
-  //
-  // set xId(id: NodeId) {
-  //   if (this.getExpectedNode(id, Number)) {
-  //     this._xId = id;
-  //   }
-  // }
 }
+
+registerNode(Point);
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               EdgeNode
+
+export interface EdgeNodeData extends SkeletonNodeData {
+  readonly startPointId: NodeId;
+  readonly endPointId: NodeId;
+}
 
 export interface EdgeNodeOptions extends SkeletonNodeOptions {
   readonly startPoint: Point;
@@ -275,29 +694,51 @@ export interface EdgeNodeOptions extends SkeletonNodeOptions {
 }
 
 export abstract class EdgeNode extends SkeletonNode {
-  private _startPointId: NodeId;
-  private _endPointId: NodeId;
+  abstract get data(): EdgeNodeData;
 
-  constructor(doc: Document, id: NodeId, options: EdgeNodeOptions) {
-    super(doc, id, options);
-    this._startPointId = options.startPoint.id;
-    this._endPointId = options.endPoint.id;
+  constructor(doc: Document, id: NodeId) {
+    super(doc, id);
+  }
+
+  static dataFromOptions(
+    doc: Document,
+    options: EdgeNodeOptions,
+  ): EdgeNodeData {
+    return {
+      ...SkeletonNode.dataFromOptions(doc, options),
+      startPointId: options.startPoint.id,
+      endPointId: options.endPoint.id,
+    };
+  }
+
+  static dataFromAny(d: AnyNodeData): EdgeNodeData {
+    return {
+      ...SkeletonNode.dataFromAny(d),
+      startPointId: asNodeId(d, "startPointId"),
+      endPointId: asNodeId(d, "endPointId"),
+    };
   }
 
   get startPoint(): Point {
-    return this.getNodeAs(this._startPointId, Point);
+    return this.getNodeAs(this.data.startPointId, Point);
   }
 
   set startPoint(point: Point) {
-    this._startPointId = point.id;
+    this.setData({
+      ...this.data,
+      startPointId: point.id,
+    });
   }
 
   get endPoint(): Point {
-    return this.getNodeAs(this._endPointId, Point);
+    return this.getNodeAs(this.data.endPointId, Point);
   }
 
   set endPoint(point: Point) {
-    this._endPointId = point.id;
+    this.setData({
+      ...this.data,
+      endPointId: point.id,
+    });
   }
 }
 
@@ -305,22 +746,53 @@ export abstract class EdgeNode extends SkeletonNode {
 //                               LineSegment
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface LineSegmentData extends EdgeNodeData {}
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface LineSegmentOptions extends EdgeNodeOptions {}
 
 export class LineSegment extends EdgeNode {
   static readonly defaultName = "Line Segment";
 
-  constructor(doc: Document, id: NodeId, options: LineSegmentOptions) {
-    super(doc, id, options);
+  private _data: LineSegmentData;
+
+  get data(): LineSegmentData {
+    return this._data;
   }
 
-  clone(newDoc: Document) {
-    return new LineSegment(newDoc, this.id, this);
+  setData(data: LineSegmentData) {
+    this._data = data;
+  }
+
+  constructor(doc: Document, id: NodeId, data: LineSegmentData) {
+    super(doc, id);
+    this._data = data;
+  }
+
+  static dataFromOptions(
+    doc: Document,
+    options: LineSegmentOptions,
+  ): LineSegmentData {
+    return {
+      ...EdgeNode.dataFromOptions(doc, options),
+    };
+  }
+
+  static dataFromAny(d: AnyNodeData): LineSegmentData {
+    return {
+      ...EdgeNode.dataFromAny(d),
+    };
   }
 }
 
+registerNode(LineSegment);
+
 ///////////////////////////////////////////////////////////////////////////////
 //                               ArcFromStartTangent
+
+export interface ArcFromStartTangentData extends EdgeNodeData {
+  readonly controlPointId: NodeId;
+}
 
 export interface ArcFromStartTangentOptions extends EdgeNodeOptions {
   readonly controlPoint: Point;
@@ -328,28 +800,59 @@ export interface ArcFromStartTangentOptions extends EdgeNodeOptions {
 
 export class ArcFromStartTangent extends EdgeNode {
   static readonly defaultName = "Arc";
-  private _controlPointId: NodeId;
 
-  constructor(doc: Document, id: NodeId, options: ArcFromStartTangentOptions) {
-    super(doc, id, options);
-    this._controlPointId = options.controlPoint.id;
+  private _data: ArcFromStartTangentData;
+
+  get data(): ArcFromStartTangentData {
+    return this._data;
   }
 
-  clone(newDoc: Document) {
-    return new ArcFromStartTangent(newDoc, this.id, this);
+  setData(data: ArcFromStartTangentData) {
+    this._data = data;
+  }
+
+  constructor(doc: Document, id: NodeId, data: ArcFromStartTangentData) {
+    super(doc, id);
+    this._data = data;
+  }
+
+  static dataFromOptions(
+    doc: Document,
+    options: ArcFromStartTangentOptions,
+  ): ArcFromStartTangentData {
+    return {
+      ...EdgeNode.dataFromOptions(doc, options),
+      controlPointId: options.controlPoint.id,
+    };
+  }
+
+  static dataFromAny(d: AnyNodeData): ArcFromStartTangentData {
+    return {
+      ...EdgeNode.dataFromAny(d),
+      controlPointId: asNodeId(d, "controlPointId"),
+    };
   }
 
   get controlPoint(): Point {
-    return this.getNodeAs(this._controlPointId, Point);
+    return this.getNodeAs(this.data.controlPointId, Point);
   }
 
   set controlPoint(point: Point) {
-    this._controlPointId = point.id;
+    this._data = {
+      ...this.data,
+      controlPointId: point.id,
+    };
   }
 }
 
+registerNode(ArcFromStartTangent);
+
 ///////////////////////////////////////////////////////////////////////////////
 //                                  CCurve
+
+export interface CCurveData extends EdgeNodeData {
+  readonly controlPointId: NodeId;
+}
 
 export interface CCurveOptions extends EdgeNodeOptions {
   readonly controlPoint: Point;
@@ -357,28 +860,57 @@ export interface CCurveOptions extends EdgeNodeOptions {
 
 export class CCurve extends EdgeNode {
   static readonly defaultName = "C-Curve";
-  private _controlPointId: NodeId;
 
-  constructor(doc: Document, id: NodeId, options: CCurveOptions) {
-    super(doc, id, options);
-    this._controlPointId = options.controlPoint.id;
+  private _data: CCurveData;
+
+  get data(): CCurveData {
+    return this._data;
   }
 
-  clone(newDoc: Document) {
-    return new CCurve(newDoc, this.id, this);
+  setData(data: CCurveData) {
+    this._data = data;
+  }
+
+  constructor(doc: Document, id: NodeId, data: CCurveData) {
+    super(doc, id);
+    this._data = data;
+  }
+
+  static dataFromOptions(doc: Document, options: CCurveOptions): CCurveData {
+    return {
+      ...EdgeNode.dataFromOptions(doc, options),
+      controlPointId: options.controlPoint.id,
+    };
+  }
+
+  static dataFromAny(d: AnyNodeData): CCurveData {
+    return {
+      ...EdgeNode.dataFromAny(d),
+      controlPointId: asNodeId(d, "controlPointId"),
+    };
   }
 
   get controlPoint(): Point {
-    return this.getNodeAs(this._controlPointId, Point);
+    return this.getNodeAs(this.data.controlPointId, Point);
   }
 
   set controlPoint(point: Point) {
-    this._controlPointId = point.id;
+    this._data = {
+      ...this.data,
+      controlPointId: point.id,
+    };
   }
 }
 
+registerNode(CCurve);
+
 ///////////////////////////////////////////////////////////////////////////////
 //                                  SCurve
+
+export interface SCurveData extends EdgeNodeData {
+  readonly startControlPointId: NodeId;
+  readonly endControlPointId: NodeId;
+}
 
 export interface SCurveOptions extends EdgeNodeOptions {
   readonly startControlPoint: Point;
@@ -387,58 +919,122 @@ export interface SCurveOptions extends EdgeNodeOptions {
 
 export class SCurve extends EdgeNode {
   static readonly defaultName = "S-Curve";
-  private _startControlPointId: NodeId;
-  private _endControlPointId: NodeId;
 
-  constructor(doc: Document, id: NodeId, options: SCurveOptions) {
-    super(doc, id, options);
-    this._startControlPointId = options.startControlPoint.id;
-    this._endControlPointId = options.endControlPoint.id;
+  private _data: SCurveData;
+
+  get data(): SCurveData {
+    return this._data;
   }
 
-  clone(newDoc: Document) {
-    return new SCurve(newDoc, this.id, this);
+  setData(data: SCurveData) {
+    this._data = data;
+  }
+
+  constructor(doc: Document, id: NodeId, data: SCurveData) {
+    super(doc, id);
+    this._data = data;
+  }
+
+  static dataFromOptions(doc: Document, options: SCurveOptions): SCurveData {
+    return {
+      ...EdgeNode.dataFromOptions(doc, options),
+      startControlPointId: options.startControlPoint.id,
+      endControlPointId: options.endControlPoint.id,
+    };
+  }
+
+  static dataFromAny(d: AnyNodeData): SCurveData {
+    return {
+      ...EdgeNode.dataFromAny(d),
+      startControlPointId: asNodeId(d, "startControlPointId"),
+      endControlPointId: asNodeId(d, "endControlPointId"),
+    };
   }
 
   get startControlPoint(): Point {
-    return this.getNodeAs(this._startControlPointId, Point);
+    return this.getNodeAs(this.data.startControlPointId, Point);
   }
 
   set startControlPoint(point: Point) {
-    this._startControlPointId = point.id;
+    this._data = {
+      ...this.data,
+      startControlPointId: point.id,
+    };
   }
 
   get endControlPoint(): Point {
-    return this.getNodeAs(this._endControlPointId, Point);
+    return this.getNodeAs(this.data.endControlPointId, Point);
   }
 
   set endControlPoint(point: Point) {
-    this._endControlPointId = point.id;
+    this._data = {
+      ...this.data,
+      endControlPointId: point.id,
+    };
   }
 }
 
+registerNode(SCurve);
+
 ///////////////////////////////////////////////////////////////////////////////
 //                               MeasureNode
+
+export interface MeasureNodeData extends NodeData {
+  readonly isLocked: boolean;
+}
 
 export interface MeasureNodeOptions extends NodeOptions {
   readonly isLocked?: boolean;
 }
 
 export abstract class MeasureNode extends Node {
-  isLocked: boolean;
+  abstract get data(): MeasureNodeData;
 
-  constructor(doc: Document, id: NodeId, options: MeasureNodeOptions) {
-    super(doc, id, options);
-    this.isLocked = options.isLocked ?? true;
+  constructor(doc: Document, id: NodeId) {
+    super(doc, id);
+  }
+
+  static dataFromOptions(
+    doc: Document,
+    options: MeasureNodeOptions,
+  ): MeasureNodeData {
+    return {
+      ...Node.dataFromOptions(doc, options),
+      isLocked: options.isLocked ?? true,
+    };
     // For now, we set the measure to be locked by default.
     // TODO: should the default be unlocked?
   }
 
+  static dataFromAny(d: AnyNodeData): MeasureNodeData {
+    return {
+      ...Node.dataFromAny(d),
+      isLocked: asBoolean(d, "isLocked"),
+    };
+  }
+
   abstract updateMeasure(): void;
+
+  get isLocked(): boolean {
+    return this.data.isLocked;
+  }
+
+  set isLocked(locked: boolean) {
+    this.setData({
+      ...this.data,
+      isLocked: locked,
+    });
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 //                            PointToPointDistance
+
+export interface PointToPointDistanceData extends MeasureNodeData {
+  readonly startPointId: NodeId;
+  readonly endPointId: NodeId;
+  readonly numberId: NodeId;
+}
 
 export interface PointToPointDistanceOptions extends MeasureNodeOptions {
   readonly startPoint: Point;
@@ -448,46 +1044,78 @@ export interface PointToPointDistanceOptions extends MeasureNodeOptions {
 
 export class PointToPointDistance extends MeasureNode {
   static readonly defaultName = "Point to Point Distance";
-  private _startPointId: NodeId;
-  private _endPointId: NodeId;
-  private _number: NodeId;
 
-  constructor(doc: Document, id: NodeId, options: PointToPointDistanceOptions) {
-    super(doc, id, options);
-    this._startPointId = options.startPoint.id;
-    this._endPointId = options.endPoint.id;
-    this._number = getOrCreateId(doc, options.number, Number, {
+  private _data: PointToPointDistanceData;
+
+  get data(): PointToPointDistanceData {
+    return this._data;
+  }
+
+  setData(data: PointToPointDistanceData) {
+    this._data = data;
+  }
+
+  constructor(doc: Document, id: NodeId, data: PointToPointDistanceData) {
+    super(doc, id);
+    this._data = data;
+  }
+
+  static dataFromOptions(
+    doc: Document,
+    options: PointToPointDistanceOptions,
+  ): PointToPointDistanceData {
+    const numberId = getOrCreateId(doc, options.number, Number, {
       layer: options.layer,
       value: 0,
     });
+    return {
+      ...MeasureNode.dataFromOptions(doc, options),
+      startPointId: options.startPoint.id,
+      endPointId: options.endPoint.id,
+      numberId: numberId,
+    };
   }
 
-  clone(newDoc: Document) {
-    return new PointToPointDistance(newDoc, this.id, this);
+  static dataFromAny(d: AnyNodeData): PointToPointDistanceData {
+    return {
+      ...MeasureNode.dataFromAny(d),
+      startPointId: asNodeId(d, "startPointId"),
+      endPointId: asNodeId(d, "endPointId"),
+      numberId: asNodeId(d, "numberId"),
+    };
   }
 
   get startPoint(): Point {
-    return this.getNodeAs(this._startPointId, Point);
+    return this.getNodeAs(this.data.startPointId, Point);
   }
 
   set startPoint(point: Point) {
-    this._startPointId = point.id;
+    this._data = {
+      ...this.data,
+      startPointId: point.id,
+    };
   }
 
   get endPoint(): Point {
-    return this.getNodeAs(this._endPointId, Point);
+    return this.getNodeAs(this.data.endPointId, Point);
   }
 
   set endPoint(point: Point) {
-    this._endPointId = point.id;
+    this._data = {
+      ...this.data,
+      endPointId: point.id,
+    };
   }
 
   get number(): Number {
-    return this.getNodeAs(this._number, Number);
+    return this.getNodeAs(this.data.numberId, Number);
   }
 
   set number(number: Number) {
-    this._number = number.id;
+    this._data = {
+      ...this.data,
+      numberId: number.id,
+    };
   }
 
   updateMeasure() {
@@ -497,8 +1125,16 @@ export class PointToPointDistance extends MeasureNode {
   }
 }
 
+registerNode(PointToPointDistance);
+
 ///////////////////////////////////////////////////////////////////////////////
 //                            LineToPointDistance
+
+export interface LineToPointDistanceData extends MeasureNodeData {
+  readonly lineId: NodeId;
+  readonly pointId: NodeId;
+  readonly numberId: NodeId;
+}
 
 export interface LineToPointDistanceOptions extends MeasureNodeOptions {
   readonly line: LineSegment;
@@ -508,46 +1144,78 @@ export interface LineToPointDistanceOptions extends MeasureNodeOptions {
 
 export class LineToPointDistance extends MeasureNode {
   static readonly defaultName = "Line to Point Distance";
-  private _lineId: NodeId;
-  private _pointId: NodeId;
-  private _number: NodeId;
 
-  constructor(doc: Document, id: NodeId, options: LineToPointDistanceOptions) {
-    super(doc, id, options);
-    this._lineId = options.line.id;
-    this._pointId = options.point.id;
-    this._number = getOrCreateId(doc, options.number, Number, {
+  private _data: LineToPointDistanceData;
+
+  get data(): LineToPointDistanceData {
+    return this._data;
+  }
+
+  setData(data: LineToPointDistanceData) {
+    this._data = data;
+  }
+
+  constructor(doc: Document, id: NodeId, data: LineToPointDistanceData) {
+    super(doc, id);
+    this._data = data;
+  }
+
+  static dataFromOptions(
+    doc: Document,
+    options: LineToPointDistanceOptions,
+  ): LineToPointDistanceData {
+    const numberId = getOrCreateId(doc, options.number, Number, {
       layer: options.layer,
       value: 0,
     });
+    return {
+      ...MeasureNode.dataFromOptions(doc, options),
+      lineId: options.line.id,
+      pointId: options.point.id,
+      numberId: numberId,
+    };
   }
 
-  clone(newDoc: Document) {
-    return new LineToPointDistance(newDoc, this.id, this);
+  static dataFromAny(d: AnyNodeData): LineToPointDistanceData {
+    return {
+      ...MeasureNode.dataFromAny(d),
+      lineId: asNodeId(d, "lineId"),
+      pointId: asNodeId(d, "pointId"),
+      numberId: asNodeId(d, "numberId"),
+    };
   }
 
   get line(): LineSegment {
-    return this.getNodeAs(this._lineId, LineSegment);
+    return this.getNodeAs(this.data.lineId, LineSegment);
   }
 
   set line(line: LineSegment) {
-    this._lineId = line.id;
+    this._data = {
+      ...this.data,
+      lineId: line.id,
+    };
   }
 
   get point(): Point {
-    return this.getNodeAs(this._pointId, Point);
+    return this.getNodeAs(this.data.pointId, Point);
   }
 
   set point(point: Point) {
-    this._pointId = point.id;
+    this._data = {
+      ...this.data,
+      startPointId: point.id,
+    };
   }
 
   get number(): Number {
-    return this.getNodeAs(this._number, Number);
+    return this.getNodeAs(this.data.numberId, Number);
   }
 
   set number(number: Number) {
-    this._number = number.id;
+    this._data = {
+      ...this.data,
+      numberId: number.id,
+    };
   }
 
   updateMeasure() {
@@ -571,8 +1239,16 @@ export class LineToPointDistance extends MeasureNode {
   }
 }
 
+registerNode(LineToPointDistance);
+
 ///////////////////////////////////////////////////////////////////////////////
-//                            LineToPointDistance
+//                            Angle
+
+export interface AngleData extends MeasureNodeData {
+  readonly line0Id: NodeId;
+  readonly line1Id: NodeId;
+  readonly numberId: NodeId;
+}
 
 export interface AngleOptions extends MeasureNodeOptions {
   readonly line0: LineSegment;
@@ -582,46 +1258,75 @@ export interface AngleOptions extends MeasureNodeOptions {
 
 export class Angle extends MeasureNode {
   static readonly defaultName = "Line to Line Angle";
-  private _line0Id: NodeId;
-  private _line1Id: NodeId;
-  private _number: NodeId;
 
-  constructor(doc: Document, id: NodeId, options: AngleOptions) {
-    super(doc, id, options);
-    this._line0Id = options.line0.id;
-    this._line1Id = options.line1.id;
-    this._number = getOrCreateId(doc, options.number, Number, {
-      layer: options.layer,
-      value: 90,
-    });
+  private _data: AngleData;
+
+  get data(): AngleData {
+    return this._data;
   }
 
-  clone(newDoc: Document) {
-    return new Angle(newDoc, this.id, this);
+  setData(data: AngleData) {
+    this._data = data;
+  }
+
+  constructor(doc: Document, id: NodeId, data: AngleData) {
+    super(doc, id);
+    this._data = data;
+  }
+
+  static dataFromOptions(doc: Document, options: AngleOptions): AngleData {
+    const numberId = getOrCreateId(doc, options.number, Number, {
+      layer: options.layer,
+      value: 0,
+    });
+    return {
+      ...MeasureNode.dataFromOptions(doc, options),
+      line0Id: options.line0.id,
+      line1Id: options.line1.id,
+      numberId: numberId,
+    };
+  }
+
+  static dataFromAny(d: AnyNodeData): AngleData {
+    return {
+      ...MeasureNode.dataFromAny(d),
+      line0Id: asNodeId(d, "line0Id"),
+      line1Id: asNodeId(d, "line1Id"),
+      numberId: asNodeId(d, "numberId"),
+    };
   }
 
   get line0(): LineSegment {
-    return this.getNodeAs(this._line0Id, LineSegment);
+    return this.getNodeAs(this.data.line0Id, LineSegment);
   }
 
   set line0(line: LineSegment) {
-    this._line0Id = line.id;
+    this._data = {
+      ...this.data,
+      line0Id: line.id,
+    };
   }
 
   get line1(): LineSegment {
-    return this.getNodeAs(this._line1Id, LineSegment);
+    return this.getNodeAs(this.data.line1Id, LineSegment);
   }
 
   set line1(line: LineSegment) {
-    this._line0Id = line.id;
+    this._data = {
+      ...this.data,
+      line1Id: line.id,
+    };
   }
 
   get number(): Number {
-    return this.getNodeAs(this._number, Number);
+    return this.getNodeAs(this.data.numberId, Number);
   }
 
   set number(number: Number) {
-    this._number = number.id;
+    this._data = {
+      ...this.data,
+      numberId: number.id,
+    };
   }
 
   updateMeasure() {
@@ -657,26 +1362,77 @@ export class Angle extends MeasureNode {
   }
 }
 
+registerNode(Angle);
+
 ///////////////////////////////////////////////////////////////////////////////
 //                               Layer
 
+export interface LayerData extends NodeData {
+  readonly nodeIds: readonly NodeId[];
+}
+
 export interface LayerOptions extends NodeOptions {
-  readonly nodes?: NodeId[];
+  readonly nodes?: readonly Node[];
 }
 
 export class Layer extends Node {
   static readonly defaultName = "Layer";
-  nodes: NodeId[];
 
-  constructor(doc: Document, id: NodeId, options: LayerOptions) {
-    super(doc, id, options);
-    this.nodes = options.nodes ? [...options.nodes] : [];
+  private _data: LayerData;
+
+  get data(): LayerData {
+    return this._data;
   }
 
-  clone(newDoc: Document) {
-    return new Layer(newDoc, this.id, this);
+  setData(data: LayerData) {
+    this._data = data;
+  }
+
+  constructor(doc: Document, id: NodeId, data: LayerData) {
+    super(doc, id);
+    this._data = data;
+  }
+
+  static dataFromOptions(doc: Document, options: LayerOptions): LayerData {
+    return {
+      ...Node.dataFromOptions(doc, options),
+      nodeIds: options.nodes?.map((node) => node.id) ?? [],
+    };
+  }
+
+  static dataFromAny(d: AnyNodeData): LayerData {
+    return {
+      ...Node.dataFromAny(d),
+      nodeIds: asNodeIdArray(d, "nodeIds"),
+    };
+  }
+
+  get nodes(): Node[] {
+    return this.data.nodeIds.map((id) => this.getNodeAs(id, Node));
+  }
+
+  addNode(node: Node) {
+    this._data = {
+      ...this.data,
+      nodeIds: [...this.data.nodeIds, node.id],
+    };
+  }
+
+  removeNode(node: Node) {
+    const newNodeIds: NodeId[] = [];
+    for (const id of this.data.nodeIds) {
+      if (id !== node.id) {
+        newNodeIds.push(node.id);
+      }
+    }
+    this._data = {
+      ...this.data,
+      nodeIds: newNodeIds,
+    };
   }
 }
+
+registerNode(Layer);
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               Util
@@ -733,6 +1489,42 @@ export class Document {
   }
 
   /**
+   * Serializes the Document into JSON.
+   */
+  // Note: do not rely on this specific JSON structure, we might change it in the future.
+  //
+  toJSON(): string {
+    return JSON.stringify({
+      layers: this.layers,
+      nodes: Array.from(this._nodes.values()).map((node) => {
+        return { type: node.type, id: node.id, data: node.data };
+      }),
+    });
+  }
+
+  /**
+   * Create a Document from JSON.
+   */
+  static fromJSON(json: string): Document {
+    const rawDoc = JSON.parse(json);
+    const doc = new Document();
+    doc.layers = rawDoc.layers;
+    for (const rawNode of rawDoc.nodes) {
+      const id = rawNode.id;
+      const typename = rawNode.type;
+      if (!(typename in NODE_REGISTRY)) {
+        throw Error(
+          `Cannot parse Document from JSON: unknown node type ${typename}.`,
+        );
+      }
+      const type = NODE_REGISTRY[typename];
+      const node: Node = new type(doc, id, type.dataFromAny(rawNode.data));
+      doc._nodes.set(id, node);
+    }
+    return doc;
+  }
+
+  /**
    * Returns the node that has the given `id`, if any:
    *
    * ```
@@ -764,7 +1556,7 @@ export class Document {
    * ```
    */
   getNode<T extends Node>(
-    id: NodeId | undefined,
+    id: NodeId | undefined | null,
     type?: AbstractNodeType<T> | undefined,
   ): T | undefined {
     if (!id) {
@@ -785,7 +1577,10 @@ export class Document {
   /**
    * Returns an array of nodes corresponding to the given array of `ids`.
    */
-  getNodes<T extends Node>(ids: NodeId[], type?: AbstractNodeType<T>): T[] {
+  getNodes<T extends Node>(
+    ids: readonly NodeId[],
+    type?: AbstractNodeType<T>,
+  ): T[] {
     const res: T[] = [];
     for (const id of ids) {
       const node = this.getNode(id, type);
@@ -822,10 +1617,11 @@ export class Document {
    * this function will automatically assign a unique name within the `layer`
    * suitable for the given `spec`, e.g., "Point 42".
    */
-  createNode<T extends Node, Options extends NodeOptions>(
-    type: NodeType<T, Options>,
-    options: Options,
-  ): T {
+  createNode<
+    T extends Node,
+    Data extends NodeData,
+    Options extends NodeOptions,
+  >(type: NodeType<T, Data, Options>, options: Options): T {
     const id = generateNodeId();
     let layer: undefined | Layer = undefined;
     if (options.layer instanceof Layer) {
@@ -834,13 +1630,17 @@ export class Document {
       layer = this.getNode(options.layer, Layer);
     }
     if (layer && options.name === undefined) {
-      const name = this.findAvailableName(`${type.defaultName} `, layer.nodes);
+      const name = this.findAvailableName(
+        `${type.defaultName} `,
+        layer.data.nodeIds,
+      );
       options = { ...options, name: name };
     }
-    const node = new type(this, id, options);
+    const data = type.dataFromOptions(this, options);
+    const node = new type(this, id, data);
     this._nodes.set(id, node);
     if (layer) {
-      layer.nodes.push(node.id);
+      layer.addNode(node);
     }
     if (node instanceof MeasureNode) {
       node.updateMeasure();
@@ -857,12 +1657,7 @@ export class Document {
     }
     const layer = node.layer;
     if (layer) {
-      // Remove from layer
-      for (let i = layer.nodes.length - 1; i >= 0; i--) {
-        if (layer.nodes[i] === node.id) {
-          layer.nodes.splice(i, 1);
-        }
-      }
+      layer.removeNode(node);
     }
     this._nodes.delete(node.id);
   }
@@ -871,7 +1666,7 @@ export class Document {
    * Finds the smallest positive integer `n` such that the name `${prefix}${n}`
    * is not taken by any of the given nodes, and returns that name.
    */
-  findAvailableName(prefix: string, nodes: NodeId[]) {
+  findAvailableName(prefix: string, nodes: readonly NodeId[]) {
     // Collect all positive integers from existing node names
     // that are of the form `${prefix}${number}`. Note that we need
     // the regex and not just rely on parseInt, since the latter
@@ -1049,8 +1844,6 @@ export function createTestDocument_v0() {
     line0: l2,
     line1: l1,
   });
-
-  console.log(doc);
   return doc;
 }
 
@@ -1151,7 +1944,7 @@ export function createTestDocument() {
     startPoint: p7,
     endPoint: p1,
   });
-  const l3 = doc.createNode(LineSegment, {
+  /*const l3 =*/ doc.createNode(LineSegment, {
     layer: layer,
     startPoint: p2,
     endPoint: p6,
@@ -1187,6 +1980,7 @@ export function createTestDocument() {
     point: cp3,
   });
 
-  console.log(doc);
-  return doc;
+  // Test JSON round-trip
+  const json = doc.toJSON();
+  return Document.fromJSON(json);
 }

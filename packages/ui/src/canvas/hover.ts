@@ -126,9 +126,8 @@ function selectEdge(_shapes: Shape[], id: NodeId): Selectable {
 }
 
 function findClosestSelectableInLayer(
-  doc: Document,
-  camera: Camera2,
   layer: Layer,
+  camera: Camera2,
   position: Vector2,
   filter?: Filter,
 ): ClosestSelectable {
@@ -156,15 +155,14 @@ function findClosestSelectableInLayer(
     }
   }
 
-  for (const id of layer.nodes) {
-    const node = doc.getNode(id);
-    if (node && (!filter || filter(node))) {
+  for (const node of layer.nodes) {
+    if (!filter || filter(node)) {
       if (node instanceof Point) {
-        update(csPoint, node, distToPoint, selectPoint, id);
+        update(csPoint, node, distToPoint, selectPoint, node.id);
       } else if (node instanceof EdgeNode) {
         // TODO: cache the controls from the draw call?
         const sc = getEdgeShapesAndControls(node);
-        update(csEdge, sc.shapes, distToShapes, selectEdge, id);
+        update(csEdge, sc.shapes, distToShapes, selectEdge, node.id);
       }
     }
   }
@@ -225,13 +223,7 @@ function findClosestSelectableInDocument(
   for (const id of doc.layers) {
     const layer = doc.getNode(id, Layer);
     if (layer) {
-      const ce = findClosestSelectableInLayer(
-        doc,
-        camera,
-        layer,
-        position,
-        filter,
-      );
+      const ce = findClosestSelectableInLayer(layer, camera, position, filter);
       if (ce.distance < closestDistance) {
         closestDistance = ce.distance;
         selectable = ce.selectable;

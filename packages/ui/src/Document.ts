@@ -379,9 +379,14 @@ function getOrCreateId<
 }
 
 /**
- * This helper function converts the given unknown variable to a `NodeId` if possible, and otherwise throws.
+ * This helper function checks that the given `property` exists in the
+ * given `data` and that it is of type string.
+ *
+ * If it does, then this function returns the string as a `NodeId`.
+ *
+ * Otherwise, this function throws.
  */
-function toNodeId(data: AnyNodeData, property: string): NodeId {
+function asNodeId(data: AnyNodeData, property: string): NodeId {
   if (property in data) {
     const id = data[property];
     if (typeof id === "string") {
@@ -394,6 +399,31 @@ function toNodeId(data: AnyNodeData, property: string): NodeId {
   } else {
     throw Error(
       `Missing ID property "${property}" in the given data (=${data}).`,
+    );
+  }
+}
+
+/**
+ * This helper function checks that the given `property` exists in the
+ * given `data` and that it is of type boolean.
+ *
+ * If it does, then this function returns the boolean property value.
+ *
+ * Otherwise, this function throws.
+ */
+function asBoolean(data: AnyNodeData, property: string): boolean {
+  if (property in data) {
+    const b = data[property];
+    if (typeof b === "boolean") {
+      return b;
+    } else {
+      throw Error(
+        `Property "${property}" is not of type boolean in the given data (=${data}).`,
+      );
+    }
+  } else {
+    throw Error(
+      `Missing boolean property "${property}" in the given data (=${data}).`,
     );
   }
 }
@@ -551,8 +581,8 @@ export class Point extends SkeletonNode {
   static dataFromAny(d: AnyNodeData): PointData {
     return {
       ...SkeletonNode.dataFromAny(d),
-      xId: toNodeId(d, "xId"),
-      yId: toNodeId(d, "yId"),
+      xId: asNodeId(d, "xId"),
+      yId: asNodeId(d, "yId"),
     };
   }
 
@@ -624,8 +654,8 @@ export abstract class EdgeNode extends SkeletonNode {
   static dataFromAny(d: AnyNodeData): EdgeNodeData {
     return {
       ...SkeletonNode.dataFromAny(d),
-      startPointId: toNodeId(d, "startPoint"),
-      endPointId: toNodeId(d, "endPoint"),
+      startPointId: asNodeId(d, "startPoint"),
+      endPointId: asNodeId(d, "endPoint"),
     };
   }
 
@@ -723,7 +753,7 @@ export class ArcFromStartTangent extends EdgeNode {
   static dataFromAny(d: AnyNodeData): ArcFromStartTangentData {
     return {
       ...EdgeNode.dataFromAny(d),
-      controlPointId: toNodeId(d, "controlPointId"),
+      controlPointId: asNodeId(d, "controlPointId"),
     };
   }
 
@@ -752,6 +782,7 @@ export interface CCurveOptions extends EdgeNodeOptions {
 
 export class CCurve extends EdgeNode {
   static readonly defaultName = "C-Curve";
+
   private _data: CCurveData;
 
   get data(): CCurveData {
@@ -773,7 +804,7 @@ export class CCurve extends EdgeNode {
   static dataFromAny(d: AnyNodeData): CCurveData {
     return {
       ...EdgeNode.dataFromAny(d),
-      controlPointId: toNodeId(d, "controlPointId"),
+      controlPointId: asNodeId(d, "controlPointId"),
     };
   }
 
@@ -804,6 +835,7 @@ export interface SCurveOptions extends EdgeNodeOptions {
 
 export class SCurve extends EdgeNode {
   static readonly defaultName = "S-Curve";
+
   private _data: SCurveData;
 
   get data(): SCurveData {
@@ -826,8 +858,8 @@ export class SCurve extends EdgeNode {
   static dataFromAny(d: AnyNodeData): SCurveData {
     return {
       ...EdgeNode.dataFromAny(d),
-      startControlPointId: toNodeId(d, "startControlPointId"),
-      endControlPointId: toNodeId(d, "endControlPointId"),
+      startControlPointId: asNodeId(d, "startControlPointId"),
+      endControlPointId: asNodeId(d, "endControlPointId"),
     };
   }
 
@@ -857,26 +889,59 @@ export class SCurve extends EdgeNode {
 ///////////////////////////////////////////////////////////////////////////////
 //                               MeasureNode
 
-/*
+export interface MeasureNodeData extends NodeData {
+  readonly isLocked: boolean;
+}
+
 export interface MeasureNodeOptions extends NodeOptions {
   readonly isLocked?: boolean;
 }
 
 export abstract class MeasureNode extends Node {
-  isLocked: boolean;
+  abstract get data(): MeasureNodeData;
 
-  constructor(doc: Document, id: NodeId, options: MeasureNodeOptions) {
-    super(doc, id, options);
-    this.isLocked = options.isLocked ?? true;
+  constructor(doc: Document, id: NodeId) {
+    super(doc, id);
+  }
+
+  static dataFromOptions(
+    doc: Document,
+    options: MeasureNodeOptions,
+  ): MeasureNodeData {
+    return {
+      ...Node.dataFromOptions(doc, options),
+      isLocked: options.isLocked ?? true,
+    };
     // For now, we set the measure to be locked by default.
     // TODO: should the default be unlocked?
   }
 
+  static dataFromAny(d: AnyNodeData): MeasureNodeData {
+    return {
+      ...Node.dataFromAny(d),
+      isLocked: asBoolean(d, "isLocked"),
+    };
+  }
+
   abstract updateMeasure(): void;
+
+  get isLocked(): boolean {
+    return this.data.isLocked;
+  }
+
+  // set isLocked(locked: boolean) {
+  //   // TODO
+  // }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 //                            PointToPointDistance
+
+export interface PointToPointDistanceData extends MeasureNodeData {
+  readonly startPointId: NodeId;
+  readonly endPointId: NodeId;
+  readonly numberId: NodeId;
+}
 
 export interface PointToPointDistanceOptions extends MeasureNodeOptions {
   readonly startPoint: Point;
@@ -886,42 +951,74 @@ export interface PointToPointDistanceOptions extends MeasureNodeOptions {
 
 export class PointToPointDistance extends MeasureNode {
   static readonly defaultName = "Point to Point Distance";
-  private _startPointId: NodeId;
-  private _endPointId: NodeId;
-  private _number: NodeId;
 
-  constructor(doc: Document, id: NodeId, options: PointToPointDistanceOptions) {
-    super(doc, id, options);
-    this._startPointId = options.startPoint.id;
-    this._endPointId = options.endPoint.id;
-    this._number = getOrCreateId(doc, options.number, Number, {
+  private _data: PointToPointDistanceData;
+
+  get data(): PointToPointDistanceData {
+    return this._data;
+  }
+
+  constructor(doc: Document, id: NodeId, data: PointToPointDistanceData) {
+    super(doc, id);
+    this._data = data;
+  }
+
+  static dataFromOptions(
+    doc: Document,
+    options: PointToPointDistanceOptions,
+  ): PointToPointDistanceData {
+    const numberId = getOrCreateId(doc, options.number, Number, {
       layer: options.layer,
       value: 0,
     });
+    return {
+      ...MeasureNode.dataFromOptions(doc, options),
+      startPointId: options.startPoint.id,
+      endPointId: options.endPoint.id,
+      numberId: numberId,
+    };
+  }
+
+  static dataFromAny(d: AnyNodeData): PointToPointDistanceData {
+    return {
+      ...MeasureNode.dataFromAny(d),
+      startPointId: asNodeId(d, "startControlPointId"),
+      endPointId: asNodeId(d, "endControlPointId"),
+      numberId: asNodeId(d, "numberId"),
+    };
   }
 
   get startPoint(): Point {
-    return this.getNodeAs(this._startPointId, Point);
+    return this.getNodeAs(this.data.startPointId, Point);
   }
 
   set startPoint(point: Point) {
-    this._startPointId = point.id;
+    this._data = {
+      ...this.data,
+      startPointId: point.id,
+    };
   }
 
   get endPoint(): Point {
-    return this.getNodeAs(this._endPointId, Point);
+    return this.getNodeAs(this.data.endPointId, Point);
   }
 
   set endPoint(point: Point) {
-    this._endPointId = point.id;
+    this._data = {
+      ...this.data,
+      endPointId: point.id,
+    };
   }
 
   get number(): Number {
-    return this.getNodeAs(this._number, Number);
+    return this.getNodeAs(this.data.numberId, Number);
   }
 
   set number(number: Number) {
-    this._number = number.id;
+    this._data = {
+      ...this.data,
+      numberId: number.id,
+    };
   }
 
   updateMeasure() {
@@ -934,6 +1031,12 @@ export class PointToPointDistance extends MeasureNode {
 ///////////////////////////////////////////////////////////////////////////////
 //                            LineToPointDistance
 
+export interface LineToPointDistanceData extends MeasureNodeData {
+  readonly lineId: NodeId;
+  readonly pointId: NodeId;
+  readonly numberId: NodeId;
+}
+
 export interface LineToPointDistanceOptions extends MeasureNodeOptions {
   readonly line: LineSegment;
   readonly point: Point;
@@ -942,42 +1045,74 @@ export interface LineToPointDistanceOptions extends MeasureNodeOptions {
 
 export class LineToPointDistance extends MeasureNode {
   static readonly defaultName = "Line to Point Distance";
-  private _lineId: NodeId;
-  private _pointId: NodeId;
-  private _number: NodeId;
 
-  constructor(doc: Document, id: NodeId, options: LineToPointDistanceOptions) {
-    super(doc, id, options);
-    this._lineId = options.line.id;
-    this._pointId = options.point.id;
-    this._number = getOrCreateId(doc, options.number, Number, {
+  private _data: LineToPointDistanceData;
+
+  get data(): LineToPointDistanceData {
+    return this._data;
+  }
+
+  constructor(doc: Document, id: NodeId, data: LineToPointDistanceData) {
+    super(doc, id);
+    this._data = data;
+  }
+
+  static dataFromOptions(
+    doc: Document,
+    options: LineToPointDistanceOptions,
+  ): LineToPointDistanceData {
+    const numberId = getOrCreateId(doc, options.number, Number, {
       layer: options.layer,
       value: 0,
     });
+    return {
+      ...MeasureNode.dataFromOptions(doc, options),
+      lineId: options.line.id,
+      pointId: options.point.id,
+      numberId: numberId,
+    };
+  }
+
+  static dataFromAny(d: AnyNodeData): LineToPointDistanceData {
+    return {
+      ...MeasureNode.dataFromAny(d),
+      lineId: asNodeId(d, "lineId"),
+      pointId: asNodeId(d, "pointId"),
+      numberId: asNodeId(d, "numberId"),
+    };
   }
 
   get line(): LineSegment {
-    return this.getNodeAs(this._lineId, LineSegment);
+    return this.getNodeAs(this.data.lineId, LineSegment);
   }
 
   set line(line: LineSegment) {
-    this._lineId = line.id;
+    this._data = {
+      ...this.data,
+      lineId: line.id,
+    };
   }
 
   get point(): Point {
-    return this.getNodeAs(this._pointId, Point);
+    return this.getNodeAs(this.data.pointId, Point);
   }
 
   set point(point: Point) {
-    this._pointId = point.id;
+    this._data = {
+      ...this.data,
+      startPointId: point.id,
+    };
   }
 
   get number(): Number {
-    return this.getNodeAs(this._number, Number);
+    return this.getNodeAs(this.data.numberId, Number);
   }
 
   set number(number: Number) {
-    this._number = number.id;
+    this._data = {
+      ...this.data,
+      numberId: number.id,
+    };
   }
 
   updateMeasure() {
@@ -1004,50 +1139,85 @@ export class LineToPointDistance extends MeasureNode {
 ///////////////////////////////////////////////////////////////////////////////
 //                            Angle
 
+export interface AngleData extends MeasureNodeData {
+  readonly line0Id: NodeId;
+  readonly line1Id: NodeId;
+  readonly numberId: NodeId;
+}
+
 export interface AngleOptions extends MeasureNodeOptions {
   readonly line0: LineSegment;
-  readonly line1: LineSegment;
+  readonly line1: Point;
   readonly number?: Number;
 }
 
 export class Angle extends MeasureNode {
   static readonly defaultName = "Line to Line Angle";
-  private _line0Id: NodeId;
-  private _line1Id: NodeId;
-  private _number: NodeId;
 
-  constructor(doc: Document, id: NodeId, options: AngleOptions) {
-    super(doc, id, options);
-    this._line0Id = options.line0.id;
-    this._line1Id = options.line1.id;
-    this._number = getOrCreateId(doc, options.number, Number, {
+  private _data: AngleData;
+
+  get data(): AngleData {
+    return this._data;
+  }
+
+  constructor(doc: Document, id: NodeId, data: AngleData) {
+    super(doc, id);
+    this._data = data;
+  }
+
+  static dataFromOptions(doc: Document, options: AngleOptions): AngleData {
+    const numberId = getOrCreateId(doc, options.number, Number, {
       layer: options.layer,
-      value: 90,
+      value: 0,
     });
+    return {
+      ...MeasureNode.dataFromOptions(doc, options),
+      line0Id: options.line0.id,
+      line1Id: options.line1.id,
+      numberId: numberId,
+    };
+  }
+
+  static dataFromAny(d: AnyNodeData): AngleData {
+    return {
+      ...MeasureNode.dataFromAny(d),
+      line0Id: asNodeId(d, "line0Id"),
+      line1Id: asNodeId(d, "line1Id"),
+      numberId: asNodeId(d, "numberId"),
+    };
   }
 
   get line0(): LineSegment {
-    return this.getNodeAs(this._line0Id, LineSegment);
+    return this.getNodeAs(this.data.line0Id, LineSegment);
   }
 
   set line0(line: LineSegment) {
-    this._line0Id = line.id;
+    this._data = {
+      ...this.data,
+      line0Id: line.id,
+    };
   }
 
   get line1(): LineSegment {
-    return this.getNodeAs(this._line1Id, LineSegment);
+    return this.getNodeAs(this.data.line1Id, LineSegment);
   }
 
   set line1(line: LineSegment) {
-    this._line0Id = line.id;
+    this._data = {
+      ...this.data,
+      line1Id: line.id,
+    };
   }
 
   get number(): Number {
-    return this.getNodeAs(this._number, Number);
+    return this.getNodeAs(this.data.numberId, Number);
   }
 
   set number(number: Number) {
-    this._number = number.id;
+    this._data = {
+      ...this.data,
+      numberId: number.id,
+    };
   }
 
   updateMeasure() {
@@ -1082,7 +1252,6 @@ export class Angle extends MeasureNode {
     this.number.value = angle;
   }
 }
-*/
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               Layer

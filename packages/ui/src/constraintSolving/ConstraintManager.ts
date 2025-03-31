@@ -5,6 +5,13 @@ import { makeProgram } from "./makeProgram";
 import { dogLeg } from "./optimizers/dogLeg";
 import { evalJacobian } from "./evalJacobian";
 
+export type RequestValues = {
+  ptId: string;
+  axis: string;
+  param: string;
+  value: number;
+}[];
+
 export class ConstraintManager {
   public constraintFunction: (values: number[], ops: any) => any = null;
   public initValues: number[] = [];
@@ -34,7 +41,9 @@ export class ConstraintManager {
     this.initValues = initValues;
   }
 
-  evaluateConstraintFunction({ requested = [] } = {}): void {
+  evaluateConstraintFunction({
+    requested = [],
+  }: { requested?: RequestValues } = {}): void {
     if (!this.constraintFunction) {
       this.updateConstraintFunction();
     }

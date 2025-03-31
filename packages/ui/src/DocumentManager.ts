@@ -1,6 +1,9 @@
-import { Document, Layer, createTestDocument } from "./Document";
+import { Document, Layer, createTestDocument, Point } from "./Document";
 
-import { ConstraintManager } from "./constraintSolving/ConstraintManager";
+import {
+  ConstraintManager,
+  RequestValues,
+} from "./constraintSolving/ConstraintManager";
 
 import { Selection } from "./Selection";
 
@@ -163,8 +166,9 @@ export class DocumentManager {
 
     switch (eventType) {
       case "MOVE":
-        const requested = [];
-        data.movedPoints.forEach((pt) => {
+        const requested: RequestValues = [];
+
+        data.movedPoints.forEach((pt: Point) => {
           requested.push({
             ptId: pt.id,
             axis: "x",

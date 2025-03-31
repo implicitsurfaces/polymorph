@@ -69,3 +69,64 @@ export function lpDist(lp1x, lp1y, lp2x, lp2y, px, py, dist) {
 
   return numerator.div(denominator).sub(asNum(dist));
 }
+
+export function pointOnLine(p0x, p0y, p1x, p1y, px, py) {
+  p0x = variable(p0x);
+  p0y = variable(p0y);
+  p1x = variable(p1x);
+  p1y = variable(p1y);
+  px = variable(px);
+  py = variable(py);
+  return px
+    .sub(p0x)
+    .mul(p1y.sub(p0y))
+    .sub(py.sub(p0y).mul(p1x.sub(p0x)));
+}
+
+export function equal(p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y) {
+  p0x = variable(p0x);
+  p0y = variable(p0y);
+  p1x = variable(p1x);
+  p1y = variable(p1y);
+  p2x = variable(p2x);
+  p2y = variable(p2y);
+  p3x = variable(p3x);
+  p3y = variable(p3y);
+  const d1 = p1x
+    .sub(p0x)
+    .mul(p1x.sub(p0x))
+    .add(p1y.sub(p0y).mul(p1y.sub(p0y)))
+    .sqrt();
+  const d2 = p3x
+    .sub(p2x)
+    .mul(p3x.sub(p2x))
+    .add(p3y.sub(p2y).mul(p3y.sub(p2y)))
+    .sqrt();
+  return d1.sub(d2);
+}
+
+export function vertical(p0x, p0y, p1x, p1y) {
+  p0x = variable(p0x);
+  p1x = variable(p1x);
+  return p0x.sub(p1x);
+}
+
+export function horizontal(p0x, p0y, p1x, p1y) {
+  p0y = variable(p0y);
+  p1y = variable(p1y);
+  return p0y.sub(p1y);
+}
+
+export function midpoint(p0x, p0y, p1x, p1y, px, py) {
+  p0x = variable(p0x);
+  p0y = variable(p0y);
+  p1x = variable(p1x);
+  p1y = variable(p1y);
+  px = variable(px);
+  py = variable(py);
+  const midX = p0x.add(p1x).div(asNum(2));
+  const midY = p0y.add(p1y).div(asNum(2));
+  const diffX = px.sub(midX);
+  const diffY = py.sub(midY);
+  return diffX.mul(diffX).add(diffY.mul(diffY));
+}

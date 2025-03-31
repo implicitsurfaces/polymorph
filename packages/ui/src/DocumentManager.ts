@@ -4,8 +4,14 @@ import {
   createTestDocument,
   Number,
   MeasureNode,
+  Point,
 } from "./Document";
 import { totalSolve } from "./constraintSolving/totalSolve";
+import { createConstraintFn } from "./constraintSolving/createSteveConstraintFn";
+import { makeProgram } from "./constraintSolving/makeProgram";
+import { levenbergMarquardt } from "./constraintSolving/optimizers/levenbergMarquardt";
+import { dogLeg } from "./constraintSolving/optimizers/dogLeg";
+import { evalJacobian } from "./constraintSolving/evalJacobian";
 
 import { Selection } from "./Selection";
 import {
@@ -13,6 +19,7 @@ import {
   ParamValueMap,
   getConstraint,
 } from "./constraintSolving/Constraint";
+import { Num } from "sketch";
 
 type eventTypeString =
   | "MOVE"
@@ -37,6 +44,8 @@ type eventTypeString =
 export class DocumentManager {
   private _version: number;
   private _onChange: () => void;
+  private _constraintFunction: () => void;
+  private _initValues: number[];
   private _history: Document[];
   private _index: number;
   private _workingCopy: Document;
@@ -98,30 +107,47 @@ export class DocumentManager {
     }
   }
 
-  private _updateMeasures(): void {
+  private _updateConstraintFunction(): void {
+    const { constraints, oldParamValues, points } = getData(this);
+    const program = makeProgram({
+      currentPoints: points,
+      paramValues: oldParamValues,
+      constraints,
+    });
+
+    const { constraintFn, initValues } = program;
+
+    // if (numerical) const fn = createConstraintFn(constraints, oldParamValues);
+
+    this._constraintFunction = constraintFn;
+    this._initValues = initValues;
+  }
+
+  private _evaluateConstraintFunction({ requested = [] } = {}): void {
     const doc = this.document();
 
-    // Get constraints and old param values
-    const constraints: Constraint[] = [];
-    const oldParamValues: ParamValueMap = {};
-    for (const node of doc.nodes()) {
-      if (node instanceof Number) {
-        oldParamValues[node.id] = node.value;
-      } else if (node instanceof MeasureNode) {
-        if (node.isLocked) {
-          const constraint = getConstraint(node);
-          if (constraint) {
-            constraints.push(constraint);
-          }
-        }
-      }
+    if (!this._constraintFunction) {
+      this._updateConstraintFunction();
     }
 
-    // Solve
-    const newParamValues: ParamValueMap = totalSolve(
-      constraints,
-      oldParamValues,
-    );
+    const getValJacobian = (values) => {
+      const result = this._constraintFunction(values, {
+        requestedValues: requested,
+      });
+      const jacobian = evalJacobian(result.ad);
+      result.jacobian = jacobian;
+      return result;
+    };
+
+    const solution = dogLeg(getValJacobian, this._initValues);
+
+    const result = this._constraintFunction(solution);
+    this._initValues = solution;
+
+    const resultPts = {};
+    result.pts.forEach((pt) => {
+      resultPts[pt.id] = pt;
+    });
 
     // Set new param values.
     //
@@ -129,9 +155,9 @@ export class DocumentManager {
     // measure values, since all of these are Number nodes.
     //
     for (const node of doc.nodes()) {
-      if (node instanceof Number) {
-        const newValue = newParamValues[node.id];
-        node.value = newValue;
+      if (node instanceof Point && node.id in resultPts) {
+        node.x.value = resultPts[node.id].x.val;
+        node.y.value = resultPts[node.id].y.val;
       }
     }
 
@@ -215,18 +241,35 @@ export class DocumentManager {
   }
 
   dispatchEvent(eventType: eventTypeString, data: any = {}): void {
-    console.log("EVENT_TYPE:", eventType);
+    // console.log("EVENT_TYPE:", eventType);
 
     switch (eventType) {
       case "MOVE":
+        const requested = [];
+        data.movedPoints.forEach((pt) => {
+          requested.push({
+            ptId: pt.id,
+            axis: "x",
+            param: pt.x.id,
+            value: pt.x.value,
+          });
+
+          requested.push({
+            ptId: pt.id,
+            axis: "y",
+            param: pt.y.id,
+            value: pt.y.value,
+          });
+        });
+
         // solve constraints
         this.stageChanges();
-        this._updateMeasures();
+        this._evaluateConstraintFunction({ requested });
         break;
       case "END_MOVE":
         // solve constraints
         this.commitChanges();
-        this._updateMeasures();
+        this._evaluateConstraintFunction();
         break;
       case "START_LINE":
         this.stageChanges();
@@ -246,12 +289,13 @@ export class DocumentManager {
       case "SET_POINT":
         // set constraint program values
         this.commitChanges();
-        this._updateMeasures();
+        this._evaluateConstraintFunction();
         break;
       case "ADD_CONSTRAINT":
         // analyze constraint system
+        this._updateConstraintFunction();
         this.commitChanges();
-        this._updateMeasures();
+        this._evaluateConstraintFunction();
         break;
       case "PLACE_POINT":
         this.commitChanges();
@@ -313,4 +357,34 @@ export class DocumentManager {
   selection(): Selection {
     return this._selection;
   }
+}
+
+function getData(documentManager: DocumentManager) {
+  const doc = documentManager.document();
+
+  const constraints: Constraint[] = [];
+  const allValues: ParamValueMap = {};
+  const points: Point[] = [];
+  for (const node of doc.nodes()) {
+    if (node instanceof Number) {
+      allValues[node.id] = node.value;
+    } else if (node instanceof MeasureNode) {
+      if (node.isLocked) {
+        const constraint = getConstraint(node);
+        if (constraint) {
+          constraints.push(constraint);
+        }
+      }
+    } else if (node instanceof Point) {
+      points.push(node);
+    }
+  }
+
+  const oldParamValues: ParamValueMap = {};
+  points.forEach((point) => {
+    oldParamValues[point.x.id] = allValues[point.x.id];
+    oldParamValues[point.y.id] = allValues[point.y.id];
+  });
+
+  return { constraints, oldParamValues, points };
 }

@@ -1,25 +1,8 @@
-import {
-  Document,
-  Layer,
-  createTestDocument,
-  Number,
-  MeasureNode,
-  Point,
-} from "./Document";
-import { totalSolve } from "./constraintSolving/totalSolve";
-import { createConstraintFn } from "./constraintSolving/createSteveConstraintFn";
-import { makeProgram } from "./constraintSolving/makeProgram";
-import { levenbergMarquardt } from "./constraintSolving/optimizers/levenbergMarquardt";
-import { dogLeg } from "./constraintSolving/optimizers/dogLeg";
-import { evalJacobian } from "./constraintSolving/evalJacobian";
+import { Document, Layer, createTestDocument } from "./Document";
+
+import { ConstraintManager } from "./constraintSolving/ConstraintManager";
 
 import { Selection } from "./Selection";
-import {
-  Constraint,
-  ParamValueMap,
-  getConstraint,
-} from "./constraintSolving/Constraint";
-import { Num } from "sketch";
 
 type eventTypeString =
   | "MOVE"
@@ -43,9 +26,10 @@ type eventTypeString =
  */
 export class DocumentManager {
   private _version: number;
+
+  private _constraintManager: ConstraintManager;
+
   private _onChange: () => void;
-  private _constraintFunction: () => void;
-  private _initValues: number[];
   private _history: Document[];
   private _index: number;
   private _workingCopy: Document;
@@ -83,6 +67,7 @@ export class DocumentManager {
       this._notify();
     });
     this._ensureActiveLayer();
+    this._constraintManager = new ConstraintManager(this._workingCopy);
   }
 
   /**
@@ -103,74 +88,6 @@ export class DocumentManager {
     if (doc.layers.length > 0) {
       if (!doc.getNode(selection.activeLayerId(), Layer)) {
         selection.setActiveLayerId(doc.layers[0]);
-      }
-    }
-  }
-
-  private _updateConstraintFunction(): void {
-    const { constraints, oldParamValues, points } = getData(this);
-    const program = makeProgram({
-      currentPoints: points,
-      paramValues: oldParamValues,
-      constraints,
-    });
-
-    const { constraintFn, initValues } = program;
-
-    // if (numerical) const fn = createConstraintFn(constraints, oldParamValues);
-
-    this._constraintFunction = constraintFn;
-    this._initValues = initValues;
-  }
-
-  private _evaluateConstraintFunction({ requested = [] } = {}): void {
-    const doc = this.document();
-
-    if (!this._constraintFunction) {
-      this._updateConstraintFunction();
-    }
-
-    const getValJacobian = (values) => {
-      const result = this._constraintFunction(values, {
-        requestedValues: requested,
-      });
-      const jacobian = evalJacobian(result.ad);
-      result.jacobian = jacobian;
-      return result;
-    };
-
-    const solution = dogLeg(getValJacobian, this._initValues);
-
-    const result = this._constraintFunction(solution);
-    this._initValues = solution;
-
-    const resultPts = {};
-    result.pts.forEach((pt) => {
-      resultPts[pt.id] = pt;
-    });
-
-    // Set new param values.
-    //
-    // Keep in mind that this may change not only point positions, but also
-    // measure values, since all of these are Number nodes.
-    //
-    for (const node of doc.nodes()) {
-      if (node instanceof Point && node.id in resultPts) {
-        node.x.value = resultPts[node.id].x.val;
-        node.y.value = resultPts[node.id].y.val;
-      }
-    }
-
-    // Update all unlocked measures.
-    //
-    // We need to do this last to take into account new positions
-    // after solving the constraints.
-    //
-    for (const node of doc.nodes()) {
-      if (node instanceof MeasureNode) {
-        if (!node.isLocked) {
-          node.updateMeasure();
-        }
       }
     }
   }
@@ -206,6 +123,7 @@ export class DocumentManager {
   //
   private _makeWorkingCopy(): void {
     this._workingCopy = this._history[this._index].clone();
+    this._constraintManager.setDocument(this._workingCopy);
   }
 
   /**
@@ -264,12 +182,12 @@ export class DocumentManager {
 
         // solve constraints
         this.stageChanges();
-        this._evaluateConstraintFunction({ requested });
+        this._constraintManager.evaluateConstraintFunction({ requested });
         break;
       case "END_MOVE":
         // solve constraints
         this.commitChanges();
-        this._evaluateConstraintFunction();
+        this._constraintManager.evaluateConstraintFunction();
         break;
       case "START_LINE":
         this.stageChanges();
@@ -289,13 +207,13 @@ export class DocumentManager {
       case "SET_POINT":
         // set constraint program values
         this.commitChanges();
-        this._evaluateConstraintFunction();
+        this._constraintManager.evaluateConstraintFunction();
         break;
       case "ADD_CONSTRAINT":
         // analyze constraint system
-        this._updateConstraintFunction();
+        this._constraintManager.updateConstraintFunction();
         this.commitChanges();
-        this._evaluateConstraintFunction();
+        this._constraintManager.evaluateConstraintFunction();
         break;
       case "PLACE_POINT":
         this.commitChanges();
@@ -357,34 +275,4 @@ export class DocumentManager {
   selection(): Selection {
     return this._selection;
   }
-}
-
-function getData(documentManager: DocumentManager) {
-  const doc = documentManager.document();
-
-  const constraints: Constraint[] = [];
-  const allValues: ParamValueMap = {};
-  const points: Point[] = [];
-  for (const node of doc.nodes()) {
-    if (node instanceof Number) {
-      allValues[node.id] = node.value;
-    } else if (node instanceof MeasureNode) {
-      if (node.isLocked) {
-        const constraint = getConstraint(node);
-        if (constraint) {
-          constraints.push(constraint);
-        }
-      }
-    } else if (node instanceof Point) {
-      points.push(node);
-    }
-  }
-
-  const oldParamValues: ParamValueMap = {};
-  points.forEach((point) => {
-    oldParamValues[point.x.id] = allValues[point.x.id];
-    oldParamValues[point.y.id] = allValues[point.y.id];
-  });
-
-  return { constraints, oldParamValues, points };
 }

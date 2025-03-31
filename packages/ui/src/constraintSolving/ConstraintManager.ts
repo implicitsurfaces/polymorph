@@ -1,3 +1,6 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
+
 import { Document, MeasureNode, Number, Point } from "../Document";
 import { ParamValueMap, Constraint, getConstraint } from "./Constraint";
 

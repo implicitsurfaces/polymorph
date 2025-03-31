@@ -161,11 +161,12 @@ export class DocumentManager {
     this.goToIndex(this.index() + 1);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   dispatchEvent(eventType: eventTypeString, data: any = {}): void {
     // console.log("EVENT_TYPE:", eventType);
 
     switch (eventType) {
-      case "MOVE":
+      case "MOVE": {
         const requested: RequestValues = [];
 
         data.movedPoints.forEach((pt: Point) => {
@@ -188,6 +189,7 @@ export class DocumentManager {
         this.stageChanges();
         this._constraintManager.evaluateConstraintFunction({ requested });
         break;
+      }
       case "END_MOVE":
         // solve constraints
         this.commitChanges();

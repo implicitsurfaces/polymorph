@@ -16,6 +16,7 @@ export type RequestValues = {
 }[];
 
 export class ConstraintManager {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public constraintFunction: (values: number[], ops: any) => any = null;
   public initValues: number[] = [];
   public doc: Document;

@@ -1,18 +1,24 @@
+import { Document, Layer, createTestDocument, Point } from "./Document";
+
 import {
-  Document,
-  Layer,
-  createTestDocument,
-  Number,
-  MeasureNode,
-} from "./Document";
-import { totalSolve } from "./constraintSolving/totalSolve";
+  ConstraintManager,
+  RequestValues,
+} from "./constraintSolving/ConstraintManager";
 
 import { Selection } from "./Selection";
-import {
-  Constraint,
-  ParamValueMap,
-  getConstraint,
-} from "./constraintSolving/Constraint";
+
+type eventTypeString =
+  | "MOVE"
+  | "END_MOVE"
+  | "START_LINE"
+  | "PLACE_LINE"
+  | "END_LINE"
+  | "CREATE_LAYER"
+  | "DELETE_LAYER"
+  | "SET_POINT"
+  | "ADD_CONSTRAINT"
+  | "PLACE_POINT"
+  | "CHANGED_LOCK";
 
 /**
  * Stores and manages the undo-redo history of the document.
@@ -23,6 +29,9 @@ import {
  */
 export class DocumentManager {
   private _version: number;
+
+  private _constraintManager: ConstraintManager;
+
   private _onChange: () => void;
   private _history: Document[];
   private _index: number;
@@ -61,6 +70,7 @@ export class DocumentManager {
       this._notify();
     });
     this._ensureActiveLayer();
+    this._constraintManager = new ConstraintManager(this._workingCopy);
   }
 
   /**
@@ -81,57 +91,6 @@ export class DocumentManager {
     if (doc.layers.length > 0) {
       if (!doc.getNode(selection.activeLayerId(), Layer)) {
         selection.setActiveLayerId(doc.layers[0]);
-      }
-    }
-  }
-
-  private _updateMeasures(): void {
-    const doc = this.document();
-
-    // Get constraints and old param values
-    const constraints: Constraint[] = [];
-    const oldParamValues: ParamValueMap = {};
-    for (const node of doc.nodes()) {
-      if (node instanceof Number) {
-        oldParamValues[node.id] = node.value;
-      } else if (node instanceof MeasureNode) {
-        if (node.isLocked) {
-          const constraint = getConstraint(node);
-          if (constraint) {
-            constraints.push(constraint);
-          }
-        }
-      }
-    }
-
-    // Solve
-    const newParamValues: ParamValueMap = totalSolve(
-      constraints,
-      oldParamValues,
-    );
-
-    // Set new param values.
-    //
-    // Keep in mind that this may change not only point positions, but also
-    // measure values, since all of these are Number nodes.
-    //
-    for (const node of doc.nodes()) {
-      if (node instanceof Number) {
-        const newValue = newParamValues[node.id];
-        node.value = newValue;
-      }
-    }
-
-    // Update all unlocked measures.
-    //
-    // We need to do this last to take into account new positions
-    // after solving the constraints.
-    //
-    for (const node of doc.nodes()) {
-      if (node instanceof MeasureNode) {
-        if (!node.isLocked) {
-          node.updateMeasure();
-        }
       }
     }
   }
@@ -167,6 +126,7 @@ export class DocumentManager {
   //
   private _makeWorkingCopy(): void {
     this._workingCopy = this._history[this._index].clone();
+    this._constraintManager.setDocument(this._workingCopy);
   }
 
   /**
@@ -201,6 +161,78 @@ export class DocumentManager {
     this.goToIndex(this.index() + 1);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  dispatchEvent(eventType: eventTypeString, data: any = {}): void {
+    // console.log("EVENT_TYPE:", eventType);
+
+    switch (eventType) {
+      case "MOVE": {
+        const requested: RequestValues = [];
+
+        data.movedPoints.forEach((pt: Point) => {
+          requested.push({
+            ptId: pt.id,
+            axis: "x",
+            param: pt.x.id,
+            value: pt.x.value,
+          });
+
+          requested.push({
+            ptId: pt.id,
+            axis: "y",
+            param: pt.y.id,
+            value: pt.y.value,
+          });
+        });
+
+        // solve constraints
+        this.stageChanges();
+        this._constraintManager.evaluateConstraintFunction({ requested });
+        break;
+      }
+      case "END_MOVE":
+        // solve constraints
+        this.commitChanges();
+        this._constraintManager.evaluateConstraintFunction();
+        break;
+      case "START_LINE":
+        this.stageChanges();
+        break;
+      case "PLACE_LINE":
+        this.stageChanges();
+        break;
+      case "END_LINE":
+        this.commitChanges();
+        break;
+      case "CREATE_LAYER":
+        this.commitChanges();
+        break;
+      case "DELETE_LAYER":
+        this.commitChanges();
+        break;
+      case "SET_POINT":
+        // set constraint program values
+        this.commitChanges();
+        this._constraintManager.evaluateConstraintFunction();
+        break;
+      case "ADD_CONSTRAINT":
+        // analyze constraint system
+        this._constraintManager.updateConstraintFunction();
+        this.commitChanges();
+        this._constraintManager.evaluateConstraintFunction();
+        break;
+      case "PLACE_POINT":
+        this.commitChanges();
+        break;
+      case "CHANGED_LOCK":
+        this.commitChanges();
+        break;
+      default:
+        console.log("Unknown event:", eventType);
+        break;
+    }
+  }
+
   /**
    * Notifies that the current document has changed (and therefore that any views
    * on the document must be updated), but that these changes do not yet
@@ -209,7 +241,6 @@ export class DocumentManager {
    * Typically, this should be called on mouse move of a mouse drag action.
    */
   stageChanges(): void {
-    this._updateMeasures();
     this._notify();
   }
 
@@ -224,8 +255,6 @@ export class DocumentManager {
    */
   // TODO: commit message to show in History Panel?
   commitChanges(): void {
-    this._updateMeasures();
-
     // Wipe out any pre-existing redoable data
     this._history.splice(this.index() + 1);
 

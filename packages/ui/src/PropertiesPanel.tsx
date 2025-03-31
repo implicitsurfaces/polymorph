@@ -53,7 +53,8 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
           }}
           setValue={(v: Vector2) => {
             point.position = v;
-            documentManager.commitChanges();
+
+            documentManager.dispatchEvent("SET_POINT");
           }}
         />
       </PropertyItem>
@@ -91,7 +92,8 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
   function onLockClick(measure: MeasureNode) {
     return () => {
       measure.isLocked = !measure.isLocked;
-      documentManager.commitChanges();
+
+      documentManager.dispatchEvent("CHANGED_LOCK");
     };
   }
 

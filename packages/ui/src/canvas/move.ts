@@ -176,12 +176,16 @@ function move(
   for (const onMove of data.onMoves) {
     onMove(delta);
   }
-  documentManager.stageChanges();
+  const doc = documentManager.document();
+  const selection = documentManager.selection();
+  const movedPoints = computeMovedPoints(doc, selection);
+
+  documentManager.dispatchEvent("MOVE", { delta, data, movedPoints });
 }
 
 function end(data: MoveData, documentManager: DocumentManager) {
   data.clear();
-  documentManager.commitChanges();
+  documentManager.dispatchEvent("END_MOVE");
 }
 
 export class Mover {

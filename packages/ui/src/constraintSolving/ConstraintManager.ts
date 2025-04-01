@@ -27,6 +27,7 @@ export class ConstraintManager {
 
   setDocument(doc: Document): void {
     this.doc = doc;
+    this.updateConstraintFunction();
   }
 
   updateConstraintFunction(): void {

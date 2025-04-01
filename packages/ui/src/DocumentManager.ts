@@ -186,14 +186,14 @@ export class DocumentManager {
         });
 
         // solve constraints
-        this.stageChanges();
         this._constraintManager.evaluateConstraintFunction({ requested });
+        this.stageChanges();
         break;
       }
       case "END_MOVE":
         // solve constraints
-        this.commitChanges();
         this._constraintManager.evaluateConstraintFunction();
+        this.commitChanges();
         break;
       case "START_LINE":
         this.stageChanges();
@@ -212,14 +212,14 @@ export class DocumentManager {
         break;
       case "SET_POINT":
         // set constraint program values
-        this.commitChanges();
         this._constraintManager.evaluateConstraintFunction();
+        this.commitChanges();
         break;
       case "ADD_CONSTRAINT":
         // analyze constraint system
         this._constraintManager.updateConstraintFunction();
-        this.commitChanges();
         this._constraintManager.evaluateConstraintFunction();
+        this.commitChanges();
         break;
       case "PLACE_POINT":
         this.commitChanges();

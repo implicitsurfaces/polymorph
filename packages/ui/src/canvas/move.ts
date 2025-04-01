@@ -100,11 +100,13 @@ function isMovable(doc: Document, selectable: Selectable | undefined): boolean {
 class MoveData {
   constructor(
     public isMoving: boolean = false,
+    public movedPoints: Point[] = [],
     public onMoves: OnMoveCallback[] = [],
   ) {}
 
   clear() {
     this.isMoving = false;
+    this.movedPoints = [];
     this.onMoves = [];
   }
 }
@@ -154,6 +156,12 @@ function start(data: MoveData, documentManager: DocumentManager): boolean {
   const movedPoints = computeMovedPoints(doc, selection);
   const movedControlPoints = computeMovedControlPoints(doc, movedPoints);
 
+  // Store the moved points, which are needed for the solver.
+  //
+  // TODO: Shouldn't we also need to pass the movedControlPoints?
+  //
+  data.movedPoints = Array.from(movedPoints);
+
   // Store their onMove() callbacks.
   //
   data.onMoves = [];
@@ -176,16 +184,17 @@ function move(
   for (const onMove of data.onMoves) {
     onMove(delta);
   }
-  const doc = documentManager.document();
-  const selection = documentManager.selection();
-  const movedPoints = computeMovedPoints(doc, selection);
-
-  documentManager.dispatchEvent("MOVE", { delta, data, movedPoints });
+  documentManager.notifyChanges({
+    commit: false,
+    solveConstraints: {
+      movedPoints: data.movedPoints,
+    },
+  });
 }
 
 function end(data: MoveData, documentManager: DocumentManager) {
   data.clear();
-  documentManager.dispatchEvent("END_MOVE");
+  documentManager.notifyChanges({ commit: true });
 }
 
 export class Mover {

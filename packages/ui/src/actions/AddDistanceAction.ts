@@ -49,7 +49,6 @@ export class AddDistanceAction extends TriggerAction {
       endPoint: p2,
     });
     selection.setSelectedNodes([d]);
-
-    documentManager.dispatchEvent("ADD_CONSTRAINT");
+    documentManager.notifyChanges({ buildConstraints: true });
   }
 }

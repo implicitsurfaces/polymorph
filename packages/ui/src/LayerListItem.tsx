@@ -23,8 +23,7 @@ export const LayerListItem = memo(function LayerListItem({
       // Alt+Click: insert before
       const insertIndex = event.altKey ? index : index + 1;
       documentManager.document().createLayerAtIndex(insertIndex);
-
-      documentManager.dispatchEvent("CREATE_LAYER");
+      documentManager.notifyChanges();
     },
     [documentManager, index],
   );
@@ -37,8 +36,7 @@ export const LayerListItem = memo(function LayerListItem({
       return;
     }
     documentManager.document().deleteLayerAtIndex(index);
-
-    documentManager.dispatchEvent("DELETE_LAYER");
+    documentManager.notifyChanges();
   }, [documentManager, index]);
 
   const onSelectLayer = useCallback(() => {

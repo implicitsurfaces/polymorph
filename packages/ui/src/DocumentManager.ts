@@ -7,18 +7,27 @@ import {
 
 import { Selection } from "./Selection";
 
-type eventTypeString =
-  | "MOVE"
-  | "END_MOVE"
-  | "START_LINE"
-  | "PLACE_LINE"
-  | "END_LINE"
-  | "CREATE_LAYER"
-  | "DELETE_LAYER"
-  | "SET_POINT"
-  | "ADD_CONSTRAINT"
-  | "PLACE_POINT"
-  | "CHANGED_LOCK";
+type SolveConstraintsOptions = {
+  movedPoints?: Point[];
+};
+
+export interface ChangeNotificationOptions {
+  readonly commit?: boolean; // default = true
+  readonly buildConstraints?: boolean; // default = true
+  readonly solveConstraints?: false | SolveConstraintsOptions; // default = {}
+}
+
+export class ChangeNotificationData {
+  readonly commit: boolean;
+  readonly buildConstraints: boolean;
+  readonly solveConstraints: false | SolveConstraintsOptions;
+
+  constructor(options: ChangeNotificationOptions) {
+    this.commit = options.commit ?? true;
+    this.buildConstraints = options.buildConstraints ?? false;
+    this.solveConstraints = options.solveConstraints ?? {};
+  }
+}
 
 /**
  * Stores and manages the undo-redo history of the document.
@@ -161,111 +170,98 @@ export class DocumentManager {
     this.goToIndex(this.index() + 1);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  dispatchEvent(eventType: eventTypeString, data: any = {}): void {
-    // console.log("EVENT_TYPE:", eventType);
+  /**
+   * Builds the constraint system. This should typically be called each time a
+   * new constraint is added or the document changes.
+   */
+  private _buildConstraints() {
+    this._constraintManager.updateConstraintFunction();
+  }
 
-    switch (eventType) {
-      case "MOVE": {
-        const requested: RequestValues = [];
-
-        data.movedPoints.forEach((pt: Point) => {
-          requested.push({
-            ptId: pt.id,
-            axis: "x",
-            param: pt.x.id,
-            value: pt.x.value,
-          });
-
-          requested.push({
-            ptId: pt.id,
-            axis: "y",
-            param: pt.y.id,
-            value: pt.y.value,
-          });
+  /**
+   * Solves the constraint system.
+   *
+   * This mutates the document by updating geometric values (e.g., point
+   * positions) such that the constraints are met.
+   *
+   * If given, `movedPoints` indicates a list of points that are explicitly
+   * moved by the user, and therefore the solver will try to keep the current
+   * position of these points unchanged.
+   */
+  // TODO: abstraction that generalizes "movedPoints" to other type of moved geometry?
+  //
+  private _solveConstraints(options: SolveConstraintsOptions) {
+    const requested: RequestValues = [];
+    if (options.movedPoints) {
+      for (const point of options.movedPoints) {
+        requested.push({
+          ptId: point.id,
+          axis: "x",
+          param: point.x.id,
+          value: point.x.value,
         });
-
-        // solve constraints
-        this._constraintManager.evaluateConstraintFunction({ requested });
-        this.stageChanges();
-        break;
+        requested.push({
+          ptId: point.id,
+          axis: "y",
+          param: point.y.id,
+          value: point.y.value,
+        });
       }
-      case "END_MOVE":
-        // solve constraints
-        this._constraintManager.evaluateConstraintFunction();
-        this.commitChanges();
-        break;
-      case "START_LINE":
-        this.stageChanges();
-        break;
-      case "PLACE_LINE":
-        this.stageChanges();
-        break;
-      case "END_LINE":
-        this.commitChanges();
-        break;
-      case "CREATE_LAYER":
-        this.commitChanges();
-        break;
-      case "DELETE_LAYER":
-        this.commitChanges();
-        break;
-      case "SET_POINT":
-        // set constraint program values
-        this._constraintManager.evaluateConstraintFunction();
-        this.commitChanges();
-        break;
-      case "ADD_CONSTRAINT":
-        // analyze constraint system
-        this._constraintManager.updateConstraintFunction();
-        this._constraintManager.evaluateConstraintFunction();
-        this.commitChanges();
-        break;
-      case "PLACE_POINT":
-        this.commitChanges();
-        break;
-      case "CHANGED_LOCK":
-        this.commitChanges();
-        break;
-      default:
-        console.log("Unknown event:", eventType);
-        break;
     }
+    this._constraintManager.evaluateConstraintFunction({ requested });
   }
 
   /**
-   * Notifies that the current document has changed (and therefore that any views
-   * on the document must be updated), but that these changes do not yet
-   * represent a complete undoable action.
+   * Notifies that the current document has changed, and therefore that any views
+   * on the document must be update.
    *
-   * Typically, this should be called on mouse move of a mouse drag action.
-   */
-  stageChanges(): void {
-    this._notify();
-  }
-
-  /**
-   * Notifies that the current document has changed (and therefore that any views
-   * on the document must be updated), and that these changes represent a
-   * complete undoable action, therefore creating a new entry in the document
-   * history.
+   * If `options.commit` is `true` (the default is `true`), then the changes are
+   * considered to be a complete undoable action, and a new entry in the
+   * document history is created. This should typically be done for one-shot
+   * actions (e.g., menu items) or on mouse release of a mouse drag action.
    *
-   * Typically, this should be called for one-shot actions (e.g., menu items)
-   * or on mouse release of a mouse drag action.
+   * If `options.commit` is `false`, then the changes are considered not to
+   * represent a complete undoable action, and the document history is left
+   * unchanged. This should typically be specified on mouse move of a mouse
+   * drag action, since we do not want each individual mouse move to be
+   * separately undoable.
+   *
+   * If `options.buildConstraints` is `true` (the default is `false`), then
+   * the changes are considered to potentially modify the constraints, and
+   * therefore the constraint system is (re-)built before being solved. This
+   * should be set to `true` for changes affecting the constraint system,
+   * that is, when there a locked measure is added or removed.
+   *
+   * If `options.solveConstraints` is not `false`` (the default is `{}`), then
+   * the changes are considered to potentially violate the constraints, and
+   * therefore the constraint system is (re-)solved, potentially modifying
+   * the document. This solve step is always performed before creating the
+   * entry in the document history (if any), in order to only store in the
+   * history the version of the document with constraints resolved.
    */
-  // TODO: commit message to show in History Panel?
-  commitChanges(): void {
-    // Wipe out any pre-existing redoable data
-    this._history.splice(this.index() + 1);
+  notifyChanges(options?: ChangeNotificationOptions): void {
+    const data = new ChangeNotificationData(options ?? {});
+    if (data.buildConstraints) {
+      this._buildConstraints();
+    }
+    if (data.solveConstraints) {
+      // Solve for the constraints (= locked measures) and update other
+      // measure values (= unlocked measures).
+      this._solveConstraints(data.solveConstraints);
+    }
+    if (data.commit) {
+      // Wipe out any pre-existing redoable data
+      this._history.splice(this.index() + 1);
 
-    // Insert the current working copy as last element in the history.
-    this._history.push(this._workingCopy);
+      // Insert the current working copy as last element in the history.
+      this._history.push(this._workingCopy);
 
-    // Set it as new current index.
-    this._index = this._history.length - 1;
-    this._makeWorkingCopy();
+      // Set it as new current index.
+      this._index = this._history.length - 1;
+      this._makeWorkingCopy();
+    }
 
-    // Notify
+    // Update external document views (canvas, panels, etc.)
     this._notify();
   }
 

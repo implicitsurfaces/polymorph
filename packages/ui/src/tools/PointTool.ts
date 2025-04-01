@@ -28,6 +28,6 @@ export class PointTool extends Tool {
     });
     selection.setHoveredNode(point);
     selection.setSelectedNodes([point]);
-    event.documentManager.dispatchEvent("PLACE_POINT");
+    event.documentManager.notifyChanges();
   }
 }

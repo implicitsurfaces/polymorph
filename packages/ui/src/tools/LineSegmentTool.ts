@@ -8,8 +8,8 @@ import { Camera2 } from "../canvas/Camera2";
 import { CanvasPointerEvent } from "../canvas/events";
 import { hover, hoverFromCanvas } from "../canvas/hover";
 
-import { DocumentManager } from "../DocumentManager";
-import { NodeId, Node, Layer, Point, LineSegment } from "../Document";
+import { DocumentManager } from "../doc/DocumentManager";
+import { NodeId, Node, Layer, Point, LineSegment } from "../doc/Document";
 
 // The tool works equivalently either via two separate clicks or one drag:
 //

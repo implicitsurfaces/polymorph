@@ -1,9 +1,15 @@
 import { Vector2 } from "threejs-math";
 
-import { DocumentManager } from "../DocumentManager";
-import { Document, Point, EdgeNode, Layer, SkeletonNode } from "../Document";
-import { ControlPoint, getControlPoints } from "../ControlPoint";
-import { Selectable, Selection } from "../Selection";
+import { DocumentManager } from "../doc/DocumentManager";
+import {
+  Document,
+  Point,
+  EdgeNode,
+  Layer,
+  SkeletonNode,
+} from "../doc/Document";
+import { ControlPoint, getControlPoints } from "../doc/ControlPoint";
+import { Selectable, Selection } from "../doc/Selection";
 
 type OnMoveCallback = (delta: Vector2) => void;
 

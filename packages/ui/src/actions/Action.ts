@@ -1,5 +1,5 @@
 import { KeyboardShortcut } from "./KeyboardShortcut";
-import { DocumentManager } from "../DocumentManager";
+import { DocumentManager } from "../doc/DocumentManager";
 
 export interface ActionProps {
   readonly name: string;

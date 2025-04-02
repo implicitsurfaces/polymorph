@@ -14,14 +14,14 @@ import {
   getNodeStyleIndex,
 } from "./style";
 
-import { Selection } from "../Selection";
+import { Selection } from "../doc/Selection";
 import {
   EdgeNode,
   LineSegment,
   ArcFromStartTangent,
   CCurve,
   SCurve,
-} from "../Document";
+} from "../doc/Document";
 
 function getGeneralizedArcFromStartTangent(
   startPoint: Vector2,

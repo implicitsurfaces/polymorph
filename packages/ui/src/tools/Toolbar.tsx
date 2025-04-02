@@ -5,7 +5,7 @@ import { Tool } from "./Tool";
 
 import { Action, TriggerAction } from "../actions/Action";
 
-import { DocumentManager } from "../DocumentManager";
+import { DocumentManager } from "../doc/DocumentManager";
 
 import "./Toolbar.css";
 

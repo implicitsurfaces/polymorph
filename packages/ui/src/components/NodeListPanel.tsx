@@ -1,5 +1,5 @@
-import { Node, Layer, SkeletonNode, MeasureNode } from "./Document";
-import { DocumentManager } from "./DocumentManager";
+import { Node, Layer, SkeletonNode, MeasureNode } from "../doc/Document";
+import { DocumentManager } from "../doc/DocumentManager";
 import { NodeListItem } from "./NodeListItem";
 
 interface NodeListPanelProps {

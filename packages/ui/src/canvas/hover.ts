@@ -1,8 +1,15 @@
 import { Vector2 } from "threejs-math";
 import { Camera2 } from "./Camera2";
-import { Selectable } from "../Selection";
-import { DocumentManager } from "../DocumentManager";
-import { Document, Node, NodeId, EdgeNode, Layer, Point } from "../Document";
+import { Selectable } from "../doc/Selection";
+import { DocumentManager } from "../doc/DocumentManager";
+import {
+  Document,
+  Node,
+  NodeId,
+  EdgeNode,
+  Layer,
+  Point,
+} from "../doc/Document";
 import { getEdgeShapesAndControls } from "./drawEdges";
 import { Shape, LineSegmentShape, ArcShape } from "./Shapes";
 import { edgeWidth, pointRadius } from "./style";

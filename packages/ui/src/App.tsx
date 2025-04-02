@@ -6,7 +6,7 @@ import {
   PointerHitAreaMargins,
 } from "react-resizable-panels";
 
-import { DocumentManager } from "./DocumentManager";
+import { DocumentManager } from "./doc/DocumentManager";
 
 import { TriggerAction } from "./actions/Action";
 import { Tool } from "./tools/Tool";
@@ -14,13 +14,13 @@ import { Toolbar } from "./tools/Toolbar";
 import { CurrentTool, CurrentToolContext } from "./tools/CurrentTool";
 import { allActions } from "./allActions";
 
-import { Canvas, CanvasSettings } from "./Canvas";
-import { LayersPanel } from "./LayersPanel";
-import { SkeletonPanel, MeasuresPanel } from "./NodeListPanel";
-import { PropertiesPanel } from "./PropertiesPanel";
+import { Canvas, CanvasSettings } from "./components/Canvas";
+import { LayersPanel } from "./components/LayersPanel";
+import { SkeletonPanel, MeasuresPanel } from "./components/NodeListPanel";
+import { PropertiesPanel } from "./components/PropertiesPanel";
 
 import "./App.css";
-import "./Panel.css";
+import "./components/Panel.css";
 
 function panelHitMargins(): PointerHitAreaMargins {
   // separator (0-2px) + 2 * margins (3px) = 6-8px total hit area

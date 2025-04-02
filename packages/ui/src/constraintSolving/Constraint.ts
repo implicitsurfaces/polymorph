@@ -3,7 +3,7 @@ import {
   PointToPointDistance,
   LineToPointDistance,
   Angle,
-} from "../Document";
+} from "../doc/Document";
 
 export type ParamId = string;
 export type ParamValueMap = { [key: ParamId]: number };

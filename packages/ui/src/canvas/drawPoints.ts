@@ -7,8 +7,8 @@ import {
   getNodeStyleIndex,
 } from "./style";
 
-import { Selection } from "../Selection";
-import { Point } from "../Document";
+import { Selection } from "../doc/Selection";
+import { Point } from "../doc/Document";
 
 export function drawDisk(
   ctx: CanvasRenderingContext2D,

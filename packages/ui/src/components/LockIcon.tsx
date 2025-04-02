@@ -1,5 +1,5 @@
-import lockedIcon from "./assets/input-icons/locked.svg";
-import unlockedIcon from "./assets/input-icons/unlocked.svg";
+import lockedIcon from "../assets/input-icons/locked.svg";
+import unlockedIcon from "../assets/input-icons/unlocked.svg";
 
 export interface LockIconProps {
 	isLocked: boolean;

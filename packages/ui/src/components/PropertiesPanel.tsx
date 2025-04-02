@@ -7,12 +7,13 @@ import {
   EdgeNode,
   PointToPointDistance,
   MeasureNode,
-} from "./Document";
-import { DocumentManager } from "./DocumentManager";
+} from "../doc/Document";
+import { DocumentManager } from "../doc/DocumentManager";
+import { getControlPoints } from "../doc/ControlPoint";
+
 import { Vector2Input } from "./Vector2Input";
 import { NumberInput } from "./NumberInput";
 import { NodeListItem } from "./NodeListItem";
-import { getControlPoints } from "./ControlPoint";
 import { LockIcon } from "./LockIcon";
 
 interface PropertyItemProps {

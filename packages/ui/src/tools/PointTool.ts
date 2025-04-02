@@ -4,7 +4,7 @@ import icon from "../assets/tool-icons/point.svg";
 
 import { CanvasPointerEvent } from "../canvas/events";
 
-import { Layer, Point } from "../Document";
+import { Layer, Point } from "../doc/Document";
 
 export class PointTool extends Tool {
   constructor() {

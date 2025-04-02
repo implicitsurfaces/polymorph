@@ -2,8 +2,8 @@ import { TriggerAction } from "./Action";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import icon from "../assets/tool-icons/point-to-point-distance.svg";
 
-import { Point, Layer, PointToPointDistance } from "../Document";
-import { DocumentManager } from "../DocumentManager";
+import { Point, Layer, PointToPointDistance } from "../doc/Document";
+import { DocumentManager } from "../doc/DocumentManager";
 
 export class AddDistanceAction extends TriggerAction {
   constructor() {

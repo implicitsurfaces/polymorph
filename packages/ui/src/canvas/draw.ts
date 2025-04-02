@@ -1,6 +1,6 @@
-import { Selection } from "../Selection";
-import { Document, Layer, EdgeNode, Point, MeasureNode } from "../Document";
-import { DocumentManager } from "../DocumentManager";
+import { Selection } from "../doc/Selection";
+import { Document, Layer, EdgeNode, Point, MeasureNode } from "../doc/Document";
+import { DocumentManager } from "../doc/DocumentManager";
 import { Camera2 } from "./Camera2";
 import { FillStyle, backgroundColor } from "./style";
 import { drawEdges } from "./drawEdges";

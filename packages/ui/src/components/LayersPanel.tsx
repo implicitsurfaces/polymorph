@@ -1,5 +1,5 @@
-import { Layer, NodeId } from "./Document";
-import { DocumentManager } from "./DocumentManager";
+import { Layer, NodeId } from "../doc/Document";
+import { DocumentManager } from "../doc/DocumentManager";
 import { LayerListItem } from "./LayerListItem";
 
 interface LayersPanelProps {

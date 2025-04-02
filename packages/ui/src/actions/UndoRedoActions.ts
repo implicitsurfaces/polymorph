@@ -1,7 +1,7 @@
 import { TriggerAction } from "./Action";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 
-import { DocumentManager } from "../DocumentManager";
+import { DocumentManager } from "../doc/DocumentManager";
 
 export class UndoAction extends TriggerAction {
   constructor() {

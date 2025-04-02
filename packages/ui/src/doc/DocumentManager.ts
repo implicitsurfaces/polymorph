@@ -3,7 +3,7 @@ import { Document, Layer, createTestDocument, Point } from "./Document";
 import {
   ConstraintManager,
   RequestValues,
-} from "./constraintSolving/ConstraintManager";
+} from "../constraintSolving/ConstraintManager";
 
 import { Selection } from "./Selection";
 

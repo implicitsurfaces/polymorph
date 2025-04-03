@@ -1,5 +1,6 @@
 import { Selection } from "../doc/Selection";
-import { Node, SkeletonNode } from "../doc/Document";
+import { Node } from "../doc/Node";
+import { SkeletonNode } from "../doc/SkeletonNode";
 
 // A StrokeStyle or FillStyle is:
 // - A string parsed as CSS <color> value.

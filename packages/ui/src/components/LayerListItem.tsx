@@ -1,5 +1,5 @@
 import { memo, useCallback, MouseEvent } from "react";
-import { NodeId } from "../doc/Document";
+import { NodeId } from "../doc/Node";
 import { DocumentManager } from "../doc/DocumentManager";
 
 interface LayerListItemProps {

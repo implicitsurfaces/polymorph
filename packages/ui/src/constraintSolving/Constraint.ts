@@ -1,9 +1,7 @@
-import {
-  MeasureNode,
-  PointToPointDistance,
-  LineToPointDistance,
-  Angle,
-} from "../doc/Document";
+import { MeasureNode } from "../doc/MeasureNode";
+import { PointToPointDistance } from "../doc/measures/PointToPointDistance";
+import { LineToPointDistance } from "../doc/measures/LineToPointDistance";
+import { Angle } from "../doc/measures/Angle";
 
 export type ParamId = string;
 export type ParamValueMap = { [key: ParamId]: number };

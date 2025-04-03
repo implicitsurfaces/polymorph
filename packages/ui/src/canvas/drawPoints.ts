@@ -8,7 +8,7 @@ import {
 } from "./style";
 
 import { Selection } from "../doc/Selection";
-import { Point } from "../doc/Document";
+import { Point } from "../doc/Point";
 
 export function drawDisk(
   ctx: CanvasRenderingContext2D,

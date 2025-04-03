@@ -1,4 +1,5 @@
-import { NodeId, Node, Layer } from "./Document";
+import { Node, NodeId } from "./Node";
+import { Layer } from "./Layer";
 
 export interface SelectableBase {
   readonly type: string;

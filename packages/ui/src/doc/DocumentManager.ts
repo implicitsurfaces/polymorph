@@ -1,4 +1,8 @@
-import { Document, Layer, createTestDocument, Point } from "./Document";
+import { Document } from "./Document";
+import { Layer } from "./Layer";
+import { Point } from "./Point";
+
+import { createTestDocument } from "./tests/document2";
 
 import {
   ConstraintManager,

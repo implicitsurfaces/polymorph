@@ -15,13 +15,11 @@ import {
 } from "./style";
 
 import { Selection } from "../doc/Selection";
-import {
-  EdgeNode,
-  LineSegment,
-  ArcFromStartTangent,
-  CCurve,
-  SCurve,
-} from "../doc/Document";
+import { EdgeNode } from "../doc/EdgeNode";
+import { LineSegment } from "../doc/edges/LineSegment";
+import { ArcFromStartTangent } from "../doc/edges/ArcFromStartTangent";
+import { CCurve } from "../doc/edges/CCurve";
+import { SCurve } from "../doc/edges/SCurve";
 
 function getGeneralizedArcFromStartTangent(
   startPoint: Vector2,

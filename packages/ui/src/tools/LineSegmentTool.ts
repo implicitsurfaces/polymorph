@@ -9,7 +9,10 @@ import { CanvasPointerEvent } from "../canvas/events";
 import { hover, hoverFromCanvas } from "../canvas/hover";
 
 import { DocumentManager } from "../doc/DocumentManager";
-import { NodeId, Node, Layer, Point, LineSegment } from "../doc/Document";
+import { Node, NodeId } from "../doc/Node";
+import { Layer } from "../doc/Layer";
+import { Point } from "../doc/Point";
+import { LineSegment } from "../doc/edges/LineSegment";
 
 // The tool works equivalently either via two separate clicks or one drag:
 //

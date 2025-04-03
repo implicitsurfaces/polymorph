@@ -7,8 +7,10 @@ import {
   backgroundColor,
 } from "./style";
 
-import { Selection } from "../doc/Selection.ts";
-import { MeasureNode, PointToPointDistance } from "../doc/Document";
+import { Selection } from "../doc/Selection";
+import { MeasureNode } from "../doc/MeasureNode";
+import { PointToPointDistance } from "../doc/measures/PointToPointDistance";
+
 import { LineSegmentShape } from "./Shapes.ts";
 
 export function drawPointToPointDistance(

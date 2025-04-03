@@ -1,15 +1,12 @@
 import { Vector2 } from "threejs-math";
 import { PropsWithChildren } from "react";
 
-import {
-  Node,
-  Point,
-  EdgeNode,
-  PointToPointDistance,
-  MeasureNode,
-} from "../doc/Document";
+import { Node } from "../doc/Node";
+import { Point } from "../doc/Point";
+import { EdgeNode } from "../doc/EdgeNode";
+import { MeasureNode } from "../doc/MeasureNode";
+import { PointToPointDistance } from "../doc/measures/PointToPointDistance";
 import { DocumentManager } from "../doc/DocumentManager";
-import { getControlPoints } from "../doc/ControlPoint";
 
 import { Vector2Input } from "./Vector2Input";
 import { NumberInput } from "./NumberInput";
@@ -78,7 +75,7 @@ export function PropertiesPanel({ documentManager }: PropertiesPanelProps) {
   }
 
   function getContentForEdge(edge: EdgeNode) {
-    const controlPoints = getControlPoints(edge);
+    const controlPoints = edge.controlPoints();
     const controlPointItems = controlPoints.map((cp) => {
       return getNodeListItem(cp.point, `${cp.prettyName}:`);
     });

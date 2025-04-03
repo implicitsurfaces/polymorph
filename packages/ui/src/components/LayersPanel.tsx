@@ -1,4 +1,5 @@
-import { Layer, NodeId } from "../doc/Document";
+import { Layer } from "../doc/Layer";
+import { NodeId } from "../doc/Node";
 import { DocumentManager } from "../doc/DocumentManager";
 import { LayerListItem } from "./LayerListItem";
 

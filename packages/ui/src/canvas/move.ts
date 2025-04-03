@@ -1,14 +1,11 @@
 import { Vector2 } from "threejs-math";
 
 import { DocumentManager } from "../doc/DocumentManager";
-import {
-  Document,
-  Point,
-  EdgeNode,
-  Layer,
-  SkeletonNode,
-} from "../doc/Document";
-import { ControlPoint, getControlPoints } from "../doc/ControlPoint";
+import { Document } from "../doc/Document";
+import { Point } from "../doc/Point";
+import { EdgeNode, ControlPoint } from "../doc/EdgeNode";
+import { Layer } from "../doc/Layer";
+import { SkeletonNode } from "../doc/SkeletonNode";
 import { Selectable, Selection } from "../doc/Selection";
 
 type OnMoveCallback = (delta: Vector2) => void;
@@ -63,7 +60,7 @@ function computeMovedControlPoints(
   const movedControlPoints = new Set<ControlPoint>();
   const incidentEdges = computeIncidentEdges(doc, movedPoints);
   for (const edge of incidentEdges) {
-    for (const cp of getControlPoints(edge)) {
+    for (const cp of edge.controlPoints()) {
       if (cp.anchor && movedPoints.has(cp.anchor)) {
         movedControlPoints.add(cp);
       }

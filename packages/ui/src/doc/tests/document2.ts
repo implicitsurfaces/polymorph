@@ -178,12 +178,8 @@ export function createTestDocument() {
     layer: layer,
     cycle: [l1, l3, sc1, l2],
   });
-  console.log(doc);
-
-  // Measures
 
   // Test JSON round-trip
-  console.log(doc);
   const json = doc.toJSON();
   return Document.fromJSON(json);
 }

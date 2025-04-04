@@ -13,10 +13,8 @@ const cacheImage: {
 } = { current: null };
 
 export function updateSdfTest(doc: Document) {
-  console.log("updateSdfTest", doc);
   const docJson = doc.toJSON();
   drawAPI.render(docJson, renderSize).then((res: Uint8ClampedArray) => {
-    console.log("Finished");
     cacheImage.current = res;
   });
 }

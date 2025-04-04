@@ -1,20 +1,9 @@
 import { expose } from "comlink";
 import { initLib } from "fidget";
 
-import { drawCircle } from "draw-api";
-
 export interface SketchApi {
   render: (docJson: string, definition: number) => Promise<Uint8ClampedArray>;
 }
-
-// XXX: Uncommenting the following block comment (or just the `drawDocument` function,
-// causes the following error to be thrown (and "render()" to not be logged):
-//
-//￼  Layer.ts:22 Uncaught ReferenceError: Cannot access 'Node' before initialization
-//
-// Something wrong with the imports?
-
-/*
 
 import { Document } from "../doc/Document";
 import { ProfileNode } from "../doc/ProfileNode";
@@ -37,26 +26,20 @@ export function drawDocument(doc: Document) {
   }
   return undefined;
 }
-*/
 
 const api: SketchApi = {
   render: async (
-    _docJson: string,
+    docJson: string,
     definition: number,
   ): Promise<Uint8ClampedArray> => {
-    console.log("render()");
+    const doc = Document.fromJSON(docJson);
     await initLib();
-    const value = drawCircle(0.5);
-    const image = await value.render(definition);
-    return image;
-
-    // const doc = Document.fromJSON(docJson);
-    // const value = drawDocument(doc);
-    // if (value) {
-    //   return await value.render(definition);
-    // } else {
-    //   return new Uint8ClampedArray();
-    // }
+    const value = drawDocument(doc);
+    if (value) {
+      return await value.render(definition);
+    } else {
+      return new Uint8ClampedArray();
+    }
   },
 };
 

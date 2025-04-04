@@ -1,7 +1,8 @@
 import { expose } from "comlink";
 import { initLib } from "fidget";
 
-import { Document, ProfileNode } from "../Document";
+import { Document } from "../doc/Document";
+import { ProfileNode } from "../doc/ProfileNode";
 
 import { drawProfileNode } from "./drawProfileNode";
 

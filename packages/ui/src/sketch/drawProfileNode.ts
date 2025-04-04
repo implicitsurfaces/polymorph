@@ -1,4 +1,5 @@
-import { ProfileNode, EdgeCycleProfile } from "../Document";
+import { ProfileNode } from "../doc/ProfileNode";
+import { EdgeCycleProfile } from "../doc/profiles/EdgeCycleProfile";
 import { draw } from "draw-api";
 
 export function drawEdgeCycleProfile(node: EdgeCycleProfile) {

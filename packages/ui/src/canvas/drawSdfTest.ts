@@ -1,6 +1,6 @@
 import drawAPI from "../sketch/api";
-import { Document } from "../Document";
-import { DocumentManager } from "../DocumentManager";
+import { Document } from "../doc/Document";
+import { DocumentManager } from "../doc/DocumentManager";
 import { proxy } from "comlink";
 
 // For now, drawAPI only supports square image renders

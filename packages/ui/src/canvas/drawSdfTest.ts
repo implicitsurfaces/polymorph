@@ -1,4 +1,6 @@
 import drawAPI from "../sketch/api";
+import { Document } from "../doc/Document";
+import { DocumentManager } from "../doc/DocumentManager";
 
 // For now, drawAPI only supports square image renders
 const renderSize = 200;
@@ -10,15 +12,26 @@ const cacheImage: {
   current: null | Uint8ClampedArray;
 } = { current: null };
 
-drawAPI.render(renderSize).then((res: Uint8ClampedArray) => {
-  cacheImage.current = res;
-});
+export function updateSdfTest(doc: Document) {
+  const docJson = doc.toJSON();
+  drawAPI.render(docJson, renderSize).then((res: Uint8ClampedArray) => {
+    cacheImage.current = res;
+  });
+}
 
-export function drawSdfTest(canvas: HTMLCanvasElement) {
+export function drawSdfTest(
+  canvas: HTMLCanvasElement,
+  documentManager: DocumentManager,
+) {
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     return;
   }
+  const doc = documentManager.document();
+
+  updateSdfTest(doc);
+
+  // TODO: redraw when the asynchronous computation cacheImage.current finishes.
   if (cacheImage.current) {
     const dx = 0;
     const dy = 0;

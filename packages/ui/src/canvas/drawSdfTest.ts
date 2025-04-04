@@ -1,7 +1,6 @@
 import drawAPI from "../sketch/api";
 import { Document } from "../doc/Document";
 import { DocumentManager } from "../doc/DocumentManager";
-import { proxy } from "comlink";
 
 // For now, drawAPI only supports square image renders
 const renderSize = 200;
@@ -15,7 +14,9 @@ const cacheImage: {
 
 export function updateSdfTest(doc: Document) {
   console.log("updateSdfTest", doc);
-  drawAPI.render(proxy(doc), renderSize).then((res: Uint8ClampedArray) => {
+  const docJson = doc.toJSON();
+  drawAPI.render(docJson, renderSize).then((res: Uint8ClampedArray) => {
+    console.log("Finished");
     cacheImage.current = res;
   });
 }

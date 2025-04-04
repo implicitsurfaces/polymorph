@@ -1,16 +1,26 @@
 import { expose } from "comlink";
 import { initLib } from "fidget";
 
-import { Document } from "../doc/Document";
-import { ProfileNode } from "../doc/ProfileNode";
-
-import { drawProfileNode } from "./drawProfileNode";
+import { drawCircle } from "draw-api";
 
 export interface SketchApi {
-  render: (doc: Document, definition: number) => Promise<Uint8ClampedArray>;
+  render: (docJson: string, definition: number) => Promise<Uint8ClampedArray>;
 }
 
-function drawDocument(doc: Document) {
+// XXX: Uncommenting the following block comment (or just the `drawDocument` function,
+// causes the following error to be thrown (and "render()" to not be logged):
+//
+//￼  Layer.ts:22 Uncaught ReferenceError: Cannot access 'Node' before initialization
+//
+// Something wrong with the imports?
+
+/*
+
+import { Document } from "../doc/Document";
+import { ProfileNode } from "../doc/ProfileNode";
+import { drawProfileNode } from "./drawProfileNode";
+
+export function drawDocument(doc: Document) {
   // For now, we assume there is a single ProfileNode in the document,
   // and we simply build the sketch tree that corresponds to this one.
   //
@@ -27,21 +37,26 @@ function drawDocument(doc: Document) {
   }
   return undefined;
 }
+*/
 
 const api: SketchApi = {
   render: async (
-    doc: Document,
+    _docJson: string,
     definition: number,
   ): Promise<Uint8ClampedArray> => {
-    console.log("render()", doc);
+    console.log("render()");
     await initLib();
-    console.log("initLib", doc);
-    const value = drawDocument(doc);
-    if (value) {
-      return await value.render(definition);
-    } else {
-      return new Uint8ClampedArray();
-    }
+    const value = drawCircle(0.5);
+    const image = await value.render(definition);
+    return image;
+
+    // const doc = Document.fromJSON(docJson);
+    // const value = drawDocument(doc);
+    // if (value) {
+    //   return await value.render(definition);
+    // } else {
+    //   return new Uint8ClampedArray();
+    // }
   },
 };
 

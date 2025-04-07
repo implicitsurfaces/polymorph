@@ -7,6 +7,10 @@ export interface DistField {
   distanceTo(point: Point): Num;
 }
 
+export function isDistField(obj: unknown): obj is DistField {
+  return obj !== null && typeof (obj as DistField).distanceTo === "function";
+}
+
 export interface Segment extends DistField {
   solidAngle(point: Point): SolidAngle;
 }

@@ -3,111 +3,100 @@ import { vec3FromCartesianCoords } from "./geom-3d";
 import { NumX, NumY, NumZ } from "./num";
 import { allVariables } from "./num-tree";
 import { naiveEval } from "./eval-num/js-eval";
+import { evalSketch } from "./eval-sketch/eval";
 import {
   fidgetRender,
   fidgetRenderNode3D,
   fidgetStringify,
 } from "./eval-num/fidget-eval";
 import { gradientDescentOpt } from "./opt";
+import { AnyProfileNode, AnySolidNode } from "./sketch-nodes/types";
 import {
-  AngleNode,
-  ConstraintNode,
-  DistanceNode,
-  Point3Node,
-  PointNode,
-  ProfileNode,
-  RealValueNode,
-  SolidNode,
-  Vector3Node,
-  VectorNode,
+  AnyAngleNode,
+  AnyConstraintNode,
+  AnyDistanceNode,
+  AnyPoint3Node,
+  AnyPointNode,
+  AnyRealValueNode,
+  AnyVector3Node,
+  AnyVectorNode,
 } from "./sketch-nodes";
-import {
-  evalAngle,
-  evalConstraint,
-  evalDistance,
-  evalPoint,
-  evalPoint3,
-  evalProfile,
-  evalRealValue,
-  evalSolid,
-  evalVector,
-  evalVector3,
-} from "./sketch-tree";
+import { isDistField } from "./types";
 
 export async function renderProfile(
-  profile: ProfileNode,
+  profile: AnyProfileNode,
   valuedVars: Map<string, number> = new Map(),
   size: number,
 ) {
-  const distField = evalProfile(profile);
+  const distField = evalSketch(profile);
   const render = await fidgetRender(distField, size, true, valuedVars);
   return new Uint8ClampedArray(render);
 }
 
 export async function renderSolid(
-  solid: SolidNode,
+  solid: AnySolidNode,
   valuedVars: Map<string, number> = new Map(),
   size: number,
 ) {
-  const distField = evalSolid(solid);
+  const distField = evalSketch(solid);
   const render = await fidgetRenderNode3D(distField, size, true, valuedVars);
   return new Uint8ClampedArray(render);
 }
 
 export async function debugRenderProfile(
-  profile: ProfileNode,
+  profile: AnyProfileNode,
   valuedVars: Map<string, number> = new Map(),
   size = 50,
 ) {
-  const distField = evalProfile(profile);
+  const distField = evalSketch(profile);
   return await fidgetRender(distField, size, false, valuedVars);
 }
 
 export function readDistance(
-  distance: DistanceNode,
+  distance: AnyDistanceNode,
   valuedVars: Map<string, number>,
 ) {
-  const d = evalDistance(distance);
+  const d = evalSketch(distance);
   return naiveEval(d.n, valuedVars);
 }
 
 export function readRealValue(
-  distance: RealValueNode,
+  distance: AnyRealValueNode,
   valuedVars: Map<string, number>,
 ) {
-  const d = evalRealValue(distance);
+  const d = evalSketch(distance);
   return naiveEval(d.n, valuedVars);
 }
 
 export function readAngleAsDegree(
-  angle: AngleNode,
+  angle: AnyAngleNode,
   valuedVars: Map<string, number>,
 ) {
-  const d = evalAngle(angle);
+  const d = evalSketch(angle);
   return naiveEval(d.asDeg().n, valuedVars);
 }
 
 export function readPoint(
-  point: PointNode,
+  point: AnyPointNode,
   valuedVars: Map<string, number>,
 ): [number, number] {
-  const p = evalPoint(point);
+  const p = evalSketch(point);
   return [naiveEval(p.x.n, valuedVars), naiveEval(p.y.n, valuedVars)];
 }
 
 export function readVector(
-  vector: VectorNode,
+  vector: AnyVectorNode,
   valuedVars: Map<string, number>,
 ): [number, number] {
-  const v = evalVector(vector);
+  const v = evalSketch(vector);
   return [naiveEval(v.x.n, valuedVars), naiveEval(v.y.n, valuedVars)];
 }
 
 export function readPoint3(
-  point: Point3Node,
+  point: AnyPoint3Node,
   valuedVars: Map<string, number>,
 ): [number, number, number] {
-  const p = evalPoint3(point);
+  const p = evalSketch(point);
   return [
     naiveEval(p.x.n, valuedVars),
     naiveEval(p.y.n, valuedVars),
@@ -116,10 +105,10 @@ export function readPoint3(
 }
 
 export function readVector3(
-  vector: Vector3Node,
+  vector: AnyVector3Node,
   valuedVars: Map<string, number>,
 ): [number, number, number] {
-  const v = evalVector3(vector);
+  const v = evalSketch(vector);
   return [
     naiveEval(v.x.n, valuedVars),
     naiveEval(v.y.n, valuedVars),
@@ -128,7 +117,7 @@ export function readVector3(
 }
 
 export function findSolution(
-  constraints: ConstraintNode[],
+  constraints: AnyConstraintNode[],
   options: {
     learningRate?: number;
     maxSteps?: number;
@@ -140,10 +129,10 @@ export function findSolution(
   if (constraints.length === 0) {
     return { solution: new Map<string, number>(), change: 0, steps: 0 };
   }
-  let loss = evalConstraint(constraints[0]);
+  let loss = evalSketch(constraints[0]);
 
   constraints.slice(1).forEach((term) => {
-    loss = loss.add(evalConstraint(term));
+    loss = loss.add(evalSketch(term));
   });
 
   const vars = allVariables(loss.n);
@@ -158,7 +147,7 @@ export function findSolution(
   return gradientDescentOpt(loss, initialX, options);
 }
 
-export function exportAsFidget(node: SolidNode | ProfileNode) {
+export function exportAsFidget(node: AnySolidNode | AnyProfileNode) {
   const generic2dPoint = vecFromCartesianCoords(NumX, NumY).pointFromOrigin();
   const generic3dPoint = vec3FromCartesianCoords(
     NumX,
@@ -166,9 +155,10 @@ export function exportAsFidget(node: SolidNode | ProfileNode) {
     NumZ,
   ).pointFromOrigin();
 
-  const distNode =
-    node instanceof SolidNode
-      ? evalSolid(node).valueAt(generic3dPoint)
-      : evalProfile(node).distanceTo(generic2dPoint);
+  const evaled = evalSketch(node);
+
+  const distNode = isDistField(evaled)
+    ? evaled.distanceTo(generic2dPoint)
+    : evaled.valueAt(generic3dPoint);
   return fidgetStringify(distNode.n);
 }

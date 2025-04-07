@@ -1,5 +1,5 @@
 import {
-  ConstraintNode,
+  AnyConstraintNode,
   ConstraintOnAngle,
   ConstraintOnDistance,
   ConstraintOnPoint,
@@ -22,7 +22,7 @@ import {
 } from "./convert";
 
 export class LossFunction {
-  constructor(private readonly terms: ConstraintNode[] = []) {}
+  constructor(private readonly terms: AnyConstraintNode[] = []) {}
 
   assertSamePoint(a: PointLike, b: PointLike, weight?: DistanceLike): void {
     this.terms.push(

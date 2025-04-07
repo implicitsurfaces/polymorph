@@ -1,16 +1,16 @@
 import {
   exportAsFidget,
   renderSolid,
-  SolidNode,
   SolidRotationNode,
   SolidSliceNode,
 } from "sketch";
 import { NodeWrapper } from "./types";
 import { AngleLike, asAngle, asPlane, PlaneLike } from "./convert";
 import { ProfileEditor } from "./ProfileEditor";
+import { AnySolidNode } from "sketch/dist/sketch-nodes/types";
 
-export class SolidEditor implements NodeWrapper<SolidNode> {
-  constructor(public inner: SolidNode) {}
+export class SolidEditor implements NodeWrapper<AnySolidNode> {
+  constructor(public inner: AnySolidNode) {}
 
   rotate(angle: AngleLike, axis: "x" | "y" | "z" = "x"): SolidEditor {
     return new SolidEditor(

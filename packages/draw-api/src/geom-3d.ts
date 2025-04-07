@@ -1,9 +1,9 @@
 import {
   PivotedPlaneNode,
-  PlaneNode,
+  AnyPlaneNode,
   Point3AsVectorFromOrigin,
   Point3MidPoint,
-  Point3Node,
+  AnyPoint3Node,
   Point3VectorSum,
   readPoint3,
   readVector3,
@@ -12,7 +12,7 @@ import {
   Vector3Difference,
   Vector3FromPoint,
   Vector3FromPoints,
-  Vector3Node,
+  AnyVector3Node,
   Vector3Norm,
   Vector3Rotated,
   Vector3Scaled,
@@ -29,43 +29,43 @@ import {
   DistanceLike,
   PlaneLike,
   Point3DLike,
+  RealLike,
   Vector3DLike,
-  VectorLike,
 } from "./convert";
-import { Distance, Vector } from "./geom";
+import { Distance } from "./geom";
 
-export class Point3D implements NodeWrapper<Point3Node> {
-  constructor(public inner: Point3Node) {}
+export class Point3D implements NodeWrapper<AnyPoint3Node> {
+  constructor(public inner: AnyPoint3Node) {}
 
   public translate(vector: Vector3DLike): Point3D {
     return new Point3D(new Point3VectorSum(this.inner, asVector3D(vector)));
   }
 
-  public translateX(x: DistanceLike): Point3D {
+  public translateX(x: RealLike): Point3D {
     return this.translate([x, 0, 0]);
   }
 
-  public translateY(y: DistanceLike): Point3D {
+  public translateY(y: RealLike): Point3D {
     return this.translate([0, y, 0]);
   }
 
-  public translateZ(z: DistanceLike): Point3D {
+  public translateZ(z: RealLike): Point3D {
     return this.translate([0, 0, z]);
   }
 
-  public tr(vect: VectorLike): Point3D {
+  public tr(vect: Vector3DLike): Point3D {
     return this.translate(vect);
   }
 
-  public trX(x: DistanceLike): Point3D {
+  public trX(x: RealLike): Point3D {
     return this.translateX(x);
   }
 
-  public trY(y: DistanceLike): Point3D {
+  public trY(y: RealLike): Point3D {
     return this.translateY(y);
   }
 
-  public trZ(z: DistanceLike): Point3D {
+  public trZ(z: RealLike): Point3D {
     return this.translateZ(z);
   }
 
@@ -74,7 +74,7 @@ export class Point3D implements NodeWrapper<Point3Node> {
   }
 
   public vecFrom(other: Point3DLike): Vector3D {
-    return new Vector3D(new Vector3FromPoints(asVector3D(other), this.inner));
+    return new Vector3D(new Vector3FromPoints(asPoint3D(other), this.inner));
   }
 
   public vecFromOrigin(): Vector3D {
@@ -82,7 +82,7 @@ export class Point3D implements NodeWrapper<Point3Node> {
   }
 
   public midPoint(other: Point3DLike): Point3D {
-    return new Point3D(new Point3MidPoint(this.inner, asVector3D(other)));
+    return new Point3D(new Point3MidPoint(this.inner, asPoint3D(other)));
   }
 
   public read(variables: Map<string, number>): [number, number, number] {
@@ -97,8 +97,8 @@ export function point3D(p: Point3DLike): Point3D {
   return new Point3D(asPoint3D(p));
 }
 
-export class Vector3D implements NodeWrapper<Vector3Node> {
-  constructor(public inner: Vector3Node) {}
+export class Vector3D implements NodeWrapper<AnyVector3Node> {
+  constructor(public inner: AnyVector3Node) {}
 
   public add(other: Vector3DLike): Vector3D {
     return new Vector3D(new Vector3Sum(this.inner, asVector3D(other)));
@@ -122,11 +122,11 @@ export class Vector3D implements NodeWrapper<Vector3Node> {
 
   public rotate(
     angle: AngleLike,
-    axis: "x" | "y" | "z" | VectorLike = "x",
-  ): Vector {
+    axis: "x" | "y" | "z" | Vector3DLike = "x",
+  ): Vector3D {
     const a =
       axis === "x" || axis === "y" || axis === "z" ? axis : asVector3D(axis);
-    return new Vector(new Vector3Rotated(this.inner, asAngle(angle), a));
+    return new Vector3D(new Vector3Rotated(this.inner, asAngle(angle), a));
   }
 
   public read(variables: Map<string, number>): [number, number, number] {
@@ -141,44 +141,44 @@ export function vector3D(v: Vector3DLike): Vector3D {
   return new Vector3D(asVector3D(v));
 }
 
-export class Plane implements NodeWrapper<PlaneNode> {
-  constructor(public inner: PlaneNode) {}
+export class Plane implements NodeWrapper<AnyPlaneNode> {
+  constructor(public inner: AnyPlaneNode) {}
 
   public translate(vector: Vector3DLike): Plane {
     return new Plane(new TranslatedPlaneNode(this.inner, asVector3D(vector)));
   }
 
-  public translateX(x: DistanceLike): Plane {
+  public translateX(x: RealLike): Plane {
     return this.translate([x, 0, 0]);
   }
 
-  public translateY(y: DistanceLike): Plane {
+  public translateY(y: RealLike): Plane {
     return this.translate([0, y, 0]);
   }
 
-  public translateZ(z: DistanceLike): Plane {
+  public translateZ(z: RealLike): Plane {
     return this.translate([0, 0, z]);
   }
 
-  public tr(vect: VectorLike): Plane {
+  public tr(vect: Vector3DLike): Plane {
     return this.translate(vect);
   }
 
-  public trX(x: DistanceLike): Plane {
+  public trX(x: RealLike): Plane {
     return this.translateX(x);
   }
 
-  public trY(y: DistanceLike): Plane {
+  public trY(y: RealLike): Plane {
     return this.translateY(y);
   }
 
-  public trZ(z: DistanceLike): Plane {
+  public trZ(z: RealLike): Plane {
     return this.translateZ(z);
   }
 
   public pivot(
     angle: AngleLike,
-    axis: "x" | "y" | "z" | VectorLike = "x",
+    axis: "x" | "y" | "z" | Vector3DLike = "x",
   ): Plane {
     const a =
       axis === "x" || axis === "y" || axis === "z" ? axis : asVector3D(axis);

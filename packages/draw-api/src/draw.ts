@@ -1,5 +1,5 @@
 import {
-  AngleNode,
+  AnyAngleNode,
   ArcFromEndControl,
   ArcFromStartControl,
   CCurve,
@@ -12,7 +12,7 @@ import {
   PathOpenEnd,
   PathStart,
   PointAsVectorFromOrigin,
-  PointNode,
+  AnyPointNode,
   PointVectorSum,
   VectorFromCartesianCoords,
   VectorFromPolarCoods,
@@ -32,12 +32,12 @@ import { ProfileEditor } from "./ProfileEditor";
 
 export class PointMaker {
   constructor(
-    private currentPoint: PointNode,
-    private done: (p: PointNode, cornerRadius?: number) => EdgeMaker,
+    private currentPoint: AnyPointNode,
+    private done: (p: AnyPointNode, cornerRadius?: number) => EdgeMaker,
     private end: (close: boolean) => ProfileEditor,
   ) {}
 
-  private returnPoint(p: PointNode, cornerRadius?: number): EdgeMaker {
+  private returnPoint(p: AnyPointNode, cornerRadius?: number): EdgeMaker {
     return this.done(p, cornerRadius);
   }
 
@@ -68,7 +68,7 @@ export class PointMaker {
     return this.returnPoint(new PointAsVectorFromOrigin(p), cornerRadius);
   }
 
-  public goToPoint(point: PointNode, cornerRadius?: number): EdgeMaker {
+  public goToPoint(point: AnyPointNode, cornerRadius?: number): EdgeMaker {
     return this.returnPoint(point, cornerRadius);
   }
 
@@ -110,13 +110,13 @@ export class PointMaker {
 }
 
 interface EdgeCreator {
-  (p0: PointNode, p1: PointNode): EdgeNode;
+  (p0: AnyPointNode, p1: AnyPointNode): EdgeNode;
 }
 
 export class EdgeMaker {
   constructor(
     private done: (edgeCreator: EdgeCreator) => PointMaker,
-    readonly currentPoint: PointNode,
+    readonly currentPoint: AnyPointNode,
   ) {}
 
   private returnEdge(edge: EdgeNode): PointMaker {
@@ -124,7 +124,7 @@ export class EdgeMaker {
   }
 
   private withControl(
-    EdgeFactory: new (control: PointNode) => EdgeNode,
+    EdgeFactory: new (control: AnyPointNode) => EdgeNode,
     control: PointLike | ((p0: Point, p1: Point) => PointLike),
   ): PointMaker {
     if (typeof control === "function") {
@@ -145,7 +145,7 @@ export class EdgeMaker {
     return this.withControl(ArcFromStartControl, control);
   }
 
-  public arcFromChordAngle(theta: number | AngleNode): PointMaker {
+  public arcFromChordAngle(theta: number | AnyAngleNode): PointMaker {
     return this.done((p0_, p1) => {
       const p0 = point(p0_);
 
@@ -215,7 +215,7 @@ export function draw(
   );
 
   function lineDone(createEdge: EdgeCreator): PointMaker {
-    function pointDone(point: PointNode, cornerRadius?: number): EdgeMaker {
+    function pointDone(point: AnyPointNode, cornerRadius?: number): EdgeMaker {
       const previousPoint = currentPoint;
       currentPoint = point;
 

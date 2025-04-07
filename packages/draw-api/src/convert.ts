@@ -1,82 +1,106 @@
 import {
   AngleLiteral,
-  AngleNode,
+  AnyAngleNode,
+  AnyDistanceNode,
+  AnyPlaneNode,
+  AnyPoint3Node,
+  AnyPointNode,
+  AnyRealValueNode,
+  AnyVector3Node,
+  AnyVectorNode,
   BasePlaneNode,
   DistanceLiteral,
   DistanceNode,
   PlaneFromPoints,
-  PlaneNode,
   Point3AsVectorFromOrigin,
-  Point3Node,
   PointAsVectorFromOrigin,
-  PointNode,
-  ProfileNode,
-  RealValueNode,
   Vector3FromCartesianCoords,
-  Vector3Node,
   VectorFromCartesianCoords,
   VectorFromPolarCoods,
-  VectorNode,
+  AnyProfileNode,
 } from "sketch";
-import { isNodeWrapper, NodeWrapper } from "./types";
+import { isNodeWrapper, isOfCategory, NodeWrapper } from "./types";
 
-export type RealLike = number | RealValueNode | NodeWrapper<RealValueNode>;
+export type DistanceLike =
+  | number
+  | AnyDistanceNode
+  | NodeWrapper<AnyDistanceNode>;
 
-export function asRealValue(value: RealLike): RealValueNode {
-  if (value instanceof RealValueNode) {
-    return value;
-  }
-  if (isNodeWrapper(value, RealValueNode)) {
-    return value.inner;
-  }
-  return value;
-}
-
-export type DistanceLike = number | DistanceNode | NodeWrapper<DistanceNode>;
-
-export function asDistance(distance: DistanceLike): DistanceNode {
-  if (distance instanceof DistanceNode) {
+export function asDistance(distance: DistanceLike): AnyDistanceNode {
+  if (isOfCategory(distance, "Distance")) {
     return distance;
   }
-  if (isNodeWrapper(distance, DistanceNode)) {
+  if (isNodeWrapper(distance, "Distance")) {
     return distance.inner;
   }
 
   return new DistanceLiteral(distance);
 }
 
+export type RealLike =
+  | number
+  | AnyRealValueNode
+  | NodeWrapper<AnyRealValueNode>
+  | AnyDistanceNode
+  | NodeWrapper<AnyDistanceNode>;
+
+export function asRealValue(value: RealLike): AnyRealValueNode {
+  if (isOfCategory(value, "Distance")) {
+    return value;
+  }
+
+  if (isNodeWrapper(value, "Distance")) {
+    return value.inner;
+  }
+
+  if (isOfCategory(value, "RealValue")) {
+    return value;
+  }
+
+  if (isNodeWrapper(value, "RealValue")) {
+    return value.inner;
+  }
+
+  if (typeof value === "number") {
+    return value;
+  }
+
+  throw new Error("Expected a RealValue or Distance, but received: " + value);
+}
+
 export function asDistanceOrUndefined(
   value: DistanceLike | undefined,
 ): DistanceNode | undefined {
-  return value || value === 0 ? asDistance(value) : value;
+  return value === undefined ? value : asDistance(value);
 }
 
-export type AngleLike = number | AngleNode | NodeWrapper<AngleNode>;
+export type AngleLike = number | AnyAngleNode | NodeWrapper<AnyAngleNode>;
 
-export function asAngle(angle: AngleLike): AngleNode {
-  if (angle instanceof AngleNode) {
-    return angle;
+export function asAngle(angle: AngleLike): AnyAngleNode {
+  if (typeof angle === "number") {
+    return new AngleLiteral(angle);
   }
-  if (isNodeWrapper(angle, AngleNode)) {
+  if (isNodeWrapper(angle, "Angle")) {
     return angle.inner;
   }
-  return new AngleLiteral(angle);
+
+  return angle;
 }
 
 export type VectorLike =
   | [RealLike, RealLike]
-  | VectorNode
-  | NodeWrapper<VectorNode>;
+  | AnyVectorNode
+  | NodeWrapper<AnyVectorNode>;
 
-export function asVector(vector: VectorLike): VectorNode {
-  if (vector instanceof VectorNode) {
+export function asVector(vector: VectorLike): AnyVectorNode {
+  if (isOfCategory(vector, "Vector")) {
     return vector;
   }
-  if (isNodeWrapper(vector, VectorNode)) {
+  if (isNodeWrapper(vector, "Vector")) {
     return vector.inner;
   }
 
-  if (isNodeWrapper(vector, PointNode) || vector instanceof PointNode) {
+  if (isNodeWrapper(vector, "Point") || isOfCategory(vector, "Point")) {
     throw new Error("Expected a Vector, but recieved a Point");
   }
 
@@ -86,18 +110,18 @@ export function asVector(vector: VectorLike): VectorNode {
 
 export type Vector3DLike =
   | [RealLike, RealLike, RealLike]
-  | Vector3Node
-  | NodeWrapper<Vector3Node>;
+  | AnyVector3Node
+  | NodeWrapper<AnyVector3Node>;
 
-export function asVector3D(vector: Vector3DLike): Vector3Node {
-  if (vector instanceof Vector3Node) {
+export function asVector3D(vector: Vector3DLike): AnyVector3Node {
+  if (isOfCategory(vector, "Vector3")) {
     return vector;
   }
-  if (isNodeWrapper(vector, Vector3Node)) {
+  if (isNodeWrapper(vector, "Vector3")) {
     return vector.inner;
   }
 
-  if (isNodeWrapper(vector, Point3Node) || vector instanceof PointNode) {
+  if (isNodeWrapper(vector, "Point3") || isOfCategory(vector, "Point3")) {
     throw new Error("Expected a Vector, but recieved a Point");
   }
 
@@ -109,11 +133,15 @@ export function asVector3D(vector: Vector3DLike): Vector3Node {
   );
 }
 
-export function asPolarVector(vector: VectorLike): VectorNode {
-  if (vector instanceof VectorNode) {
+export type PolarVectorLike =
+  | [AngleLike, DistanceLike]
+  | AnyVectorNode
+  | NodeWrapper<AnyVectorNode>;
+export function asPolarVector(vector: PolarVectorLike): AnyVectorNode {
+  if (isOfCategory(vector, "Vector")) {
     return vector;
   }
-  if (isNodeWrapper(vector, VectorNode)) {
+  if (isNodeWrapper(vector, "Vector")) {
     return vector.inner;
   }
   const [angle, radius] = vector;
@@ -122,29 +150,33 @@ export function asPolarVector(vector: VectorLike): VectorNode {
 
 export type PointLike =
   | [RealLike, RealLike]
-  | PointNode
-  | NodeWrapper<PointNode>;
+  | AnyPointNode
+  | NodeWrapper<AnyPointNode>;
 
-export function asPoint(point: PointLike): PointNode {
-  if (point instanceof PointNode) {
+export function asPoint(point: PointLike): AnyPointNode {
+  if (isOfCategory(point, "Point")) {
     return point;
   }
-  if (isNodeWrapper(point, PointNode)) {
+  if (isNodeWrapper(point, "Point")) {
     return point.inner;
   }
 
-  if (isNodeWrapper(point, VectorNode) || point instanceof VectorNode) {
+  if (isNodeWrapper(point, "Vector") || isOfCategory(point, "Vector")) {
     throw new Error("Expected a Point, but recieved a Vector");
   }
 
   return new PointAsVectorFromOrigin(asVector(point));
 }
 
-export function asPolarPoint(point: PointLike): PointNode {
-  if (point instanceof PointNode) {
+export type PolarPointLike =
+  | [AngleLike, DistanceLike]
+  | AnyPointNode
+  | NodeWrapper<AnyPointNode>;
+export function asPolarPoint(point: PolarPointLike): AnyPointNode {
+  if (isOfCategory(point, "Point")) {
     return point;
   }
-  if (isNodeWrapper(point, PointNode)) {
+  if (isNodeWrapper(point, "Point")) {
     return point.inner;
   }
   return new PointAsVectorFromOrigin(asPolarVector(point));
@@ -152,44 +184,44 @@ export function asPolarPoint(point: PointLike): PointNode {
 
 export type Point3DLike =
   | [RealLike, RealLike, RealLike]
-  | Point3Node
-  | NodeWrapper<Point3Node>;
+  | AnyPoint3Node
+  | NodeWrapper<AnyPoint3Node>;
 
-export function asPoint3D(point: Point3DLike): Point3Node {
-  if (point instanceof Point3Node) {
+export function asPoint3D(point: Point3DLike): AnyPoint3Node {
+  if (isOfCategory(point, "Point3")) {
     return point;
   }
-  if (isNodeWrapper(point, Point3Node)) {
+  if (isNodeWrapper(point, "Point3")) {
     return point.inner;
   }
   return new Point3AsVectorFromOrigin(asVector3D(point));
 }
 
-export type ProfileLike = ProfileNode | NodeWrapper<ProfileNode>;
+export type ProfileLike = AnyProfileNode | NodeWrapper<AnyProfileNode>;
 
-export function asProfile(profile: ProfileLike): ProfileNode {
-  if (profile instanceof ProfileNode) {
+export function asProfile(profile: ProfileLike): AnyProfileNode {
+  if (isOfCategory(profile, "Profile")) {
     return profile;
   }
-  if (isNodeWrapper(profile, ProfileNode)) {
+  if (isNodeWrapper(profile, "Profile")) {
     return profile.inner;
   }
   throw new Error("Expected a ProfileNode");
 }
 
 export type PlaneLike =
-  | PlaneNode
-  | NodeWrapper<PlaneNode>
-  | [PointLike, PointLike, PointLike]
+  | AnyPlaneNode
+  | NodeWrapper<AnyPlaneNode>
+  | [Point3DLike, Point3DLike, Point3DLike]
   | "xy"
   | "yz"
   | "xz";
 
-export function asPlane(plane: PlaneLike): PlaneNode {
-  if (plane instanceof PlaneNode) {
+export function asPlane(plane: PlaneLike): AnyPlaneNode {
+  if (isOfCategory(plane, "Plane")) {
     return plane;
   }
-  if (isNodeWrapper(plane, PlaneNode)) {
+  if (isNodeWrapper(plane, "Plane")) {
     return plane.inner;
   }
 

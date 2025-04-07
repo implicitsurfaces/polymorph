@@ -49,7 +49,8 @@ export function drawCircle(
   if (!center) {
     return circle;
   }
-  return circle.translate(center);
+  const v = point(center).vecFromOrigin();
+  return circle.translate(v);
 }
 
 export function drawBox(
@@ -61,7 +62,9 @@ export function drawBox(
   if (!center) {
     return box;
   }
-  return box.translate(center);
+
+  const v = point(center).vecFromOrigin();
+  return box.translate(v);
 }
 
 export function drawEllipse(
@@ -75,7 +78,9 @@ export function drawEllipse(
   if (!center) {
     return ellipse;
   }
-  return ellipse.translate(center);
+
+  const v = point(center).vecFromOrigin();
+  return ellipse.translate(v);
 }
 
 function parseModulation(

@@ -1,13 +1,9 @@
 import {
-  AngleNode,
   DistanceLiteral,
-  PointNode,
   PointVectorSum,
   VectorFromCartesianCoords,
   VectorFromPolarCoods,
-  DistanceNode,
   VectorDifference,
-  VectorNode,
   VectorScaled,
   VectorSum,
   VectorFromPoint,
@@ -25,39 +21,47 @@ import {
   readVector,
   readPoint,
   PointAsVectorFromOrigin,
-  RealValueNode,
   readRealValue,
   VectorRotated,
+  AnyRealValueNode,
+  AnyDistanceNode,
+  AnyAngleNode,
+  AnyVectorNode,
+  AnyPointNode,
 } from "sketch";
 import {
+  AngleLike,
   asAngle,
   asDistance,
   asPoint,
+  asRealValue,
   asVector,
+  DistanceLike,
   PointLike,
+  RealLike,
   VectorLike,
 } from "./convert";
 
 import { NodeWrapper } from "./types";
 
-export class Real implements NodeWrapper<RealValueNode> {
-  constructor(public inner: RealValueNode) {}
+export class Real implements NodeWrapper<AnyRealValueNode> {
+  constructor(public inner: AnyRealValueNode) {}
 
   read(variables: Map<string, number>): number {
     return readRealValue(this.inner, variables);
   }
 }
 
-export class Distance implements NodeWrapper<DistanceNode> {
-  constructor(public inner: DistanceNode) {}
+export class Distance implements NodeWrapper<AnyDistanceNode> {
+  constructor(public inner: AnyDistanceNode) {}
 
   read(variables: Map<string, number>): number {
     return readDistance(this.inner, variables);
   }
 }
 
-export class Angle implements NodeWrapper<AngleNode> {
-  constructor(public inner: AngleNode) {}
+export class Angle implements NodeWrapper<AnyAngleNode> {
+  constructor(public inner: AnyAngleNode) {}
 
   public add(other: Angle): Angle {
     return new Angle(new AngleSum(this.inner, other.inner));
@@ -90,19 +94,19 @@ export class Angle implements NodeWrapper<AngleNode> {
   }
 }
 
-export class Vector implements NodeWrapper<VectorNode> {
-  constructor(readonly inner: VectorNode) {}
+export class Vector implements NodeWrapper<AnyVectorNode> {
+  constructor(readonly inner: AnyVectorNode) {}
 
-  public add(other: Vector): Vector {
-    return new Vector(new VectorSum(this.inner, other.inner));
+  public add(other: VectorLike): Vector {
+    return new Vector(new VectorSum(this.inner, asVector(other)));
   }
 
-  public subtract(other: Vector): Vector {
-    return new Vector(new VectorDifference(this.inner, other.inner));
+  public subtract(other: VectorLike): Vector {
+    return new Vector(new VectorDifference(this.inner, asVector(other)));
   }
 
-  public scale(factor: number | DistanceNode): Vector {
-    return new Vector(new VectorScaled(this.inner, asDistance(factor)));
+  public scale(factor: RealLike): Vector {
+    return new Vector(new VectorScaled(this.inner, asRealValue(factor)));
   }
 
   public asAngle(): Angle {
@@ -121,40 +125,37 @@ export class Vector implements NodeWrapper<VectorNode> {
     return new Point(new PointAsVectorFromOrigin(this.inner));
   }
 
-  public rotate(angle: number | AngleNode): Vector {
+  public rotate(angle: AngleLike): Vector {
     return new Vector(new VectorRotated(this.inner, asAngle(angle)));
   }
 }
 
-export class Point implements NodeWrapper<PointNode> {
-  constructor(public inner: PointNode) {}
+export class Point implements NodeWrapper<AnyPointNode> {
+  constructor(public inner: AnyPointNode) {}
 
   public translate(vector: VectorLike): Point {
     return new Point(new PointVectorSum(this.inner, asVector(vector)));
   }
 
-  public translateX(x: number | DistanceNode): Point {
+  public translateX(x: RealLike): Point {
     return new Point(
       new PointVectorSum(
         this.inner,
-        new VectorFromCartesianCoords(asDistance(x), new DistanceLiteral(0)),
+        new VectorFromCartesianCoords(asRealValue(x), 0),
       ),
     );
   }
 
-  public translateY(y: number | DistanceNode): Point {
+  public translateY(y: RealLike): Point {
     return new Point(
       new PointVectorSum(
         this.inner,
-        new VectorFromCartesianCoords(new DistanceLiteral(0), asDistance(y)),
+        new VectorFromCartesianCoords(0, asRealValue(y)),
       ),
     );
   }
 
-  translatePolar(
-    angle: number | AngleNode,
-    radius: number | DistanceNode = 1,
-  ): Point {
+  translatePolar(angle: AngleLike, radius: DistanceLike = 1): Point {
     return new Point(
       new PointVectorSum(
         this.inner,
@@ -167,18 +168,15 @@ export class Point implements NodeWrapper<PointNode> {
     return this.translate(vect);
   }
 
-  public trX(x: number | DistanceNode): Point {
+  public trX(x: RealLike): Point {
     return this.translateX(x);
   }
 
-  public trY(y: number | DistanceNode): Point {
+  public trY(y: RealLike): Point {
     return this.translateY(y);
   }
 
-  public trPolar(
-    angle: number | AngleNode,
-    radius: number | DistanceNode = 1,
-  ): Point {
+  public trPolar(angle: AngleLike, radius: DistanceLike = 1): Point {
     return this.translatePolar(angle, radius);
   }
 
@@ -202,35 +200,35 @@ export class Point implements NodeWrapper<PointNode> {
     return readPoint(this.inner, variables);
   }
 
-  public rotateAround(angle: number | AngleNode, center: PointLike): Point {
+  public rotateAround(angle: AngleLike, center: PointLike): Point {
     const c = point(center);
     const v = this.vecFrom(c);
     return c.translate(v.rotate(angle));
   }
 }
 
-export function angle(degrees: number | Angle | AngleNode): Angle {
+export function angle(degrees: AngleLike): Angle {
   if (degrees instanceof Angle) {
     return degrees;
   }
   return new Angle(asAngle(degrees));
 }
 
-export function distance(value: number | Distance | DistanceNode): Distance {
+export function distance(value: DistanceLike): Distance {
   if (value instanceof Distance) {
     return value;
   }
   return new Distance(asDistance(value));
 }
 
-export function vector(value: VectorLike | Vector): Vector {
+export function vector(value: VectorLike): Vector {
   if (value instanceof Vector) {
     return value;
   }
   return new Vector(asVector(value));
 }
 
-export function point(value: PointLike | Point): Point {
+export function point(value: PointLike): Point {
   if (value instanceof Point) {
     return value;
   }

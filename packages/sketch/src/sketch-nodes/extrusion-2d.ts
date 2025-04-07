@@ -6,12 +6,14 @@ import {
 } from "./bases";
 
 export class StaticWidthModulation extends WidthModulationNode {
+  public readonly nodeType = "StaticWidthModulation";
   constructor(public readonly width: DistanceNode) {
     super();
   }
 }
 
 export class LinearWidthModulation extends WidthModulationNode {
+  public readonly nodeType = "LinearWidthModulation";
   constructor(
     public readonly start: DistanceNode,
     public readonly end: DistanceNode,
@@ -21,6 +23,7 @@ export class LinearWidthModulation extends WidthModulationNode {
 }
 
 export class EasedWidthModulation extends WidthModulationNode {
+  public readonly nodeType = "EasedWidthModulation";
   constructor(
     public readonly start: DistanceNode,
     public readonly end: DistanceNode,
@@ -31,6 +34,7 @@ export class EasedWidthModulation extends WidthModulationNode {
 }
 
 export class LinearExtrusion2DNode extends ProfileNode {
+  public readonly nodeType = "LinearExtrusion2D";
   constructor(
     public readonly height: DistanceNode,
     public readonly widthModulation: WidthModulationNode,
@@ -40,6 +44,7 @@ export class LinearExtrusion2DNode extends ProfileNode {
 }
 
 export class ArcExtrusion2DNode extends ProfileNode {
+  public readonly nodeType = "ArcExtrusion2D";
   constructor(
     public readonly radius: DistanceNode,
     public readonly angle: AngleNode,
@@ -48,3 +53,9 @@ export class ArcExtrusion2DNode extends ProfileNode {
     super();
   }
 }
+
+export type AnyExtrusion2DNode = LinearExtrusion2DNode | ArcExtrusion2DNode;
+export type AnyWidthModulationNode =
+  | StaticWidthModulation
+  | LinearWidthModulation
+  | EasedWidthModulation;

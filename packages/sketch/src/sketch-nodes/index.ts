@@ -15,3 +15,5 @@ export * from "./solid-operation";
 export * from "./vector3";
 export * from "./point3";
 export * from "./plane";
+
+export type * from "./types";

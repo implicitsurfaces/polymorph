@@ -3,11 +3,12 @@ import {
   DistanceNode,
   PointNode,
   ProfileNode,
-  RealValueNode,
+  RealValueOrNumber,
   VectorNode,
 } from "./bases";
 
 export class VectorFromPolarCoods extends VectorNode {
+  public readonly nodeType = "VectorFromPolarCoods";
   constructor(
     public readonly distance: DistanceNode,
     public readonly angle: AngleNode,
@@ -17,15 +18,17 @@ export class VectorFromPolarCoods extends VectorNode {
 }
 
 export class VectorFromCartesianCoords extends VectorNode {
+  public readonly nodeType = "VectorFromCartesianCoords";
   constructor(
-    public readonly x: RealValueNode,
-    public readonly y: RealValueNode,
+    public readonly x: RealValueOrNumber,
+    public readonly y: RealValueOrNumber,
   ) {
     super();
   }
 }
 
 export class VectorFromPoints extends VectorNode {
+  public readonly nodeType = "VectorFromPoints";
   constructor(
     public readonly p0: PointNode,
     public readonly p1: PointNode,
@@ -35,12 +38,14 @@ export class VectorFromPoints extends VectorNode {
 }
 
 export class VectorFromPoint extends VectorNode {
+  public readonly nodeType = "VectorFromPoint";
   constructor(public readonly point: PointNode) {
     super();
   }
 }
 
 export class VectorSum extends VectorNode {
+  public readonly nodeType = "VectorSum";
   constructor(
     public readonly left: VectorNode,
     public readonly right: VectorNode,
@@ -50,6 +55,7 @@ export class VectorSum extends VectorNode {
 }
 
 export class VectorDifference extends VectorNode {
+  public readonly nodeType = "VectorDifference";
   constructor(
     public readonly left: VectorNode,
     public readonly right: VectorNode,
@@ -59,15 +65,17 @@ export class VectorDifference extends VectorNode {
 }
 
 export class VectorScaled extends VectorNode {
+  public readonly nodeType = "VectorScaled";
   constructor(
     public readonly vector: VectorNode,
-    public readonly scale: RealValueNode,
+    public readonly scale: RealValueOrNumber,
   ) {
     super();
   }
 }
 
 export class VectorRotated extends VectorNode {
+  public readonly nodeType = "VectorRotated";
   constructor(
     public readonly vector: VectorNode,
     public readonly angle: AngleNode,
@@ -77,6 +85,7 @@ export class VectorRotated extends VectorNode {
 }
 
 export class GradientAt extends VectorNode {
+  public readonly nodeType = "GradientAt";
   constructor(
     public readonly field: ProfileNode,
     public readonly point: PointNode,
@@ -84,3 +93,14 @@ export class GradientAt extends VectorNode {
     super();
   }
 }
+
+export type AnyVectorNode =
+  | VectorFromPolarCoods
+  | VectorFromCartesianCoords
+  | VectorFromPoints
+  | VectorFromPoint
+  | VectorSum
+  | VectorDifference
+  | VectorScaled
+  | VectorRotated
+  | GradientAt;

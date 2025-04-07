@@ -64,6 +64,9 @@ export function readRealValue(
   distance: AnyRealValueNode,
   valuedVars: Map<string, number>,
 ) {
+  if (typeof distance === "number") {
+    return distance;
+  }
   const d = evalSketch(distance);
   return naiveEval(d.n, valuedVars);
 }

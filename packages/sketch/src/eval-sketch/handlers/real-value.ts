@@ -1,13 +1,13 @@
 import { Num, variable } from "../../num";
 import {
-  AnyRealValueNode,
+  AnySimpleRealValueNode,
   RealValueVariable,
   SignedDistanceToProfile,
 } from "../../sketch-nodes";
 import { Handler } from "../../sketch-nodes/types";
 import { guardDistField, guardPoint } from "../guards";
 
-export interface RealValueHandler<T extends AnyRealValueNode>
+export interface RealValueHandler<T extends AnySimpleRealValueNode>
   extends Handler<T> {
   category: "RealValue";
   eval: (value: T, children: unknown[]) => Num;

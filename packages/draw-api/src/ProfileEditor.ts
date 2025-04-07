@@ -11,7 +11,6 @@ import {
   MidSurfaceNode,
   Morph,
   NormalizedFieldNode,
-  ProfileNode,
   renderProfile,
   Rotation,
   Scale,
@@ -32,15 +31,17 @@ import {
   asVector,
   DistanceLike,
   PointLike,
+  RealLike,
   VectorLike,
 } from "./convert";
 import { Real, Vector, vector } from "./geom";
 import { SolidEditor } from "./SolidEditor";
+import { AnyProfileNode } from "sketch/dist/sketch-nodes/types";
 
-export class ProfileEditor implements NodeWrapper<ProfileNode> {
-  constructor(public inner: ProfileNode) {}
+export class ProfileEditor implements NodeWrapper<AnyProfileNode> {
+  constructor(public inner: AnyProfileNode) {}
 
-  get shape(): ProfileNode {
+  get shape(): AnyProfileNode {
     return this.inner;
   }
 
@@ -53,11 +54,11 @@ export class ProfileEditor implements NodeWrapper<ProfileNode> {
     return new ProfileEditor(new Translation(this.inner, asVector(vector)));
   }
 
-  public translateX(x: DistanceLike): ProfileEditor {
+  public translateX(x: RealLike): ProfileEditor {
     return this.translate([x, 0]);
   }
 
-  public translateY(y: DistanceLike): ProfileEditor {
+  public translateY(y: RealLike): ProfileEditor {
     return this.translate([0, y]);
   }
 

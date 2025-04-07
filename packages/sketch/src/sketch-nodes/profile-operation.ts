@@ -2,11 +2,12 @@ import {
   AngleNode,
   DistanceNode,
   ProfileNode,
-  RealValueNode,
+  RealValueOrNumber,
   VectorNode,
 } from "./bases";
 
 export class Translation extends ProfileNode {
+  public readonly nodeType = "Translation";
   constructor(
     public readonly profile: ProfileNode,
     public readonly vector: VectorNode,
@@ -16,6 +17,7 @@ export class Translation extends ProfileNode {
 }
 
 export class Rotation extends ProfileNode {
+  public readonly nodeType = "Rotation";
   constructor(
     public readonly profile: ProfileNode,
     public readonly angle: AngleNode,
@@ -25,15 +27,17 @@ export class Rotation extends ProfileNode {
 }
 
 export class Scale extends ProfileNode {
+  public readonly nodeType = "Scale";
   constructor(
     public readonly profile: ProfileNode,
-    public readonly factor: RealValueNode,
+    public readonly factor: RealValueOrNumber,
   ) {
     super();
   }
 }
 
 export class Union extends ProfileNode {
+  public readonly nodeType = "Union";
   constructor(
     public readonly left: ProfileNode,
     public readonly right: ProfileNode,
@@ -43,6 +47,7 @@ export class Union extends ProfileNode {
 }
 
 export class SmoothUnion extends ProfileNode {
+  public readonly nodeType = "SmoothUnion";
   constructor(
     public readonly left: ProfileNode,
     public readonly right: ProfileNode,
@@ -53,6 +58,7 @@ export class SmoothUnion extends ProfileNode {
 }
 
 export class Intersection extends ProfileNode {
+  public readonly nodeType = "Intersection";
   constructor(
     public readonly left: ProfileNode,
     public readonly right: ProfileNode,
@@ -62,6 +68,7 @@ export class Intersection extends ProfileNode {
 }
 
 export class SmoothIntersection extends ProfileNode {
+  public readonly nodeType = "SmoothIntersection";
   constructor(
     public readonly left: ProfileNode,
     public readonly right: ProfileNode,
@@ -72,6 +79,7 @@ export class SmoothIntersection extends ProfileNode {
 }
 
 export class Difference extends ProfileNode {
+  public readonly nodeType = "Difference";
   constructor(
     public readonly left: ProfileNode,
     public readonly right: ProfileNode,
@@ -81,6 +89,7 @@ export class Difference extends ProfileNode {
 }
 
 export class SmoothDifference extends ProfileNode {
+  public readonly nodeType = "SmoothDifference";
   constructor(
     public readonly left: ProfileNode,
     public readonly right: ProfileNode,
@@ -91,6 +100,7 @@ export class SmoothDifference extends ProfileNode {
 }
 
 export class Shell extends ProfileNode {
+  public readonly nodeType = "Shell";
   constructor(
     public readonly profile: ProfileNode,
     public readonly thickness: DistanceNode,
@@ -100,6 +110,7 @@ export class Shell extends ProfileNode {
 }
 
 export class Morph extends ProfileNode {
+  public readonly nodeType = "Morph";
   constructor(
     public readonly start: ProfileNode,
     public readonly end: ProfileNode,
@@ -110,6 +121,7 @@ export class Morph extends ProfileNode {
 }
 
 export class Dilate extends ProfileNode {
+  public readonly nodeType = "Dilate";
   constructor(
     public readonly profile: ProfileNode,
     public readonly factor: DistanceNode,
@@ -119,6 +131,7 @@ export class Dilate extends ProfileNode {
 }
 
 export class FlipNode extends ProfileNode {
+  public readonly nodeType = "Flip";
   constructor(
     public readonly profile: ProfileNode,
     public readonly axis: "x" | "y",
@@ -128,12 +141,14 @@ export class FlipNode extends ProfileNode {
 }
 
 export class NormalizedFieldNode extends ProfileNode {
+  public readonly nodeType = "NormalizedField";
   constructor(public readonly profile: ProfileNode) {
     super();
   }
 }
 
 export class MidSurfaceNode extends ProfileNode {
+  public readonly nodeType = "MidSurface";
   constructor(
     public readonly first: ProfileNode,
     public readonly second: ProfileNode,
@@ -141,3 +156,20 @@ export class MidSurfaceNode extends ProfileNode {
     super();
   }
 }
+
+export type AnyProfileOperationNode =
+  | Translation
+  | Rotation
+  | Scale
+  | Union
+  | SmoothUnion
+  | Intersection
+  | SmoothIntersection
+  | Difference
+  | SmoothDifference
+  | Shell
+  | Morph
+  | Dilate
+  | FlipNode
+  | NormalizedFieldNode
+  | MidSurfaceNode;

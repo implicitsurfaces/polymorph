@@ -1,6 +1,7 @@
-import { PointNode, ProfileNode, VectorNode } from "./bases";
+import { PointNode, VectorNode } from "./bases";
 
 export class PointVectorSum extends PointNode {
+  public readonly nodeType = "PointVectorSum";
   constructor(
     public readonly point: PointNode,
     public readonly vector: VectorNode,
@@ -10,6 +11,7 @@ export class PointVectorSum extends PointNode {
 }
 
 export class PointVectorDifference extends PointNode {
+  public readonly nodeType = "PointVectorDifference";
   constructor(
     public readonly point: PointNode,
     public readonly vector: VectorNode,
@@ -19,6 +21,7 @@ export class PointVectorDifference extends PointNode {
 }
 
 export class PointMidPoint extends PointNode {
+  public readonly nodeType = "PointMidPoint";
   constructor(
     public readonly left: PointNode,
     public readonly right: PointNode,
@@ -28,13 +31,14 @@ export class PointMidPoint extends PointNode {
 }
 
 export class PointAsVectorFromOrigin extends PointNode {
+  public readonly nodeType = "PointAsVectorFromOrigin";
   constructor(public readonly vector: VectorNode) {
     super();
   }
 }
 
-export class Centroid extends PointNode {
-  constructor(public readonly profile: ProfileNode) {
-    super();
-  }
-}
+export type AnyPointNode =
+  | PointVectorSum
+  | PointVectorDifference
+  | PointMidPoint
+  | PointAsVectorFromOrigin;

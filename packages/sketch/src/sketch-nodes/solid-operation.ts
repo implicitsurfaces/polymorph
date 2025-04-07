@@ -1,6 +1,7 @@
 import { AngleNode, SolidNode } from "./bases";
 
 export class SolidRotationNode extends SolidNode {
+  public readonly nodeType = "SolidRotation";
   constructor(
     public readonly solid: SolidNode,
     public readonly angle: AngleNode,
@@ -9,3 +10,5 @@ export class SolidRotationNode extends SolidNode {
     super();
   }
 }
+
+export type AnySolidOperationNode = SolidRotationNode;

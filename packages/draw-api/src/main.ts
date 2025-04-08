@@ -27,6 +27,7 @@ export type { Point, Vector, Distance, Angle } from "./geom";
 export type { ProfileEditor } from "./ProfileEditor";
 
 export { draw } from "./draw";
+export type { PointMaker, EdgeMaker } from "./draw";
 
 export { point, angle, vector, distance };
 export {

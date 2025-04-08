@@ -62,53 +62,6 @@ export function createTestDocument() {
     endPoint: p2,
   });
 
-  const cp1 = doc.createNode(Point, {
-    layer: layer,
-    position: new Vector2(50, 0),
-  });
-
-  const l4 = doc.createNode(LineSegment, {
-    layer: layer,
-    startPoint: p3,
-    endPoint: p4,
-  });
-
-  const cp2 = doc.createNode(Point, {
-    layer: layer,
-    position: new Vector2(320, 100),
-  });
-
-  doc.createNode(CCurve, {
-    layer: layer,
-    startPoint: p4,
-    endPoint: p5,
-    controlPoint: cp2,
-  });
-
-  const l5 = doc.createNode(LineSegment, {
-    layer: layer,
-    startPoint: p5,
-    endPoint: p6,
-  });
-
-  const cp3 = doc.createNode(Point, {
-    layer: layer,
-    position: new Vector2(50, -150),
-  });
-
-  const cp4 = doc.createNode(Point, {
-    layer: layer,
-    position: new Vector2(-100, -150),
-  });
-
-  const sc1 = doc.createNode(SCurve, {
-    layer: layer,
-    startPoint: p6,
-    endPoint: p7,
-    startControlPoint: cp3,
-    endControlPoint: cp4,
-  });
-
   const l2 = doc.createNode(LineSegment, {
     layer: layer,
     startPoint: p7,
@@ -119,6 +72,71 @@ export function createTestDocument() {
     layer: layer,
     startPoint: p2,
     endPoint: p6,
+  });
+
+  const l4 = doc.createNode(LineSegment, {
+    layer: layer,
+    startPoint: p3,
+    endPoint: p4,
+  });
+
+  const l5 = doc.createNode(LineSegment, {
+    layer: layer,
+    startPoint: p5,
+    endPoint: p6,
+  });
+
+  const arcCP = doc.createNode(Point, {
+    name: "Arc Control Point",
+    layer: layer,
+    role: "construction",
+    position: new Vector2(50, 0),
+  });
+
+  doc.createNode(ArcFromStartTangent, {
+    name: "Arc",
+    layer: layer,
+    startPoint: p2,
+    endPoint: p3,
+    controlPoint: arcCP,
+  });
+
+  const ccCP = doc.createNode(Point, {
+    name: "C-Curve Control Point",
+    layer: layer,
+    role: "construction",
+    position: new Vector2(300, 100),
+  });
+
+  doc.createNode(CCurve, {
+    name: "C-Curve",
+    layer: layer,
+    startPoint: p4,
+    endPoint: p5,
+    controlPoint: ccCP,
+  });
+
+  const scStartCP = doc.createNode(Point, {
+    name: "S-Curve Start Control Point",
+    layer: layer,
+    role: "construction",
+    position: new Vector2(50, -150),
+  });
+
+  const scEndCP = doc.createNode(Point, {
+    name: "S-Curve End Control Point",
+    layer: layer,
+    role: "construction",
+    position: new Vector2(0, -50),
+  });
+
+  const sc = doc.createNode(SCurve, {
+    name: "S-Curve",
+    layer: layer,
+    startPoint: p6,
+    endPoint: p7,
+    startControlPoint: scStartCP,
+    endControlPoint: scEndCP,
   });
 
   /////////////////////////// Measures ///////////////////////////
@@ -132,14 +150,36 @@ export function createTestDocument() {
   doc.createNode(LineToPointDistance, {
     layer: layer,
     line: l1,
-    point: cp1,
+    point: arcCP,
   });
 
-  doc.createNode(ArcFromStartTangent, {
+  doc.createNode(LineToPointDistance, {
     layer: layer,
-    startPoint: p2,
-    endPoint: p3,
-    controlPoint: cp1,
+    line: l4,
+    point: ccCP,
+  });
+
+  doc.createNode(LineToPointDistance, {
+    layer: layer,
+    line: l5,
+    point: ccCP,
+  });
+
+  // This control point tangent constraint is commented
+  // to allow testing moving an unconstraint tangent, and
+  // so that the S-Curve actually looks like an "S" shape
+  // for demo purposes.
+  //
+  // doc.createNode(LineToPointDistance, {
+  //   layer: layer,
+  //   line: l2,
+  //   point: scEndCP,
+  // });
+
+  doc.createNode(LineToPointDistance, {
+    layer: layer,
+    line: l5,
+    point: scStartCP,
   });
 
   // doc.createNode(Angle, {
@@ -148,35 +188,11 @@ export function createTestDocument() {
   //   line1: l1,
   // });
 
-  doc.createNode(LineToPointDistance, {
-    layer: layer,
-    line: l4,
-    point: cp2,
-  });
-
-  doc.createNode(LineToPointDistance, {
-    layer: layer,
-    line: l5,
-    point: cp2,
-  });
-
-  doc.createNode(LineToPointDistance, {
-    layer: layer,
-    line: l2,
-    point: cp4,
-  });
-
-  doc.createNode(LineToPointDistance, {
-    layer: layer,
-    line: l5,
-    point: cp3,
-  });
-
   /////////////////////////// Shapes ///////////////////////////
 
   doc.createNode(EdgeCycleProfile, {
     layer: layer,
-    cycle: [l1, l3, sc1, l2],
+    cycle: [l1, l3, sc, l2],
   });
 
   // Test JSON round-trip

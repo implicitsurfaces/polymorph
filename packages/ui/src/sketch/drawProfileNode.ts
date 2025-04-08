@@ -54,7 +54,7 @@ export function drawEdgeCycleProfile(
   }
   const startPoint = halfedges[0].startPoint();
   const lastIndex = n - 1;
-  let d = draw(startPoint.position.toArray() as [number, number]);
+  let d = draw(pos(startPoint));
   for (const [i, halfedge] of halfedges.entries()) {
     const e = addEdge(d, halfedge);
     if (i < lastIndex) {

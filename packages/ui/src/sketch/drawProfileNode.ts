@@ -2,26 +2,21 @@ import { ProfileNode } from "../doc/ProfileNode";
 import { EdgeCycleProfile } from "../doc/profiles/EdgeCycleProfile";
 import { Halfedge } from "../doc/profiles/Halfedge";
 
+import { Point } from "../doc/Point";
 import { LineSegment } from "../doc/edges/LineSegment";
 import { ArcFromStartTangent } from "../doc/edges/ArcFromStartTangent";
 import { CCurve } from "../doc/edges/CCurve";
 import { SCurve } from "../doc/edges/SCurve";
 
-import { draw, ProfileEditor } from "draw-api";
+import { draw, ProfileEditor, PointMaker, EdgeMaker } from "draw-api";
 
-// Note: in draw-api/vite.config.js, if dts.rollupTypes is true (which is the
-// case as of writing this), then PointMaker and EdgeMaker are not marked as
-// exported for some reason, and therefore we cannot do:
-//
-// import { PointMaker, EdgeMaker } from "draw-api"
-//
-// We use the following `any` aliases as a workaround.
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type EdgeMaker = any;
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type PointMaker = any;
+/**
+ * Returns the position of the `Point` as a [number, number] which
+ * draw-api needs instead of a Vector2.
+ */
+function pos(point: Point): [number, number] {
+  return [point.x.value, point.y.value];
+}
 
 function addEdge(d: EdgeMaker, halfedge: Halfedge): PointMaker {
   const edge = halfedge.edge;
@@ -30,25 +25,19 @@ function addEdge(d: EdgeMaker, halfedge: Halfedge): PointMaker {
   }
   if (edge instanceof ArcFromStartTangent) {
     if (halfedge.direction) {
-      return d.arcFromStartControl(edge.controlPoint.position);
+      return d.arcFromStartControl(pos(edge.controlPoint));
     } else {
-      return d.arcFromEndControl(edge.controlPoint.position);
+      return d.arcFromEndControl(pos(edge.controlPoint));
     }
   }
   if (edge instanceof CCurve) {
-    return d.CCurve(edge.controlPoint.position);
+    return d.CCurve(pos(edge.controlPoint));
   }
   if (edge instanceof SCurve) {
     if (halfedge.direction) {
-      return d.SCurve(
-        edge.startControlPoint.position,
-        edge.endControlPoint.position,
-      );
+      return d.SCurve(pos(edge.startControlPoint), pos(edge.endControlPoint));
     } else {
-      return d.SCurve(
-        edge.endControlPoint.position,
-        edge.startControlPoint.position,
-      );
+      return d.SCurve(pos(edge.endControlPoint), pos(edge.startControlPoint));
     }
   }
   // Fallback to  LineSegment
@@ -69,7 +58,7 @@ export function drawEdgeCycleProfile(
   for (const [i, halfedge] of halfedges.entries()) {
     const e = addEdge(d, halfedge);
     if (i < lastIndex) {
-      d = e.to(halfedge.endPoint().position);
+      d = e.to(pos(halfedge.endPoint()));
     } else {
       return e.close();
     }

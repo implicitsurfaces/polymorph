@@ -103,13 +103,13 @@ function isMovable(doc: Document, selectable: Selectable | undefined): boolean {
 class MoveData {
   constructor(
     public isMoving: boolean = false,
-    public movedPoints: Point[] = [],
+    public allMovedPoints: Point[] = [], // Points + Control Points
     public onMoves: OnMoveCallback[] = [],
   ) {}
 
   clear() {
     this.isMoving = false;
-    this.movedPoints = [];
+    this.allMovedPoints = [];
     this.onMoves = [];
   }
 }
@@ -128,11 +128,11 @@ function start(data: MoveData, documentManager: DocumentManager): boolean {
 
   // Compute which objects we should move.
   //
-  // If the hovered object is part of a larger selection, then we want to
-  // move the whole selection.
+  // If the hovered object is part of a larger selection, then we want to move
+  // the whole selection.
   //
-  // Otherwise, we want to only
-  // move the hovered object and set it as new selection.
+  // Otherwise, we want to only move the hovered object and set it as new
+  // selection.
   //
   if (!selection.isSelected(hovered)) {
     selection.setSelected([hovered]);
@@ -159,21 +159,19 @@ function start(data: MoveData, documentManager: DocumentManager): boolean {
   const movedPoints = computeMovedPoints(doc, selection);
   const movedControlPoints = computeMovedControlPoints(doc, movedPoints);
 
-  // Store the moved points, which are needed for the solver.
+  // Compute the set of all moved points and store their onMove() callbacks.
   //
-  // TODO: Shouldn't we also need to pass the movedControlPoints?
-  //
-  data.movedPoints = Array.from(movedPoints);
-
-  // Store their onMove() callbacks.
-  //
+  const allMovedPoints = new Set<Point>();
   data.onMoves = [];
   for (const point of movedPoints) {
     data.onMoves.push(onPointMove(point));
+    allMovedPoints.add(point);
   }
   for (const cp of movedControlPoints) {
     data.onMoves.push(onControlPointMove(cp));
+    allMovedPoints.add(cp.point);
   }
+  data.allMovedPoints = Array.from(allMovedPoints);
 
   data.isMoving = true;
   return true;
@@ -190,7 +188,7 @@ function move(
   documentManager.notifyChanges({
     commit: false,
     solveConstraints: {
-      movedPoints: data.movedPoints,
+      movedPoints: data.allMovedPoints,
     },
   });
 }

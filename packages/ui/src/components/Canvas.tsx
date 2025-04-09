@@ -70,6 +70,7 @@ export function Canvas({ documentManager, settings }: CanvasProps) {
   const [pointerState, setPointerState] = useState<PointerState | null>(null);
   const { currentTool } = useContext(CurrentToolContext);
 
+  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const ref = useRef<HTMLCanvasElement | null>(null);
 
   // Returns whether there is a drag action available for the drag button.
@@ -348,12 +349,12 @@ export function Canvas({ documentManager, settings }: CanvasProps) {
   // based on its computed device pixel size.
   //
   useEffect(() => {
-    const canvas = ref.current;
-    if (!canvas) {
+    const div = canvasContainerRef.current;
+    if (!div) {
       return;
     }
     const observer = new ResizeObserver((entries) => {
-      const entry = entries.find((entry) => entry.target === canvas);
+      const entry = entries.find((entry) => entry.target === div);
       if (entry) {
         const w = entry.devicePixelContentBoxSize[0].inlineSize;
         const h = entry.devicePixelContentBoxSize[0].blockSize;
@@ -364,7 +365,7 @@ export function Canvas({ documentManager, settings }: CanvasProps) {
         }
       }
     });
-    observer.observe(canvas, { box: "device-pixel-content-box" });
+    observer.observe(div, { box: "device-pixel-content-box" });
     return () => {
       observer.disconnect();
     };
@@ -388,15 +389,21 @@ export function Canvas({ documentManager, settings }: CanvasProps) {
   }, [pointerState, onPointerMove, onPointerUp]);
 
   return (
-    <canvas
-      ref={ref}
-      width={camera.canvasSize.x}
-      height={camera.canvasSize.y}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerHover}
-      onWheel={onWheel}
-      onContextMenu={(e) => e.preventDefault()}
-    />
+    <div ref={canvasContainerRef} className="CanvasContainer">
+      <canvas
+        ref={ref}
+        style={{
+          width: camera.canvasSize.x / window.devicePixelRatio,
+          height: camera.canvasSize.y / window.devicePixelRatio,
+        }}
+        width={camera.canvasSize.x}
+        height={camera.canvasSize.y}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerHover}
+        onWheel={onWheel}
+        onContextMenu={(e) => e.preventDefault()}
+      />
+    </div>
   );
 }
 

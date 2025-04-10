@@ -1,9 +1,7 @@
 import { expose } from "comlink";
 import { initLib } from "fidget";
 
-import { Document } from "../doc/Document";
-import { ProfileNode } from "../doc/ProfileNode";
-import { Point } from "../doc/Point";
+import { Document, ProfileNode, Point } from "../doc";
 
 import { drawProfileNode } from "./drawProfileNode";
 
@@ -60,7 +58,7 @@ const api: SketchApi = {
     if (value) {
       return await value.render(definition);
     } else {
-      return new Uint8ClampedArray();
+      return new Uint8ClampedArray(4 * definition * definition);
     }
   },
 };

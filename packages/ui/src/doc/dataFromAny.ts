@@ -1,4 +1,5 @@
-import { NodeId, AnyNodeData } from "./Node";
+import { NodeId } from "./NodeId";
+import { AnyNodeData } from "./AnyNodeData";
 
 // This file contains helper functions to implement the `dataFromAny` static
 // method of each node type. In particular, it requires error handling to

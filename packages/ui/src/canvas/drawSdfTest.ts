@@ -3,7 +3,7 @@ import { Document } from "../doc/Document";
 import { DocumentManager } from "../doc/DocumentManager";
 
 // For now, drawAPI only supports square image renders
-const renderSize = 200;
+const renderSize = 512;
 
 class RenderQueue {
   private _jsonQueue: string[] = [];

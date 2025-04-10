@@ -5,37 +5,78 @@ import { DocumentManager } from "../doc/DocumentManager";
 // For now, drawAPI only supports square image renders
 const renderSize = 200;
 
-// For now, we use a quick-and-dirty global variable to check that it works.
-// Later, we want to sync this with the Document and/or Selection state.
-//
-const cacheImage: {
-  current: null | Uint8ClampedArray;
-} = { current: null };
+class RenderQueue {
+  private _jsonQueue: string[] = [];
+  private _lastRender: Uint8ClampedArray | undefined;
 
-export function updateSdfTest(doc: Document) {
-  const docJson = doc.toJSON();
-  drawAPI.render(docJson, renderSize).then((res: Uint8ClampedArray) => {
-    cacheImage.current = res;
-  });
+  constructor(readonly canvas: HTMLCanvasElement) {}
+
+  private _startRender() {
+    if (this._jsonQueue.length >= 1) {
+      drawAPI
+        .render(this._jsonQueue[0], renderSize)
+        .then((res: Uint8ClampedArray) => {
+          this._lastRender = res;
+          this._jsonQueue.splice(0, 1);
+          this._startRender();
+          this._updateCanvas();
+        });
+    }
+  }
+
+  private _updateCanvas() {
+    const lastRender = this.lastRender();
+    if (!lastRender) {
+      return;
+    }
+    const ctx = this.canvas.getContext("2d");
+    if (!ctx) {
+      return;
+    }
+    const dx = 0;
+    const dy = 0;
+    const data = new ImageData(lastRender, renderSize, renderSize);
+    ctx.putImageData(data, dx, dy);
+  }
+
+  push(doc: Document) {
+    if (this._jsonQueue.length > 1) {
+      // For debouncing reason, we only keep in the queue at most two documents:
+      // the currently-rendering and the last-pushed doc. So if the queue already
+      // has two or more document, we remove them all except the currently-rendering one
+      this._jsonQueue.splice(1);
+    }
+    this._jsonQueue.push(doc.toJSON());
+    if (this._jsonQueue.length == 1) {
+      this._startRender();
+    } else {
+      // This means that there is already a render in progress. The
+      // just-pushed document will automatically start rendering as soon as
+      // the currently-rendering is finished.
+    }
+  }
+
+  lastRender(): Uint8ClampedArray | undefined {
+    return this._lastRender;
+  }
+}
+
+// For each canvas, we store its render  there is a render in progress, and
+// whether other rendersanother
+const renderQueues = new Map<HTMLCanvasElement, RenderQueue>();
+
+function getOrCreateRenderQueue(canvas: HTMLCanvasElement) {
+  if (!renderQueues.has(canvas)) {
+    renderQueues.set(canvas, new RenderQueue(canvas));
+  }
+  return renderQueues.get(canvas)!;
 }
 
 export function drawSdfTest(
   canvas: HTMLCanvasElement,
   documentManager: DocumentManager,
 ) {
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    return;
-  }
   const doc = documentManager.document();
-
-  updateSdfTest(doc);
-
-  // TODO: redraw when the asynchronous computation cacheImage.current finishes.
-  if (cacheImage.current) {
-    const dx = 0;
-    const dy = 0;
-    const data = new ImageData(cacheImage.current, renderSize, renderSize);
-    ctx.putImageData(data, dx, dy);
-  }
+  const queue = getOrCreateRenderQueue(canvas);
+  queue.push(doc);
 }

@@ -1,12 +1,13 @@
-import { ProfileNode } from "../doc/ProfileNode";
-import { EdgeCycleProfile } from "../doc/profiles/EdgeCycleProfile";
-import { Halfedge } from "../doc/profiles/Halfedge";
-
-import { Point } from "../doc/Point";
-import { LineSegment } from "../doc/edges/LineSegment";
-import { ArcFromStartTangent } from "../doc/edges/ArcFromStartTangent";
-import { CCurve } from "../doc/edges/CCurve";
-import { SCurve } from "../doc/edges/SCurve";
+import {
+  ProfileNode,
+  EdgeCycleProfile,
+  Halfedge,
+  Point,
+  LineSegment,
+  ArcFromStartTangent,
+  CCurve,
+  SCurve,
+} from "../doc";
 
 import { draw, ProfileEditor, PointMaker, EdgeMaker } from "draw-api";
 

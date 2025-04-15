@@ -37,6 +37,7 @@ export function ToolbarMenu({ actions, documentManager }: ToolbarProps) {
   function getItem(action: Action) {
     return (
       <DropdownMenu.Item
+        key={action.name}
         className="DropdownMenuItem"
         onClick={() => onClick(action)}
       >

@@ -18,6 +18,7 @@
     "postinstall": "cd ../.. && patch-package"
   },
   "dependencies": {
+    "@radix-ui/react-dropdown-menu": "^2.1.7",
     "comlink": "^4.4.2",
     "fidget": "*",
     "react": "^18.3.1",

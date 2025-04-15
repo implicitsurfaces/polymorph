@@ -20,8 +20,8 @@
   display: flex;
   flex-direction: column;
 
-  background-color: #333333;
-  color: #f9f9f9;
+  background-color: var(--primary-background-color);
+  color: var(--primary-text-color);
 
   overflow: hidden;
 }
@@ -30,7 +30,7 @@
   flex-grow: 0;
   
   display: block;
-  padding: 8px 0px;
+  padding: var(--padding) 0px;
 
   text-align: center;
   font-size: 12px;
@@ -44,7 +44,7 @@
   flex-grow: 1;
   overflow-x: hidden;
   overflow-y: auto;
-  margin: 4px; /* prevent scrollbars from touching/interfering with panel resize handles */
+  margin: var(--half-padding); /* prevent scrollbars from touching/interfering with panel resize handles */
 }
 
 /* Scrollbar styling */
@@ -57,7 +57,7 @@
 
 .panel::-webkit-scrollbar-track,
 .panel-body::-webkit-scrollbar-track {
-  background: #333;
+  background: var(--primary-background-color);
 }
 
 .panel::-webkit-scrollbar-thumb,
@@ -73,25 +73,25 @@
 
 .panel::-webkit-scrollbar-corner,
 .panel-body::-webkit-scrollbar-corner {
-  background: #333;
+  background: var(--primary-background-color);
 }
 
 /* List items */
 
 .panel-list-item {
-  margin: 2px 8px;
+  margin: var(--tiny-gap) var(--half-padding);
   padding: 0;
   
 
   display: flex;
   flex-direction: row;
-  gap: 2px;
-  font-size: 12px;
+  gap: var(--tiny-gap);
+  font-size: var(--item-font-size);
 
   user-select: none; /* disable caret cursor on hover */
 
   overflow: hidden;
-  height: 20px;
+  height: var(--item-height);
 }
 
 /* Reduce left margin when there are "secret buttons"
@@ -99,7 +99,7 @@
  * the left-margin seems too wide when there is no hover
  */
 .panel-list-item.has-secret-zone {
-  margin-left: 2px;
+  margin-left: var(--tiny-gap);
   padding: 0;
 }
   
@@ -107,27 +107,27 @@
   flex: 0 0 auto;
 
   display: flex;
-  padding: 0px 8px;
+  padding: var(--item-padding);
   height: 100%;
-  border-radius: 5px;
+  border-radius: var(--item-border-radius);
 }
 
 .panel-list-item:hover > .hover-zone,
 .panel-list-item.is-hovered > .hover-zone {
-  background-color: #555;
+  background-color: var(--hovered-background-color);
   cursor: pointer;
 }
 
 .panel-list-item.is-active > .hover-zone,
 .panel-list-item.is-selected > .hover-zone {
-  background-color: #4063d5;
+  background-color: var(--active-background-color);
 }
 
 .panel-list-item > .extra-zone {
   flex: 0 0 auto;
 
   display: flex;
-  gap: 8px;
+  gap: var(--padding);
   height: 100%;
 }
 
@@ -148,16 +148,16 @@
   flex-grow: 0;
 
   white-space: nowrap;
-  height: 20px;
-  line-height: 20px;
+  height: var(--item-height);
+  line-height: var(--item-height);
 }
 
 .panel-list-item .single-line-text,
 .panel-list-item [data-scope='number-input'][data-part='label']
  {
   white-space: nowrap;
-  height: 20px;
-  line-height: 20px;
+  height: var(--item-height);
+  line-height: var(--item-height);
 }
 
 /* button */
@@ -174,7 +174,7 @@
   margin: 0;
   padding: 0 4px;
   background: none;
-  border-radius: 5px;
+  border-radius: var(--border-radius);
 }
 
 .panel-list-item button:hover {
@@ -197,7 +197,7 @@
   gap: 0px;
 
   background-color: #212121;
-  border-radius: 5px;
+  border-radius: var(--border-radius);
 }
 
 [data-scope='number-input'][data-part='label'] {
@@ -205,8 +205,11 @@
   flex-grow: 0;
   padding: 0 0 0 6px;
   color: #b0b0b0;
-  margin-right: -4px; /* Compensate the perceptual off-centering 
-                         due to border-radius only on the left side. */
+
+  /* Compensate the perceptual off-centering due to border-radius only on the
+     left side.
+  */
+  margin-right: calc(1px - var(--border-radius));
 }
 
 [data-scope='number-input'][data-part='input'] {
@@ -220,7 +223,7 @@
   padding: 0 6px;
 
   background-color: transparent;
-  color: #f9f9f9;
+  color: var(--primary-text-color);
   text-align: center;
 }
 
@@ -235,21 +238,20 @@
 }
 
 .input-group > *,
-.input-group > [data-scope='number-input'][data-part='root']
- {
+.input-group > [data-scope='number-input'][data-part='root'] {
   border-radius: 0px; 
 }
 
 .input-group > *:first-child,
 .input-group > *:first-child[data-scope='number-input'][data-part='root'] {
-  border-top-left-radius: 5px;
-  border-bottom-left-radius: 5px;
+  border-top-left-radius: var(--border-radius);
+  border-bottom-left-radius: var(--border-radius);
 }
 
 .input-group > *:last-child,
 .input-group > *:last-child[data-scope='number-input'][data-part='root'] {
-  border-top-right-radius: 5px;
-  border-bottom-right-radius: 5px;
+  border-top-right-radius: var(--border-radius);
+  border-bottom-right-radius: var(--border-radius);
 }
 
 /* Input icons */

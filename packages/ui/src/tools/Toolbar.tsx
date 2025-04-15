@@ -7,11 +7,61 @@ import { Action, TriggerAction } from "../actions/Action";
 
 import { DocumentManager } from "../doc/DocumentManager";
 
+import menuIcon from "../assets/tool-icons/menu.svg";
+
 import "./Toolbar.css";
 
 interface ToolbarProps {
   actions: Action[];
   documentManager: DocumentManager;
+}
+
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+
+export function ToolbarMenu({ actions, documentManager }: ToolbarProps) {
+  // Get which actions should appear in the menu. For now, we consider them
+  // to be those without an icon.
+  //
+  const actionsWithMenuItem = useMemo<Action[]>(() => {
+    const res = actions.filter((action) => action.menu !== undefined);
+    res.sort((a, b) => a.menuIndex - b.menuIndex);
+    return res;
+  }, [actions]);
+
+  function onClick(action: Action) {
+    if (action instanceof TriggerAction) {
+      action.onTrigger(documentManager);
+    }
+  }
+
+  function getItem(action: Action) {
+    return (
+      <DropdownMenu.Item
+        className="DropdownMenuItem"
+        onClick={() => onClick(action)}
+      >
+        {action.name}
+      </DropdownMenu.Item>
+    );
+  }
+
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger>
+        <img src={menuIcon} />
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          className="DropdownMenuContent"
+          alignOffset={-8}
+          align="start"
+          sideOffset={10}
+        >
+          {actionsWithMenuItem.map((action) => getItem(action))}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
 }
 
 export function Toolbar({ actions, documentManager }: ToolbarProps) {
@@ -21,7 +71,7 @@ export function Toolbar({ actions, documentManager }: ToolbarProps) {
   // to be those with an icon. In the future, this function could also sort
   // them in a different order (e.g., `action.toolbarIndex`).
   //
-  const actions_ = useMemo<Action[]>(() => {
+  const actionsWithIcon = useMemo<Action[]>(() => {
     return actions.filter((action) => action.icon !== undefined);
   }, [actions]);
 
@@ -52,7 +102,10 @@ export function Toolbar({ actions, documentManager }: ToolbarProps) {
   }
 
   return (
-    <div className="toolbar">{actions_.map((action) => getItem(action))}</div>
+    <div className="toolbar">
+      <ToolbarMenu actions={actions} documentManager={documentManager} />
+      {actionsWithIcon.map((action) => getItem(action))}
+    </div>
   );
 }
 

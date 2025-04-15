@@ -1,3 +1,31 @@
+
+:root {
+  --primary-background-color: #333333;
+  --hovered-background-color: #555555;
+  --active-background-color: #4063d5;
+
+  --primary-text-color: #f9f9f9;
+
+  --padding: 8px;
+  --border-radius: 5px;
+
+  /* This is useful when we want sibling elements to feel like they are
+     touching when non-hovered, but still see a tiny gap when both siblings
+     have an highlighted and/or background.
+   */
+  --tiny-gap: 2px;
+
+  /* This is useful when we want the sum of two paddings and/or margins to be
+     equal the standard padding.
+   */
+  --half-padding: calc(var(--padding) * 0.5);
+
+  --item-padding: 0px var(--padding);
+  --item-height: 20px;
+  --item-border-radius: var(--border-radius);
+  --item-font-size: 12px;
+}
+
 html,
 body,
 #root,
@@ -11,7 +39,7 @@ body {
   overflow: hidden; /* Hide scrollbars */
 }
 
-#root {
+#root, body {
   background-color: #e0e0e0;
 
   font-family: "Open Sans", serif;

@@ -7,24 +7,67 @@
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 0px;
-  padding: 8px;
-  background: #333;
-  border-radius: 5px;
+  gap: var(--tiny-gap);
+  padding: var(--padding);
+  background: var(--primary-background-color);
+  border-radius: var(--border-radius);
 }
 
-.toolbar > img {
+.DropdownMenuContent,
+.DropdownMenuSubContent {
+  min-width: 100px;
+  max-width: 220px;
+  background-color: var(--primary-background-color);
+  color: var(--primary-text-color);
+  border-radius: var(--border-radius);
+  padding: var(--padding);
+}
+
+.DropdownMenuItem,
+.DropdownMenuCheckboxItem,
+.DropdownMenuRadioItem,
+.DropdownMenuSubTrigger {
+  height: var(--item-height);
+  line-height: var(--item-height);
+  padding: var(--item-padding);
+  border-radius: var(--item-border-radius);
+  font-size: var(--item-font-size);
+  user-select: none;
+  outline: none;
+}
+
+.toolbar > img,
+.toolbar > button {
 	width: 32px;
 	height: 32px;
 	border: none;
-	border-radius: 5px;
-	background-color: none;
+	border-radius: var(--item-border-radius);
+	background: none;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
 }
 
-.toolbar > img:hover {
-	background-color: #555;
+.toolbar > img:hover,
+.toolbar > button:hover,
+.DropdownMenuItem[data-highlighted] {
+	background-color: var(--hovered-background-color);
 }
 
 .toolbar > img.is-active {
-	background-color: #4063d5;
+	background-color: var(--active-background-color);
+}
+
+/* Note: While an open menu can be argued to be semantically "active", we
+   prefer using the highlight color rather than the active color as this is
+   the most standard behavior for menu, which can be rationalize by the fact
+   that it's a short-lived activation (it opens a transient modal that
+   disappears on outside-click, rather than changing more permanently the
+   application state).
+
+   Also, it would be confusing to have two active in the toolbar when the menu
+   is open (the active tool + the menu button)
+ */
+.toolbar > button[data-state="open"] {
+  background-color: var(--hovered-background-color);
 }

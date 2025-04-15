@@ -10,6 +10,11 @@
   box-sizing: border-box;
 }
 
+/* Unset all button style */
+button {
+  all: unset;
+}
+
 /* Prevent font size inflation */
 html {
   -moz-text-size-adjust: none;
@@ -79,4 +84,3 @@ textarea:not([rows]) {
 :target {
   scroll-margin-block: 5ex;
 }
-

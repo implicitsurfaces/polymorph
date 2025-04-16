@@ -1,9 +1,9 @@
 import { useContext, useMemo } from "react";
 
 import { CurrentToolContext } from "./CurrentTool";
-import { Tool } from "./Tool";
 
 import { Action, TriggerAction } from "../actions/Action";
+import { Tool } from "../tools/Tool";
 
 import { DocumentManager } from "../doc/DocumentManager";
 

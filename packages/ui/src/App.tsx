@@ -10,10 +10,10 @@ import { DocumentManager } from "./doc/DocumentManager";
 
 import { TriggerAction } from "./actions/Action";
 import { Tool } from "./tools/Tool";
-import { Toolbar } from "./tools/Toolbar";
-import { CurrentTool, CurrentToolContext } from "./tools/CurrentTool";
 import { allActions } from "./allActions";
 
+import { CurrentTool, CurrentToolContext } from "./components/CurrentTool";
+import { Toolbar } from "./components/Toolbar";
 import { Canvas, CanvasSettings } from "./components/Canvas";
 import { LayersPanel } from "./components/LayersPanel";
 import { SkeletonPanel, MeasuresPanel } from "./components/NodeListPanel";

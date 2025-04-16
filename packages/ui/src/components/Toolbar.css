@@ -39,6 +39,10 @@
   color: var(--secondary-text-color);
 }
 
+.dropdown-menu .arrow {
+  fill: var(--primary-background-color);
+}
+
 .toolbar > img,
 .toolbar > button {
 	width: 32px;

@@ -62,6 +62,7 @@ export function ToolbarMenu({ actions, documentManager }: ToolbarProps) {
           sideOffset={10}
         >
           {actionsWithMenuItem.map((action) => getItem(action))}
+          <DropdownMenu.Arrow className="arrow" />
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

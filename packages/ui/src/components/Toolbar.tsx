@@ -34,14 +34,17 @@ export function ToolbarMenu({ actions, documentManager }: ToolbarProps) {
     }
   }
 
+  function getShortcutSlot(action: Action) {
+    if (!action.shortcut) {
+      return undefined;
+    }
+    return <div className="right-slot">{action.shortcut.prettyStr}</div>;
+  }
+
   function getItem(action: Action) {
     return (
-      <DropdownMenu.Item
-        key={action.name}
-        className="DropdownMenuItem"
-        onClick={() => onClick(action)}
-      >
-        {action.name}
+      <DropdownMenu.Item key={action.name} onClick={() => onClick(action)}>
+        {action.name} {getShortcutSlot(action)}
       </DropdownMenu.Item>
     );
   }
@@ -53,7 +56,7 @@ export function ToolbarMenu({ actions, documentManager }: ToolbarProps) {
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
-          className="DropdownMenuContent"
+          className="dropdown-menu"
           alignOffset={-8}
           align="start"
           sideOffset={10}

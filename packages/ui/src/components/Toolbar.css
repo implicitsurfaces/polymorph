@@ -13,8 +13,7 @@
   border-radius: var(--border-radius);
 }
 
-.DropdownMenuContent,
-.DropdownMenuSubContent {
+.dropdown-menu {
   min-width: 100px;
   max-width: 220px;
   background-color: var(--primary-background-color);
@@ -23,10 +22,7 @@
   padding: var(--padding);
 }
 
-.DropdownMenuItem,
-.DropdownMenuCheckboxItem,
-.DropdownMenuRadioItem,
-.DropdownMenuSubTrigger {
+.dropdown-menu > [role=menuitem] {
   height: var(--item-height);
   line-height: var(--item-height);
   padding: var(--item-padding);
@@ -34,6 +30,13 @@
   font-size: var(--item-font-size);
   user-select: none;
   outline: none;
+  display: flex;
+}
+
+.dropdown-menu > [role=menuitem] > .right-slot {
+  margin-left: auto;
+  padding-left: 20px;
+  color: var(--secondary-text-color);
 }
 
 .toolbar > img,
@@ -50,7 +53,7 @@
 
 .toolbar > img:hover,
 .toolbar > button:hover,
-.DropdownMenuItem[data-highlighted] {
+.dropdown-menu > [role=menuitem][data-highlighted] {
 	background-color: var(--hovered-background-color);
 }
 

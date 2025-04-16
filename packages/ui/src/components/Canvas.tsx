@@ -12,7 +12,7 @@ import {
 
 import { DocumentManager } from "../doc/DocumentManager";
 
-import { CurrentToolContext } from "../tools/CurrentTool";
+import { CurrentToolContext } from "./CurrentTool";
 
 import "./Canvas.css";
 

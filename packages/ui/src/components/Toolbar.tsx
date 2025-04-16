@@ -7,6 +7,7 @@ import { Tool } from "../tools/Tool";
 
 import { DocumentManager } from "../doc/DocumentManager";
 
+import * as DropdownMenu from "./DropdownMenu";
 import menuIcon from "../assets/tool-icons/menu.svg";
 
 import "./Toolbar.css";
@@ -15,8 +16,6 @@ interface ToolbarProps {
   actions: Action[];
   documentManager: DocumentManager;
 }
-
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 
 export function ToolbarMenu({ actions, documentManager }: ToolbarProps) {
   // Get which actions should appear in the menu. For now, we consider them

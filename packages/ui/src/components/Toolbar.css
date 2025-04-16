@@ -25,7 +25,7 @@
 }
 
 .toolbar > img:hover,
-.toolbar > button:hover, {
+.toolbar > button:hover {
 	background-color: var(--hovered-background-color);
 }
 

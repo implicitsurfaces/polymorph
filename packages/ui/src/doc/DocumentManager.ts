@@ -11,6 +11,8 @@ import {
 
 import { Selection } from "./Selection";
 
+import { fileOpen, fileSave, FileWithHandle } from "browser-fs-access";
+
 type SolveConstraintsOptions = {
   movedPoints?: Point[];
 };
@@ -51,6 +53,8 @@ export class DocumentManager {
   private _workingCopy: Document;
   private _selection: Selection;
 
+  private _previouslySavedOrOpenedFile: FileSystemFileHandle | null;
+
   /**
    * Constructs a new `DocumentManager`.
    *
@@ -84,6 +88,7 @@ export class DocumentManager {
     });
     this._ensureActiveLayer();
     this._constraintManager = new ConstraintManager(this._workingCopy);
+    this._previouslySavedOrOpenedFile = null;
   }
 
   /**
@@ -280,5 +285,70 @@ export class DocumentManager {
 
   selection(): Selection {
     return this._selection;
+  }
+
+  private _onOpened() {
+    return (file: FileWithHandle) => {
+      if (!file.handle) {
+        console.error("Error opening file");
+      }
+      const fileHandle = file.handle!;
+
+      // Read the file content as text and
+      file.text().then((json) => {
+        const doc = Document.fromJSON(json);
+        this._history = [doc];
+        this._previouslySavedOrOpenedFile = fileHandle;
+        this.goToIndex(0);
+      });
+    };
+  }
+
+  open() {
+    // Open the open dialog
+    fileOpen({
+      extensions: [".json"],
+      description: "Polymorph files",
+      multiple: false, // Allow only single file selection
+    }).then(this._onOpened());
+  }
+
+  private _onSaved() {
+    return (file: FileSystemFileHandle | null) => {
+      if (file) {
+        this._previouslySavedOrOpenedFile = file;
+        console.log(`File saved to: ${file.name}`);
+      } else {
+        console.error("Error saving file");
+      }
+    };
+  }
+
+  private _saveOrSaveAs(
+    previouslySavedOrOpenedFile: FileSystemFileHandle | null,
+  ) {
+    // Convert document data to JSON blob
+    const json = this.document().toJSON();
+    const blob = new Blob([json], { type: "application/json" });
+
+    // Open the save dialog with a suggested `fileName`, or save directly
+    // without the save dialog if `previouslySavedOrOpenedFile` is non-null.
+    fileSave(
+      blob,
+      {
+        fileName: "polymorph-document.json",
+        extensions: [".json"],
+        description: "Polymorph files",
+      },
+      previouslySavedOrOpenedFile,
+    ).then(this._onSaved());
+  }
+
+  save() {
+    this._saveOrSaveAs(this._previouslySavedOrOpenedFile);
+  }
+
+  saveAs() {
+    this._saveOrSaveAs(null);
   }
 }

@@ -196,7 +196,7 @@ function App() {
             setCurrentTool,
           }}
         >
-          <Toolbar actions={actions} documentManager={documentManager} />
+          <Toolbar actions={actions} />
           <PanelGroup className="root-panel-group" direction="vertical">
             <Panel>
               <PanelGroup className="canvas-panel-group" direction="horizontal">

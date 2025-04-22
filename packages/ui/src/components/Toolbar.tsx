@@ -1,23 +1,21 @@
 import { useContext, useMemo } from "react";
 
 import { CurrentToolContext } from "./CurrentTool";
+import { DocumentManagerContext } from "../doc/DocumentManagerContext";
 
 import { Action, TriggerAction } from "../actions/Action";
 import { Tool } from "../tools/Tool";
 
-import { DocumentManager } from "../doc/DocumentManager";
-
-import * as DropdownMenu from "./DropdownMenu";
+import { Menu, ActionItem } from "./DropdownMenu";
 import menuIcon from "../assets/tool-icons/menu.svg";
 
 import "./Toolbar.css";
 
-interface ToolbarProps {
+interface ToolbarMenuProps {
   actions: Action[];
-  documentManager: DocumentManager;
 }
 
-export function ToolbarMenu({ actions, documentManager }: ToolbarProps) {
+export function ToolbarMenu({ actions }: ToolbarMenuProps) {
   // Get which actions should appear in the menu. For now, we consider them
   // to be those without an icon.
   //
@@ -27,48 +25,21 @@ export function ToolbarMenu({ actions, documentManager }: ToolbarProps) {
     return res;
   }, [actions]);
 
-  function onClick(action: Action) {
-    if (action instanceof TriggerAction) {
-      action.onTrigger(documentManager);
-    }
-  }
-
-  function getShortcutSlot(action: Action) {
-    if (!action.shortcut) {
-      return undefined;
-    }
-    return <div className="right-slot">{action.shortcut.prettyStr}</div>;
-  }
-
-  function getItem(action: Action) {
-    return (
-      <DropdownMenu.Item key={action.name} onClick={() => onClick(action)}>
-        {action.name} {getShortcutSlot(action)}
-      </DropdownMenu.Item>
-    );
-  }
-
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        <img src={menuIcon} />
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          className="dropdown-menu"
-          alignOffset={-8}
-          align="start"
-          sideOffset={10}
-        >
-          {actionsWithMenuItem.map((action) => getItem(action))}
-          <DropdownMenu.Arrow className="arrow" />
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
+    <Menu trigger={<img src={menuIcon} />}>
+      {actionsWithMenuItem.map((action) => (
+        <ActionItem action={action} key={action.name} />
+      ))}
+    </Menu>
   );
 }
 
-export function Toolbar({ actions, documentManager }: ToolbarProps) {
+interface ToolbarProps {
+  actions: Action[];
+}
+
+export function Toolbar({ actions }: ToolbarProps) {
+  const { documentManager } = useContext(DocumentManagerContext);
   const { currentTool, setCurrentTool } = useContext(CurrentToolContext);
 
   // Get which actions should appear in the toolbar. For now, we consider them
@@ -107,7 +78,7 @@ export function Toolbar({ actions, documentManager }: ToolbarProps) {
 
   return (
     <div className="toolbar">
-      <ToolbarMenu actions={actions} documentManager={documentManager} />
+      <ToolbarMenu actions={actions} />
       {actionsWithIcon.map((action) => getItem(action))}
     </div>
   );

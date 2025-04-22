@@ -7,6 +7,7 @@ import {
 } from "react-resizable-panels";
 
 import { DocumentManager } from "./doc/DocumentManager";
+import { DocumentManagerContext } from "./doc/DocumentManagerContext";
 
 import { TriggerAction } from "./actions/Action";
 import { Tool } from "./tools/Tool";
@@ -184,57 +185,63 @@ function App() {
 
   return (
     <div className="app" ref={ref}>
-      <CurrentToolContext.Provider
+      <DocumentManagerContext.Provider
         value={{
-          currentTool,
-          setCurrentTool,
+          documentManager,
         }}
       >
-        <Toolbar actions={actions} documentManager={documentManager} />
-        <PanelGroup className="root-panel-group" direction="vertical">
-          <Panel>
-            <PanelGroup className="canvas-panel-group" direction="horizontal">
-              <Panel defaultSize={50} minSize={10}>
-                <Canvas
-                  documentManager={documentManager}
-                  settings={leftCanvasSettings}
-                />
-              </Panel>
-              <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
-              <Panel minSize={10}>
-                <Canvas
-                  documentManager={documentManager}
-                  settings={rightCanvasSettings}
-                />
-              </Panel>
-            </PanelGroup>
-          </Panel>
-          <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
-          <Panel>
-            <PanelGroup className="panels-panel-group" direction="horizontal">
-              <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
-                <LayersPanel documentManager={documentManager} />
-              </Panel>
-              <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
-              <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
-                <SkeletonPanel documentManager={documentManager} />
-              </Panel>
-              <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
-              <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
-                <MeasuresPanel documentManager={documentManager} />
-              </Panel>
-              <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
-              <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
-                <PropertiesPanel documentManager={documentManager} />
-              </Panel>
-              <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
-              <Panel minSize={0}>
-                <div className="panel leftover" />
-              </Panel>
-            </PanelGroup>
-          </Panel>
-        </PanelGroup>
-      </CurrentToolContext.Provider>
+        <CurrentToolContext.Provider
+          value={{
+            currentTool,
+            setCurrentTool,
+          }}
+        >
+          <Toolbar actions={actions} documentManager={documentManager} />
+          <PanelGroup className="root-panel-group" direction="vertical">
+            <Panel>
+              <PanelGroup className="canvas-panel-group" direction="horizontal">
+                <Panel defaultSize={50} minSize={10}>
+                  <Canvas
+                    documentManager={documentManager}
+                    settings={leftCanvasSettings}
+                  />
+                </Panel>
+                <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
+                <Panel minSize={10}>
+                  <Canvas
+                    documentManager={documentManager}
+                    settings={rightCanvasSettings}
+                  />
+                </Panel>
+              </PanelGroup>
+            </Panel>
+            <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
+            <Panel>
+              <PanelGroup className="panels-panel-group" direction="horizontal">
+                <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
+                  <LayersPanel documentManager={documentManager} />
+                </Panel>
+                <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
+                <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
+                  <SkeletonPanel documentManager={documentManager} />
+                </Panel>
+                <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
+                <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
+                  <MeasuresPanel documentManager={documentManager} />
+                </Panel>
+                <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
+                <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
+                  <PropertiesPanel documentManager={documentManager} />
+                </Panel>
+                <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
+                <Panel minSize={0}>
+                  <div className="panel leftover" />
+                </Panel>
+              </PanelGroup>
+            </Panel>
+          </PanelGroup>
+        </CurrentToolContext.Provider>
+      </DocumentManagerContext.Provider>
     </div>
   );
 }

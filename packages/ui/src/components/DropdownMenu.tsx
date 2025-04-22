@@ -30,11 +30,11 @@ export function Menu({ children, trigger = "Menu" }: MenuProps) {
   );
 }
 
-interface ActionItemProps {
+interface MenuActionItemProps {
   action: Action;
 }
 
-export function ActionItem({ action }: ActionItemProps) {
+export function MenuActionItem({ action }: MenuActionItemProps) {
   const { documentManager } = useContext(DocumentManagerContext);
 
   function onClick(action: Action) {

@@ -8,8 +8,6 @@ export class OpenAction extends TriggerAction {
     super({
       name: "Open",
       shortcut: new KeyboardShortcut("CtrlCmd+O"),
-      menu: "",
-      menuIndex: 3,
     });
   }
 
@@ -23,8 +21,6 @@ export class SaveAction extends TriggerAction {
     super({
       name: "Save",
       shortcut: new KeyboardShortcut("CtrlCmd+S"),
-      menu: "",
-      menuIndex: 4,
     });
   }
 
@@ -38,8 +34,6 @@ export class SaveAsAction extends TriggerAction {
     super({
       name: "Save As...",
       shortcut: new KeyboardShortcut("CtrlCmd+Shift+S"),
-      menu: "",
-      menuIndex: 5,
     });
   }
 

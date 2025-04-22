@@ -5,8 +5,6 @@ export interface ActionProps {
   readonly name: string;
   readonly icon?: string;
   readonly shortcut?: KeyboardShortcut;
-  readonly menu?: string;
-  readonly menuIndex?: number;
 }
 
 export abstract class Action {
@@ -27,29 +25,10 @@ export abstract class Action {
    */
   readonly shortcut?: KeyboardShortcut;
 
-  /**
-   * In which menu should this action appear, if any.
-   *
-   * Example:
-   * - undefined: does not appear in any menu (this is the default)
-   * - "": appears in the root menu
-   * - "File": the file menu
-   * - "Selection > Boolean Operations": the "Boolean Operation" submenu in the "Selection" menu.
-   */
-  readonly menu?: string;
-
-  /**
-   * A fractional index to specify at which position in the menu the action
-   * should appear.
-   */
-  readonly menuIndex: number;
-
   constructor(props: ActionProps) {
     this.name = props.name;
     this.icon = props.icon;
     this.shortcut = props.shortcut;
-    this.menu = props.menu;
-    this.menuIndex = props.menuIndex ?? 0;
   }
 }
 

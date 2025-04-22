@@ -11,14 +11,15 @@ import { DocumentManagerContext } from "./doc/DocumentManagerContext";
 
 import { TriggerAction } from "./actions/Action";
 import { Tool } from "./tools/Tool";
-import { allActions } from "./allActions";
 
 import { CurrentTool, CurrentToolContext } from "./components/CurrentTool";
-import { Toolbar } from "./components/Toolbar";
 import { Canvas, CanvasSettings } from "./components/Canvas";
 import { LayersPanel } from "./components/LayersPanel";
 import { SkeletonPanel, MeasuresPanel } from "./components/NodeListPanel";
 import { PropertiesPanel } from "./components/PropertiesPanel";
+
+import { actions } from "./app/AppActions";
+import { AppToolbar } from "./app/AppToolbar";
 
 import "./App.css";
 import "./components/Panel.css";
@@ -58,20 +59,15 @@ function App() {
 
   documentManager.onChange(onDocumentChange);
 
-  // Actions and Tools
-  const [actions] = useState(allActions());
-  const [currentTool, setCurrentTool] = useState<CurrentTool>(() => {
-    for (const action of actions) {
-      if (action instanceof Tool) {
-        return action;
-      }
-    }
-  });
+  // Current tool
+  const [currentTool, setCurrentTool] = useState<CurrentTool>(
+    actions.SelectTool,
+  );
 
   // Application-wide shortcuts
   const onKeyPress = useCallback(
     (event: KeyboardEvent) => {
-      for (const action of actions) {
+      for (const [, action] of Object.entries(actions)) {
         if (action.shortcut && action.shortcut.matches(event)) {
           if (action instanceof TriggerAction) {
             // Prevent browser doing its own thing (e.g., its own implementation
@@ -86,7 +82,7 @@ function App() {
         }
       }
     },
-    [documentManager, actions],
+    [documentManager],
   );
 
   useEffect(() => {
@@ -196,7 +192,7 @@ function App() {
             setCurrentTool,
           }}
         >
-          <Toolbar actions={actions} />
+          <AppToolbar />
           <PanelGroup className="root-panel-group" direction="vertical">
             <Panel>
               <PanelGroup className="canvas-panel-group" direction="horizontal">

@@ -8,8 +8,6 @@ export class UndoAction extends TriggerAction {
     super({
       name: "Undo",
       shortcut: new KeyboardShortcut("CtrlCmd+Z"),
-      menu: "",
-      menuIndex: 1,
     });
   }
 
@@ -23,8 +21,6 @@ export class RedoAction extends TriggerAction {
     super({
       name: "Redo",
       shortcut: new KeyboardShortcut("CtrlCmd+Shift+Z"),
-      menu: "",
-      menuIndex: 2,
     });
   }
 

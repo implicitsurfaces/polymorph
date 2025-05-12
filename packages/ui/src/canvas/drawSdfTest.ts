@@ -36,6 +36,8 @@ class RenderQueue {
     const dx = 0;
     const dy = 0;
     const data = new ImageData(lastRender, renderSize, renderSize);
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // identity
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.putImageData(data, dx, dy);
   }
 

@@ -199,14 +199,14 @@ function App() {
                 <Panel defaultSize={50} minSize={10}>
                   <Canvas
                     documentManager={documentManager}
-                    settings={leftCanvasSettings}
+                    initialSettings={leftCanvasSettings}
                   />
                 </Panel>
                 <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
                 <Panel minSize={10}>
                   <Canvas
                     documentManager={documentManager}
-                    settings={rightCanvasSettings}
+                    initialSettings={rightCanvasSettings}
                   />
                 </Panel>
               </PanelGroup>

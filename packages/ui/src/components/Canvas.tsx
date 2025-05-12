@@ -14,7 +14,12 @@ import { DocumentManager } from "../doc/DocumentManager";
 
 import { CurrentToolContext } from "./CurrentTool";
 
+import { generate as generateShortUuId } from "short-uuid";
+
 import "./Canvas.css";
+
+import * as Popover from "@radix-ui/react-popover";
+import * as Icons from "@radix-ui/react-icons";
 
 /**
  * Stores information for handling a pointerdown-pointermove-pointerup
@@ -40,11 +45,69 @@ export class CanvasSettings {
   constructor(options?: CanvasSettingsOptions) {
     this.sdfTest = options?.sdfTest ?? false;
   }
+
+  /**
+   * Returns a copy of these settings but with the given options set instead.
+   */
+  with(options: CanvasSettingsOptions) {
+    return new CanvasSettings({ ...this, ...options });
+  }
+}
+
+export interface CanvasBooleanSettingProps {
+  readonly name: string;
+  readonly value: boolean;
+  readonly setValue: (newValue: boolean) => void;
+}
+
+export function CanvasBooleanSetting({
+  name,
+  value,
+  setValue,
+}: CanvasBooleanSettingProps) {
+  const [id] = useState<string>(() => generateShortUuId());
+  return (
+    <>
+      <div>
+        <input
+          type="checkbox"
+          id={id}
+          name={name}
+          checked={value}
+          onChange={() => {
+            setValue(!value);
+          }}
+        />
+        <label htmlFor={id}>{name}</label>
+      </div>
+    </>
+  );
+}
+
+export interface CanvasSettingsEditorProps {
+  readonly settings: CanvasSettings;
+  readonly setSettings: (newSettings: CanvasSettings) => void;
+}
+
+export function CanvasSettingsEditor({
+  settings,
+  setSettings,
+}: CanvasSettingsEditorProps) {
+  console.log(settings);
+  return (
+    <div className="canvas-settings-editor">
+      <CanvasBooleanSetting
+        name="Distance Field"
+        value={settings.sdfTest}
+        setValue={(v) => setSettings(settings.with({ sdfTest: v }))}
+      />
+    </div>
+  );
 }
 
 interface CanvasProps {
   documentManager: DocumentManager;
-  settings: CanvasSettings;
+  initialSettings: CanvasSettings;
 }
 
 type IPointerEvent = PointerEvent | React.PointerEvent;
@@ -65,7 +128,8 @@ function makeCanvasPointerEvent(
   };
 }
 
-export function Canvas({ documentManager, settings }: CanvasProps) {
+export function Canvas({ documentManager, initialSettings }: CanvasProps) {
+  const [settings, setSettings] = useState<CanvasSettings>(initialSettings);
   const [camera, setCamera] = useState<Camera2>(new Camera2());
   const [pointerState, setPointerState] = useState<PointerState | null>(null);
   const { currentTool } = useContext(CurrentToolContext);
@@ -390,6 +454,23 @@ export function Canvas({ documentManager, settings }: CanvasProps) {
 
   return (
     <div ref={canvasContainerRef} className="CanvasContainer">
+      <Popover.Root modal={true}>
+        <Popover.Trigger asChild>
+          <div className="canvas-settings-button" aria-label="Canvas Settings">
+            <Icons.GearIcon />
+          </div>
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content className="canvas-popover" side="top" sideOffset={5}>
+            <CanvasSettingsEditor
+              settings={settings}
+              setSettings={setSettings}
+            />
+            <Popover.Arrow className="arrow" />
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+
       <canvas
         ref={ref}
         style={{

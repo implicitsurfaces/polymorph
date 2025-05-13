@@ -1,10 +1,10 @@
-import { createContext } from "react";
+import { createContext, useContext } from "react";
 import { DocumentManager } from "./DocumentManager";
 
-interface DocumentManagerContext {
-  documentManager: DocumentManager;
-}
+export const DocumentManagerContext = createContext<DocumentManager>(
+  new DocumentManager(),
+);
 
-export const DocumentManagerContext = createContext<DocumentManagerContext>({
-  documentManager: new DocumentManager(),
-});
+export const useDocumentManager = (): DocumentManager => {
+  return useContext(DocumentManagerContext);
+};

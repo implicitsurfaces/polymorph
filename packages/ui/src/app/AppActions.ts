@@ -9,6 +9,8 @@ export const actions = {
   Save: new Actions.SaveAction(),
   SaveAs: new Actions.SaveAsAction(),
 
+  ToggleSideBySideCanvas: new Actions.ToggleSideBySideCanvasAction(),
+
   AddDistance: new Actions.AddDistanceAction(),
 
   SelectTool: new Tools.SelectTool(),

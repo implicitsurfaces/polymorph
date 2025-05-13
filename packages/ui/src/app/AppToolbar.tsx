@@ -11,6 +11,7 @@ export function AppToolbar() {
         <MenuActionItem action={actions.Open} />
         <MenuActionItem action={actions.Save} />
         <MenuActionItem action={actions.SaveAs} />
+        <MenuActionItem action={actions.ToggleSideBySideCanvas} />
       </ToolbarMenu>
       <ToolbarActionItem action={actions.SelectTool} />
       <ToolbarActionItem action={actions.PointTool} />

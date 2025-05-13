@@ -1,19 +1,16 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import {
-  Panel,
-  PanelGroup,
-  PanelResizeHandle,
-  PointerHitAreaMargins,
-} from "react-resizable-panels";
 
 import { DocumentManager } from "./doc/DocumentManager";
 import { DocumentManagerContext } from "./doc/DocumentManagerContext";
+
+import { View, defaultView, ViewContext } from "./view";
 
 import { TriggerAction } from "./actions/Action";
 import { Tool } from "./tools/Tool";
 
 import { CurrentTool, CurrentToolContext } from "./components/CurrentTool";
-import { Canvas, CanvasSettings } from "./components/Canvas";
+import { Panel, PanelGroup, PanelResizeHandle } from "./components/Panel";
+import { CanvasPanels } from "./components/CanvasPanels";
 import { LayersPanel } from "./components/LayersPanel";
 import { SkeletonPanel, MeasuresPanel } from "./components/NodeListPanel";
 import { PropertiesPanel } from "./components/PropertiesPanel";
@@ -22,12 +19,6 @@ import { actions } from "./app/AppActions";
 import { AppToolbar } from "./app/AppToolbar";
 
 import "./App.css";
-import "./components/Panel.css";
-
-function panelHitMargins(): PointerHitAreaMargins {
-  // separator (0-2px) + 2 * margins (3px) = 6-8px total hit area
-  return { coarse: 3, fine: 3 };
-}
 
 type ClientSize = {
   width: number;
@@ -59,9 +50,17 @@ function App() {
 
   documentManager.onChange(onDocumentChange);
 
+  // View state and context
+  const [view, setView] = useState<View>(defaultView);
+  const viewContext: ViewContext = useMemo(() => ({ view, setView }), [view]);
+
   // Current tool
   const [currentTool, setCurrentTool] = useState<CurrentTool>(
     actions.SelectTool,
+  );
+  const currentToolContext: CurrentToolContext = useMemo(
+    () => ({ currentTool, setCurrentTool }),
+    [currentTool],
   );
 
   // Application-wide shortcuts
@@ -73,7 +72,7 @@ function App() {
             // Prevent browser doing its own thing (e.g., its own implementation
             // of undo/redo, etc.)
             event.preventDefault();
-            action.onTrigger(documentManager);
+            action.onTrigger(documentManager, viewContext);
             return;
           } else if (action instanceof Tool) {
             setCurrentTool(action);
@@ -82,7 +81,7 @@ function App() {
         }
       }
     },
-    [documentManager],
+    [documentManager, viewContext],
   );
 
   useEffect(() => {
@@ -127,12 +126,6 @@ function App() {
       elementObserver.unobserve(element);
     };
   }, [elementObserver]);
-
-  // Canvas settings
-  const [leftCanvasSettings] = useState(() => new CanvasSettings());
-  const [rightCanvasSettings] = useState(
-    () => new CanvasSettings({ sdfTest: true }),
-  );
 
   // Do not create any Panel components until we know the size of the app via
   // the ResizeObserver, so that we can provide an appropriate defaultSize to
@@ -181,62 +174,44 @@ function App() {
 
   return (
     <div className="app" ref={ref}>
-      <DocumentManagerContext.Provider
-        value={{
-          documentManager,
-        }}
-      >
-        <CurrentToolContext.Provider
-          value={{
-            currentTool,
-            setCurrentTool,
-          }}
-        >
-          <AppToolbar />
-          <PanelGroup className="root-panel-group" direction="vertical">
-            <Panel>
-              <PanelGroup className="canvas-panel-group" direction="horizontal">
-                <Panel defaultSize={50} minSize={10}>
-                  <Canvas
-                    documentManager={documentManager}
-                    initialSettings={leftCanvasSettings}
-                  />
-                </Panel>
-                <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
-                <Panel minSize={10}>
-                  <Canvas
-                    documentManager={documentManager}
-                    initialSettings={rightCanvasSettings}
-                  />
-                </Panel>
-              </PanelGroup>
-            </Panel>
-            <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
-            <Panel>
-              <PanelGroup className="panels-panel-group" direction="horizontal">
-                <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
-                  <LayersPanel documentManager={documentManager} />
-                </Panel>
-                <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
-                <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
-                  <SkeletonPanel documentManager={documentManager} />
-                </Panel>
-                <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
-                <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
-                  <MeasuresPanel documentManager={documentManager} />
-                </Panel>
-                <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
-                <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
-                  <PropertiesPanel documentManager={documentManager} />
-                </Panel>
-                <PanelResizeHandle hitAreaMargins={panelHitMargins()} />
-                <Panel minSize={0}>
-                  <div className="panel leftover" />
-                </Panel>
-              </PanelGroup>
-            </Panel>
-          </PanelGroup>
-        </CurrentToolContext.Provider>
+      <DocumentManagerContext.Provider value={documentManager}>
+        <ViewContext.Provider value={viewContext}>
+          <CurrentToolContext.Provider value={currentToolContext}>
+            <AppToolbar />
+            <PanelGroup className="root-panel-group" direction="vertical">
+              <Panel>
+                <CanvasPanels />
+              </Panel>
+              <PanelResizeHandle />
+              <Panel>
+                <PanelGroup
+                  className="panels-panel-group"
+                  direction="horizontal"
+                >
+                  <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
+                    <LayersPanel documentManager={documentManager} />
+                  </Panel>
+                  <PanelResizeHandle />
+                  <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
+                    <SkeletonPanel documentManager={documentManager} />
+                  </Panel>
+                  <PanelResizeHandle />
+                  <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
+                    <MeasuresPanel documentManager={documentManager} />
+                  </Panel>
+                  <PanelResizeHandle />
+                  <Panel defaultSize={panelDefaultSize} minSize={panelMinSize}>
+                    <PropertiesPanel documentManager={documentManager} />
+                  </Panel>
+                  <PanelResizeHandle />
+                  <Panel minSize={0}>
+                    <div className="panel leftover" />
+                  </Panel>
+                </PanelGroup>
+              </Panel>
+            </PanelGroup>
+          </CurrentToolContext.Provider>
+        </ViewContext.Provider>
       </DocumentManagerContext.Provider>
     </div>
   );

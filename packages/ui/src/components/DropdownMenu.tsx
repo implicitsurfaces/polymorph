@@ -1,10 +1,11 @@
-import { ReactNode, useContext } from "react";
+import { ReactNode } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 
-import { DocumentManagerContext } from "../doc/DocumentManagerContext";
+import { useDocumentManager } from "../doc/DocumentManagerContext";
 import { Action, TriggerAction } from "../actions/Action";
 
 import "./DropdownMenu.css";
+import { useViewContext } from "../view";
 
 interface MenuProps {
   children: ReactNode;
@@ -35,11 +36,12 @@ interface MenuActionItemProps {
 }
 
 export function MenuActionItem({ action }: MenuActionItemProps) {
-  const { documentManager } = useContext(DocumentManagerContext);
+  const documentManager = useDocumentManager();
+  const viewContext = useViewContext();
 
   function onClick(action: Action) {
     if (action instanceof TriggerAction) {
-      action.onTrigger(documentManager);
+      action.onTrigger(documentManager, viewContext);
     }
   }
 

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useContext } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Vector2 } from "threejs-math";
 
 import { Camera2 } from "../canvas/Camera2";
@@ -12,7 +12,7 @@ import {
 
 import { DocumentManager } from "../doc/DocumentManager";
 
-import { CurrentToolContext } from "./CurrentTool";
+import { useCurrentToolContext } from "./CurrentTool";
 
 import { generate as generateShortUuId } from "short-uuid";
 
@@ -107,7 +107,8 @@ export function CanvasSettingsEditor({
 
 interface CanvasProps {
   documentManager: DocumentManager;
-  initialSettings: CanvasSettings;
+  settings: CanvasSettings;
+  setSettings: (newSettings: CanvasSettings) => void;
 }
 
 type IPointerEvent = PointerEvent | React.PointerEvent;
@@ -128,11 +129,14 @@ function makeCanvasPointerEvent(
   };
 }
 
-export function Canvas({ documentManager, initialSettings }: CanvasProps) {
-  const [settings, setSettings] = useState<CanvasSettings>(initialSettings);
+export function Canvas({
+  documentManager,
+  settings,
+  setSettings,
+}: CanvasProps) {
   const [camera, setCamera] = useState<Camera2>(new Camera2());
   const [pointerState, setPointerState] = useState<PointerState | null>(null);
-  const { currentTool } = useContext(CurrentToolContext);
+  const { currentTool } = useCurrentToolContext();
 
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const ref = useRef<HTMLCanvasElement | null>(null);

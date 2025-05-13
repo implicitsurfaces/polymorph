@@ -1,7 +1,7 @@
-import { ReactNode, useContext } from "react";
+import { ReactNode } from "react";
 
-import { CurrentToolContext } from "./CurrentTool";
-import { DocumentManagerContext } from "../doc/DocumentManagerContext";
+import { useCurrentToolContext } from "./CurrentTool";
+import { useDocumentManager } from "../doc/DocumentManagerContext";
 
 import { Action, TriggerAction } from "../actions/Action";
 import { Tool } from "../tools/Tool";
@@ -10,6 +10,7 @@ import { Menu } from "./DropdownMenu";
 import menuIcon from "../assets/tool-icons/menu.svg";
 
 import "./Toolbar.css";
+import { useViewContext } from "../view";
 
 interface ToolbarMenuProps {
   children: ReactNode;
@@ -24,8 +25,9 @@ interface ToolbarActionItemProps {
 }
 
 export function ToolbarActionItem({ action }: ToolbarActionItemProps) {
-  const { documentManager } = useContext(DocumentManagerContext);
-  const { currentTool, setCurrentTool } = useContext(CurrentToolContext);
+  const documentManager = useDocumentManager();
+  const { currentTool, setCurrentTool } = useCurrentToolContext();
+  const viewContext = useViewContext();
 
   const name = action.name;
   const hint = action.shortcut
@@ -37,7 +39,7 @@ export function ToolbarActionItem({ action }: ToolbarActionItemProps) {
     if (action instanceof Tool) {
       setCurrentTool(action);
     } else if (action instanceof TriggerAction) {
-      action.onTrigger(documentManager);
+      action.onTrigger(documentManager, viewContext);
     }
   }
 

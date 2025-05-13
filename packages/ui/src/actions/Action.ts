@@ -1,5 +1,6 @@
 import { KeyboardShortcut } from "./KeyboardShortcut";
 import { DocumentManager } from "../doc/DocumentManager";
+import { ViewContext } from "../view";
 
 export interface ActionProps {
   readonly name: string;
@@ -49,5 +50,8 @@ export abstract class TriggerAction extends Action {
    * indicating why the action could not be performed(example: "Please select
    * two points.").
    */
-  abstract onTrigger(documentManager: DocumentManager): string | void;
+  abstract onTrigger(
+    documentManager: DocumentManager,
+    viewContext: ViewContext,
+  ): string | void;
 }

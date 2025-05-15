@@ -1,3 +1,4 @@
+import { angleBetweenVecs } from "./angle";
 import {
   ColVec3,
   ColVec4,
@@ -57,6 +58,10 @@ export class Point2D extends Transformable2D<Point2D> {
     return new Point2D((this.x + other.x) / 2, (this.y + other.y) / 2);
   }
 
+  asTuple(): [number, number] {
+    return [this.x, this.y];
+  }
+
   levelSet(p: Point2D): number {
     return this.vecTo(p).magnitude();
   }
@@ -99,6 +104,18 @@ export class Vec2D extends Transformable2D<Vec2D> {
     return Math.sqrt(this.x ** 2 + this.y ** 2);
   }
 
+  asTuple(): [number, number] {
+    return [this.x, this.y];
+  }
+
+  normalize(): Vec2D {
+    const mag = this.magnitude();
+    if (mag === 0) {
+      throw new Error("Cannot normalize a zero vector");
+    }
+    return new Vec2D(this.x / mag, this.y / mag);
+  }
+
   transform(transform: Transform2D): Vec2D {
     const colVec = new ColVec3(this.x, this.y, 0);
     const result = transform.matrix.product(colVec);
@@ -122,14 +139,34 @@ export class Line2D extends Transformable2D<Line2D> {
     const a = p2.y - p1.y;
     const b = p1.x - p2.x;
     const c = a * p1.x + b * p1.y;
-    return new Line2D(a, b, c);
+    return new Line2D(a, b, -c);
   }
 
   static fromPointAndVec(p: Point2D, v: Vec2D): Line2D {
     const a = v.y;
     const b = -v.x;
     const c = a * p.x + b * p.y;
-    return new Line2D(a, b, c);
+    return new Line2D(a, b, -c);
+  }
+
+  get normal(): Vec2D {
+    return new Vec2D(this.a, this.b);
+  }
+
+  get direction(): Vec2D {
+    return new Vec2D(-this.b, this.a);
+  }
+
+  segment(p1: Point2D, p2: Point2D): Segment2D {
+    const normal = this.normal;
+
+    const startLimit = Line2D.fromPointAndVec(p1, normal);
+    const endLimit = Line2D.fromPointAndVec(p2, normal);
+
+    return new Segment2D(this, [
+      new HalfPlane2D(startLimit, false),
+      new HalfPlane2D(endLimit, true),
+    ]);
   }
 
   clip(line: Line2D, reverse = false): Segment2D {
@@ -137,8 +174,18 @@ export class Line2D extends Transformable2D<Line2D> {
     return new Segment2D(this, [clipSection]);
   }
 
+  partition(line: Line2D, reverse = false): Partition2D {
+    const clipSection = new HalfPlane2D(line, reverse);
+    return new Partition2D(this, [clipSection]);
+  }
+
   levelSet(p: Point2D): number {
-    return this.a * p.x + this.b * p.y - this.c;
+    return this.a * p.x + this.b * p.y + this.c;
+  }
+
+  windingNumber(p: Point2D): number {
+    const levelSet = this.levelSet(p);
+    return Math.sign(levelSet) * 0.5;
   }
 
   transform(transform: Transform2D): Line2D {
@@ -152,20 +199,28 @@ export class Line2D extends Transformable2D<Line2D> {
 export class HalfPlane2D extends Transformable2D<HalfPlane2D> {
   constructor(
     public readonly line: Line2D,
-    public readonly greaterSide: boolean,
+    public readonly inverse: boolean,
   ) {
     super();
   }
 
+  isInside(p: Point2D): boolean {
+    return this.levelSet(p) < 0;
+  }
+
   levelSet(p: Point2D): number {
     const levelSet = this.line.levelSet(p);
-    const isInside = this.greaterSide ? levelSet >= 0 : levelSet <= 0;
-    return isInside ? 0 : levelSet;
+    return this.inverse ? -levelSet : levelSet;
+  }
+
+  windingNumber(p: Point2D): number {
+    const levelSet = this.levelSet(p);
+    return Math.sign(levelSet) * 0.5;
   }
 
   transform(transform: Transform2D): HalfPlane2D {
     const line = this.line.transform(transform);
-    return new HalfPlane2D(line, this.greaterSide);
+    return new HalfPlane2D(line, this.inverse);
   }
 }
 
@@ -177,9 +232,19 @@ export class Conic2D extends Transformable2D<Conic2D> {
     super();
   }
 
+  segment(p1: Point2D, p2: Point2D): Segment2D {
+    const line = Line2D.fromPoints(p2, p1);
+    return this.clip(line);
+  }
+
   clip(line: Line2D, reverse = false): Segment2D {
     const clipSection = new HalfPlane2D(line, reverse);
     return new Segment2D(this, [clipSection]);
+  }
+
+  partition(line: Line2D, reverse = false): Partition2D {
+    const clipSection = new HalfPlane2D(line, reverse);
+    return new Partition2D(this, [clipSection]);
   }
 
   get matrix(): Matrix3x3 {
@@ -198,13 +263,65 @@ export class Conic2D extends Transformable2D<Conic2D> {
     return colVec.transpose().dot(this.matrix.product(colVec));
   }
 
+  windingNumber(p: Point2D): number {
+    const levelSet = this.levelSet(p);
+    return Math.sign(levelSet);
+  }
+
   transform(transform: Transform2D): Conic2D {
     const newTransform = this.transformation.compose(transform.reverse());
     return new Conic2D(newTransform);
   }
+
+  contains(p: Point2D): boolean {
+    const levelSet = this.levelSet(p);
+    return levelSet < 0;
+  }
+
+  orientationSign = 1;
 }
 
-type Curve2D = Line2D | Conic2D;
+export type PrimitiveCurve2D = Line2D | Conic2D;
+
+function insideHalfPlanes(point: Point2D, halfPlanes: HalfPlane2D[]): boolean {
+  return halfPlanes.every((halfPlane) => halfPlane.isInside(point));
+}
+
+export class Partition2D extends Transformable2D<Partition2D> {
+  constructor(
+    public readonly curve: Curve2D,
+    public readonly clipSections: HalfPlane2D[],
+  ) {
+    super();
+
+    if (curve instanceof Partition2D) {
+      this.curve = curve.curve;
+      this.clipSections = [...curve.clipSections, ...clipSections];
+    }
+  }
+
+  clip(line: Line2D, reverse = false): Segment2D {
+    const clipSection = new HalfPlane2D(line, reverse);
+    return new Segment2D(this, [clipSection]);
+  }
+
+  partition(line: Line2D, reverse = false): Partition2D {
+    const clipSection = new HalfPlane2D(line, reverse);
+    return new Partition2D(this.curve, [...this.clipSections, clipSection]);
+  }
+
+  transform(transform: Transform2D): Partition2D {
+    const curve = this.curve.transform(transform);
+    const section = this.clipSections.map((halfPlane) =>
+      halfPlane.transform(transform),
+    );
+    return new Partition2D(curve, section);
+  }
+
+  levelSet(p: Point2D): number {
+    return insideHalfPlanes(p, this.clipSections) ? this.curve.levelSet(p) : 10;
+  }
+}
 
 export class Segment2D extends Transformable2D<Segment2D> {
   constructor(
@@ -228,14 +345,126 @@ export class Segment2D extends Transformable2D<Segment2D> {
   }
 
   levelSet(p: Point2D): number {
-    const level = Math.abs(this.curve.levelSet(p));
-    const boundaryLevelSet = this.clipSections.map((halfPlane) =>
-      Math.abs(halfPlane.levelSet(p)),
-    );
-
-    return Math.max(level, ...boundaryLevelSet);
+    return insideHalfPlanes(p, this.clipSections)
+      ? Math.abs(this.curve.levelSet(p))
+      : 10;
   }
 }
+
+export class ReversedConic2D extends Conic2D {
+  constructor(public readonly transformation: Transform2D) {
+    super(transformation);
+  }
+
+  clip(line: Line2D, reverse = false): Segment2D {
+    const clipSection = new HalfPlane2D(line, !reverse);
+    return new Segment2D(this, [clipSection]);
+  }
+
+  levelSet(p: Point2D): number {
+    return -super.levelSet(p);
+  }
+
+  transform(transform: Transform2D): ReversedConic2D {
+    const newTransform = this.transformation.compose(transform.reverse());
+    return new ReversedConic2D(newTransform);
+  }
+
+  orientationSign = -1;
+  contains(p: Point2D): boolean {
+    const levelSet = this.levelSet(p);
+    return levelSet > 0;
+  }
+}
+
+export class ClosedPath2D extends Transformable2D<ClosedPath2D> {
+  private _segments: Segment2D[] | null = null;
+  private _orientationSign: number | null = null;
+  constructor(
+    public readonly points: Point2D[],
+    public readonly curves: (PrimitiveCurve2D | ReversedConic2D)[],
+  ) {
+    super();
+  }
+
+  get orientationSign(): number {
+    if (!this._orientationSign) {
+      const surfaceArea = this.points.reduce((acc, point, i) => {
+        const nextPoint = this.points[(i + 1) % this.points.length];
+        return acc + (point.x * nextPoint.y - point.y * nextPoint.x);
+      }, 0);
+
+      this._orientationSign = Math.sign(surfaceArea);
+    }
+
+    return this._orientationSign;
+  }
+
+  get segments(): Segment2D[] {
+    if (!this._segments) {
+      this._segments = this.curves.map((curve, i) =>
+        curve.segment(
+          this.points[i],
+          this.points[(i + 1) % this.points.length],
+        ),
+      );
+    }
+    return this._segments!;
+  }
+
+  windingNumber(p: Point2D): number {
+    const windingNumbers = this.curves.map((curve, i) => {
+      const p0 = this.points[i];
+      const p1 = this.points[(i + 1) % this.points.length];
+
+      const v1 = p.vecTo(p0);
+      const v2 = p.vecTo(p1);
+
+      if (v1.magnitude() === 0 || v2.magnitude() === 0) {
+        return 0;
+      }
+
+      const chordWindingNumber =
+        angleBetweenVecs(v1.x, v1.y, v2.x, v2.y).asRad() / (2 * Math.PI);
+
+      if (curve instanceof Line2D) {
+        return chordWindingNumber;
+      }
+
+      // We inverse the orientation sign if we are within the curve and the
+      // chord and curve have different orientations
+
+      const isInside = curve.contains(p);
+
+      if (isInside && Math.sign(chordWindingNumber) !== curve.orientationSign) {
+        return chordWindingNumber - this.orientationSign;
+      } else {
+        return chordWindingNumber;
+      }
+    });
+
+    return windingNumbers.reduce((acc, val) => acc + val, 0);
+  }
+
+  levelSet(p: Point2D): number {
+    const levels = this.segments.map((segment) => segment.levelSet(p));
+    const chordLevelSet = Math.min(...levels);
+
+    const windingNumber = this.windingNumber(p);
+
+    const isInside = Math.abs(windingNumber) < 0.5;
+
+    return isInside ? chordLevelSet : -chordLevelSet;
+  }
+
+  transform(transform: Transform2D): ClosedPath2D {
+    const newSegments = this.curves.map((curve) => curve.transform(transform));
+    const newPoints = this.points.map((point) => point.transform(transform));
+    return new ClosedPath2D(newPoints, newSegments);
+  }
+}
+
+export type Curve2D = Line2D | Conic2D | ClosedPath2D | Partition2D;
 
 export class Point3D extends Transformable3D<Point3D> {
   constructor(
@@ -298,6 +527,10 @@ export class Point3D extends Transformable3D<Point3D> {
       result.x3 / result.x4,
     );
   }
+
+  asTuple(): [number, number, number] {
+    return [this.x, this.y, this.z];
+  }
 }
 
 export class Vec3D extends Transformable3D<Vec3D> {
@@ -335,12 +568,24 @@ export class Vec3D extends Transformable3D<Vec3D> {
     return this.x ** 2 + this.y ** 2 + this.z ** 2;
   }
 
+  normalize(): Vec3D {
+    const mag = this.magnitude();
+    if (mag === 0) {
+      throw new Error("Cannot normalize a zero vector");
+    }
+    return new Vec3D(this.x / mag, this.y / mag, this.z / mag);
+  }
+
   cross(other: Vec3D): Vec3D {
     return new Vec3D(
       this.y * other.z - this.z * other.y,
       this.z * other.x - this.x * other.z,
       this.x * other.y - this.y * other.x,
     );
+  }
+
+  asTuple(): [number, number, number] {
+    return [this.x, this.y, this.z];
   }
 }
 
@@ -373,7 +618,8 @@ export class Plane extends Transformable3D<Plane> {
   }
 
   slice(slicePlane: Plane): Line2D {
-    const dir = this.normal.cross(slicePlane.normal);
+    //const dir = this.normal.cross(slicePlane.normal);
+    const dir = slicePlane.normal.cross(this.normal);
     if (dir.magnitudeSquared() === 0) {
       return new Line2D(0, 0, this.d - slicePlane.d);
     }
@@ -403,14 +649,14 @@ export class Plane extends Transformable3D<Plane> {
       point = new Point3D(x, y, 0);
     }
 
-    const projectedDir = Vec2D.fromCoords(
-      slicePlane.coordinateSystem.globalToLocal(dir),
-    );
     const projectedPoint = Point2D.fromCoords(
       slicePlane.coordinateSystem.globalToLocal(point),
     );
+    const p2 = Point2D.fromCoords(
+      slicePlane.coordinateSystem.globalToLocal(point.add(dir)),
+    );
 
-    return Line2D.fromPointAndVec(projectedPoint, projectedDir);
+    return Line2D.fromPoints(projectedPoint, p2);
   }
 
   transform(transform: Transform3D): Plane {
@@ -429,6 +675,11 @@ export class Plane extends Transformable3D<Plane> {
     );
   }
 
+  translateNormal(distance: number): Plane {
+    const normal = this.normal.normalize();
+    return this.translate(normal.scale(distance));
+  }
+
   levelSet(point: Point3D): number {
     return this.a * point.x + this.b * point.y + this.c * point.z + this.d;
   }
@@ -440,11 +691,13 @@ export class Plane extends Transformable3D<Plane> {
 
   get coordinateSystem(): PlanarCoordinateSystem {
     if (!this._coordinateSystem) {
-      this._coordinateSystem = new PlanarCoordinateSystem(
-        canonicalCoordinateSystem(this.asTuple()),
-      );
+      this._coordinateSystem = canonicalCoordinateSystem(this.asTuple());
     }
     return this._coordinateSystem!;
+  }
+
+  embed(curve: Curve2D): Curve3D {
+    return new Curve3D(curve, this);
   }
 }
 
@@ -453,12 +706,38 @@ function planarTransfrom(
   toPlane: Plane,
   transformMatrix3D: Matrix4x4,
 ): Transform2D {
-  const fromCoords = fromPlane.coordinateSystem.globalToLocalConversion;
-  const toCoords = toPlane.coordinateSystem.globalToLocalConversion;
+  const fromCoords = fromPlane.coordinateSystem.localToGlobalMatrix;
+  const toCoords = toPlane.coordinateSystem.globalToLocalMatrix;
 
   const transformationMatrix = toCoords.mul(transformMatrix3D).mul(fromCoords);
 
   return new Transform2D(asInPlaneTransformation(transformationMatrix));
+}
+
+export function screenToScreenProjection(
+  sourceScreen: Plane,
+  targetScreen: Plane,
+  direction: Vec3D,
+): Transform2D {
+  const projectionMatrix = projectToPlaneInDirection(
+    targetScreen.asTuple(),
+    direction.asTuple(),
+  );
+
+  return planarTransfrom(sourceScreen, targetScreen, projectionMatrix);
+}
+
+export function screenToScreenPerspectiveProjection(
+  sourceScreen: Plane,
+  targetScreen: Plane,
+  apex: Point3D,
+): Transform2D {
+  const projectionMatrix = projectToPlaneWithPoint(
+    targetScreen.asTuple(),
+    apex.asTuple(),
+  );
+
+  return planarTransfrom(sourceScreen, targetScreen, projectionMatrix);
 }
 
 export class Curve3D extends Transformable3D<Curve3D> {
@@ -469,15 +748,13 @@ export class Curve3D extends Transformable3D<Curve3D> {
     super();
   }
 
-  projectIntoPlane(targetPlane: Plane): Curve3D {
-    const transformMatrix =
-      targetPlane.coordinateSystem.globalToLocalConversion.mul(
-        this.plane.coordinateSystem.localToGlobalConversion,
-      );
-    const transform = new Transform2D(asInPlaneTransformation(transformMatrix));
-
-    const newCurve = this.curve.transform(transform);
-    return new Curve3D(newCurve, targetPlane);
+  projectIntoPlane(targetPlane: Plane): Curve2D {
+    const transform = screenToScreenProjection(
+      this.plane,
+      targetPlane,
+      targetPlane.normal,
+    );
+    return this.curve.transform(transform);
   }
 
   transform(transform: Transform3D): Curve3D {
@@ -503,23 +780,17 @@ export class Cylinder extends Transformable3D<Cylinder> {
     return new Patch(this, [clipSection]);
   }
 
-  slice(slicePlane: Plane): Curve2D {
-    const projectionDir: [number, number, number] = [
-      this.baseCurve.plane.a,
-      this.baseCurve.plane.b,
-      this.baseCurve.plane.c,
-    ];
-    const projectionMatrix = projectToPlaneInDirection(
-      slicePlane.asTuple(),
-      projectionDir,
-    );
+  partition(plane: Plane, reverse = false): Partition3D {
+    const clipSection = new HalfSpace3D(plane, reverse);
+    return new Partition3D(this, [clipSection]);
+  }
 
-    const transform = planarTransfrom(
+  slice(slicePlane: Plane): Curve2D {
+    const transform = screenToScreenProjection(
       this.baseCurve.plane,
       slicePlane,
-      projectionMatrix,
+      this.baseCurve.plane.normal,
     );
-
     return this.baseCurve.curve.transform(transform);
   }
 
@@ -540,6 +811,11 @@ export class Cone extends Transformable3D<Cone> {
   clip(plane: Plane, reverse = false): Patch {
     const clipSection = new HalfSpace3D(plane, reverse);
     return new Patch(this, [clipSection]);
+  }
+
+  partition(plane: Plane, reverse = false): Partition3D {
+    const clipSection = new HalfSpace3D(plane, reverse);
+    return new Partition3D(this, [clipSection]);
   }
 
   slice(slicePlane: Plane): Curve2D {
@@ -568,27 +844,29 @@ export class Cone extends Transformable3D<Cone> {
 export class HalfSpace3D extends Transformable3D<HalfSpace3D> {
   constructor(
     public readonly plane: Plane,
-    public readonly greaterSide: boolean,
+    public readonly inverse: boolean,
   ) {
     super();
   }
 
   transform(transform: Transform3D): HalfSpace3D {
     const plane = this.plane.transform(transform);
-    return new HalfSpace3D(plane, this.greaterSide);
+    return new HalfSpace3D(plane, this.inverse);
   }
 
   slice(slicePlane: Plane): HalfPlane2D {
     const planeSlice = this.plane.slice(slicePlane);
-    return new HalfPlane2D(planeSlice, this.greaterSide);
+    return new HalfPlane2D(planeSlice, this.inverse);
   }
 }
 
 export type Surface3D = Plane | Cone | Cylinder;
 
+export type Solid = Cylinder | Cone | Partition3D;
+
 export class Patch extends Transformable3D<Patch> {
   constructor(
-    public readonly baseSurface: Surface3D,
+    public readonly baseSurface: Surface3D | Solid,
     public readonly clipSections: HalfSpace3D[],
   ) {
     super();
@@ -614,5 +892,41 @@ export class Patch extends Transformable3D<Patch> {
       halfSpace.transform(transform),
     );
     return new Patch(baseSurface, section);
+  }
+}
+
+export class Partition3D extends Transformable3D<Partition3D> {
+  constructor(
+    public readonly baseSolid: Solid,
+    public readonly clipSections: HalfSpace3D[],
+  ) {
+    super();
+  }
+
+  clip(plane: Plane, reverse = false): Patch {
+    const clipSection = new HalfSpace3D(plane, reverse);
+    return new Patch(this.baseSolid, [clipSection]);
+  }
+
+  partition(plane: Plane, reverse = false): Partition3D {
+    const clipSection = new HalfSpace3D(plane, reverse);
+    return new Partition3D(this.baseSolid, [...this.clipSections, clipSection]);
+  }
+
+  slice(slicePlane: Plane): Partition2D {
+    const curveSlice = this.baseSolid.slice(slicePlane);
+    const halfPlanes = this.clipSections.map((halfSpace) =>
+      halfSpace.slice(slicePlane),
+    );
+
+    return new Partition2D(curveSlice, halfPlanes);
+  }
+
+  transform(transform: Transform3D): Partition3D {
+    const baseSolid = this.baseSolid.transform(transform);
+    const section = this.clipSections.map((halfSpace) =>
+      halfSpace.transform(transform),
+    );
+    return new Partition3D(baseSolid, section);
   }
 }

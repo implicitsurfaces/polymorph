@@ -89,6 +89,22 @@ export function parabola(
   return new Conic2D(transform);
 }
 
+export function circleFromBulge(
+  startPoint: Point2D,
+  endPoint: Point2D,
+  bulge: number,
+) {
+  const chord = startPoint.vecTo(endPoint);
+  const chordPerp = chord.perp();
+
+  const bb = (bulge - 1 / bulge) / 4;
+
+  const center = startPoint.midPoint(endPoint).sub(chordPerp.scale(bb));
+  const radius = Math.abs((chord.magnitude() / 4) * (bulge + 1 / bulge));
+
+  return circle(radius).translate(center);
+}
+
 export function arc(startPoint: Point2D, endPoint: Point2D, bulge: number) {
   const chord = startPoint.vecTo(endPoint);
   const chordPerp = chord.perp();

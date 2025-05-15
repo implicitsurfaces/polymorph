@@ -29,11 +29,15 @@ export class Transform2D {
     return this.compose(other);
   }
 
-  reverse(): Transform2D {
+  get reverseMatrix(): Matrix3x3 {
     if (!this._inverseMatrix) {
       this._inverseMatrix = this.matrix.inverse();
     }
-    return new Transform2D(this._inverseMatrix!);
+    return this._inverseMatrix!;
+  }
+
+  reverse(): Transform2D {
+    return new Transform2D(this.reverseMatrix);
   }
 }
 
@@ -150,7 +154,10 @@ export class Transform3D {
   }
 
   compose(other: Transform3D): Transform3D {
-    return new Transform3D(this.matrix.mul(other.matrix));
+    return new Transform3D(
+      this.matrix.mul(other.matrix),
+      this._inverseMatrix ? other.reverseMatrix.mul(this._inverseMatrix) : null,
+    );
   }
 
   followedBy(other: Transform3D): Transform3D {
@@ -161,11 +168,15 @@ export class Transform3D {
     return this.compose(other);
   }
 
-  reverse(): Transform3D {
+  get reverseMatrix(): Matrix4x4 {
     if (!this._inverseMatrix) {
       this._inverseMatrix = this.matrix.inverse();
     }
-    return new Transform3D(this._inverseMatrix!);
+    return this._inverseMatrix!;
+  }
+
+  reverse(): Transform3D {
+    return new Transform3D(this.reverseMatrix);
   }
 }
 
@@ -301,6 +312,24 @@ export const rotationAroundZAxisTransform3D = (angle: Angle): Transform3D => {
   return new Transform3D(matrix, matrix.transpose());
 };
 
+export const mirrorXYTransform3D = (): Transform3D =>
+  new Transform3D(
+    new Matrix4x4(1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1),
+    new Matrix4x4(1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1),
+  );
+
+export const mirrorXZTransform3D = (): Transform3D =>
+  new Transform3D(
+    new Matrix4x4(1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1),
+    new Matrix4x4(1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1),
+  );
+
+export const mirrorYZTransform3D = (): Transform3D =>
+  new Transform3D(
+    new Matrix4x4(-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1),
+    new Matrix4x4(-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1),
+  );
+
 interface ITransformable3D {
   transform(transform: Transform3D): ITransformable3D;
 }
@@ -407,6 +436,17 @@ export abstract class Transformable3D<T extends Transformable3D<T>> {
     } else {
       return this.transform(rotationTransform3D(alpha, axis.x, axis.y, axis.z));
     }
+  }
+
+  mirror(plane: "xy" | "xz" | "yz"): T {
+    if (plane === "xy") {
+      return this.transform(mirrorXYTransform3D());
+    } else if (plane === "xz") {
+      return this.transform(mirrorXZTransform3D());
+    } else if (plane === "yz") {
+      return this.transform(mirrorYZTransform3D());
+    }
+    throw new Error(`Invalid plane: ${plane}`);
   }
 
   scale(x: number, y: number, z: number): T {

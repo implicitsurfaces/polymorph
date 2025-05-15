@@ -103,3 +103,24 @@ export function angleFromVec(x: number, y: number): Angle {
   }
   return angleFromUnitVec(x / norm, y / norm);
 }
+
+export function angleBetweenVecs(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): Angle {
+  const mag1 = Math.sqrt(x1 * x1 + y1 * y1);
+  const mag2 = Math.sqrt(x2 * x2 + y2 * y2);
+
+  const mag = mag1 * mag2;
+
+  if (mag === 0) {
+    throw new Error("Cannot calculate angle with zero-length vector");
+  }
+
+  const dot = x1 * x2 + y1 * y2;
+  const cross = x1 * y2 - y1 * x2;
+
+  return new Angle(dot / mag, cross / mag);
+}

@@ -641,7 +641,7 @@ function shapeToSVGPath(
   return paths
     .map(
       (svgPath) =>
-        `<path d="${svgPath}" fill="none" stroke="${config.color || "grey"}" stroke-width="${(size / 400) * (config.strokeWidth || 1)}"/>`,
+        `<path d="${svgPath}" fill="none" stroke="${config.color || "lightgrey"}" stroke-width="${(size / 400) * (config.strokeWidth || 1)}"/>`,
     )
     .join("\n");
 }
@@ -656,12 +656,12 @@ export function renderAsSVG(
     shape = [shape];
   }
 
-  return `<svg width="750px" height="750px" viewBox="${viewBox(options)}" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="0" cy="0" r="${size / 200}" fill="black" />
+  return `<svg width="750px" height="750px" viewBox="${viewBox(options)}" xmlns="http://www.w3.org/2000/svg" style="background-color: black">
+    <circle cx="0" cy="0" r="${size / 200}" fill="lightgrey" />
   ${shape
     .map((s) => {
       if (s instanceof Point2D) {
-        return `<circle cx="${s.x}" cy="${-s.y}" r="${size / 200}" fill="none" stroke="black" stroke-width="${size / 400}" />`;
+        return `<circle cx="${s.x}" cy="${-s.y}" r="${size / 200}" fill="none" stroke="lightgrey" stroke-width="${size / 400}" />`;
       }
       return shapeToSVGPath(s, options);
     })

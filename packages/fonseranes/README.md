@@ -6,7 +6,7 @@ You can run the examples in the `examples` folder by executing the following com
 
 ```bash
 npx tsx examples/conics.ts
-npx tsx examples/surfaces.ts.ts
+npx tsx examples/surfaces.ts
 npx tsx examples/patches.ts
 ```
 

@@ -21,7 +21,7 @@ export function sliceToHeight(
   const slices: ShapeInput[] = [shape.slice(basePlane)];
   for (let i = step; i < height; i += step) {
     slices.push({
-      shape: shape.slice(basePlane.translateZ(i)),
+      shape: shape.slice(basePlane.translateNormal(i)),
       strokeWidth: 0.4,
     });
   }
@@ -29,4 +29,27 @@ export function sliceToHeight(
   slices.push(shape.slice(basePlane.translateZ(height)));
 
   return slices;
+}
+
+export function movieSlices(
+  shape: any,
+  basePlane = XY_Plane,
+  steps: number[],
+  baseName = "movie",
+) {
+  const cleanedShape = (Array.isArray(shape) ? shape : [shape]).map((s) => {
+    if ("shape" in s) return s;
+    return { shape: s };
+  });
+
+  steps.forEach((step, index) => {
+    const raw = cleanedShape.map((s) => {
+      return {
+        ...s,
+        shape: s.shape.slice(basePlane.translateNormal(step)),
+      };
+    });
+    const svg = renderAsSVG(raw);
+    fs.writeFileSync(`${baseName}-${index}.svg`, svg);
+  });
 }
